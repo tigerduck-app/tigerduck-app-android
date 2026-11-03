@@ -218,6 +218,30 @@ class UploadLedgerTest {
         )
     }
 
+    /**
+     * A list the backend accepted from an earlier build is still the same list: the fingerprint
+     * hashes the body the upload carried then, a picked color included, though no upload carries
+     * one now. Otherwise every term would go again once more for this build's sake.
+     */
+    @Test
+    fun `a term's fingerprint hashes its list as the build before the v4 forms did, colors included`() {
+        val calculus = Course(courseNo = "CS1", courseName = "Calculus", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
+
+        assertEquals(
+            uploadFingerprint(
+                BACKEND,
+                """{"courses":[{"semester":"1151","course_no":"CS1","course_name":"Calculus","moodle_id":"1151CS1","credits":0.0,""" +
+                    """"classroom":"","instructors":[],"schedule_json":{},"classroom_map":{}}],""" +
+                    """"course_overrides":[{"course_key":"client:1151:CS1","color_hex":"#FF0000"}],"roster_terms":["1151"]}""",
+            ),
+            courseUploadFingerprint(BACKEND, listOf(calculus), "1151", rosterTerms = listOf("1151")),
+        )
+        assertNotEquals(
+            courseUploadFingerprint(BACKEND, listOf(calculus), "1151"),
+            courseUploadFingerprint(BACKEND, listOf(calculus.copy(customColorHex = "#00FF00")), "1151"),
+        )
+    }
+
     @Test
     fun `a clock moved back past the last upload sends again`() {
         assertTrue(uploadIsDue("x", acceptedAtMs = 5_000L, fingerprint = "x", nowMs = 4_000L))

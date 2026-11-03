@@ -53,6 +53,6 @@ class CourseOverrideHoldTest {
     }
 
     private companion object {
-        val COURSE = CourseRef(moodleId = null, courseKey = "client:1151:CS1")
+        val COURSE = CourseRef(courseKey = "client:1151:CS1")
     }
 }

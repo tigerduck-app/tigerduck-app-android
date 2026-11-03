@@ -8,13 +8,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
@@ -23,16 +21,13 @@ import org.ntust.app.tigerduck.util.testSignIn
 /**
  * A course hide or add that waited on this phone goes with the time it was made (#591), which
  * the backend applies only when later than the course's last add, hide and reset, as on the
- * iPhone since tigerduck-app#910. One the backend refuses as ahead of its clock goes again
- * without it. Play only: an F-Droid build has no TigerSync, and sends none of these.
+ * iPhone since tigerduck-app#910; one refused as ahead of the backend's clock goes again stamped
+ * from the refusal's clock ([V4WritesTest]). Play only: an F-Droid build has no TigerSync, and
+ * sends none of these.
  */
 class CourseMembershipStampTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private val signIn = testSignIn()
     private lateinit var api: PushApiClient
 
@@ -55,7 +50,7 @@ class CourseMembershipStampTest {
 
     @Test
     fun `a queued hide goes with its time, in microseconds, and no protocol header`() = runTest {
-        api.deleteCourse(KEY, signIn, hiddenAt = AT)
+        api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT, kind = null)
 
         val sent = backend.received(DELETE).single()
         assertEquals("hlc=$HLC", sent.query)
@@ -63,19 +58,10 @@ class CourseMembershipStampTest {
     }
 
     @Test
-    fun `a hide refused as ahead of the clock goes again without its time`() = runTest {
-        backend.answer(DELETE, 409, """{"detail":"clock_ahead"}""")
-
-        api.deleteCourse(KEY, signIn, hiddenAt = AT)
-
-        assertEquals(listOf("hlc=$HLC", ""), backend.received(DELETE).map { it.query })
-    }
-
-    @Test
     fun `a hide refused with another 409 fails and is not sent again`() = runTest {
-        backend.answer(DELETE, 409, """{"detail":"conflict"}""")
+        backend.answer(DELETE, 409, """{"error":"conflict","message":"made up"}""")
 
-        assertTrue(runCatching { api.deleteCourse(KEY, signIn, hiddenAt = AT) }.isFailure)
+        assertTrue(runCatching { api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT, kind = null) }.isFailure)
 
         assertEquals(1, backend.received(DELETE).size)
     }
@@ -83,32 +69,18 @@ class CourseMembershipStampTest {
     // Adds
 
     @Test
-    fun `a queued add goes alone under protocol 2 with its time`() = runTest {
+    fun `a queued add goes alone with its time, and no protocol header or force key`() = runTest {
         val accepted = api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
 
         val sent = backend.received(UPLOAD).single()
-        assertEquals("2", sent.protocol)
+        assertNull(sent.protocol)
         val body = JSONObject(sent.body)
         assertEquals(1, body.getJSONArray("courses").length())
         val add = body.getJSONArray("adds").getJSONObject(0)
         assertEquals(KEY, add.getString("course_key"))
         assertEquals(HLC, add.getLong("hlc"))
-        assertEquals(KEY, body.getJSONArray("force_keys").getString(0))
+        assertFalse(body.has("force_keys"))
         assertEquals(emptyList<String>(), accepted)
-    }
-
-    @Test
-    fun `an add refused as ahead of the clock goes again unstamped, its key still forced`() = runTest {
-        backend.answer(UPLOAD, 409, """{"detail":"clock_ahead"}""")
-
-        api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
-
-        val retried = backend.received(UPLOAD).last()
-        assertEquals(2, backend.received(UPLOAD).size)
-        assertNull(retried.protocol)
-        val body = JSONObject(retried.body)
-        assertFalse(body.has("adds"))
-        assertEquals(KEY, body.getJSONArray("force_keys").getString(0))
     }
 
     /** A hide or reset made after the add won: the backend has settled it, and it waits no more. */
@@ -124,12 +96,14 @@ class CourseMembershipStampTest {
     }
 
     @Test
-    fun `an upload with no add times goes as before, without the header`() = runTest {
+    fun `an upload with no add times names its add as the oldest, without the header`() = runTest {
         api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY))
 
         val sent = backend.received(UPLOAD).single()
         assertNull(sent.protocol)
-        assertFalse(JSONObject(sent.body).has("adds"))
+        val add = JSONObject(sent.body).getJSONArray("adds").getJSONObject(0)
+        assertEquals(KEY, add.getString("course_key"))
+        assertEquals(0L, add.getLong("hlc"))
     }
 
     private fun course() = Course(courseNo = NO, courseName = NO, isManual = true)

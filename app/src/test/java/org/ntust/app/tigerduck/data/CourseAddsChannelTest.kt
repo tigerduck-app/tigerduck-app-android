@@ -14,13 +14,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.CourseUploadListener
 import org.ntust.app.tigerduck.push.PushApiException
@@ -47,19 +44,12 @@ import java.io.File
  * The course adds as an outbox channel ([PendingCourseAdds]), over real files and the real backend
  * client, against a backend that records what reaches it.
  *
- * On `/v3` every request is pinned byte for byte as the queue sent it before it was a channel: its
- * method, address, headers and body, and what each answer leaves queued. On `/v4` (dormant until
- * the flip) the adds an older build kept go stamped (Review Focus 1), an add made with course sync
- * off is kept, a refusal is the backend's to settle unless the course was added again, and a
- * landed upload is acknowledged and tells the outbox.
+ * The adds an older build kept go stamped (Review Focus 1), an add made with course sync off is
+ * kept, a refusal is the backend's to settle unless the course was added again, and a landed
+ * upload is acknowledged and tells the outbox.
  */
 class CourseAddsChannelTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val v3 = "http://127.0.0.1:9/v3"
     private val context = JvmContext()
     private val prefs = AppPreferences(context)
     private val backend = RecordingBackend()
@@ -68,14 +58,11 @@ class CourseAddsChannelTest {
     private val signIn get() = series.current
 
     private val term = "1151"
-    private val nextTerm = "1152"
-    private val portal = Course(courseNo = "CS1010001", courseName = "Portal", moodleIdNumber = "1151CS1010001")
     private val typed = Course(courseNo = "MA1010002", courseName = "Typed", isManual = true, customColorHex = "#336699")
     private val untyped = Course(courseNo = "PE1010003", courseName = "Untimed", isManual = true)
     private val later = Course(courseNo = "XB0000002", courseName = "Next term", isManual = true)
 
     private val bearer = "Authorization" to "Bearer access"
-    private val protocol2 = "X-TigerSync-Protocol" to "2"
     private val json = "application/json; charset=utf-8"
 
     @Before
@@ -84,14 +71,12 @@ class CourseAddsChannelTest {
         assumeTrue(prefs.cloudSyncEnabled)
     }
 
-    private fun v3Adds() = PendingCourseAdds(cache, pushApiClientAt(v3, backend.client, prefs))
-
     private val v4 = "http://127.0.0.1:9/v4"
     private val upload = "/v4/sync/courses/upload"
 
     /** The wall clock, which a test moves. */
     private var nowMs = FIRST_RUN_MS
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)), { BackendApi.V4 }, { nowMs })
+    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)), { nowMs })
     private val ack = AckClock()
 
     // This build first ran at FIRST_RUN_MS, and it is NOW_MS since.
@@ -119,205 +104,6 @@ class CourseAddsChannelTest {
             """"credits":0.0,"classroom":"","instructors":[],"schedule_json":{},"classroom_map":{}}"""
 
     private fun key(course: Course, semester: String = term) = "client:$semester:${course.courseNo}"
-
-    @Test
-    fun `on v3 an add goes alone with its time under protocol 2, its color and its force key`() = runTest {
-        cache.saveCourses(listOf(portal, typed), term, signIn)
-        backend.answer("/v3/sync/courses/upload", 200, """{"accepted_keys":["${key(typed)}"]}""")
-
-        v3Adds().send(listOf(portal, typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
-
-        assertEquals(
-            listOf(
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
-                    """{"courses":[${row(typed)}],"course_overrides":[{"course_key":"${key(typed)}","color_hex":"#336699"}],""" +
-                        """"force_keys":["${key(typed)}"],"adds":[{"course_key":"${key(typed)}","hlc":1790000000123000}]}""",
-                ),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
-        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
-    }
-
-    /** An add with no time goes with the whole list it was made from, as it always went. */
-    @Test
-    fun `on v3 an add with no time goes with the list it came from, its force key and no protocol`() = runTest {
-        cache.saveCourses(listOf(portal, untyped), term, signIn)
-
-        v3Adds().send(listOf(portal, untyped), term, untyped.courseNo, signIn = signIn)
-
-        assertEquals(
-            listOf(
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer), json,
-                    """{"courses":[${row(portal)},${row(untyped)}],"course_overrides":[],"force_keys":["${key(untyped)}"]}""",
-                ),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        // A 200 that names no course taken: kept for the next sync.
-        assertEquals(mapOf(term to listOf(untyped.courseNo)), cache.loadPendingCourseAdds())
-    }
-
-    /**
-     * A sync's retry: each term's timed adds in one upload, then its untimed ones in another, the
-     * course as this phone holds it; a term whose upload fails leaves the next one to go.
-     */
-    @Test
-    fun `on v3 a retry sends each term's timed adds, then its untimed ones, and goes on past a failed term`() = runTest {
-        cache.saveCourses(listOf(portal, typed, untyped), term, signIn)
-        cache.saveCourses(listOf(later), nextTerm, signIn)
-        cache.savePendingCourseAdds(mapOf(term to listOf(untyped.courseNo, typed.courseNo), nextTerm to listOf(later.courseNo)), signIn)
-        cache.savePendingCourseAddTimes(mapOf(term to mapOf(typed.courseNo to 5_000L), nextTerm to mapOf(later.courseNo to 6_000L)), signIn)
-        backend.answer("/v3/sync/courses/upload", 500, "{}")
-        backend.answer("/v3/sync/courses/upload", 200, """{"accepted_keys":["${key(untyped)}"]}""")
-        backend.answer("/v3/sync/courses/upload", 200, """{"accepted_keys":["${key(later, nextTerm)}"]}""")
-
-        v3Adds().retry(signIn)
-
-        assertEquals(
-            listOf(
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
-                    """{"courses":[${row(typed)}],"course_overrides":[{"course_key":"${key(typed)}","color_hex":"#336699"}],""" +
-                        """"force_keys":["${key(typed)}"],"adds":[{"course_key":"${key(typed)}","hlc":5000000}]}""",
-                ),
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer), json,
-                    """{"courses":[${row(untyped)}],"course_overrides":[],"force_keys":["${key(untyped)}"]}""",
-                ),
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
-                    """{"courses":[${row(later, nextTerm)}],"course_overrides":[],"force_keys":["${key(later, nextTerm)}"],""" +
-                        """"adds":[{"course_key":"${key(later, nextTerm)}","hlc":6000000}]}""",
-                ),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        assertEquals(mapOf(term to listOf(typed.courseNo)), cache.loadPendingCourseAdds())
-        assertEquals(mapOf(term to mapOf(typed.courseNo to 5_000L)), cache.loadPendingCourseAddTimes())
-    }
-
-    /**
-     * A retry's timed adds go in the order the times file keeps their moments, which is the order
-     * each moment was first kept, while the adds file keeps the order each add was: two files that
-     * disagree, as an add asked first with no moment and later with one leaves them. The body lists
-     * its adds as that file holds them, and its force keys as the adds file does, as before.
-     */
-    @Test
-    fun `on v3 a retry lists its adds in the order their moments were first kept`() = runTest {
-        val first = Course(courseNo = "AA1010001", courseName = "First", isManual = true)
-        val second = Course(courseNo = "BB1010002", courseName = "Second", isManual = true)
-        cache.saveCourses(listOf(first, second), term, signIn)
-        val adds = v3Adds()
-        repeat(3) { backend.answer("/v3/sync/courses/upload", 500, "{}") }
-        // Asked with no moment, then the other with one, then the first again with one; each upload fails.
-        adds.send(listOf(first, second), term, first.courseNo, signIn = signIn)
-        adds.send(listOf(first, second), term, second.courseNo, addedAt = 5_000L, signIn = signIn)
-        adds.send(listOf(first, second), term, first.courseNo, addedAt = 6_000L, signIn = signIn)
-        assertEquals(listOf(first.courseNo, second.courseNo), cache.loadPendingCourseAdds()[term])
-        assertEquals(listOf(second.courseNo, first.courseNo), cache.loadPendingCourseAddTimes()[term]?.keys?.toList())
-
-        backend.sent.clear()
-        backend.answer("/v3/sync/courses/upload", 200, """{"accepted_keys":["${key(first)}","${key(second)}"]}""")
-        adds.retry(signIn)
-
-        assertEquals(
-            listOf(
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
-                    """{"courses":[${row(first)},${row(second)}],"course_overrides":[],"force_keys":["${key(first)}","${key(second)}"],""" +
-                        """"adds":[{"course_key":"${key(second)}","hlc":5000000},{"course_key":"${key(first)}","hlc":6000000}]}""",
-                ),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
-    }
-
-    /**
-     * A retry reads its adds, their moments and the moments' order in one read of the queue, as it
-     * always did under its lock: another sync letting one of them go just after the read
-     * (`PendingCourseAdds.listed`) does not move it in the body, which lists the adds as that one
-     * read had them.
-     */
-    @Test
-    fun `on v3 a retry lists its adds as its one read had them, one let go just after included`() = runTest {
-        val first = Course(courseNo = "AA1010001", courseName = "First", isManual = true)
-        val second = Course(courseNo = "BB1010002", courseName = "Second", isManual = true)
-        cache.saveCourses(listOf(first, second), term, signIn)
-        cache.savePendingCourseAddTimes(mapOf(term to linkedMapOf(first.courseNo to 5_000L, second.courseNo to 6_000L)), signIn)
-        cache.savePendingCourseAdds(mapOf(term to listOf(first.courseNo, second.courseNo)), signIn)
-        val client = pushApiClientAt(v3, backend.client, prefs)
-        var read = false
-        val sends = CourseAddSends(
-            cache,
-            { courses, semester, forceKeys, pinned, addedAt -> client.uploadCoursesAnswered(courses, semester, pinned, forceKeys, addedAt = addedAt) },
-            MembershipOutbox(),
-            waiting = {
-                CourseAddsStore(cache).load().also {
-                    if (!read) {
-                        read = true
-                        // Another sync's snapshot lists the first as enrolled, and lets its add go.
-                        cache.savePendingCourseAdds(mapOf(term to listOf(second.courseNo)), signIn)
-                        cache.savePendingCourseAddTimes(mapOf(term to mapOf(second.courseNo to 6_000L)), signIn)
-                    }
-                }
-            },
-            settle = { _, _ -> true },
-        )
-
-        sends.asking(term, listOf(first.courseNo, second.courseNo), null) {
-            sends.sendRequested(CourseAdd(term, first.courseNo, 5_000L), signIn)
-        }
-
-        assertEquals(
-            listOf(
-                listOf(
-                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
-                    """{"courses":[${row(first)},${row(second)}],"course_overrides":[],"force_keys":["${key(first)}","${key(second)}"],""" +
-                        """"adds":[{"course_key":"${key(first)}","hlc":5000000},{"course_key":"${key(second)}","hlc":6000000}]}""",
-                ),
-            ),
-            backend.sent.map { it.shape() },
-        )
-    }
-
-    /** Refused as ahead of the backend's clock, an add goes once more without its time. */
-    @Test
-    fun `on v3 an add refused as ahead goes again unstamped`() = runTest {
-        cache.saveCourses(listOf(typed), term, signIn)
-        backend.answer("/v3/sync/courses/upload", 409, """{"detail":"clock_ahead"}""")
-        backend.answer("/v3/sync/courses/upload", 200, """{"accepted_keys":["${key(typed)}"]}""")
-
-        v3Adds().send(listOf(typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
-
-        val plain = """{"courses":[${row(typed)}],"course_overrides":[{"course_key":"${key(typed)}","color_hex":"#336699"}],""" +
-            """"force_keys":["${key(typed)}"]"""
-        assertEquals(
-            listOf(
-                listOf("POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json, "$plain,\"adds\":[{\"course_key\":\"${key(typed)}\",\"hlc\":1790000000123000}]}"),
-                listOf("POST", "$v3/sync/courses/upload", listOf(bearer), json, "$plain}"),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
-    }
-
-    /** Nothing goes while course sync is off, and the add is let go: the re-enable check answers for it. */
-    @Test
-    fun `on v3 an add made with course sync off sends nothing and is let go`() = runTest {
-        cache.saveCourses(listOf(typed), term, signIn)
-        prefs.syncCourses = false
-
-        v3Adds().send(listOf(typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
-
-        assertEquals(emptyList<RecordingBackend.Sent>(), backend.sent.toList())
-        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
-        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
-    }
 
     /**
      * Runs the test dispatcher until [done]. A launched coroutine's file reads and writes run on
@@ -520,11 +306,12 @@ class CourseAddsChannelTest {
     /**
      * The course added again while the first add's upload is out: the refusal answered the older
      * add, and the backend has not yet seen the newer one, so the course is not the backend's to
-     * settle yet; the newer add goes next. On `/v3` the refusal counts whatever waits, as before.
+     * settle yet; the newer add goes next.
      */
     @Test
     fun `a refused add is not the backend's to settle while a newer add of the course waits`() = runTest {
-        for (base in listOf(v4, v3)) {
+        run {
+            val base = v4
             val context = JvmContext()
             val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = base }
             val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
@@ -554,7 +341,7 @@ class CourseAddsChannelTest {
             again.join()
 
             assertEquals(base, listOf(5_000L, 6_000L), sent)
-            assertEquals(base, if (base == v4) null else listOf(typed.courseNo), cache.loadServerKnownNos()[term])
+            assertEquals(base, null, cache.loadServerKnownNos()[term])
             assertEquals(base, emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
         }
     }

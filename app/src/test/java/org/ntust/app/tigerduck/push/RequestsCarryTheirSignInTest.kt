@@ -188,6 +188,6 @@ class RequestsCarryTheirSignInTest {
 
     private companion object {
         const val FULL_SYNC = "GET /sync/full"
-        val COURSE = CourseRef(moodleId = null, courseKey = "client:1151:CS1")
+        val COURSE = CourseRef(courseKey = "client:1151:CS1")
     }
 }

@@ -49,7 +49,7 @@ class ClockAheadHoldTest {
     private val madeAtMs = 1_790_000_000_123L
     private val clockAhead = syncFixture("v4/error-clock-ahead.json")
     private val course = "PATCH /sync/courses/client:1151:CS1/override"
-    private val key = CourseRef(moodleId = null, courseKey = "client:1151:CS1")
+    private val key = CourseRef(courseKey = "client:1151:CS1")
 
     @Before
     fun setUp() {

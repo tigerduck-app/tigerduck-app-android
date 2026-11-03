@@ -1,8 +1,6 @@
 package org.ntust.app.tigerduck.sync
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,27 +14,24 @@ import javax.inject.Singleton
  * Android ticks in whole milliseconds, as every queue already keeps its edit time in epoch ms: no
  * queue gains a field, and the wire value is a stamp times 1000, microseconds still.
  *
- * On `/v3` a stamp is the wall clock, as every `/v3` stamp has been, and nothing is recorded, so
- * `/v3` sends stay as they were. Hearing goes on at either version, so by the move to `/v4` the
- * clock knows the backend's time.
- *
  * The wall clock is the system's, not the debug override's
  * ([org.ntust.app.tigerduck.shared.clock.AppClock]): a debug jump in time must not stamp edits.
  */
 @Singleton
 class SyncClock internal constructor(
     private val store: SyncClockStore,
-    /** The API the backend the endpoint setting names now speaks. */
-    private val api: () -> BackendApi,
     private val wallClock: () -> Long,
 ) {
+    /**
+     * The app's clock. [prefs] is unread: it named the API whose stamps were the raw wall clock,
+     * which no base speaks since the move to `/v4`, and the app's wiring and its tests still pass it.
+     */
     @Inject
-    constructor(store: SyncClockStore, prefs: AppPreferences) :
-        this(store, { BackendApi.of(resolveAnnouncementEndpoint(prefs).url) }, System::currentTimeMillis)
+    constructor(store: SyncClockStore, @Suppress("UNUSED_PARAMETER") prefs: AppPreferences) :
+        this(store, System::currentTimeMillis)
 
-    // A leaf: nothing done under it takes another of the app's locks (restampAfterClockAhead reads
-    // the endpoint setting under it, which takes none), so a write the store makes at once, under
-    // it, keeps the values in the order they were made and waits on nothing else.
+    // A leaf: nothing done under it takes another of the app's locks, so a write the store makes at
+    // once, under it, keeps the values in the order they were made and waits on nothing else.
     private val lock = Any()
 
     // Under lock: what the store holds, read before this process's first stamp or hearing, and
@@ -44,15 +39,12 @@ class SyncClock internal constructor(
     private var known: SyncClockState? = null
 
     /** The stamp of a user edit made now, in epoch ms. */
-    fun stampMs(): Long = when (api()) {
-        BackendApi.V3 -> wallClock()
-        BackendApi.V4 -> synchronized(lock) {
-            val now = wallClock()
-            val state = state()
-            // Well past the wall clock, a stamp must outlive a process death: the next launch, its
-            // wall clock still behind it, would stamp at or below it.
-            state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + SyncClockState.DURABLE_LEAD_MS) }
-        }
+    fun stampMs(): Long = synchronized(lock) {
+        val now = wallClock()
+        val state = state()
+        // Well past the wall clock, a stamp must outlive a process death: the next launch, its
+        // wall clock still behind it, would stamp at or below it.
+        state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + SyncClockState.DURABLE_LEAD_MS) }
     }
 
     /** The backend's clock, from an `X-TigerSync-Clock` header heard now; ignored unless [isPlausibleClockUs]. */

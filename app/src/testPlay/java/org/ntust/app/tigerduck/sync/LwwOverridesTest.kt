@@ -113,7 +113,6 @@ class LwwOverridesTest {
             .put("assignments", JSONArray())
             .put("courses", JSONArray())
             .put("course_overrides", JSONArray().apply { rows.forEach { put(it) } }),
-        protocol2 = true,
     )
 
     private fun colorRow(no: String, hex: String) = JSONObject()

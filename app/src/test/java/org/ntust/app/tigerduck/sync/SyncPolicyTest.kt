@@ -5,7 +5,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -15,8 +14,8 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SyncCategory.ASSIGNMENTS
@@ -31,17 +30,14 @@ import org.ntust.app.tigerduck.util.JvmContext
  * [SyncPolicy] is pinned to the copies of each rule it will replace, on every combination of the
  * switches and the hold: each answer is checked against the copy run on the same preferences, the
  * backend client's gates by whether a request went out. Both flavors run this, so the flavor is
- * covered as the build gives it, and as an input of its own below.
+ * covered as the build gives it, and as an input of its own below. The copies are `/v3`'s rules,
+ * which a base naming no API version still takes ([UNVERSIONED]) until they go.
  */
 class SyncPolicyTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val backend = ScriptedBackend()
     private val context = JvmContext()
-    private val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
+    private val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = UNVERSIONED }
     private val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-sync-policy-test", Context.MODE_PRIVATE))
         .apply { save("access", "refresh", Long.MAX_VALUE) }
     private val tokenManager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
@@ -119,9 +115,9 @@ class SyncPolicyTest {
                 "sendsCourseIgnores and sends(ASSIGNMENTS)",
                 CourseIgnoreSync.syncsCourseIgnores(prefs), policy.sendsCourseIgnores && policy.sends(ASSIGNMENTS),
             )
-            check("sendsCourseIgnores", client.patchCourseIgnore("m1", true, null, signIn) != null, policy.sendsCourseIgnores)
+            check("sendsCourseIgnores", client.patchCourseIgnoreAnswered(KEY, true, null, signIn, madeAtMs = null).sent, policy.sendsCourseIgnores)
             check("uploadsCourses", client.uploadCoursesAnswered(roster, "1151", signIn) != null, policy.uploadsCourses)
-            check("sends(COURSES)", sent { client.deleteCourse("client:1151:CS1", signIn) }, policy.sends(COURSES))
+            check("sends(COURSES)", sent { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null) }, policy.sends(COURSES))
             check("sends(COURSES) is the upload's", policy.uploadsCourses, policy.sends(COURSES))
             // No copy asks this yet: the course list's queues keep their edits whatever the switches say.
             check("keeps(COURSES)", prefs.cloudSyncEnabled && prefs.syncCourses, policy.keeps(COURSES))
@@ -131,18 +127,20 @@ class SyncPolicyTest {
     }
 
     @Test
-    fun `the policy takes the build's flavor, and no last writer wins yet`() {
+    fun `the policy takes the build's flavor, and last writer wins at the default backend`() {
+        prefs.announcementApiBaseUrlOverride = null
         val policy = policies.current
         assertEquals(!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true), policy.flavorSyncs)
-        assertFalse(policy.lastWriterWins)
+        assertTrue(policy.lastWriterWins)
     }
 
     @Test
-    fun `last writer wins once the endpoint speaks v4, and not on any other base`() {
+    fun `last writer wins once the endpoint speaks v4, and not on a base that names no version`() {
         for ((base, wins) in listOf(
             "http://127.0.0.1:9/v4" to true,
             "http://127.0.0.1:9/prefix/v4/" to true,
-            "http://127.0.0.1:9/v3" to false,
+            // As the released build left it: moved to v4.
+            "http://127.0.0.1:9/v3" to true,
             "http://127.0.0.1:9" to false,
             "http://127.0.0.1:9/v4x" to false,
         )) {
@@ -155,6 +153,7 @@ class SyncPolicyTest {
     @Test
     fun `on v4 every switch reads as on v3, and every category is kept whatever its switches say`() {
         store(master = true, on = setOf(COURSES), held = setOf(COURSES))
+        // A base naming no version still takes /v3's rules.
         val v3 = policies.current
         prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4"
         val v4 = policies.current
@@ -220,5 +219,11 @@ class SyncPolicyTest {
         assertFalse(next.sends(ASSIGNMENTS))
         assertFalse(next.tigerSyncOn)
         assertFalse(next.applies(COURSE_COLORS))
+    }
+
+    private companion object {
+        /** A base that names no API version, which still takes `/v3`'s rules: no last writer wins. */
+        const val UNVERSIONED = "http://127.0.0.1:9"
+        val KEY = CourseRef(courseKey = "client:1151:CS1")
     }
 }

@@ -421,21 +421,13 @@ class CourseSyncReconcilerTest {
     }
 
     /**
-     * The backend's rule, mirrored: a reset tombstone does not bind the
-     * device that wrote it, whose next upload releases it. Between that
-     * DELETE and the upload, this device must not read its own tombstones
-     * as "hide everything" — the refetch filters by the tombstone store and
-     * would then upload nothing, leaving the term hidden for good.
+     * Every tombstone of the term counts, a reset's this device wrote included: the snapshot no
+     * longer says which those are, and the course membership reads a reset by its stamp.
      */
     @Test
-    fun `this device's own reset tombstones do not count`() {
-        val own = tombstone("A", "1141").copy(deletedByReset = true, deletedByThisDevice = true)
-        val elsewhere = tombstone("B", "1141").copy(deletedByReset = true)
-        val ownSingleDelete = tombstone("C", "1141").copy(deletedByThisDevice = true)
-        assertEquals(
-            setOf("B", "C"),
-            CourseSyncReconciler.tombstoneNosFor("1141", listOf(own, elsewhere, ownSingleDelete)),
-        )
+    fun `the term's tombstones count, and no other term's`() {
+        val tombstones = listOf(tombstone("A", "1141"), tombstone("B", "1141"), tombstone("C", "1151"))
+        assertEquals(setOf("A", "B"), CourseSyncReconciler.tombstoneNosFor("1141", tombstones))
     }
 
     @Test

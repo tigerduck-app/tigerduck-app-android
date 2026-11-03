@@ -2,49 +2,22 @@ package org.ntust.app.tigerduck.push
 
 import okhttp3.Call
 import okhttp3.Response
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.sync.SyncClock
 
 // The backend's TigerSync clock for a time in epoch ms: whole microseconds since the epoch.
 internal fun clockOf(epochMs: Long): Long = epochMs * 1_000
 
-// 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock, whether /v3 says it in
-// `detail` or /v4 in `error`. Peeked, so a caller that goes on to read the body still can.
+// 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock. Peeked, so a caller that
+// goes on to read the body still can.
 internal fun isClockAhead(response: Response): Boolean = response.code == 409 && BackendError.of(response).isClockAhead
 
-/** [body] with [hlc] as its `hlc`, or as it was when [hlc] is null. */
-internal fun Map<String, Any>.stampedWith(hlc: Long?): Map<String, Any> =
-    if (hlc == null) this else this + ("hlc" to hlc)
+/** [body] with [hlc] as its `hlc`. */
+internal fun Map<String, Any>.stampedWith(hlc: Long): Map<String, Any> = this + ("hlc" to hlc)
 
 /**
- * Sends an edit as `/v3` takes it, with the time it was made as its `hlc` ([madeAtMs], epoch ms; null sends none), which
- * the backend settles it by: an edit that waited in a queue then loses to a newer one another device
- * sent meanwhile. One the backend refuses as stamped ahead of its clock goes once more without,
- * counting from when it arrives, as the course upload's adds do, if [mayResend] still says yes:
- * the gate the first request passed can have closed meanwhile (a hold, a switch), and the resend,
- * past it, would overwrite what the user is yet to choose. Then nothing more goes out, and the
- * result is null: not sent. [call] makes the request for the `hlc` it is given; [handle] reads the
- * answer of the request that stands.
- */
-internal fun <T : Any> executeStamped(
-    madeAtMs: Long?,
-    mayResend: () -> Boolean,
-    call: (hlc: Long?) -> Call,
-    handle: (Response) -> T,
-): T? {
-    if (madeAtMs != null) {
-        val stamped = call(clockOf(madeAtMs)).execute()
-        if (!isClockAhead(stamped)) return stamped.use(handle)
-        stamped.close()
-        if (!mayResend()) return null
-    }
-    return call(null).execute().use(handle)
-}
-
-/**
- * The clock a `/v4` write is stamped with: [SyncClock], whose stamps only grow and are capped by
- * the backend's time as last heard (`tigersync-clock`). A client a test builds without one stamps
+ * The clock a write is stamped with: [SyncClock], whose stamps only grow and are capped by the
+ * backend's time as last heard (`tigersync-clock`). A client a test builds without one stamps
  * with the wall clock and hears nothing.
  */
 internal class WriteClock(private val clock: SyncClock?) {
@@ -72,10 +45,12 @@ internal class WriteClock(private val clock: SyncClock?) {
  * without a time (Use Local, the conflict dialog, a first-sync mark, the `moodle_course_id`
  * fill-in): a queued entry has its own, or the old-entry time it was given at load. One refused as
  * ahead of the backend's clock (409 `clock_ahead`) is stamped again from the refusal's clock and
- * sent once more if [mayResend] still holds, never without a stamp; else nothing more goes and the
- * result is null. A second refusal is the answer [handle] reads, as any other.
+ * sent once more if [mayResend] still holds, never without a stamp: the gate the first request
+ * passed can have closed meanwhile (a hold, a switch), and the resend, past it, would overwrite
+ * what the user is yet to choose. Then nothing more goes and the result is null. A second refusal
+ * is the answer [handle] reads, as any other.
  */
-internal fun <T : Any> executeStampedV4(
+internal fun <T : Any> sendStamped(
     madeAtMs: Long?,
     clock: WriteClock,
     mayResend: () -> Boolean,
@@ -90,19 +65,6 @@ internal fun <T : Any> executeStampedV4(
     return call(clockOf(clock.restampAfterClockAhead(serverClockUs))).execute().use(handle)
 }
 
-/** An edit sent as [api] takes it: [executeStamped] on `/v3`, [executeStampedV4] on `/v4`. */
-internal fun <T : Any> sendStamped(
-    api: BackendApi,
-    madeAtMs: Long?,
-    clock: WriteClock,
-    mayResend: () -> Boolean,
-    call: (hlc: Long?) -> Call,
-    handle: (Response) -> T,
-): T? = when (api) {
-    BackendApi.V3 -> executeStamped(madeAtMs, mayResend, call, handle)
-    BackendApi.V4 -> executeStampedV4(madeAtMs, clock, mayResend, call, handle)
-}
-
-/** [response]'s answer ([answerOf]); on `/v4`, every clock value in it heard. */
-internal fun WriteClock.answer(response: Response, api: BackendApi, what: String, field: String? = null): WriteAnswer =
-    answerOf(response, what, field).also { if (api == BackendApi.V4) hear(it) }
+/** [response]'s answer ([answerOf]), every clock value in it heard. */
+internal fun WriteClock.answer(response: Response, what: String, field: String? = null): WriteAnswer =
+    answerOf(response, what, field).also { hear(it) }

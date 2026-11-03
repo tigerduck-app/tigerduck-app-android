@@ -129,7 +129,6 @@ class FirstSyncTest {
                         .put("course_name", "Another").put("moodle_id", "${term}ZZ9").put("source", "roster"),
                 ),
             ),
-        protocol2 = true,
     )
 
     private fun pass(result: BackendSyncResult, syncedBefore: Set<SyncCategory>, mode: SyncMode = SyncMode.FOREGROUND) = SyncPass(

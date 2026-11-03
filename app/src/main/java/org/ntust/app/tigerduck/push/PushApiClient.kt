@@ -37,7 +37,7 @@ class PushApiClient @Inject constructor(
     baseClient: OkHttpClient,
     private val prefs: AppPreferences,
     private val authTokenManager: AuthTokenManager,
-    /** What a `/v4` write is stamped by, and hears its answers; null only in tests, for the wall clock. */
+    /** What a write is stamped by, and hears its answers; null only in tests, for the wall clock. */
     syncClock: SyncClock? = null,
     uploadNews: dagger.Lazy<CourseUploadListener>? = null,
 ) {
@@ -68,12 +68,12 @@ class PushApiClient @Inject constructor(
     private val deletes by lazy { BackendServices(PushApi::class.java, deleteClient) }
     private val uploads = BackendServices(PushApi::class.java) { request -> uploadCall(request) }
 
-    // The sync writes, each in a file of its own beside this one, stamped by one clock on /v4.
+    // The sync writes, each in a file of its own beside this one, stamped by one clock.
     private val clock = WriteClock(syncClock)
     private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader, clock)
     private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, clock, uploadNews)
 
-    /** The stamp of an edit made now, by the clock the `/v4` writes take theirs from: for a caller's own adds. */
+    /** The stamp of an edit made now, by the clock the writes take theirs from: for a caller's own adds. */
     internal fun stampMs(): Long = clock.stampMs()
 
     /**
@@ -133,7 +133,7 @@ class PushApiClient @Inject constructor(
         mayDepart: () -> Boolean = { true },
     ): Int = withContext(Dispatchers.IO) {
         if (!mayDepart()) throw UnregisterHeldBack()
-        // v3: DELETE /devices/{client_device_id}, scoped to the authed user
+        // DELETE /devices/{client_device_id}, scoped to the authed user
         // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
         deletes.at(base).removeDevice("Bearer $accessToken", deviceId, EmptyBody).execute().use { response -> response.code }
     }
@@ -151,10 +151,6 @@ class PushApiClient @Inject constructor(
     /** One holiday's choice, with the backend's answer; see [OverrideRequests.putHoliday]. */
     suspend fun putHolidayOverrideAnswered(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
         overrides.putHoliday(holidayId, notify, signIn, madeAtMs)
-
-    /** [putHolidayOverrideAnswered], saying whether it went; a refusal throws with no status, as it always has. */
-    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long? = null): Boolean =
-        refusedAsBefore(keepsStatus = false) { putHolidayOverrideAnswered(holidayId, notify, signIn, madeAtMs) }.sent
 
     suspend fun updateDevicePreferences(
         deviceId: String,
@@ -221,35 +217,15 @@ class PushApiClient @Inject constructor(
     suspend fun patchAssignmentOverrideAnswered(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
         overrides.patchMark(assignmentId, localStatus, signIn, madeAtMs)
 
-    /** [patchAssignmentOverrideAnswered], saying whether it went. */
-    suspend fun patchAssignmentOverride(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long? = null): Boolean =
-        refusedAsBefore { patchAssignmentOverrideAnswered(assignmentId, localStatus, signIn, madeAtMs) }.sent
-
     /** One course's color, or its name in [locale], with the backend's answer; see [OverrideRequests.patchCourse]. */
     suspend fun patchCourseOverrideAnswered(
         target: CourseRef, signIn: SignIn, colorHex: String? = null, customName: String? = null, locale: String? = null,
         allowed: () -> Boolean = { true }, madeAtMs: Long? = null,
     ): WriteAnswer = overrides.patchCourse(target, signIn, colorHex, customName, locale, allowed, madeAtMs)
 
-    /** [patchCourseOverrideAnswered] of the course whose Moodle id is [courseId], saying whether it went. */
-    suspend fun patchCourseOverride(
-        courseId: Any, signIn: SignIn, colorHex: String? = null, customName: String? = null, locale: String? = null,
-        allowed: () -> Boolean = { true }, madeAtMs: Long? = null,
-    ): Boolean = refusedAsBefore {
-        patchCourseOverrideAnswered(CourseRef(courseId.toString(), null), signIn, colorHex, customName, locale, allowed, madeAtMs)
-    }.sent
-
     /** Whether a course's assignments are ignored, with the backend's answer; see [OverrideRequests.patchIgnore]. */
     suspend fun patchCourseIgnoreAnswered(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
         overrides.patchIgnore(target, ignore, moodleCourseId, signIn, madeAtMs)
-
-    /**
-     * [patchCourseIgnoreAnswered] of the course whose Moodle id is [moodleId]: null when nothing
-     * went, else whether the backend stored it, which one that predates the field does not.
-     */
-    suspend fun patchCourseIgnore(moodleId: String, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long? = null): Boolean? =
-        refusedAsBefore { patchCourseIgnoreAnswered(CourseRef(moodleId, null), ignore, moodleCourseId, signIn, madeAtMs) }
-            .takeIf { it.sent }?.let { "ignore_assignments" in it.values }
 
     private val assignmentUploads = UploadLedger(
         store = object : UploadLedgerStore {
@@ -344,19 +320,9 @@ class PushApiClient @Inject constructor(
     suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: String?): WriteAnswer =
         courseSync.deleteCourse(courseKey, signIn, hiddenAt, kind)
 
-    /** [deleteCourseAnswered], with no kind. */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) {
-        refusedAsBefore { deleteCourseAnswered(courseKey, signIn, hiddenAt, kind = null) }
-    }
-
     /** A term's reset, or every term's, with the backend's answer; see [CourseSyncRequests.deleteAllCourses]. */
     suspend fun deleteAllCoursesAnswered(semester: String?, signIn: SignIn, resetAtMs: Long?): WriteAnswer =
         courseSync.deleteAllCourses(semester, signIn, resetAtMs)
-
-    /** [deleteAllCoursesAnswered]; a refusal throws with no status, as it always has. */
-    suspend fun deleteAllCourses(semester: String?, signIn: SignIn) {
-        refusedAsBefore(keepsStatus = false) { deleteAllCoursesAnswered(semester, signIn, resetAtMs = null) }
-    }
 }
 
 /**

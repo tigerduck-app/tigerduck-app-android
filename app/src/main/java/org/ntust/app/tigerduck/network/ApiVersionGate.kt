@@ -15,8 +15,8 @@ import org.ntust.app.tigerduck.network.backend.BackendError
  * longer exists gets an unambiguous "this app is too old" instead of a
  * shapeless network failure. Nothing the app can do fixes it — the only
  * remedy is a newer build — so it is worth telling the user plainly rather
- * than letting every screen fail on its own. A 410 with another code, such as
- * the change feed's `sync_revision_expired` on `/v3`, is not that answer.
+ * than letting every screen fail on its own. A 410 with another code is not
+ * that answer.
  *
  * Only responses from our own backend reach here; [ApiVersionInterceptor]
  * does the filtering. A 410 from NTUST or Moodle means one of *their* pages

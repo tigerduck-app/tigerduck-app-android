@@ -120,7 +120,7 @@ class LwwPullTest {
     /** The fixture, its term made this phone's current one, with [edit] made to it. */
     private fun snapshot(edit: (JSONObject) -> Unit = {}): BackendSyncResult {
         val raw = javaClass.classLoader!!.getResource("sync/v4/pull-fields.json").readText().replace("1151", term)
-        return parseFullSync(JSONObject(raw).also(edit), protocol2 = true)
+        return parseFullSync(JSONObject(raw).also(edit))
     }
 
     private fun pass(

@@ -30,7 +30,7 @@ class PushApiClientAnswerTest {
     private val signIn = testSignIn()
 
     private val clock = mapOf("X-TigerSync-Clock" to "1792900000000123")
-    private val key = CourseRef(moodleId = null, courseKey = "client:1151:CS1")
+    private val key = CourseRef(courseKey = "client:1151:CS1")
     private val override = "/v4/sync/courses/client:1151:CS1/override"
 
     @Before

@@ -28,7 +28,7 @@ import javax.inject.Singleton
 
 /**
  * Deletes one course's row from the backend by its key, as sign-in [signIn], with the time the
- * hide was asked ([hiddenAt]); see [PushApiClient.deleteCourse].
+ * hide was asked ([hiddenAt]); see [PushApiClient.deleteCourseAnswered].
  */
 internal fun interface CourseDeleter {
     suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long)

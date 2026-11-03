@@ -4,73 +4,24 @@ import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
- * `GET /sync/full` read into a [BackendSyncResult]. The `/v3` snapshot (`sync/v3/full.json`,
- * written from the backend's `server/routes/sync/snapshot.py` as it answers an app that sends no
- * protocol header) pins every field the app reads today, so the parser can move and grow without
- * changing a value it gives the syncs. The `/v4` snapshots (`sync/v4/`, from the same route and
- * `docs/api-v4.md`) hold the same rows in protocol 2's shape, with its stamps, tombstone kinds and
- * resets. Course numbers and ids are made up.
+ * `GET /sync/full` read into a [BackendSyncResult]: the snapshots in `sync/v4/` (written from the
+ * backend's `server/routes/sync/snapshot.py` and `docs/api-v4.md`) pin every field the app reads,
+ * in protocol 2's shape, with its stamps, tombstone kinds and resets, so the parser can move and
+ * grow without changing a value it gives the syncs. Course numbers and ids are made up.
  */
 class FullSyncSnapshotTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val v3 = "http://127.0.0.1:9/v3"
     private val v4 = "http://127.0.0.1:9/v4"
 
     private fun v4(fixture: String, heard: (Long) -> Unit = {}) =
-        parseFullSync(JSONObject(syncFixture("v4/$fixture")), protocol2 = true, heard = heard)
-
-    /** [this] with every protocol 2 field null: what a `/v3` sync reads. */
-    private fun BackendSyncResult.released() = copy(
-        serverHlc = null,
-        coursesResetHlc = null,
-        termResets = null,
-        marks = null,
-        holidays = null,
-        serverCourses = serverCourses.map { it.copy(addedHlc = null) },
-        courseOverrides = courseOverrides.map { it.copy(courseKey = null, colorHexHlc = null, customNamesHlc = null, ignoreAssignmentsHlc = null) },
-        tombstones = tombstones.map { it.copy(hlc = null, kind = null) },
-    )
-
-    @Test
-    fun `a v3 snapshot reads every field as today`() = runTest {
-        val backend = RecordingBackend().apply { answer("/v3/sync/full", 200, syncFixture("v3/full.json")) }
-        val before = System.currentTimeMillis()
-
-        val result = syncApiClientAt(v3, backend.client).fetchFullSync(testSignIn())
-
-        assertTrue("fetched at ${result.fetchedAtMs}", result.fetchedAtMs in before..System.currentTimeMillis())
-        assertEquals(V3_SNAPSHOT, result.copy(fetchedAtMs = 0L))
-    }
-
-    @Test
-    fun `the parser reads it so on its own, the roster requests and fetch time being the fetch's`() {
-        assertEquals(V3_SNAPSHOT.copy(rosterRequests = emptyList()), parseFullSync(JSONObject(syncFixture("v3/full.json"))))
-    }
-
-    /** `/v3` sends the stamps as well; read as `/v3`'s, they stay unread and unheard. */
-    @Test
-    fun `a v3 snapshot leaves every protocol 2 field null, and is heard by no clock`() {
-        val heard = mutableListOf<Long>()
-
-        val read = parseFullSync(JSONObject(syncFixture("v3/full.json")), protocol2 = false) { heard += it }
-
-        assertEquals(V3_SNAPSHOT.copy(rosterRequests = emptyList()), read)
-        assertEquals(emptyList<Long>(), heard)
-    }
+        parseFullSync(JSONObject(syncFixture("v4/$fixture")), heard = heard)
 
     @Test
     fun `a v4 snapshot fills every protocol 2 field`() {
@@ -78,28 +29,19 @@ class FullSyncSnapshotTest {
     }
 
     @Test
-    fun `a v4 snapshot's existing fields read as v3's do, the tombstones' authorship absent reading false`() {
-        val released = V3_SNAPSHOT.copy(
-            rosterRequests = emptyList(),
-            tombstones = V3_SNAPSHOT.tombstones.map { it.copy(deletedByReset = false, deletedByThisDevice = false) },
-        )
-
-        assertEquals(released, v4("full.json").released())
-        assertEquals(released, parseFullSync(JSONObject(syncFixture("v4/full.json"))))
-    }
-
-    @Test
-    fun `a snapshot fetched from v4 reads its existing fields as today`() = runTest {
+    fun `a snapshot fetched reads every field, its roster requests and its fetch time`() = runTest {
         val backend = RecordingBackend().apply { answer("/v4/sync/full", 200, syncFixture("v4/full.json")) }
+        val before = System.currentTimeMillis()
 
         val result = syncApiClientAt(v4, backend.client).fetchFullSync(testSignIn())
 
-        assertEquals(V4_SNAPSHOT.released().copy(rosterRequests = listOf("1151")), result.released().copy(fetchedAtMs = 0L))
+        assertTrue("fetched at ${result.fetchedAtMs}", result.fetchedAtMs in before..System.currentTimeMillis())
+        assertEquals(V4_SNAPSHOT.copy(rosterRequests = listOf("1151")), result.copy(fetchedAtMs = 0L))
         assertEquals(listOf("$v4/sync/full"), backend.sent.map { it.url })
     }
 
     /** A clock that has heard nothing, its wall clock in 2020: its next stamp shows what it hears. */
-    private fun quietClock() = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { EARLY_MS })
+    private fun quietClock() = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { EARLY_MS })
 
     @Test
     fun `a snapshot fetched from v4 fills its stamps, and the clock hears the largest`() = runTest {
@@ -111,18 +53,6 @@ class FullSyncSnapshotTest {
         assertEquals(V4_SNAPSHOT.copy(rosterRequests = listOf("1151")), result.copy(fetchedAtMs = 0L))
         // The mark stored ahead of the backend's clock, as in the parser's own test, plus one tick.
         assertEquals(1_792_900_000_004L + 1, clock.stampMs())
-    }
-
-    /** `/v3` sends the stamps as well; fetched from there, they stay unread and unheard. */
-    @Test
-    fun `a snapshot fetched from v3 leaves its stamps null, and is heard by no clock`() = runTest {
-        val backend = RecordingBackend().apply { answer("/v3/sync/full", 200, syncFixture("v3/full.json")) }
-        val clock = quietClock()
-
-        val result = syncApiClientAt(v3, backend.client, clock).fetchFullSync(testSignIn())
-
-        assertEquals(V3_SNAPSHOT, result.copy(fetchedAtMs = 0L))
-        assertEquals(EARLY_MS + 1, clock.stampMs())
     }
 
     /** Protocol 2 keeps them all (LWW D11): none older than 30 days or beside a listed course is left out. */
@@ -141,7 +71,6 @@ class FullSyncSnapshotTest {
             ),
             tombstones,
         )
-        assertTrue("authorship absent reads false", tombstones.none { it.deletedByReset || it.deletedByThisDevice })
     }
 
     @Test
@@ -166,7 +95,7 @@ class FullSyncSnapshotTest {
 
     @Test
     fun `a v4 snapshot without a section reads it as not sent`() {
-        val read = parseFullSync(JSONObject("""{"current_revision": 3, "assignments": []}"""), protocol2 = true)
+        val read = parseFullSync(JSONObject("""{"current_revision": 3, "assignments": []}"""))
 
         assertEquals(listOf(null, null, null, null, null), listOf(read.serverHlc, read.coursesResetHlc, read.termResets, read.marks, read.holidays))
     }
@@ -200,7 +129,7 @@ class FullSyncSnapshotTest {
             val json = JSONObject(syncFixture("v4/full.json")).also(stamp)
             val heard = mutableListOf<Long>()
 
-            parseFullSync(json, protocol2 = true) { heard += it }
+            parseFullSync(json) { heard += it }
 
             assertEquals("stamp $i", listOf(later), heard)
         }
@@ -210,7 +139,7 @@ class FullSyncSnapshotTest {
     fun `a snapshot with no clock value is heard by nothing`() {
         val heard = mutableListOf<Long>()
 
-        parseFullSync(JSONObject("""{"current_revision": 3, "assignments": [], "course_tombstones": []}"""), protocol2 = true) { heard += it }
+        parseFullSync(JSONObject("""{"current_revision": 3, "assignments": [], "course_tombstones": []}""")) { heard += it }
 
         assertEquals(emptyList<Long>(), heard)
     }
@@ -218,10 +147,10 @@ class FullSyncSnapshotTest {
     @Test
     fun `a snapshot without assignments reads only its revision`() = runTest {
         val backend = RecordingBackend().apply {
-            answer("/v3/sync/full", 200, """{"current_revision": 9, "courses": [{"course_no": "XA0000001"}]}""")
+            answer("/v4/sync/full", 200, """{"current_revision": 9, "courses": [{"course_no": "XA0000001"}]}""")
         }
 
-        val result = syncApiClientAt(v3, backend.client).fetchFullSync(testSignIn())
+        val result = syncApiClientAt(v4, backend.client).fetchFullSync(testSignIn())
 
         assertEquals(
             BackendSyncResult(emptySet(), emptySet(), emptyList(), emptySet(), emptyList(), currentRevision = 9),
@@ -233,8 +162,8 @@ class FullSyncSnapshotTest {
         /** 2020-09-13, a wall clock behind every clock value the fixtures hold. */
         const val EARLY_MS = 1_600_000_000_000L
 
-        /** What `sync/v3/full.json` reads as, but its fetch time. */
-        val V3_SNAPSHOT = BackendSyncResult(
+        /** The rows `sync/v4/full.json` holds, as every field the app read before protocol 2 reads them. */
+        private val ROWS = BackendSyncResult(
             ignoredIds = setOf("9001", "9004"),
             completedIds = setOf("9002"),
             courseOverrides = listOf(
@@ -326,24 +255,18 @@ class FullSyncSnapshotTest {
                     courseNo = "XA0000004",
                     semester = "1151",
                     deletedAt = "2026-10-20T02:00:00+00:00",
-                    deletedByReset = false,
-                    deletedByThisDevice = false,
                 ),
                 CourseTombstone(
                     courseKey = "client:1151:XA0000005",
                     courseNo = "XA0000005",
                     semester = "1151",
                     deletedAt = "2026-10-21T02:00:00+00:00",
-                    deletedByReset = true,
-                    deletedByThisDevice = false,
                 ),
                 CourseTombstone(
                     courseKey = "client:1151:XA0000006",
                     courseNo = null,
                     semester = "1151",
                     deletedAt = "2026-10-22T02:00:00+00:00",
-                    deletedByReset = false,
-                    deletedByThisDevice = true,
                 ),
             ),
             fetchedAtMs = 0L,
@@ -351,19 +274,19 @@ class FullSyncSnapshotTest {
             rosterRequests = listOf("1151"),
         )
 
-        /** What `sync/v4/full.json`, the same rows in protocol 2's shape, reads as with its stamps. */
-        val V4_SNAPSHOT = V3_SNAPSHOT.copy(
+        /** What `sync/v4/full.json`, those rows in protocol 2's shape, reads as with its stamps. */
+        val V4_SNAPSHOT = ROWS.copy(
             rosterRequests = emptyList(),
             courseOverrides = listOf(
-                V3_SNAPSHOT.courseOverrides[0].copy(
+                ROWS.courseOverrides[0].copy(
                     courseKey = "client:1151:XA0000001",
                     colorHexHlc = 1792723600000000,
                     customNamesHlc = mapOf("en" to 1792720000000000, "zh" to 1792720000000001),
                     ignoreAssignmentsHlc = 1792727200000000,
                 ),
-                V3_SNAPSHOT.courseOverrides[1].copy(courseKey = "client:1151:XA0000003", customNamesHlc = emptyMap()),
+                ROWS.courseOverrides[1].copy(courseKey = "client:1151:XA0000003", customNamesHlc = emptyMap()),
             ),
-            serverCourses = V3_SNAPSHOT.serverCourses.map { if (it.courseNo == "XA0000002") it.copy(addedHlc = 1792700000000000) else it },
+            serverCourses = ROWS.serverCourses.map { if (it.courseNo == "XA0000002") it.copy(addedHlc = 1792700000000000) else it },
             tombstones = listOf(
                 CourseTombstone("client:1151:XA0000004", "XA0000004", "1151", "2026-10-20T02:00:00+00:00", hlc = 1792461600000000, kind = TombstoneKind.HIDE),
                 CourseTombstone("client:1151:XA0000005", "XA0000005", "1151", "2026-10-21T02:00:00+00:00", hlc = 1792548000000000, kind = TombstoneKind.RESET),

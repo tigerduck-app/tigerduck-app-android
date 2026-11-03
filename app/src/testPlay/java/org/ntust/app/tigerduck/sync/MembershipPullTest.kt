@@ -164,7 +164,6 @@ class MembershipPullTest {
         val result = org.ntust.app.tigerduck.push.parseFullSync(
             JSONObject().put("current_revision", 3).put("server_hlc", 1_793_000_000_000_000L).put("assignments", JSONArray())
                 .put("courses", JSONArray().put(row("C")).put(row("F"))).put("course_tombstones", JSONArray()),
-            protocol2 = true,
         )
         val policies = SyncPolicies(w.appPrefs)
         val roster = org.ntust.app.tigerduck.sync.reconcile.RosterReconciler(

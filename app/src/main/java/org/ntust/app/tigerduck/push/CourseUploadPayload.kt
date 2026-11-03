@@ -1,12 +1,11 @@
 // The body of POST /sync/courses/upload.
 //
 // Split out of PushApiClient.uploadCourses so what goes on the wire can be
-// asserted without a server. Two of the three decisions below were made after
-// the wrong version of them shipped, and neither failure was visible from the
-// client: one pinned a colour server-side that no later palette change could
-// dislodge, the other pushed one device's private rename out as the name every
-// device would render. A malformed field here is not a crash, it is a value
-// quietly replicated to the rest of the account.
+// asserted without a server. The course name below was decided after the
+// wrong version of it shipped, and the failure was not visible from the
+// client: one device's private rename went out as the name every device
+// would render. A malformed field here is not a crash, it is a value quietly
+// replicated to the rest of the account.
 
 package org.ntust.app.tigerduck.push
 
@@ -15,59 +14,17 @@ import org.ntust.app.tigerduck.shared.Course
 internal object CourseUploadPayload {
 
     /**
-     * Build the upload body for [courses] in [semester].
-     *
-     * [forceKeys] names courses whose server-side tombstone should be cleared
-     * — an explicit re-add by the user, not a side effect of a sync. Omitted
-     * from the body entirely when empty, so a routine upload can never
-     * resurrect something the user deleted on another device.
-     *
-     * [rosterTerms] names the terms whose listed courses are the school's
-     * whole roster (backend 3.10.1): the backend enrolls the listed school
-     * courses of each and drops the others. Omitted when empty, as an upload
-     * that is no roster changes no course's enrollment; a backend before
-     * 3.10.1 ignores the field. See [CourseUpload.of] for when a fetch sends
-     * one, as iOS `PushAPI.CourseUploadRequest.rosterTerms` (tigerduck-app#914).
-     */
-    fun build(
-        courses: List<Course>,
-        semester: String,
-        forceKeys: List<String> = emptyList(),
-        rosterTerms: List<String> = emptyList(),
-    ): Map<String, Any> {
-        val items = items(courses, semester)
-        // Only real choices. Sending the auto-computed colour for every course
-        // made the server store all of them as explicit overrides on first
-        // upload — its upsert is create-only (`if override.color_hex is None`),
-        // so whichever generated hex landed first was then pinned server-side
-        // and no later palette change could take effect. The server already
-        // drops null entries; this is the client half of that contract.
-        val overrides = courses.mapNotNull { c ->
-            c.customColorHex?.let { hex ->
-                mapOf(
-                    // "client:{semester}:{course_no}" is the key the upload
-                    // route derives for these same rows. An override whose key
-                    // does not match one of them is silently skipped.
-                    "course_key" to key(semester, c.courseNo),
-                    "color_hex" to hex,
-                )
-            }
-        }
-        val payload = mutableMapOf<String, Any>(
-            "courses" to items,
-            "course_overrides" to overrides,
-        )
-        if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
-        if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
-        return payload
-    }
-
-    /**
-     * `/v4`'s body for [courses] in [semester]: the courses, and [adds], by key, each hand-add's
-     * stamp in epoch ms ([handAdds]). No `course_overrides`, which `/v4` refuses: a color goes only
+     * The body for [courses] in [semester]: the courses, and [adds], by key, each hand-add's stamp
+     * in epoch ms ([handAdds]). No `course_overrides`, which the backend refuses: a color goes only
      * as its course's override PATCH. No `force_keys` either: an add lifts a tombstone by its stamp.
+     *
+     * [rosterTerms] names the terms whose listed courses are the school's whole roster (backend
+     * 3.10.1): the backend enrolls the listed school courses of each and drops the others. Omitted
+     * when empty, as an upload that is no roster changes no course's enrollment. See
+     * [CourseUpload.of] for when a fetch sends one, as iOS
+     * `PushAPI.CourseUploadRequest.rosterTerms` (tigerduck-app#914).
      */
-    fun buildV4(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, Long>): Map<String, Any> {
+    fun build(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, Long>): Map<String, Any> {
         val payload = mutableMapOf<String, Any>("courses" to items(courses, semester))
         if (adds.isNotEmpty()) {
             payload["adds"] = adds.map { (courseKey, atMs) -> mapOf("course_key" to courseKey, "hlc" to clockOf(atMs)) }
@@ -77,11 +34,28 @@ internal object CourseUploadPayload {
     }
 
     /**
-     * The adds a `/v4` upload of [courses] must name, by key (X9): every course added by hand
+     * What the upload ledger fingerprints [courses] of [semester] by ([courseUploadFingerprint]):
+     * the body the upload carried before it spoke `/v4` alone, with each course's picked color as
+     * `course_overrides`, though no upload carries one now. Kept byte for byte, so a list the
+     * backend accepted from an earlier build is still the same list, and goes again only once it
+     * changes (a color included), or six hours on, as before.
+     */
+    fun ledgerBody(courses: List<Course>, semester: String, rosterTerms: List<String>): Map<String, Any> {
+        val colors = courses.mapNotNull { c ->
+            c.customColorHex?.let { hex -> mapOf("course_key" to key(semester, c.courseNo), "color_hex" to hex) }
+        }
+        val payload = mutableMapOf<String, Any>("courses" to items(courses, semester), "course_overrides" to colors)
+        if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
+        return payload
+    }
+
+    /**
+     * The adds an upload of [courses] must name, by key (X9): every course added by hand
      * ([Course.isManual]), and every one the caller adds now ([addedAt], [forceKeys]), whoever
-     * uploads them, a school roster included. `/v4` takes every other course of an upload for the
-     * school's roster, and would turn a hand-added one into a school row. Each is stamped with the
-     * caller's [addedAt] entry, else 0, the oldest, which changes nothing the backend already holds.
+     * uploads them, a school roster included. The backend takes every other course of an upload
+     * for the school's roster, and would turn a hand-added one into a school row. Each is stamped
+     * with the caller's [addedAt] entry, else 0, the oldest, which changes nothing the backend
+     * already holds.
      */
     fun handAdds(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): Map<String, Long> =
         courses.filter { it.isManual || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }

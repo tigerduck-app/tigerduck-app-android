@@ -8,7 +8,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-/** The backend's sync snapshot and change feed, relative to its base (`…/v3`), for [SyncApiClient]. */
+/** The backend's sync snapshot and change feed, relative to its base (`…/v4`), for [SyncApiClient]. */
 internal interface SyncApi {
 
     @GET("sync/revision")
@@ -24,7 +24,7 @@ internal interface SyncApi {
     fun full(@Header("Authorization") auth: String): Call
 }
 
-/** The backend's per-namespace settings documents, relative to its base (`…/v3`), for [SettingsDocumentApiClient]. */
+/** The backend's per-namespace settings documents, relative to its base (`…/v4`), for [SettingsDocumentApiClient]. */
 @JvmSuppressWildcards
 internal interface SettingsDocumentApi {
 

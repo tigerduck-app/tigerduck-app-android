@@ -20,14 +20,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
-import org.ntust.app.tigerduck.network.ApiVersionInterceptor
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
@@ -49,29 +45,18 @@ import java.io.IOException
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The holiday choices' queue over the real backend client and real preferences. What it sends on
- * `/v3` is pinned request by request, as the build before the outbox sent it: the address, every
- * header the client builds, the body and its type, for a tap, a waiting choice with its time or
- * with none, a resend after a `clock_ahead`, and how a refusal and TigerSync's switch decide what
- * goes again.
- *
- * On `/v4` each choice is stamped by the sync clock, one an older build left with no time goes with
- * this build's first run (Review Focus 1), a choice made with TigerSync off is kept and goes once it
- * is on, the reply's clock is the choice's acknowledgment, and a reply that says the backend kept a
- * later choice puts it on this phone unless the user has chosen again (LWW D12). The queue is the
- * outbox's holidays channel, registered from its own file.
+ * The holiday choices' queue over the real backend client and real preferences. Each choice is
+ * stamped by the sync clock, one an older build left with no time goes with this build's first run
+ * (Review Focus 1), a choice made with TigerSync off is kept and goes once it is on, the reply's
+ * clock is the choice's acknowledgment, and a reply that says the backend kept a later choice puts
+ * it on this phone unless the user has chosen again (LWW D12). The queue is the outbox's holidays
+ * channel, registered from its own file.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HolidayChannelTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val v3 = "http://127.0.0.1:9/v3"
     private val context = JvmContext()
     private val prefs = AppPreferences(context)
-    private val v3Backend = RecordingBackend(ahead = listOf(ApiVersionInterceptor { v3 }))
     private val series = SignInSeries()
     private val signIn get() = series.current
     private val calendar = AcademicCalendarStore(context, OkHttpClient(), prefs)
@@ -95,14 +80,7 @@ class HolidayChannelTest {
         Dispatchers.resetMain()
     }
 
-    /** The queue as the app builds it, over the client at `/v3`. */
-    private fun v3Holidays() = PendingHolidayOverrides(prefs, pushApiClientAt(v3, v3Backend.client, prefs), calendar = calendar)
-
     private fun RecordingBackend.Sent.shape() = listOf(method, url, headers, contentType, body)
-
-    private fun v3Shapes() = v3Backend.sent.map { it.shape() }
-
-    private fun put(id: Int, body: String) = listOf("PUT", "$v3/sync/holiday-overrides/$id", listOf(bearer), json, body)
 
     // --- /v4 ---
 
@@ -112,7 +90,7 @@ class HolidayChannelTest {
 
     /** The wall clock the sync clock and the old-entry time read; a test moves it. */
     private var nowMs = 1_790_000_500_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { BackendApi.V4 }, { nowMs })
+    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { nowMs })
     private val ack = AckClock()
     private val oldEntryTime = OldEntryTime(context.getSharedPreferences("tigerduck_outbox", 0), Dispatchers.Unconfined) { nowMs }
 
@@ -139,34 +117,7 @@ class HolidayChannelTest {
         nowMs = now
     }
 
-    // --- /v3: today's requests, which the move to the outbox leaves as they are ---
-
-    @Test
-    fun `on v3 each waiting choice goes as before, a PUT of notify with its time or with none`() = runTest {
-        prefs.holidayNotifyOverrides = setOf(3)
-        prefs.holidayOverrideEditTimes = mapOf(3 to madeAtMs)
-        prefs.holidayOverridesAwaitingUpload = setOf(3, 5)
-        val order = prefs.holidayOverridesAwaitingUpload.toList()
-
-        v3Holidays().retry(signIn)
-
-        val bodies = mapOf(3 to """{"notify":true,"hlc":1790000000123000}""", 5 to """{"notify":false}""")
-        assertEquals(order.map { put(it, bodies.getValue(it)) }, v3Shapes())
-        assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-        assertEquals("a time is neither given nor dropped", mapOf(3 to madeAtMs), prefs.holidayOverrideEditTimes)
-    }
-
-    @Test
-    fun `on v3 a reply that names another choice changes nothing on this phone`() = runTest {
-        v3Backend.answer("/v3/sync/holiday-overrides/3", 200, """{"holiday_id":3,"notify":false,"hlc":1790000900000000,"applied":false}""")
-        prefs.holidayNotifyOverrides = setOf(3)
-
-        v3Holidays().send(3, signIn)
-
-        assertEquals(setOf(3), prefs.holidayNotifyOverrides)
-        assertEquals(setOf(3), prefs.holidayOverrideEditTimes.keys)
-        assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-    }
+    // --- With last writer wins off, through a sender of the test's: the queue's /v3 rules, until they go ---
 
     @Test
     fun `on v3 a snapshot fetched while a sync's PUT is under way is not applied`() = runTest {
@@ -296,66 +247,6 @@ class HolidayChannelTest {
 
         assertEquals(listOf(3 to first, 4 to second), sent)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-    }
-
-    @Test
-    fun `on v3 a tap goes at once, stamped with the wall clock as it was made`() = runTest {
-        prefs.holidayNotifyOverrides = setOf(3)
-        val before = System.currentTimeMillis()
-        v3Holidays().send(3, signIn)
-        val after = System.currentTimeMillis()
-
-        val sent = v3Backend.sent.single()
-        assertEquals(listOf("PUT", "$v3/sync/holiday-overrides/3", listOf(bearer), json), sent.shape().take(4))
-        val stamp = Regex(""""hlc":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
-        assertTrue("stamped ${sent.body}", stamp != null && stamp in before * 1_000..after * 1_000)
-        assertEquals("""{"notify":true,"hlc":$stamp}""", sent.body)
-        assertEquals(mapOf(3 to stamp!! / 1_000), prefs.holidayOverrideEditTimes)
-        assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-    }
-
-    @Test
-    fun `on v3 a choice refused as ahead goes once more without its time`() = runTest {
-        prefs.holidayNotifyOverrides = setOf(3)
-        prefs.holidayOverrideEditTimes = mapOf(3 to madeAtMs)
-        prefs.holidayOverridesAwaitingUpload = setOf(3)
-        v3Backend.answer("/v3/sync/holiday-overrides/3", 409, """{"detail":"clock_ahead"}""")
-
-        v3Holidays().retry(signIn)
-
-        assertEquals(
-            listOf(put(3, """{"notify":true,"hlc":1790000000123000}"""), put(3, """{"notify":true}""")),
-            v3Shapes(),
-        )
-        assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-    }
-
-    @Test
-    fun `on v3 a refused choice is never parked, and every sync sends it again`() = runTest {
-        val path = "/v3/sync/holiday-overrides/3"
-        repeat(12) { v3Backend.answer(path, 404, """{"detail":"Holiday not found"}""") }
-        prefs.holidayNotifyOverrides = setOf(3)
-        val holidays = v3Holidays()
-
-        holidays.send(3, signIn)
-        repeat(9) { holidays.retry(signIn) }
-
-        assertEquals(10, v3Backend.sent.size)
-        assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
-    }
-
-    @Test
-    fun `on v3 nothing goes or waits with TigerSync off, though the time of the choice is kept`() = runTest {
-        prefs.cloudSyncEnabled = false
-        prefs.holidayNotifyOverrides = setOf(3)
-        val holidays = v3Holidays()
-
-        holidays.send(3, signIn)
-        holidays.retry(signIn)
-
-        assertEquals(emptyList<RecordingBackend.Sent>(), v3Backend.sent.toList())
-        assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-        assertEquals(setOf(3), prefs.holidayOverrideEditTimes.keys)
     }
 
     // --- /v4: the outbox's holidays channel ---

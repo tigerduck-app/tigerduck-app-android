@@ -24,7 +24,7 @@ class SyncWriteGatesTest {
     private val backend = RecordingBackend()
     private val prefs = AppPreferences(JvmContext())
     private val client = pushApiClientAt(v4, backend.client, prefs)
-    private val key = CourseRef(moodleId = null, courseKey = "client:1151:CS1")
+    private val key = CourseRef(courseKey = "client:1151:CS1")
     private val signIn = testSignIn()
 
     private val categories = listOf("courses", "course_colors", "course_names", "assignments")
