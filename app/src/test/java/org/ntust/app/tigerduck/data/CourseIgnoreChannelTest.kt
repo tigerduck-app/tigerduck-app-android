@@ -354,6 +354,7 @@ class CourseIgnoreChannelTest {
         cache.saveIgnoredCourses(setOf("$term:AAA", "$term:BBB"), signIn)
         lateinit var ignores: CourseIgnoreSync
         val sent = mutableListOf<String>()
+        var effects = 0
         ignores = CourseIgnoreSync(
             cache,
             CourseIgnoreWriter { target, _, _, pinned, _ ->
@@ -373,7 +374,7 @@ class CourseIgnoreChannelTest {
                 }
                 WriteAnswer(sent = true, serverClockUs = null, applied = emptySet(), values = mapOf("ignore_assignments" to false))
             },
-            CourseIgnoreEffects {},
+            CourseIgnoreEffects { effects++ },
             sends = { CourseIgnoreSync.syncsCourseIgnores(prefs) },
             clock = { nowMs++ },
             outbox = IgnoreOutbox({ nowMs++ }, { true }, AckClock(), backgroundScope, null),
@@ -383,6 +384,7 @@ class CourseIgnoreChannelTest {
         ignores.retryPending(signIn)
 
         assertEquals(setOf("$term:AAA"), cache.loadIgnoredCourses())
+        assertEquals("the two taps alone re-armed the reminders: no reply's setting was written", 2, effects)
     }
 
     @Test

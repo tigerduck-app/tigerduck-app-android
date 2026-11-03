@@ -488,7 +488,7 @@ class CourseOverridesChannelTest {
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
 
         v3Backend.sent.clear()
-        v3Backend.answer(upload, 200, """{"skipped_tombstoned":1,"adds":[{"course_key":"client:$term:${typed.courseNo}","applied":true,"hlc":1}]}""")
+        v3Backend.answer(upload, 200, """{"skipped_tombstoned":1}""")
         outbox.drain(signIn)
 
         assertEquals(listOf("$v3/sync/courses/upload", "$v3/sync/courses/1151XA0000009/override"), v3Backend.sent.map { it.url })
@@ -515,6 +515,35 @@ class CourseOverridesChannelTest {
 
         assertEquals(listOf("$v3/sync/courses/upload", "$v3/sync/courses/1151XA0000009/override"), v3Backend.sent.map { it.url })
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** What an upload told one student is not the next student's. */
+    @Test
+    fun `a skip an upload told the student before leaves the next student's parked change of the course`() = runTest {
+        val (outbox, _, overrides) = v3AddsAndOverrides()
+        overrides.courseUploadAnswered(term, emptyList(), listOf(typed.courseNo), signIn)
+        series.end()
+        outbox.forgetAccount()
+        cache.clearAllUserData()
+        series.open()
+        queue(placed(name(typed, "Mine", "en"), typed).copy(attempts = max))
+
+        overrides.courseUploadAnswered(term, listOf(other.courseNo), emptyList(), signIn)
+
+        assertEquals(listOf(max), waiting().map { it.attempts })
+    }
+
+    /** When a change was made or confirmed is its student's: the next student's snapshot holds none of it. */
+    @Test
+    fun `a change confirmed for the student before holds nothing against the next student's snapshot`() = runTest {
+        val overrides = v3Overrides()
+        overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn)
+        assertEquals(setOf(PendingCourseOverride.colorKey(calculus.moodleIdNumber!!)), overrides.held(0L))
+        series.end()
+        cache.clearAllUserData()
+        series.open()
+
+        assertEquals(emptySet<String>(), overrides.held(0L))
     }
 
     /** An upload's answer for an ended sign-in settles nothing of the next student's. */
