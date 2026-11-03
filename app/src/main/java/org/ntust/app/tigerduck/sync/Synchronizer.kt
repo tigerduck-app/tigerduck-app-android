@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
+import org.ntust.app.tigerduck.sync.reconcile.FirstSyncReconciler
 import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
 import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
@@ -138,6 +139,7 @@ class Synchronizer internal constructor(
         holidays: HolidaysReconciler,
         roster: RosterReconciler,
         ack: AckClock = AckClock(),
+        firstSync: FirstSyncReconciler? = null,
     ) : this(
         drain = outbox::drain,
         ForegroundSteps(
@@ -148,7 +150,7 @@ class Synchronizer internal constructor(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, authService::attemptRelogin,
             pendingCourseAdds, firstPullGate,
         ),
-        marks, ignores, overrides, reset, holidays, roster, NO_FIRST_SYNC, outbox::heldFields, ack,
+        marks, ignores, overrides, reset, holidays, roster, firstSync ?: NO_FIRST_SYNC, outbox::heldFields, ack,
     )
 
     private val inOrder = Reconcilers.inOrder(firstSync, marks, ignores, overrides, reset, holidays, roster)
