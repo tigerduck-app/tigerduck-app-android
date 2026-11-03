@@ -329,6 +329,44 @@ class CourseIgnoreChannelTest {
         assertEquals(emptyList<PendingCourseIgnore>(), waiting())
     }
 
+    /**
+     * Codex on Greptile r1: the gate is asked last, once the change is read again under the sync's
+     * lock, right before the request: a re-enable check's hold put on the ignores while that read
+     * ran stops the change.
+     */
+    @Test
+    fun `a change the re-enable check holds while it is read again under the sync's lock does not go`() = runTest {
+        // With no time, each read of the queue asks whether the backend goes by stamps.
+        queue(change("AAA", madeAtMs = null))
+        val sent = mutableListOf<String?>()
+        var sendsAsked = 0
+        var held = false
+        val ignores = CourseIgnoreSync(
+            cache,
+            CourseIgnoreWriter { target, ignore, _, _, _ ->
+                sent += target.moodleId
+                WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
+            },
+            CourseIgnoreEffects {},
+            sends = {
+                sendsAsked++
+                !held
+            },
+            clock = { 9_000L },
+            // Once the retry and its send have asked the gate, the next read of the queue is the one
+            // under the lock: the hold comes on as it reads.
+            outbox = IgnoreOutbox({ 9_000L }, {
+                if (sendsAsked >= 2) held = true
+                false
+            }, AckClock(), CallersScope(), null),
+        )
+
+        ignores.retryPending(signIn)
+
+        assertEquals(emptyList<String?>(), sent)
+        assertEquals(listOf("$term:AAA" to true), waiting().map { it.key to it.ignore })
+    }
+
     /** Fix round 1: one batch, one time, as each change of a batch always went on v3, however the clock moves as its courses are read. */
     @Test
     fun `on v3 every change of a batch goes with the batch's one time`() = runTest {

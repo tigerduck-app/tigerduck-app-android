@@ -275,11 +275,12 @@ internal class CourseIgnoreQueue(
         val answer = try {
             sendMutex.withLock {
                 // Read again once the lock is had, which the fill-in keeps across its own request: a
-                // change taken back (Use Server, a forget) or held (a re-enable check) meanwhile waits.
-                val current = sends() && mutex.withLock {
+                // change taken back (Use Server, a forget) meanwhile waits, and so does one held (a
+                // re-enable check) by then, the gate asked last, right before the request.
+                val current = mutex.withLock {
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
-                if (!current) return SendResult.NotSent
+                if (!current || !sends()) return SendResult.NotSent
                 writer.write(CourseRef(moodleId, courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAtMs)
             }
         } catch (e: CancellationException) {
