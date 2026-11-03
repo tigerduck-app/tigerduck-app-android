@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
@@ -204,6 +205,40 @@ class FirstPullAbsenceTest {
 
         assertEquals("hidden", emptySet<String>(), hidden())
         assertEquals(setOf(OLD, NEW), shown())
+    }
+
+    /**
+     * Codex on PR R, fix round 2, P1, on `/v4`: a fetch commits the new course, then a newer course
+     * selection answer, recorded while it saved, makes it ask for no upload; the newer answer's
+     * fetch is still looking its courses up as the first pull runs. The pull takes no absence for a
+     * delete, so the course stays; the newer fetch's own upload, once it commits, is what goes, as
+     * on dev, where the superseded fetch sent nothing either.
+     */
+    @Test
+    fun `on v4 a fetch a newer answer stopped from asking for its upload loses no course to the first pull`() = runBlocking {
+        setUp("v4")
+        val older = (w.dataCache.recordSelectionRoster(term, listOf(OLD, NEW), signIn) as RecordedSelection.Kept).answer
+        val committed = listOf(OLD, NEW).map { Course(courseNo = it, courseName = "School $it", moodleIdNumber = "$term$it") }
+        // The class table's commit, under its lock, its answer stored with the write.
+        rig.adds.uploading {
+            w.dataCache.updateCourses(term, signIn) { _, _ -> committed.also { w.dataCache.committedWith(term, older, signIn) } }
+        }
+        // The newer answer, its fetch still looking up: the older one is no longer the latest, so it asks for nothing.
+        w.dataCache.recordSelectionRoster(term, listOf(OLD, NEW), signIn)
+        assertEquals(false, w.dataCache.isLatestAnswer(term, older))
+
+        answerSnapshot()
+        rig.sync.pull(state, signIn)
+
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
+
+        // The newer answer's fetch commits and asks for its upload, which waits for this process's gate.
+        backgroundFetch()
+        assertEquals("nothing went before the gate opened", emptyList<List<String>>(), uploadedNos())
+        gate.notePull(signIn)
+        withTimeoutOrNull(10_000) { while (uploadedNos().isEmpty()) delay(5) }
+        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
     }
 
     private companion object {
