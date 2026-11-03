@@ -3,13 +3,19 @@ package org.ntust.app.tigerduck.sync
 import android.app.Application
 import android.content.Context
 import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,13 +27,19 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
+import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.parseFullSync
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.outbox.Outbox
+import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
+import org.ntust.app.tigerduck.ui.screen.classtable.saveClassTableEdit
 import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -36,7 +48,12 @@ import org.robolectric.annotation.Config
 /**
  * Race 5 (refactor-v4 D14, R5 to R8; spec §5.3): a write computed from what was read before an
  * `await` lands over what changed meanwhile. A school fetch and its lookups against the edits made
- * during them, over the real stores and queues. Made-up accounts and courses.
+ * during them, and the class table's edits against a pull or a fetch that writes the term while
+ * the edit's save waits, over the real stores and queues. The class table's view model cannot be
+ * built in a JVM test, so its saves are driven through the calls it makes (`ClassTableWiringTest`
+ * pins that it makes them, in this order). Writers run on [Dispatchers.Default] and the files on
+ * IO, so each lands whenever it does; every assertion follows the writers' end. Made-up accounts
+ * and courses.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -155,6 +172,155 @@ class RefreshOverEditTest {
         sync.sync(STUDENT, "made-up-password", term, signIn = signIn)
 
         assertEquals("English Name", stored().single { it.courseNo == CS1 }.customCourseName)
+    }
+
+    // --- The class table's edits over a pull or a fetch that writes the term meanwhile (R6, R8, race 5) ---
+
+    private fun snapshot(vararg rows: JSONObject): BackendSyncResult = parseFullSync(
+        JSONObject()
+            .put("current_revision", 1)
+            .put("server_hlc", 1_793_000_000_000_000L)
+            .put("assignments", JSONArray())
+            .put("courses", JSONArray())
+            .put("course_overrides", JSONArray().apply { rows.forEach { put(it) } }),
+        protocol2 = true,
+    )
+
+    private fun colorRow(no: String, hex: String) = JSONObject()
+        .put("moodle_id", "$term$no").put("course_no", no).put("semester", term).put("course_key", SyncField.courseKey(term, no))
+        .put("color_hex", hex).put("color_hex_hlc", 1_792_000_000_000_000L).put("custom_names", JSONObject())
+
+    private fun pass(result: BackendSyncResult) = SyncPass(
+        result = result,
+        signIn = signIn,
+        mode = SyncMode.FOREGROUND,
+        policy = policies.current,
+        state = state,
+        courseSync = DataCache.CourseSync(0L) { 0L },
+        beforeFetch = 0L,
+        syncedBefore = SyncCategory.entries.toSet(),
+        heldFields = outbox::heldFields,
+    )
+
+    private fun reconciler() = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs)
+
+    /**
+     * Holds the names' lock until the returned gate is let go: a `/v4` pull's overrides step,
+     * started after this, then waits inside the courses' lock it took, as when the names are busy.
+     */
+    private suspend fun CoroutineScope.holdNames(): CompletableDeferred<Unit> {
+        val gate = CompletableDeferred<Unit>()
+        val holding = CompletableDeferred<Unit>()
+        launch(Dispatchers.Default) {
+            w.dataCache.updateCourseCustomNames(signIn) { names ->
+                holding.complete(Unit)
+                gate.await()
+                names
+            }
+        }
+        withTimeout(10_000) { holding.await() }
+        return gate
+    }
+
+    /**
+     * Holds a write of the term, [change] of it, under the courses' lock until the returned gate is
+     * let go: a pull's or a fetch's commit, under way as the class table's edit goes to save.
+     */
+    private suspend fun CoroutineScope.holdTermWrite(change: (List<Course>) -> List<Course>): Pair<CompletableDeferred<Unit>, Job> {
+        val gate = CompletableDeferred<Unit>()
+        val holding = CompletableDeferred<Unit>()
+        val job = launch(Dispatchers.Default) {
+            w.dataCache.updateCourses(term, signIn) { courses, _ ->
+                holding.complete(Unit)
+                gate.await()
+                change(courses)
+            }
+        }
+        withTimeout(10_000) { holding.await() }
+        return gate to job
+    }
+
+    /**
+     * Codex on PR L, round 2, finding 1: the class table's color pick, built at the tap of the list
+     * on screen and saved after waiting behind a `/v4` pull's overrides step, wrote back course B as
+     * the tap found it, over the snapshot's color the step gave B.
+     */
+    @Test
+    fun `a color picked while a pull's step runs keeps the color the step gave another course`() = runBlocking {
+        show(
+            Course(courseNo = "A1", courseName = "A", moodleIdNumber = "${term}A1", customColorHex = "#111111"),
+            Course(courseNo = "B1", courseName = "B", moodleIdNumber = "${term}B1"),
+        )
+        val names = holdNames()
+        val pull = launch(Dispatchers.Default) { reconciler().reconcile(pass(snapshot(colorRow("B1", "#222222")))) }
+        delay(300)
+        // The class table's pick, as it makes it: the list on screen at the tap, then its save, and the change kept to go up.
+        val before = stored()
+        val picked = before.map { if (it.courseNo == "A1") it.copy(customColorHex = "#333333") else it }
+        val save = launch(Dispatchers.Default) { w.dataCache.saveClassTableEdit(term, signIn, before, picked) }
+        val keep = launch(Dispatchers.Default) {
+            overrides.queue(
+                listOf(PendingCourseOverrides.Change("${term}A1", colorHex = "#333333", semester = term, courseNo = "A1")),
+                overrides.reserveVersion(),
+                signIn,
+            )
+        }
+        delay(300)
+        names.complete(Unit)
+        withTimeout(10_000) {
+            pull.join()
+            save.join()
+            keep.join()
+        }
+
+        assertEquals(mapOf("A1" to "#333333", "B1" to "#222222"), stored().associate { it.courseNo to it.customColorHex })
+    }
+
+    /** R8: a course another device added, merged in by a pull while an edit's save waited, stays. */
+    @Test
+    fun `an edit saved while a pull merges in another device's course keeps that course`() = runBlocking {
+        show(Course(courseNo = "A1", courseName = "A", moodleIdNumber = "${term}A1"))
+        val before = stored()
+        val (gate, pull) = holdTermWrite { it + Course(courseNo = "X9", courseName = "Added elsewhere", isManual = true) }
+        val renamed = before.map { it.copy(customCourseName = "Renamed A") }
+        val save = launch(Dispatchers.Default) { w.dataCache.saveClassTableEdit(term, signIn, before, renamed) }
+        delay(300)
+        gate.complete(Unit)
+        withTimeout(10_000) {
+            pull.join()
+            save.join()
+        }
+
+        assertEquals(mapOf("A1" to "Renamed A", "X9" to null), stored().associate { it.courseNo to it.customCourseName })
+    }
+
+    /** R6: the rooms found for the list on screen go onto a newer roster a fetch wrote meanwhile. */
+    @Test
+    fun `rooms found for the list on screen are saved onto a newer roster, which they do not undo`() = runBlocking {
+        show(
+            Course(courseNo = "A1", courseName = "A", moodleIdNumber = "${term}A1"),
+            Course(courseNo = "B1", courseName = "B", moodleIdNumber = "${term}B1", classroom = ""),
+        )
+        val before = stored()
+        // The newer roster: B1 dropped, C1 enrolled.
+        val (gate, fetch) = holdTermWrite { courses ->
+            courses.filter { it.courseNo != "B1" } + Course(courseNo = "C1", courseName = "C", moodleIdNumber = "${term}C1")
+        }
+        val found = mapOf(
+            "A1" to Course(courseNo = "A1", courseName = "A", classroom = "IB-202"),
+            "B1" to Course(courseNo = "B1", courseName = "B", classroom = "TR-313"),
+        )
+        val withRooms = ClassTableCourseMerge.withRoomsFound(before, found) ?: before
+        val save = launch(Dispatchers.Default) { w.dataCache.saveClassTableEdit(term, signIn, before, withRooms) }
+        delay(300)
+        gate.complete(Unit)
+        withTimeout(10_000) {
+            fetch.join()
+            save.join()
+        }
+
+        assertEquals(listOf("A1", "C1"), stored().map { it.courseNo })
+        assertEquals("IB-202", stored().single { it.courseNo == "A1" }.classroom)
     }
 
     private companion object {

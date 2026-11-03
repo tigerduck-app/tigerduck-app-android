@@ -77,6 +77,24 @@ object ClassTableCourseMerge {
         return (before.filterNot { it in now } + after.filterNot { it in was }).mapTo(mutableSetOf()) { it.courseNo }
     }
 
+    /**
+     * [stored], the term's list as it stands, with what an edit of [before], the list on screen
+     * at the tap, into [after] changed, and nothing else (race 5, refactor-v4 R6 and R8): a course
+     * the edit added goes in, one it took off goes, and one it changed takes the edit's copy, while
+     * every course it did not touch stays as stored. So a pull's colours or names and another
+     * device's course, or a newer roster a fetch wrote since the tap, are not written back as the
+     * tap found them; and a changed course the term no longer has is not brought back.
+     */
+    fun editOnto(stored: List<Course>, before: List<Course>, after: List<Course>): List<Course> {
+        val edited = editedNos(before, after)
+        if (edited.isEmpty()) return stored
+        val was = before.associateBy { it.courseNo }
+        val now = after.associateBy { it.courseNo }
+        val kept = stored.mapNotNull { course -> if (course.courseNo in edited) now[course.courseNo] else course }
+        val storedNos = stored.mapTo(mutableSetOf()) { it.courseNo }
+        return kept + after.filter { it.courseNo in edited && it.courseNo !in storedNos && it.courseNo !in was }
+    }
+
     // --- Looking a stored course up again (tigerduck-app-android#264) ---
     //
     // mergeFetched keeps a hand-added course, or one merged from another

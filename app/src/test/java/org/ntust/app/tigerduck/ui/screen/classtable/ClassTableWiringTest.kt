@@ -193,7 +193,9 @@ class ClassTableWiringTest {
         assertTrue("the abbreviation relabel no longer makes its edit through showEdit", relabel >= 0)
         assertTrue("the abbreviation relabel no longer saves through saveEdit", source.indexOf("saveEdit(relabeled, semester, edit)", relabel) > relabel)
         assertCalls("showEdit", "_courses.value = updated", "noteTermEdit(semester)", "unsavedEdits[edit.id] = semester to edited")
-        assertCalls("saveEdit", "dataCache.saveCourses(updated, semester, edit.signIn)", "unsavedEdits.remove(edit.id)")
+        // Onto the term as it stands, what the edit changed of the list it was made of: ClassTableEditSave, under RefreshOverEditTest.
+        assertCalls("saveEdit", "dataCache.saveClassTableEdit(semester, edit.signIn, edit.before, updated)", "unsavedEdits.remove(edit.id)")
+        assertCalls("showEdit", "UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)")
         assertCalls("fetchTermCourses", "editGeneration = { termEdits[semester] ?: 0 }")
     }
 

@@ -198,23 +198,23 @@ class ClassTableViewModel @Inject constructor(
     /**
      * Puts [updated], an in-place edit of [semester]'s list, on screen: the edit counted, and the
      * courses it changed noted unsaved until [saveEdit] is handed the edit returned, which holds
-     * the sign-in the tap was made in.
+     * the sign-in the tap was made in and the list it was made of.
      */
     private fun showEdit(updated: List<Course>, semester: String): UnsavedEdit {
-        val edited = ClassTableCourseMerge.editedNos(_courses.value, updated)
+        val edit = UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)
+        val edited = ClassTableCourseMerge.editedNos(edit.before, updated)
         _courses.value = updated
         noteTermEdit(semester)
-        val edit = UnsavedEdit(nextUnsavedEdit++, signInNow())
         unsavedEdits[edit.id] = semester to edited
         return edit
     }
 
-    private class UnsavedEdit(val id: Long, val signIn: SignIn)
+    private class UnsavedEdit(val id: Long, val signIn: SignIn, val before: List<Course>)
 
-    /** Saves [updated], the list [edit] left, and lets the edit go once the save is done. */
+    /** Saves what [updated], the list [edit] left, changed, onto the term as it stands, and lets the edit go once saved. */
     private suspend fun saveEdit(updated: List<Course>, semester: String, edit: UnsavedEdit) {
         try {
-            dataCache.saveCourses(updated, semester, edit.signIn)
+            dataCache.saveClassTableEdit(semester, edit.signIn, edit.before, updated)
         } finally {
             unsavedEdits.remove(edit.id)
         }

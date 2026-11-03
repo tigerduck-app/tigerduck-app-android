@@ -666,7 +666,7 @@ class SyncWiringTest {
         assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("markSaves.trySend"))
         assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "markSaves.trySend(Triple(id, status, signIn))", "unsentMarks.send(id, status, signIn)")
         val edit = body("ui/screen/classtable/ClassTableViewModel.kt", "showEdit")
-        assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow())" in edit)
+        assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)" in edit)
         val lookup = body("network/CourseService.kt", "fetchLookup")
         assertTrue(
             "a lookup no longer reads its sign-in before the request",
