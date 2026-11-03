@@ -147,7 +147,7 @@ class PendingCourseDeletes internal constructor(
 
     private val lane: OutboxLane<CourseDelete> = OutboxLane(
         OutboxChannelId.COURSE_DELETES,
-        CourseDeletesStore(dataCache, load),
+        CourseDeletesStore(dataCache, load, kindOf = { sends.kindFor(it) }),
         LanePolicy(
             field = CourseDelete::field,
             // A delete is never given up on for its refusals, as before it was a channel.
@@ -345,7 +345,7 @@ class PendingCourseDeletes internal constructor(
             this
         } else {
             val kept = this[semester]?.get(courseNo)
-            if (kept == null || queuedAt >= kept) sends.told(membershipField(semester, courseNo), kind)
+            if (kept == null || queuedAt >= kept) sends.told(membershipField(semester, courseNo), queuedAt, kind)
             this + (semester to this[semester].orEmpty().let { it + (courseNo to maxOf(it[courseNo] ?: 0L, queuedAt)) })
         }
 

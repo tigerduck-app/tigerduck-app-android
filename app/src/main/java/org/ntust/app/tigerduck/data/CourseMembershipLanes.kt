@@ -42,6 +42,19 @@ internal data class CourseAdd(val semester: String, val courseNo: String, val ad
 /** A course deleted from [semester] whose DELETE waits, with the moment it was asked. */
 internal data class CourseDelete(val semester: String, val courseNo: String, val queuedAt: Long) {
     val field: String get() = membershipField(semester, courseNo)
+
+    /**
+     * The delete's kind, `/v4`'s `hide` or `remove`, as told with this delete's moment, taken in
+     * the read that gave this delete, under the lane's lock ([CourseDeletesStore.load]): a newer
+     * ask tells its kind for its own moment, and the older request still says what it was. Null
+     * when none was told for this moment or it was not read so. Not part of the edit, so neither
+     * compared nor copied.
+     */
+    var kind: String? = null
+        private set
+
+    /** This delete, as read with [kind] told for its moment. */
+    fun readWithKind(kind: String?): CourseDelete = also { this.kind = kind }
 }
 
 /** The field an add, a hide and a removal of [courseNo] in [semester] all edit. */
@@ -102,12 +115,17 @@ private fun momentsInPlace(entries: List<CourseAdd>, before: Map<String, Map<Str
     return kept
 }
 
-/** The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read through [load]. */
+/**
+ * The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read
+ * through [load], each delete with the kind [kindOf] says was told for its moment. Read under the
+ * lane's lock, which a keep tells its kind under too, so the two are one read.
+ */
 internal class CourseDeletesStore(
     private val dataCache: DataCache,
     private val load: suspend () -> Map<String, Map<String, Long>>,
+    private val kindOf: (CourseDelete) -> String? = { null },
 ) : LaneStore<CourseDelete> {
-    override suspend fun load(): List<CourseDelete> = deletesOf(load.invoke())
+    override suspend fun load(): List<CourseDelete> = deletesOf(load.invoke()).map { it.readWithKind(kindOf(it)) }
 
     override suspend fun save(entries: List<CourseDelete>, signIn: SignIn): Boolean =
         dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn)

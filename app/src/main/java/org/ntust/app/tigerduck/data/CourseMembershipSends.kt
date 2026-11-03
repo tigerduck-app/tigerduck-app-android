@@ -196,21 +196,26 @@ internal class CourseDeleteSends(
     private val waiting: suspend () -> List<CourseDelete>,
     private val underQueueLock: suspend (suspend () -> Unit) -> Unit,
 ) {
-    // Each waiting delete's kind, by its field, as the class table told it when it kept it. In
-    // memory: a delete read after a restart goes with none, and the backend decides from its row (X3).
-    private val kinds = ConcurrentHashMap<String, String>()
+    // Each waiting delete's kind, by its field, with the moment it was told for, as the class table
+    // told it when it kept the delete. In memory: a delete read after a restart goes with none, and
+    // the backend decides from its row (X3).
+    private val kinds = ConcurrentHashMap<String, Pair<Long, String>>()
 
     // Whether the send under the lock may still make its one request: a removal kept while it was
     // in flight goes at its own turn of the lock, as before, not on the back of this one.
     private val oneRequest = AtomicBoolean(false)
 
     /**
-     * [field]'s delete, asked now, is of a course of [kind], null when its row is not known: the
-     * newest ask is the one that goes, so a kind told for an older one does not outlive it.
+     * [field]'s delete, asked at [queuedAt], is of a course of [kind], null when its row is not
+     * known: the newest ask is the one that goes, so a kind told for an older one does not outlive
+     * it. Told under the lane's lock, as the delete's moment is kept ([CourseDeletesStore]).
      */
-    fun told(field: String, kind: String?) {
-        if (kind == null) kinds.remove(field) else kinds[field] = kind
+    fun told(field: String, queuedAt: Long, kind: String?) {
+        if (kind == null) kinds.remove(field) else kinds[field] = queuedAt to kind
     }
+
+    /** The kind told for [delete]'s own moment, none for another's. */
+    fun kindFor(delete: CourseDelete): String? = kinds[delete.field]?.takeIf { (at, _) -> at == delete.queuedAt }?.second
 
     /** Forgets every kind: at a sign-out. */
     fun forget() = kinds.clear()
@@ -237,7 +242,7 @@ internal class CourseDeleteSends(
             // applies it only when later than the course's last add, hide and reset: a hide queued
             // offline loses to an add made since on another device, and a retry after a lost reply
             // changes nothing (#591).
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, kinds[delete.field])
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, delete.kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

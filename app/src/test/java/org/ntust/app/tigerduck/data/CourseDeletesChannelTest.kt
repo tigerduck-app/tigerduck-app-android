@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.data
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -530,6 +531,63 @@ class CourseDeletesChannelTest {
         deletes.retry(signIn)
 
         assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000&kind=remove"), backend.sent.map { it.url })
+    }
+
+    /**
+     * A delete goes with the kind told with its moment. A newer ask of the course, a hide of it as
+     * enrolled, kept the moment the lane has read the older removal and before that removal goes,
+     * tells its own kind for its own moment: the older DELETE still says what it was, not what
+     * the newer ask is. Here the newer ask waits for the lane's lock through the read, takes it as
+     * the read gives it up, and its own read is answered at once from that one.
+     */
+    @Test
+    fun `a delete goes with the kind told with its moment, though a newer ask comes as it is read`() = runTest {
+        prefs.announcementApiBaseUrlOverride = v4
+        val outbox = MembershipOutbox(SyncPolicies(prefs), scope = backgroundScope)
+        val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null }, outbox)
+        lateinit var deletes: PendingCourseDeletes
+        val sent = mutableListOf<Pair<Long, String?>>()
+        var armed = false
+        var answered: Map<String, Map<String, Long>>? = null
+        var rival: Job? = null
+        val load: suspend () -> Map<String, Map<String, Long>> = {
+            answered?.also { answered = null } ?: cache.loadPendingCourseDeletes().also { read ->
+                if (armed) {
+                    armed = false
+                    answered = read
+                    rival = launch(Dispatchers.Unconfined) {
+                        deletes.keep(term, typed, 20L, signIn, Course(courseNo = typed, courseName = "Enrolled", moodleIdNumber = "1151$typed"))
+                    }
+                }
+            }
+        }
+        deletes = PendingCourseDeletes(
+            cache, adds,
+            { _, _, hiddenAt, kind ->
+                sent += hiddenAt to kind
+                WriteAnswer(sent = true, serverClockUs = null, applied = setOf(WriteAnswer.MEMBERSHIP), values = emptyMap())
+            },
+            { ++nowMs }, load, outbox,
+        )
+        deletes.keep(term, typed, 10L, signIn, Course(courseNo = typed, courseName = "Typed", isManual = true))
+
+        armed = true
+        deletes.sendKept(term, typed, signIn)
+        checkNotNull(rival) { "the send read nothing" }.join()
+
+        assertEquals(listOf<Pair<Long, String?>>(10L to "remove"), sent)
+        assertEquals(mapOf(term to mapOf(typed to 20L)), queued())
+    }
+
+    /** A kind is the one told for the delete's own moment: a delete of the course at another moment has none. */
+    @Test
+    fun `a kind told for one moment of a course's delete is no other moment's`() {
+        val sends = CourseDeleteSends(cache, { _, _, _, _ -> WriteAnswer.NOT_SENT }, MembershipOutbox(), waiting = { emptyList() }, underQueueLock = { it() })
+
+        sends.told(field(typed), 10L, "remove")
+
+        assertEquals("remove", sends.kindFor(CourseDelete(term, typed, 10L)))
+        assertEquals(null, sends.kindFor(CourseDelete(term, typed, 20L)))
     }
 
     /** Review Focus 5, on `/v4`. */
