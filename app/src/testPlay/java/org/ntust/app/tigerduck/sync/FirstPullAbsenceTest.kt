@@ -73,7 +73,7 @@ class FirstPullAbsenceTest {
         pendingOverrides = mutableSetOf(),
     )
 
-    /** Over a backend at [api], `v4`, or null for a base that names no version, which still takes `/v3`'s rules. */
+    /** Over a backend at [api], `v4`, or null for a base that names no version, which takes `/v4`'s rules too. */
     private fun setUp(api: String?) {
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
@@ -140,7 +140,8 @@ class FirstPullAbsenceTest {
             .put("course_overrides", JSONArray())
             .put("courses", JSONArray().put(row(OLD)))
             .put("course_tombstones", JSONArray().apply { tombstones.forEach { put(tombstone(it)) } })
-        if (prefix == "/v4") snapshot.put("server_hlc", 1_793_000_000_000_000L).put("term_resets", JSONObject())
+        // /v4's snapshot, which every base serves.
+        snapshot.put("server_hlc", 1_793_000_000_000_000L).put("term_resets", JSONObject())
         backend.answer("GET $prefix/sync/full", 200, snapshot.toString())
     }
 
@@ -176,26 +177,26 @@ class FirstPullAbsenceTest {
     }
 
     /**
-     * The coordinator's ruling (fix round 3): on a base that names no version, as on `/v3`, nothing
-     * waits for the first pull, so a fetched course goes up as its fetch commits it, and the backend
-     * lists it by the time a pull reads the term. Whether the background's fetch or the class table's.
+     * A base that names no version takes `/v4`'s rules: a fetched course's upload waits for the first
+     * pull, which takes no absence for a delete, so the course stays. Whether the background's fetch
+     * or the class table's.
      */
     @Test
-    fun `on a base that names no version the background's fetched course goes up at once, before any pull`() = runBlocking {
+    fun `on a base that names no version the background's fetched course its upload waits for stays`() = runBlocking {
         setUp(null)
-        backgroundFetch()
+        pullOver(::backgroundFetch)
 
-        assertEquals("nothing waits", 0, gate.waiting)
-        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
     }
 
     @Test
-    fun `on a base that names no version the class table's fetched course goes up at once, before any pull`() = runBlocking {
+    fun `on a base that names no version the class table's fetched course its upload waits for stays`() = runBlocking {
         setUp(null)
-        classTableFetch()
+        pullOver(::classTableFetch)
 
-        assertEquals("nothing waits", 0, gate.waiting)
-        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
     }
 
     /** `/v4` takes no absence for a delete: membership follows the tombstones (LWW D10). */

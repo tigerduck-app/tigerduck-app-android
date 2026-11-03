@@ -5,10 +5,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.network.canonicalBackend
 
 /**
- * The API a backend base names by its last path segment: `…/v4` is TigerSync protocol 2, the one
- * every request of the app's speaks, and `…/v3` is the one [ApiBase.of] moves to it. A base that
- * names neither is [V3] here, as every base was before phase 3, for the sync rules that still ask;
- * its requests are `/v4`'s, sent to the base as given, as iOS sends them.
+ * A version of the backend's API, by the path segment that names it: `…/v4` is TigerSync protocol 2,
+ * the one the app speaks, and `…/v3` the one [ApiBase.of] moves to it.
  */
 enum class BackendApi(val segment: String) {
     V3("v3"),
@@ -16,7 +14,15 @@ enum class BackendApi(val segment: String) {
     ;
 
     companion object {
-        fun of(base: String): BackendApi = if (named(base) == V4) V4 else V3
+        /**
+         * The API the app speaks to [base], and so the rules its sync takes there: [ApiBase.TARGET],
+         * `/v4`, whatever the base's last segment names. A base ending in `/v3` is moved to `/v4`
+         * before anything is sent to it ([ApiBase.of]), and one that names no version, a self-hosted
+         * setting's, is sent `/v4`'s requests as given, as iOS sends any server, so it takes `/v4`'s
+         * rules too. [V3] never comes out of here: it names the segment [ApiBase.of] moves.
+         */
+        @Suppress("UNUSED_PARAMETER")
+        fun of(base: String): BackendApi = ApiBase.TARGET
 
         /** The API [base]'s last path segment names; null when it names none, or [base] is no URL. */
         internal fun named(base: String): BackendApi? = base.toHttpUrlOrNull()?.let(::named)
@@ -42,7 +48,7 @@ object ApiBase {
     /**
      * The API the app speaks: `/v4`. A base ending in `/v3` moves to it, whoever runs it (as iOS's
      * `apiBase` moves any server's, S3), and one ending in `/v4` already speaks it. A base with no
-     * version segment is sent to as given.
+     * version segment is sent to as given, and speaks it too ([BackendApi.of]).
      */
     val TARGET: BackendApi = BackendApi.V4
 

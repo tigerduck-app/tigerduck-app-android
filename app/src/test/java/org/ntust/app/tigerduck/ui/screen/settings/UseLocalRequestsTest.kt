@@ -78,14 +78,14 @@ class UseLocalRequestsTest {
     }
 
     /** Built as Settings builds it, with the outbox version reserved before the names are read. */
-    private suspend fun onV4(setUp: (AppPreferences) -> Unit = {}): OnV4 {
+    private suspend fun onV4(base: String = "http://127.0.0.1:9/v4", setUp: (AppPreferences) -> Unit = {}): OnV4 {
         var built: OnV4? = null
         val v4 = RecordingBackend(
             ahead = listOf(
                 Interceptor { chain ->
                     chain.proceed(chain.request()).also {
                         val request = chain.request()
-                        if (request.method == "DELETE" && request.url.encodedPath == "/v4/sync/courses") runBlocking { built?.afterReset?.invoke() }
+                        if (request.method == "DELETE" && request.url.encodedPath.endsWith("/sync/courses")) runBlocking { built?.afterReset?.invoke() }
                     }
                 },
             ),
@@ -94,7 +94,7 @@ class UseLocalRequestsTest {
         val v4Prefs = AppPreferences(v4Context).also(setUp)
         val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { WALL_MS })
         clock.heardInSnapshot(BACKEND_US)
-        val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
+        val v4Api = pushApiClientAt(base, v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
         return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache, termResets(cache, v4Api)), v4, cache, outbox).also { built = it }
@@ -167,6 +167,36 @@ class UseLocalRequestsTest {
             v4.sent.drop(3).map { sent -> JSONObject(sent.body!!).asMap() - "hlc" },
         )
         assertEquals("a name that went waits for nothing", emptyList<Any>(), onV4.cache.loadPendingCourseOverrides())
+    }
+
+    /**
+     * A base that names no API version takes `/v4`'s rules as it takes its requests: each color goes
+     * as its course's stamped override, and the hand-added course as an add stamped after the reset,
+     * so neither is lost to the reset. Under `/v3`'s rules no color went, and the add went as the oldest.
+     */
+    @Test
+    fun `on a base that names no version Use Local stamps each color override and its hand-adds`() = runTest {
+        val onV4 = onV4(base = "http://127.0.0.1:9")
+        val (courses, sent) = onV4.courses to onV4.backend
+        val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#00FF00")
+        onV4.holds("1151", listOf(colored, manual))
+
+        keepLocalCourses(terms = listOf("1151" to listOf(colored, manual)), hiding = emptySet(), backend = courses, customNames = emptyMap())
+
+        assertEquals(
+            listOf(
+                "DELETE http://127.0.0.1:9/sync/courses?semester=1151",
+                "POST http://127.0.0.1:9/sync/courses/upload",
+                "PATCH http://127.0.0.1:9/sync/courses/client:1151:CS1/override",
+                "PATCH http://127.0.0.1:9/sync/courses/client:1151:MY1/override",
+            ),
+            sent.sent.map { "${it.method} ${it.url.substringBefore("&hlc").substringBefore("?hlc")}" },
+        )
+        val reset = hlcOf(sent.sent[0])!!
+        val add = JSONObject(sent.sent[1].body!!).getJSONArray("adds").getJSONObject(0)
+        assertEquals("client:1151:MY1", add.getString("course_key"))
+        assertTrue("the add is stamped after the reset", add.getLong("hlc") > reset)
     }
 
     @Test

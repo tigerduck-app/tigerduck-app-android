@@ -90,12 +90,11 @@ class ApiBaseTest {
     }
 
     @Test
-    fun `a base with no version segment, or another host's, is spoken to as before the move`() {
-        // No version segment: sent to as given, and BackendApi names it V3, as every base without one
-        // always was, for the sync rules that still ask; its requests take /v4's forms.
+    fun `a base with no version segment is sent to as given and speaks v4, and another host's is no request of the backend's`() {
+        // No version segment: sent to as given, its requests /v4's and its rules too, as iOS speaks any server.
         val unversioned = listOf("https://self-hosted.example", "https://self-hosted.example/tigerduck/api", "http://192.168.1.5:8000")
         assertEquals(unversioned.associateWith { it }, unversioned.associateWith { resolveAnnouncementEndpoint(it).url })
-        assertEquals(unversioned.associateWith { BackendApi.V3 }, unversioned.associateWith { BackendApi.of(resolveAnnouncementEndpoint(it).url) })
+        assertEquals(unversioned.associateWith { BackendApi.V4 }, unversioned.associateWith { BackendApi.of(resolveAnnouncementEndpoint(it).url) })
         // Another host's requests are not the backend's, at either version: no session, no clock read.
         val school = listOf("https://moodle2.ntust.edu.tw/v3/webservice", "https://ssoam2.ntust.edu.tw/v4/account/login")
         for (base in listOf("https://api.example.test/v3", "https://api.example.test/v4")) {
@@ -103,21 +102,23 @@ class ApiBaseTest {
         }
     }
 
+    /** What a base's last segment names is [ApiBase]'s to move and compare by; every base speaks `/v4`. */
     @Test
-    fun `a base speaks v4 when its last segment says so, and v3 otherwise`() {
-        val apis = mapOf(
+    fun `every base speaks v4, whatever its last segment names`() {
+        val named = mapOf(
             "https://api.example.test/v4" to BackendApi.V4,
             "https://api.example.test/v4/" to BackendApi.V4,
             "https://api.example.test/prefix/v4" to BackendApi.V4,
             "https://api.example.test/v3" to BackendApi.V3,
-            "https://api.example.test" to BackendApi.V3,
-            "https://api.example.test/v4x" to BackendApi.V3,
-            "https://api.example.test/v4/sync" to BackendApi.V3,
-            "https://v4" to BackendApi.V3,
-            "not a url/v4" to BackendApi.V3,
+            "https://api.example.test" to null,
+            "https://api.example.test/v4x" to null,
+            "https://api.example.test/v4/sync" to null,
+            "https://v4" to null,
+            "not a url/v4" to null,
         )
 
-        assertEquals(apis, apis.keys.associateWith { BackendApi.of(it) })
+        assertEquals(named, named.keys.associateWith { BackendApi.named(it) })
+        assertEquals(named.keys.associateWith { BackendApi.V4 }, named.keys.associateWith { BackendApi.of(it) })
     }
 
     @Test

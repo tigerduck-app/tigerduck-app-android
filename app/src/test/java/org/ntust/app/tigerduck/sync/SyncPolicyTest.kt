@@ -30,8 +30,9 @@ import org.ntust.app.tigerduck.util.JvmContext
  * [SyncPolicy] is pinned to the copies of each rule it will replace, on every combination of the
  * switches and the hold: each answer is checked against the copy run on the same preferences, the
  * backend client's gates by whether a request went out. Both flavors run this, so the flavor is
- * covered as the build gives it, and as an input of its own below. The copies are `/v3`'s rules,
- * which a base naming no API version still takes ([UNVERSIONED]) until they go.
+ * covered as the build gives it, and as an input of its own below. Every base takes `/v4`'s rules,
+ * last writer wins, one that names no API version ([UNVERSIONED]) too: what a category keeps is
+ * `/v4`'s rule, and every other answer today's copy.
  */
 class SyncPolicyTest {
 
@@ -80,10 +81,11 @@ class SyncPolicyTest {
             val row = "master=$master on=$on held=$held"
             fun check(what: String, today: Boolean, ours: Boolean) = assertEquals("$what at $row", today, ours)
 
-            check("keeps(ASSIGNMENTS)", UnsentMarks.recordsMarks(prefs), policy.keeps(ASSIGNMENTS))
+            // Last writer wins: kept whatever the switches say, where the build has TigerSync.
+            check("keeps(ASSIGNMENTS)", policy.flavorSyncs, policy.keeps(ASSIGNMENTS))
             check("sends(ASSIGNMENTS)", UnsentMarks.sendsMarks(prefs), policy.sends(ASSIGNMENTS))
-            check("keeps(COURSE_COLORS)", PendingCourseOverrides.records(prefs, color = true), policy.keeps(COURSE_COLORS))
-            check("keeps(COURSE_NAMES)", PendingCourseOverrides.records(prefs, color = false), policy.keeps(COURSE_NAMES))
+            check("keeps(COURSE_COLORS)", policy.flavorSyncs, policy.keeps(COURSE_COLORS))
+            check("keeps(COURSE_NAMES)", policy.flavorSyncs, policy.keeps(COURSE_NAMES))
             check("sends(COURSE_COLORS)", PendingCourseOverrides.sends(prefs, color = true), policy.sends(COURSE_COLORS))
             check("sends(COURSE_NAMES)", PendingCourseOverrides.sends(prefs, color = false), policy.sends(COURSE_NAMES))
             check(
@@ -119,8 +121,7 @@ class SyncPolicyTest {
             check("uploadsCourses", client.uploadCoursesAnswered(roster, "1151", signIn) != null, policy.uploadsCourses)
             check("sends(COURSES)", sent { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null) }, policy.sends(COURSES))
             check("sends(COURSES) is the upload's", policy.uploadsCourses, policy.sends(COURSES))
-            // No copy asks this yet: the course list's queues keep their edits whatever the switches say.
-            check("keeps(COURSES)", prefs.cloudSyncEnabled && prefs.syncCourses, policy.keeps(COURSES))
+            check("keeps(COURSES)", policy.flavorSyncs, policy.keeps(COURSES))
             rows++
         }
         assertEquals(512, rows)
@@ -135,14 +136,14 @@ class SyncPolicyTest {
     }
 
     @Test
-    fun `last writer wins once the endpoint speaks v4, and not on a base that names no version`() {
+    fun `last writer wins on every base, one that names no version included`() {
         for ((base, wins) in listOf(
             "http://127.0.0.1:9/v4" to true,
             "http://127.0.0.1:9/prefix/v4/" to true,
             // As the released build left it: moved to v4.
             "http://127.0.0.1:9/v3" to true,
-            "http://127.0.0.1:9" to false,
-            "http://127.0.0.1:9/v4x" to false,
+            "http://127.0.0.1:9" to true,
+            "http://127.0.0.1:9/v4x" to true,
         )) {
             prefs.announcementApiBaseUrlOverride = base
             assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
@@ -153,10 +154,9 @@ class SyncPolicyTest {
     @Test
     fun `on v4 every switch reads as on v3, and every category is kept whatever its switches say`() {
         store(master = true, on = setOf(COURSES), held = setOf(COURSES))
-        // A base naming no version still takes /v3's rules.
-        val v3 = policies.current
-        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4"
         val v4 = policies.current
+        // The same reading under /v3's rules, which no base takes any more.
+        val v3 = SyncPolicy(v4.cloudSync, v4.flavorSyncs, v4.switchedOn, v4.held, lastWriterWins = false)
 
         assertTrue(v4.lastWriterWins)
         for (category in SyncCategory.entries) {
@@ -222,7 +222,7 @@ class SyncPolicyTest {
     }
 
     private companion object {
-        /** A base that names no API version, which still takes `/v3`'s rules: no last writer wins. */
+        /** A base that names no API version, which takes `/v4`'s rules as every base does. */
         const val UNVERSIONED = "http://127.0.0.1:9"
         val KEY = CourseRef(courseKey = "client:1151:CS1")
     }

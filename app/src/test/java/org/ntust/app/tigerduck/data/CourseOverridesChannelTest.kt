@@ -1069,4 +1069,34 @@ class CourseOverridesChannelTest {
         assertEquals(2, v4Backend.sent.size)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
+
+    /**
+     * A base that names no API version takes `/v4`'s rules as it takes its requests: a change an
+     * older build queued by its Moodle id alone goes by its course's key, found where its id leads,
+     * as on any other base. Under `/v3`'s rules nothing looked for the key, and the change parked.
+     */
+    @Test
+    fun `on a base that names no version an older build's change by its Moodle id goes to its course's key`() = runTest {
+        val current = cache.currentSemesterCode()
+        cache.saveCourses(listOf(calculus), current, signIn)
+        queue(color(calculus, "#FF0000"))
+        val unversioned = RecordingBackend()
+        val overrides = PendingCourseOverrides(
+            cache, pushApiClientAt("http://127.0.0.1:9", unversioned.client, prefs, syncClock), prefs,
+            syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
+        )
+
+        overrides.retry(signIn)
+
+        assertEquals(
+            listOf(
+                listOf(
+                    "PATCH", "http://127.0.0.1:9/sync/courses/client:$current:MA1010002/override", listOf(bearer), json,
+                    """{"color_hex":"#FF0000","hlc":1790000000123000}""",
+                ),
+            ),
+            unversioned.sent.map { it.shape() },
+        )
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
 }

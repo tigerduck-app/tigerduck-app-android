@@ -50,8 +50,8 @@ import java.util.Date
 
 /**
  * When an upload derived from a school or Moodle fetch goes (`sync-order`, "A refresh reads the
- * backend before it uploads school data"; on `/v4` only, at once on a base that names no version),
- * against a scripted backend: the background's fetch of a term as the app wires it, and the assignments, through [SchoolUploads] over a real first-pull
+ * backend before it uploads school data"), against a scripted backend: the background's fetch of a
+ * term as the app wires it, and the assignments, through [SchoolUploads] over a real first-pull
  * gate. Waiting uploads run on [Dispatchers.Default] and the cache writes on IO, so each may land
  * at any moment; every assertion waits for what it reads. Made-up account and course numbers.
  */
@@ -86,8 +86,7 @@ class SchoolUploadsTest {
 
     @Before
     fun setUp() {
-        // The gate holds school uploads on /v4 alone, which every build speaks since the move; a base
-        // that names no version still takes /v3's rules, as its own test sets.
+        // The gate holds school uploads at every base, as every base speaks /v4.
         prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4" }
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
@@ -171,7 +170,7 @@ class SchoolUploadsTest {
         tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
     }
 
-    // --- A base that names no version, which still takes /v3's rules: no gate (the coordinator's ruling, fix round 3) ---
+    // --- A base that names no version, which takes /v4's rules ---
 
     /** Each unversioned course upload's courses and `roster_terms`, in order. */
     private fun unversionedTermUploads() = backend.received(UNVERSIONED_UPLOAD).map { request ->
@@ -183,28 +182,20 @@ class SchoolUploadsTest {
     }
 
     /**
-     * On a base that names no version nothing waits for the first pull, as on `/v3`: the class
-     * table's and TermCourseSync's term, and the assignments, go at once, in the caller, though this
-     * process has not pulled. `/v3`'s absence rule hides a fetched course the server has never
-     * carried, so an upload held past the pull would fight it.
+     * A base that names no version takes `/v4`'s rules as it takes its requests: a fetch's upload
+     * waits for the process's first pull there too, and goes after it.
      */
     @Test
-    fun `on a base that names no version a fetch's uploads go at once, though this process has not pulled`() = runBlocking {
+    fun `on a base that names no version a fetch's upload waits for the first pull, as on v4`() = runBlocking {
         prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9"
         termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
-        assertEquals("TermCourseSync's term", listOf(listOf(CS1, CS2) to listOf(TERM)), unversionedTermUploads())
+        untilParked(1)
+        assertEquals("before the pull", emptyList<Any>(), unversionedTermUploads())
 
-        val classTable = listOf(Course(courseNo = CS3, courseName = "School $CS3", moodleIdNumber = "$OTHER$CS3"))
-        cache.saveCourses(classTable, OTHER, signIn)
-        uploads.term(signIn, OTHER, classTable, listOf(CS3), { block -> adds.uploading(block) }, stillWanted = { true }) { upload ->
-            api.uploadCourses(upload.courses, OTHER, signIn, rosterTerms = upload.rosterTerms)
-        }
-        assertEquals("the class table's term", listOf(CS3) to listOf(OTHER), unversionedTermUploads().last())
+        gate.notePull(signIn)
 
-        uploads.assignments(listOf(assignment("701")), signIn)
-        assertEquals(1, backend.received(UNVERSIONED_ASSIGNMENTS).size)
-        assertEquals("nothing waits", 0, uploads.waitingUploads)
-        assertFalse(gate.hasPulled(signIn))
+        until("the term went up after the pull") { unversionedTermUploads().size == 1 }
+        assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM)), unversionedTermUploads())
     }
 
     @Test
@@ -701,7 +692,6 @@ class SchoolUploadsTest {
     private companion object {
         const val UPLOAD = "POST /v4/sync/courses/upload"
         const val UNVERSIONED_UPLOAD = "POST /sync/courses/upload"
-        const val UNVERSIONED_ASSIGNMENTS = "POST /sync/assignments/upload"
         const val OTHER = "1152"
         const val ASSIGNMENTS = "POST /v4/sync/assignments/upload"
         const val TERM = "1151"
