@@ -114,6 +114,7 @@ class RefreshOrderTest {
         assertEquals(listOf("pull failed", "outbox", "applied", "upload"), log.toList())
     }
 
+    /** As iOS's: the pull is cancelled, the outbox step after it still runs, and the fetch applies nothing. */
     @Test
     fun `a cancelled refresh cancels its pull, and its school fetch applies nothing`() = runBlocking {
         val pullStarted = CompletableDeferred<Unit>()
@@ -141,7 +142,7 @@ class RefreshOrderTest {
         refresh.cancelAndJoin()
 
         withTimeout(10_000) { pullCancelled.await() }
-        assertEquals(listOf("fetched"), log.toList())
+        assertEquals(listOf("fetched", "outbox"), log.toList())
     }
 
     @Test
@@ -170,9 +171,10 @@ class RefreshOrderTest {
 
     /**
      * `tigersync-refresh-order`, "Two pulls in a row": the user pulls to refresh twice within a
-     * second. Home's refreshes share one run (its `SingleFlight`), and a pull asked for from
-     * elsewhere meanwhile (a return to the app, the revision poll, the worker) joins the
-     * synchronizer's pass: one snapshot, and one round of school fetches.
+     * second. Home's refreshes share one run (its `SingleFlight`): one pull, and one round of
+     * school fetches. Pulls asked for from elsewhere meanwhile (a return to the app, the revision
+     * poll, the worker) wait for it and share one more pass, as iOS's `FullSyncGate` follows up:
+     * passes never overlap.
      */
     @Test
     fun `two refreshes within a second run one pull`() = runBlocking {
@@ -194,19 +196,20 @@ class RefreshOrderTest {
 
         val first = scope.launch { home.join(refresh) }
         until("the pull is under way") { snapshots.get() == 1 }
-        // Each runs here up to its first wait, so it has joined before the pull is let go.
+        // Each runs here up to its first wait, so it waits before the pull is let go.
         val second = scope.launch(start = CoroutineStart.UNDISPATCHED) { home.join(refresh) }
-        val elsewhere = scope.async(start = CoroutineStart.UNDISPATCHED) { synchronizer.sync(SyncMode.FOREGROUND, signIn) }
-        until("the other pull joined the pass") { synchronizer.joined == 1 }
+        val elsewhere = List(2) { scope.async(start = CoroutineStart.UNDISPATCHED) { synchronizer.sync(SyncMode.BACKGROUND, signIn) } }
+        until("the other pulls wait for the one under way") { synchronizer.waiting == 2 }
+        assertEquals("one pull for the two refreshes, nothing beside it", 1, snapshots.get())
         pullHeld.complete(Unit)
 
         withTimeout(10_000) {
             first.join()
             second.join()
         }
-        assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { elsewhere.await() })
-        assertEquals("snapshots fetched", 1, snapshots.get())
+        for (sync in elsewhere) assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { sync.await() })
         assertEquals("rounds of school fetches", 1, schoolRounds.get())
+        assertEquals("snapshots fetched: the refresh's, then one more for the pulls asked meanwhile", 2, snapshots.get())
     }
 
     /** A synchronizer whose every step but the snapshot's [fetch] does nothing. */

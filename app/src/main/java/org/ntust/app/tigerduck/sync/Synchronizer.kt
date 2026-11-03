@@ -164,22 +164,26 @@ class Synchronizer internal constructor(
      */
     suspend fun retryUnsent(signIn: SignIn) = drain(signIn)
 
-    // Under [lock]: the pass under way, which a sync asked for under the same sign-in joins.
+    // Under [lock]: the pass under way, and the one more pass the syncs asked for meanwhile wait for.
     private val lock = Any()
     private var running: Running? = null
+    private var next: Running? = null
 
-    /** A pass under way under [signIn], and what it came to once that is known: null when it was cut short. */
-    private class Running(val signIn: SignIn) {
+    /**
+     * A pass under [signIn], and what it came to once that is known: null when it was cut short.
+     * A pass run [after] another starts once that one is done.
+     */
+    private class Running(val signIn: SignIn, val after: Running? = null) {
         val landed = CompletableDeferred<Landed?>()
     }
 
     /** What a pass came to, and the pass itself once it synced. */
     private class Landed(val outcome: SyncOutcome, val pass: SyncPass?)
 
-    private val joinedCallers = AtomicInteger()
+    private val waitingCallers = AtomicInteger()
 
-    /** How many callers wait on a pass they joined, for a test. */
-    internal val joined: Int get() = joinedCallers.get()
+    /** How many callers wait on a pass they did not start, or for the one under way to be done, for a test. */
+    internal val waiting: Int get() = waitingCallers.get()
 
     /**
      * Runs one full sync under [signIn], the sign-in its caller read once where it started, over
@@ -188,12 +192,14 @@ class Synchronizer internal constructor(
      * starts on its session. [afterFailure] runs once a pass that failed has said so, before its
      * course window closes: Home's relogin, which runs the sync again.
      *
-     * One at a time (`tigersync-refresh-order`, "One refresh at a time"): asked for while a pass
-     * runs under the same sign-in, in either mode, the sync joins it, so two refreshes make one
-     * pull and the pass reads what the outbox holds once. A joining caller gets that pass's
-     * outcome, and once it synced runs its own [afterSync] over it; the pass's steps, its [state]
-     * and its [afterFailure] are its first caller's. A pass under another sign-in is never joined,
-     * and one cut short by its caller's cancellation is run again by the next caller waiting.
+     * One at a time (`tigersync-refresh-order`, "One refresh at a time"), as iOS's `FullSyncGate`
+     * with a follow-up: asked for while a pass runs under the same sign-in, in either mode, the
+     * sync waits for it, then one more pass runs, whose snapshot is fetched after it asked, for
+     * every sync asked for meanwhile. So passes never overlap, however many ask, and each reads
+     * what the outbox holds once. The pass's steps, its [state] and its [afterFailure] are its
+     * first caller's; another caller gets its outcome, and once it synced runs its own [afterSync]
+     * over it. A pass under another sign-in is never waited for, and one cut short by its caller's
+     * cancellation is run again by a caller that waited for it.
      */
     suspend fun sync(
         mode: SyncMode,
@@ -203,16 +209,16 @@ class Synchronizer internal constructor(
         afterFailure: suspend (Exception) -> Unit = {},
     ): SyncOutcome {
         while (true) {
-            val (shared, joins) = synchronized(lock) {
-                running?.takeIf { it.signIn === signIn }?.let { it to true } ?: (Running(signIn).also { running = it } to false)
+            val (shared, starts) = synchronized(lock) {
+                next?.takeIf { it.signIn === signIn }?.let { return@synchronized it to false }
+                val under = running?.takeIf { it.signIn === signIn }
+                Running(signIn, after = under).also { if (under == null) running = it else next = it } to true
             }
-            if (!joins) return run(shared, mode, signIn, state, afterSync, afterFailure)
-            joinedCallers.incrementAndGet()
-            val landed = try {
-                shared.landed.await()
-            } finally {
-                joinedCallers.decrementAndGet()
+            if (starts) {
+                shared.after?.let { awaitDone(shared, it) }
+                return run(shared, mode, signIn, state, afterSync, afterFailure)
             }
+            val landed = waitingFor { shared.landed.await() }
             // Cut short by its caller's cancellation: this caller runs it again.
             if (landed == null) continue
             val pass = landed.pass ?: return landed.outcome
@@ -222,15 +228,41 @@ class Synchronizer internal constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "[Sync] the steps after a joined sync failed: ${e.logSummary()}")
+                Log.w(TAG, "[Sync] the steps after a shared sync failed: ${e.logSummary()}")
                 SyncOutcome.FAILED
             }
         }
     }
 
-    /** What [shared] came to, told to whoever joined it; it is no longer joined from here. */
+    /** [shared] starts once [under] is done; cancelled meanwhile, it is cut short for who waits on it. */
+    private suspend fun awaitDone(shared: Running, under: Running) {
+        try {
+            waitingFor { under.landed.await() }
+        } catch (e: CancellationException) {
+            land(shared, null)
+            throw e
+        }
+        synchronized(lock) {
+            if (next === shared) next = null
+            running = shared
+        }
+    }
+
+    private suspend fun <T> waitingFor(wait: suspend () -> T): T {
+        waitingCallers.incrementAndGet()
+        try {
+            return wait()
+        } finally {
+            waitingCallers.decrementAndGet()
+        }
+    }
+
+    /** What [shared] came to, told to whoever waits on it; nobody waits on it from here. */
     private fun land(shared: Running, outcome: SyncOutcome?, pass: SyncPass? = null) {
-        synchronized(lock) { if (running === shared) running = null }
+        synchronized(lock) {
+            if (running === shared) running = null
+            if (next === shared) next = null
+        }
         shared.landed.complete(outcome?.let { Landed(it, pass) })
     }
 
@@ -279,7 +311,7 @@ class Synchronizer internal constructor(
             steps.noteRevision(pass)
             steps.notePull(pass)
             steps.synced()
-            // Landed: who joined goes on to its own steps after it, and a sync asked for from here is a pass of its own.
+            // Landed: who waited on it goes on to its own steps after it, and a sync asked for from here is a pass of its own.
             land(shared, SyncOutcome.SYNCED, pass)
             steps.afterSync(pass)
             afterSync(pass)
