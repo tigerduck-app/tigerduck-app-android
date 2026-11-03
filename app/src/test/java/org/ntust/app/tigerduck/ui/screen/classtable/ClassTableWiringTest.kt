@@ -92,7 +92,8 @@ class ClassTableWiringTest {
         assertTrue("deleteCourse takes the adds lock the outbox takes itself", "pendingCourseAdds.removing {" !in delete)
 
         val wipe = body("wipeTerm")
-        val held = wipe.indexOf("pendingCourseAdds.removing {")
+        // TermResets.run holds them back (PendingCourseAdds.removing): TermResetsWiringTest.
+        val held = wipe.indexOf("termResets.run(semester) {")
         assertTrue("wipeTerm no longer holds the course adds back over the reset", held in 0 until wipe.indexOf("termReset.run(semester, signIn)"))
     }
 
@@ -112,18 +113,19 @@ class ClassTableWiringTest {
     }
 
     /**
-     * PR R fix round 5: a term upload waiting for the first pull, or let go by it and waiting for
-     * the adds lock, would send the term from before the reset; the reset lets go of it inside the
-     * lock, once the backend has forgotten the term (SchoolUploadsTest drives what that drops).
+     * PR R fix rounds 5 and 6: a term upload waiting for the first pull, or let go by it and waiting
+     * for the adds lock, would send the term from before the reset. The reset goes through
+     * TermResets, which lets go of it inside the lock once the reset lands (TermResetsWiringTest,
+     * and SchoolUploadsTest for what that drops), over the app's own SchoolUploads and adds.
      */
     @Test
     fun `a reset lets go of the term's uploads waiting for the first pull before letting the adds lock go`() {
+        assertTrue(
+            "the class table's TermResets is no longer over the app's adds and school uploads",
+            source().any { "TermResets(pendingCourseAdds, schoolUploads)" in it },
+        )
         val wipe = body("wipeTerm")
-        val reset = wipe.indexOf("termReset.run(semester, signIn)")
-        val forgot = wipe.indexOf("?.also { schoolUploads.forgetTerm(semester) }")
-        val released = wipe.indexOf("?: return false")
-        assertTrue("wipeTerm lets go of the term's waiting uploads after the reset lands", forgot > reset)
-        assertTrue("wipeTerm lets go of them inside the adds lock", forgot < released)
+        assertTrue("wipeTerm's reset no longer goes through TermResets", wipe.indexOf("termResets.run(semester) {") in 0 until wipe.indexOf("termReset.run(semester, signIn)"))
     }
 
     /** tigerduck-app-android#380: sent again later, a waiting colour or name would bring a row the user removed back. */

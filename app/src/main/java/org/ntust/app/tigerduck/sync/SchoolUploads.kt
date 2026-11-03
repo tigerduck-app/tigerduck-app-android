@@ -111,10 +111,10 @@ class SchoolUploads internal constructor(
     /**
      * A reset of [semester] lets go of the term's uploads waiting for the first pull, the fetch's and
      * the roster request's, and of one the pull let go that has not gone yet: their fetch is of a term
-     * gone. Called under the adds' send lock the reset holds, which a released term takes before it
-     * reads the term, so one let go meanwhile finds nothing to send.
+     * gone. Only [TermResets.run] calls it, under the adds' send lock the reset holds, which a released
+     * term takes before it reads the term, so one let go meanwhile finds nothing to send.
      */
-    fun forgetTerm(semester: String) {
+    internal fun forgetTerm(semester: String) {
         synchronized(lock) {
             for (what in listOf("$COURSES$semester", "$COURSES$semester$REQUESTED")) {
                 waiting.remove(what)

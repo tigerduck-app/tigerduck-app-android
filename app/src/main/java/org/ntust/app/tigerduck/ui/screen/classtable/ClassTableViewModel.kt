@@ -160,6 +160,7 @@ class ClassTableViewModel @Inject constructor(
 
     // A term's reset as far as files and the backend go; see resetCourses.
     private val termReset = ClassTableTermReset(dataCache)
+    private val termResets = org.ntust.app.tigerduck.sync.TermResets(pendingCourseAdds, schoolUploads)
 
     // The other terms' caches, filled after the first fetch; see warmTerms.
     private val termWarm = ClassTableTermWarm(
@@ -1570,13 +1571,12 @@ class ClassTableViewModel @Inject constructor(
         // still waiting to go up for its courses go with it below.
         val signIn = signInNow()
         val moodleIds = dataCache.loadCourses(semester).mapNotNull { it.moodleIdNumber }
-        // With no course add sent between the DELETE and the wipe; see PendingCourseAdds.removing.
-        val held = pendingCourseAdds.removing {
+        // With no course add sent between the DELETE and the wipe, and the term's waiting school uploads let go with it; see TermResets.
+        val held = termResets.run(semester) {
             termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester, signIn) }
-                // The wipe took the term's rows, queued single deletes and uploads waiting for the first pull
-                // included, before the lock goes: one sent after the refetch would undo the reset.
+                // The wipe took the term's rows, queued single deletes included, before the lock goes:
+                // a retry waiting behind the wipe would otherwise send one after the refetch re-uploads the roster.
                 ?.also { pendingCourseDeletes.forgetTerm(semester, signIn) }
-                ?.also { schoolUploads.forgetTerm(semester) }
         } ?: return false
         if (_currentSemester.value == semester) _courses.value = emptyList()
         // Their names went from the file with the term.

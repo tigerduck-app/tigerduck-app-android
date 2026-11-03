@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.accountEventStream
 import org.ntust.app.tigerduck.data.PendingCourseAdds
+import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -40,6 +41,8 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermReset
 import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
+import org.ntust.app.tigerduck.ui.screen.settings.PushCourseSyncBackend
+import org.ntust.app.tigerduck.ui.screen.settings.keepLocalCourses
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.Date
 
@@ -396,9 +399,12 @@ class SchoolUploadsTest {
         assertEquals(listOf(listOf(CS1) to listOf(TERM)), termUploads())
     }
 
-    /** The class table's reset of [TERM] as `wipeTerm` makes it, under the adds' send lock. */
+    /** Every term reset's home, as the app wires it ([TermResets]). */
+    private val resets by lazy { TermResets(adds, uploads) }
+
+    /** The class table's reset of [TERM] as `wipeTerm` makes it, through [resets]. */
     private suspend fun classTableReset() {
-        adds.removing { ClassTableTermReset(cache).run(TERM, signIn) {}?.also { uploads.forgetTerm(TERM) } }
+        resets.run(TERM) { ClassTableTermReset(cache).run(TERM, signIn) {} }
     }
 
     /**
@@ -444,12 +450,13 @@ class SchoolUploadsTest {
         val released = CompletableDeferred<Unit>()
         val holding = CompletableDeferred<Unit>()
         val reset = appScope.launch {
-            adds.removing {
+            resets.run(TERM) {
                 holding.complete(Unit)
                 released.await()
-                ClassTableTermReset(cache).run(TERM, signIn) {}?.also { uploads.forgetTerm(TERM) }
-                // The pull's restore of the server's rows, landing while the reset still holds the lock.
-                cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1, moodleIdNumber = "$TERM$CS1")), TERM, signIn)
+                ClassTableTermReset(cache).run(TERM, signIn) {}.also {
+                    // The pull's restore of the server's rows, landing while the reset still holds the lock.
+                    cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1, moodleIdNumber = "$TERM$CS1")), TERM, signIn)
+                }
             }
         }
         withTimeoutOrNull(10_000) { holding.await() }
@@ -495,6 +502,7 @@ class SchoolUploadsTest {
         answer = listOf(CS1)
         termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         untilParked(1)
+        // Under the send lock but not through TermResets, which would let the wait go: the roster's rule alone.
         adds.removing { ClassTableTermReset(cache).run(TERM, signIn) {} }
         // The pull, fetched more than a minute after the reset: its stamp outlived, and the server's rows restored.
         cache.clearSemesterResetAt(setOf(TERM), signIn)
@@ -512,6 +520,46 @@ class SchoolUploadsTest {
         delay(300)
         val dropping = termUploads().filter { (nos, terms) -> terms != null && CS2 !in nos }
         assertEquals("a roster that leaves the restored course out", emptyList<Any>(), dropping)
+    }
+
+    /**
+     * Codex on PR R, fix round 6 (P2, `/v4`): a roster {A} waits for the first pull, and Home has
+     * fetched {A,B}, its commit waiting for that pull too. The student answers the courses check
+     * with Use Local, which resets the term, uploads {A} as this phone holds it, and stamps the
+     * reset. The pull lands, and the released upload waits for the adds' send lock until Home has
+     * committed {A,B}, its roster stored with it. Nothing from the wait from before Use Local's
+     * reset goes: no roster re-enrolls B over the student's choice.
+     */
+    @Test
+    fun `a waiting term sends no roster over Use Local's reset once Home commits after it`() = runBlocking {
+        answer = listOf(CS1)
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        // Home's fetch of {A,B}: its answer recorded, its commit waiting for the pull.
+        val home = cache.recordSelectionRoster(TERM, listOf(CS1, CS2), signIn) as RecordedSelection.Kept
+        // Use Local as Settings runs it: the term reset and uploaded as this phone holds it, then stamped.
+        val overrides = PendingCourseOverrides(cache, api, prefs)
+        keepLocalCourses(
+            listOf(TERM to cache.loadCourses(TERM)), hiding = emptySet(),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache, resets),
+        )
+        cache.saveSemesterResetAt(TERM, System.currentTimeMillis(), signIn)
+        assertEquals("Use Local's reset", 1, backend.received("DELETE /v4/sync/courses").size)
+        assertEquals("Use Local's own upload, the term as this phone holds it", listOf(listOf(CS1) to null), termUploads())
+        // A send under way holds the adds' send lock as the pull lands: the released upload waits behind it.
+        val holding = CompletableDeferred<Unit>()
+        val go = CompletableDeferred<Unit>()
+        val sending = appScope.launch { adds.uploading { holding.complete(Unit); go.await() } }
+        withTimeoutOrNull(10_000) { holding.await() }
+        gate.notePull(signIn)
+        until("the waiting upload left the gate") { gate.waiting == 0 && uploads.waitingUploads == 0 }
+        homeCommits(home.answer, CS1, CS2)
+
+        go.complete(Unit)
+        sending.join()
+        delay(300)
+        val rosters = termUploads().filter { (_, terms) -> terms != null }
+        assertEquals("a roster sent over Use Local's reset", emptyList<Any>(), rosters)
     }
 
     @Test
