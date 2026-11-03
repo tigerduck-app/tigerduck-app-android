@@ -139,21 +139,32 @@ class SynchronizerJoinTest {
         )
     }
 
+    /**
+     * The departing sign-in's pass, and the one more pass a sync of it asked for: the next sign-in's
+     * sync waits for neither and shares neither, and its steps after it see only its own pass.
+     */
     @Test
-    fun `a sync under the next sign-in never joins the departing one's pass`() = runBlocking {
+    fun `a sync under the next sign-in never waits for or shares the departing one's passes`() = runBlocking {
         val departing = school.current
         val first = scope.async { synchronizer.sync(SyncMode.FOREGROUND, departing) }
         untilFetches(1)
+        val again = scope.async { synchronizer.sync(SyncMode.FOREGROUND, departing) }
+        untilWaiting(1)
         school.end()
         school.open()
+        val signIn = school.current
+        val seen = Collections.synchronizedList(mutableListOf<SignIn>())
 
-        val next = scope.async { synchronizer.sync(SyncMode.FOREGROUND, school.current) }
+        val next = scope.async { synchronizer.sync(SyncMode.FOREGROUND, signIn, afterSync = { pass -> seen += pass.signIn }) }
         untilFetches(2)
         fetchHeld.complete(Unit)
 
         assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { next.await() })
-        withTimeout(10_000) { first.await() }
-        assertEquals(2, fetches.get())
+        withTimeout(10_000) {
+            first.await()
+            again.await()
+        }
+        assertEquals("the next sign-in's steps after it saw its own pass alone", listOf(signIn), seen.toList())
     }
 
     /**

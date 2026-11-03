@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -129,7 +130,11 @@ class RefreshOrderTest {
                         pullCancelled.complete(Unit)
                     }
                 },
-                pushOutbox = { log += "outbox" },
+                // A step that suspends, as the app's do: it runs whatever cancelled the pull.
+                pushOutbox = {
+                    yield()
+                    log += "outbox"
+                },
             ) { afterPull ->
                 log += "fetched"
                 afterPull()
