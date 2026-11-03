@@ -5,8 +5,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.Description
-import org.junit.runners.model.Statement
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.canonicalBackend
@@ -93,7 +91,8 @@ class ApiBaseTest {
 
     @Test
     fun `a base with no version segment, or another host's, is spoken to as before the move`() {
-        // No version segment: as given, and spoken to as every base without one always was, as /v3.
+        // No version segment: sent to as given, and BackendApi names it V3, as every base without one
+        // always was, for the sync rules that still ask; its requests take /v4's forms.
         val unversioned = listOf("https://self-hosted.example", "https://self-hosted.example/tigerduck/api", "http://192.168.1.5:8000")
         assertEquals(unversioned.associateWith { it }, unversioned.associateWith { resolveAnnouncementEndpoint(it).url })
         assertEquals(unversioned.associateWith { BackendApi.V3 }, unversioned.associateWith { BackendApi.of(resolveAnnouncementEndpoint(it).url) })
@@ -102,26 +101,6 @@ class ApiBaseTest {
         for (base in listOf("https://api.example.test/v3", "https://api.example.test/v4")) {
             assertEquals(school.associateWith { false }, school.associateWith { ApiBase.serves(ApiBase.of(base), it.toHttpUrl()) })
         }
-    }
-
-    @Test
-    fun `a test that pins v3 keeps a base ending in v3 there, and the move is back after it`() {
-        assertEquals("https://api.example.test/v3", speakingV3 { ApiBase.of("https://api.example.test/v3") })
-        assertEquals("https://api.example.test/v4", ApiBase.of("https://api.example.test/v3"))
-        runCatching { speakingV3 { error("a test that fails") } }
-        assertEquals("https://api.example.test/v4", ApiBase.of("https://api.example.test/v3"))
-
-        // The rule, around a test that fails as its base is read.
-        var seen: String? = null
-        val test = object : Statement() {
-            override fun evaluate() {
-                seen = ApiBase.of("https://api.example.test/v3")
-                error("a test that fails")
-            }
-        }
-        runCatching { SpeaksV3().apply(test, Description.EMPTY).evaluate() }
-        assertEquals("https://api.example.test/v3", seen)
-        assertEquals("https://api.example.test/v4", ApiBase.of("https://api.example.test/v3"))
     }
 
     @Test

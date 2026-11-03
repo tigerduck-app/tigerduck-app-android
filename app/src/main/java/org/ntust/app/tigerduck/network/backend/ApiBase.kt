@@ -1,13 +1,14 @@
 package org.ntust.app.tigerduck.network.backend
 
-import androidx.annotation.VisibleForTesting
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.network.canonicalBackend
 
 /**
- * The API a backend base speaks, named by the base's last path segment: `…/v4` is TigerSync
- * protocol 2, and every other base is spoken to as `/v3` is, as every base was before phase 3.
+ * The API a backend base names by its last path segment: `…/v4` is TigerSync protocol 2, the one
+ * every request of the app's speaks, and `…/v3` is the one [ApiBase.of] moves to it. A base that
+ * names neither is [V3] here, as every base was before phase 3, for the sync rules that still ask;
+ * its requests are `/v4`'s, sent to the base as given, as iOS sends them.
  */
 enum class BackendApi(val segment: String) {
     V3("v3"),
@@ -41,28 +42,15 @@ object ApiBase {
     /**
      * The API the app speaks: `/v4`. A base ending in `/v3` moves to it, whoever runs it (as iOS's
      * `apiBase` moves any server's, S3), and one ending in `/v4` already speaks it. A base with no
-     * version segment is spoken to as it always was, as `/v3` is.
+     * version segment is sent to as given.
      */
     val TARGET: BackendApi = BackendApi.V4
-
-    // The API a base ending in `/v3` moves to: TARGET, except while a test that pins what `/v3`
-    // sends runs, until Z1 deletes those requests (moveBasesTo).
-    @Volatile
-    private var movesTo: BackendApi = TARGET
-
-    /**
-     * Test seam: until it is called again, a base ending in `/v3` moves to [api], and the API it
-     * moved to before is returned, for the test to put back. Only the test rule that pins `/v3`'s
-     * requests calls it; the app never does.
-     */
-    @VisibleForTesting
-    internal fun moveBasesTo(api: BackendApi): BackendApi = synchronized(this) { movesTo.also { movesTo = api } }
 
     /**
      * [server] speaking [target]: a last path segment `v3` becomes [target]'s, and nothing else
      * changes, not even its spelling. A base without a version, or already at `/v4`, is as given.
      */
-    fun of(server: String, target: BackendApi = movesTo): String {
+    fun of(server: String, target: BackendApi = TARGET): String {
         val url = server.toHttpUrlOrNull() ?: return server
         val trimmed = server.trimEnd('/')
         val v3 = BackendApi.V3.segment

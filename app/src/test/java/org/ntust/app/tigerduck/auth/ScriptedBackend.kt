@@ -23,10 +23,9 @@ import java.util.concurrent.TimeUnit
  *
  * [under] is the API segment a test's endpoints leave out, as a test of a rule no version decides
  * names `POST /auth/login`: such a test gives `/v4`, and a request sent anywhere else keeps its
- * whole path, so the test still sees where it went. By default `/v3`'s, for the tests that pin
- * what `/v3` sends until Z1 deletes them.
+ * whole path, so the test still sees where it went. By default every path is named as sent.
  */
-internal class ScriptedBackend(private val under: String = "/v3") {
+internal class ScriptedBackend(private val under: String = "") {
     class Received(
         val endpoint: String,
         val authorization: String?,

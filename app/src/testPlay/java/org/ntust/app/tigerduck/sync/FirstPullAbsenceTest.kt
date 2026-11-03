@@ -18,7 +18,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
@@ -27,7 +26,6 @@ import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
@@ -52,10 +50,6 @@ import org.robolectric.annotation.Config
 @Config(application = Application::class)
 class FirstPullAbsenceTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val context = RuntimeEnvironment.getApplication()
     private val backend = ScriptedBackend()
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -79,11 +73,12 @@ class FirstPullAbsenceTest {
         pendingOverrides = mutableSetOf(),
     )
 
-    private fun setUp(api: String) {
+    /** Over a backend at [api], `v4`, or null for a base that names no version, which still takes `/v3`'s rules. */
+    private fun setUp(api: String?) {
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = backend.client)
-        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/$api"
+        w.appPrefs.announcementApiBaseUrlOverride = if (api == null) "http://127.0.0.1:9" else "http://127.0.0.1:9/$api"
         prefix = if (api == "v4") "/v4" else ""
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
@@ -125,7 +120,7 @@ class FirstPullAbsenceTest {
         appScope.cancel()
     }
 
-    // The scripted backend's endpoints name the version segment but /v3's.
+    // The version segment the requests' paths begin with, as the scripted backend names them.
     private var prefix = ""
 
     private fun row(no: String) = JSONObject()
@@ -181,13 +176,13 @@ class FirstPullAbsenceTest {
     }
 
     /**
-     * The coordinator's ruling (fix round 3): on `/v3` nothing waits for the first pull, so a
-     * fetched course goes up as its fetch commits it, as on dev, and the backend lists it by the
-     * time a pull reads the term. Whether the background's fetch or the class table's.
+     * The coordinator's ruling (fix round 3): on a base that names no version, as on `/v3`, nothing
+     * waits for the first pull, so a fetched course goes up as its fetch commits it, and the backend
+     * lists it by the time a pull reads the term. Whether the background's fetch or the class table's.
      */
     @Test
-    fun `on v3 the background's fetched course goes up at once, before any pull`() = runBlocking {
-        setUp("v3")
+    fun `on a base that names no version the background's fetched course goes up at once, before any pull`() = runBlocking {
+        setUp(null)
         backgroundFetch()
 
         assertEquals("nothing waits", 0, gate.waiting)
@@ -195,8 +190,8 @@ class FirstPullAbsenceTest {
     }
 
     @Test
-    fun `on v3 the class table's fetched course goes up at once, before any pull`() = runBlocking {
-        setUp("v3")
+    fun `on a base that names no version the class table's fetched course goes up at once, before any pull`() = runBlocking {
+        setUp(null)
         classTableFetch()
 
         assertEquals("nothing waits", 0, gate.waiting)
