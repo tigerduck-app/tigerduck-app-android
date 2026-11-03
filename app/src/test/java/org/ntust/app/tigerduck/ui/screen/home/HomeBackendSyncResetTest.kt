@@ -39,7 +39,7 @@ class HomeBackendSyncResetTest {
         val stamp = pull.indexOf("val beforeFetch = steps.stampDeletes()")
         val fetch = pull.indexOf("steps.fetch(")
         assertTrue("the stamp is taken before the fetch", stamp in 0 until fetch)
-        assertTrue("the stamp is the deletes'", "stampDeletes(): Long = queues.pendingCourseDeletes.stamp()" in steps)
+        assertTrue("the stamp is the deletes'", "stampDeletes(): Long = pendingCourseDeletes.stamp()" in steps)
         assertTrue("the pass carries it", "SyncPass(result, signIn, mode, steps.policy(), state, courseSync, beforeFetch)" in pull)
         assertTrue("the reset is given that stamp", "applyCourseReset(pass.result, pass.beforeFetch, pass.courseSync, pass.signIn)" in step)
         assertTrue(
