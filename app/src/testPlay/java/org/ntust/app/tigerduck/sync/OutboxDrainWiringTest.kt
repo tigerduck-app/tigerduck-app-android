@@ -19,14 +19,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.backgroundSyncWorker
 import org.ntust.app.tigerduck.notification.settingsSyncAt
@@ -55,12 +53,8 @@ import java.util.concurrent.TimeUnit
 @Config(application = Application::class)
 class OutboxDrainWiringTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val context = RuntimeEnvironment.getApplication()
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private val appJob = SupervisorJob()
     private val appScope = CoroutineScope(appJob + Dispatchers.IO)
     private val idleScope = CoroutineScope(Job().apply { cancel() })
@@ -96,7 +90,7 @@ class OutboxDrainWiringTest {
         val kept = Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = MOODLE_ID)
         val added = Course(courseNo = ADDED, courseName = "Added here", isManual = true)
         w.dataCache.saveCourses(listOf(kept, added), TERM, signIn)
-        backend.answer("PATCH /sync/courses/$MOODLE_ID/override", 500)
+        backend.answer(OVERRIDE, 500)
         rig.ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
@@ -117,11 +111,11 @@ class OutboxDrainWiringTest {
         .mapIndexed { i, endpoint ->
             val body = backend.received(endpoint).let { all -> all[backend.endpoints().subList(0, from + i).count { it == endpoint }] }.body
             when {
-                endpoint == "PATCH /sync/courses/$MOODLE_ID/override" && "ignore_assignments" in body -> OutboxChannelId.COURSE_IGNORES
+                endpoint == OVERRIDE && "ignore_assignments" in body -> OutboxChannelId.COURSE_IGNORES
                 endpoint.startsWith("PATCH /sync/assignments/") -> OutboxChannelId.MARKS
                 endpoint == "POST /sync/courses/upload" && "\"adds\"" in body -> OutboxChannelId.COURSE_ADDS
                 endpoint.startsWith("DELETE /sync/courses/") -> OutboxChannelId.COURSE_DELETES
-                endpoint == "PATCH /sync/courses/$MOODLE_ID/override" && "color_hex" in body -> OutboxChannelId.COURSE_OVERRIDES
+                endpoint == OVERRIDE && "color_hex" in body -> OutboxChannelId.COURSE_OVERRIDES
                 endpoint.startsWith("PUT /sync/holiday-overrides/") -> OutboxChannelId.HOLIDAYS
                 else -> throw AssertionError("not a send of what waits: $endpoint $body")
             }
@@ -194,6 +188,9 @@ class OutboxDrainWiringTest {
         const val GONE = "GO1001"
         const val MOODLE_ID = "1141CS1001"
         const val HOLIDAY = 3
+
+        // A course's override, by its key: its color and whether its assignments are ignored.
+        const val OVERRIDE = "PATCH /sync/courses/client:$TERM:$COURSE/override"
 
         val EMPTY_SNAPSHOT = JSONObject()
             .put("assignments", JSONArray())

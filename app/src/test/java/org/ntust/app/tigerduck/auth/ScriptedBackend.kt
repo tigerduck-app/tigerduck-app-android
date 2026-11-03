@@ -20,8 +20,13 @@ import java.util.concurrent.TimeUnit
  * endpoint answers 200 unless a test queued another status for it, and a [Held] answer keeps its
  * request waiting until the test releases it. A sign-in or a refresh answers with the pair
  * "access-2" and "refresh-2".
+ *
+ * [under] is the API segment a test's endpoints leave out, as a test of a rule no version decides
+ * names `POST /auth/login`: such a test gives `/v4`, and a request sent anywhere else keeps its
+ * whole path, so the test still sees where it went. By default `/v3`'s, for the tests that pin
+ * what `/v3` sends until Z1 deletes them.
  */
-internal class ScriptedBackend {
+internal class ScriptedBackend(private val under: String = "/v3") {
     class Received(
         val endpoint: String,
         val authorization: String?,
@@ -83,7 +88,7 @@ internal class ScriptedBackend {
     private fun queue(endpoint: String) = queued.getOrPut(endpoint) { ConcurrentLinkedQueue() }
 
     private fun answer(request: Request): Response {
-        val endpoint = request.method + " " + request.url.encodedPath.removePrefix("/v3")
+        val endpoint = request.method + " " + request.url.encodedPath.removePrefix(under)
         val sent = request.body?.let { Buffer().also(it::writeTo).readUtf8() }.orEmpty()
         received += Received(
             endpoint, request.header("Authorization"), sent, request.url.host, request.url.encodedQuery.orEmpty(),

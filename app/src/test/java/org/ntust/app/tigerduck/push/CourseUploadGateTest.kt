@@ -7,13 +7,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
@@ -26,11 +24,7 @@ import org.ntust.app.tigerduck.util.JvmContext
  */
 class CourseUploadGateTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private lateinit var prefs: AppPreferences
     private lateinit var tokens: V3TokenStore
     private lateinit var tokenManager: AuthTokenManager
@@ -127,7 +121,7 @@ class CourseUploadGateTest {
         api.uploadCourses(roster("CS1"), "1151", signIn)
         api.uploadCourses(roster("CS1"), "1142", signIn)
 
-        api.deleteAllCourses("1151", signIn)
+        api.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null)
         api.uploadCourses(roster("CS1"), "1151", signIn)
         api.uploadCourses(roster("CS1"), "1142", signIn)
 
