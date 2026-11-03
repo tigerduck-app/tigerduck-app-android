@@ -248,6 +248,38 @@ class V4LegacyDataTest {
     }
 
     /**
+     * Greptile on PR V (P1): the pull holds a waiting change by the course the send resolves it to,
+     * the term and number its id names included. Its PATCH fails, and the next pull holds no
+     * override of it: its name stays on this phone while the rename waits.
+     */
+    @Test
+    fun `an older build's rename that goes by the term and number its id names keeps its name through a pull while it waits`() =
+        runBlocking {
+            synced(*SyncCategory.entries.toTypedArray())
+            w.appPrefs.semesterCatalogTerms = listOf(TERM, PAST, OLDER)
+            queuedByAnOlderBuild(
+                """[{"moodleId":"${OLDER}CS1009","customName":"Mine","locale":"en","changedAtMs":1700000002000,"attempts":0,"seq":0}]""",
+            )
+            assertTrue(w.dataCache.saveCourseCustomNames(mapOf("CS1009" to mapOf("en" to "Mine")), signIn))
+            assertTrue(w.dataCache.saveCourses(listOf(course("CS2001")), TERM, signIn))
+            // Home shows its term, so the pull merges the names.
+            state.allCourses.value = listOf(course("CS2001"))
+            backend.answer("PATCH /v4/sync/courses/client:$OLDER:CS1009/override", 500)
+            backend.answer("GET /v4/sync/full", 200, emptySnapshot())
+            backend.answer(
+                "POST /v4/sync/courses/upload", 200,
+                """{"upserted":1,"skipped_tombstoned":0,"accepted_keys":["client:$TERM:CS2001"]}""",
+            )
+            val from = backend.endpoints().size
+
+            rig.home.sync.pull(state, signIn)
+
+            assertEquals(listOf("PATCH /v4/sync/courses/client:$OLDER:CS1009/override"), sent(from, "/override").map { it.substringBefore(" |") })
+            assertEquals(mapOf("CS1009" to mapOf("en" to "Mine")), w.dataCache.loadCourseCustomNames())
+            assertEquals(listOf("${OLDER}CS1009"), w.dataCache.loadPendingCourseOverrides().map { it.moodleId })
+        }
+
+    /**
      * One nothing resolves still parks: no term here holds its course, and its id begins with no
      * term of the catalogue's. Kept for an upload that brings its course. Each try is
      * the lookup alone, on this phone's files: the key is built before the request, so a try costs

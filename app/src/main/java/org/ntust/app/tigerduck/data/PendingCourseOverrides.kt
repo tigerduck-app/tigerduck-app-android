@@ -88,7 +88,7 @@ class PendingCourseOverrides internal constructor(
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
-    catalogue: () -> List<String> = { emptyList() },
+    internal val catalogue: () -> List<String> = { emptyList() },
 ) : OutboxChannel {
 
     /** The queue for a test that sends through a [CourseOverrideSender], as the queue's own tests do. */

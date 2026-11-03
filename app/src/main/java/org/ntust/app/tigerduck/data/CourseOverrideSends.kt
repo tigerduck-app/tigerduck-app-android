@@ -160,8 +160,17 @@ internal fun placesByMoodleId(everyTerm: Map<String, List<Course>>, current: Str
  * catalogue's. Null when neither does: the change parks, for an upload that brings its course.
  */
 internal fun legacyPlaceOf(moodleId: String, everyTerm: Map<String, List<Course>>, current: String?, catalogue: List<String>): CoursePlace? =
-    placesByMoodleId(everyTerm, current)[moodleId]?.firstOrNull()
-        ?: termAndNumber(moodleId, listOfNotNull(current) + catalogue.filter { it != current })
+    legacyPlacesOf(moodleId, everyTerm, current, catalogue).firstOrNull()
+
+/**
+ * Every place [legacyPlaceOf] reads [moodleId] as, in its order, the first the one it sends to: each
+ * cached course with the id, else the one the id itself names, else none. A pull holds the change
+ * by each of them ([org.ntust.app.tigerduck.ui.screen.home.StampedCourseOverrides.heldNames]), so it
+ * holds what the send goes to, as holding one too many is safe and losing a waiting edit is not.
+ */
+internal fun legacyPlacesOf(moodleId: String, everyTerm: Map<String, List<Course>>, current: String?, catalogue: List<String>): List<CoursePlace> =
+    placesByMoodleId(everyTerm, current)[moodleId]
+        ?: listOfNotNull(termAndNumber(moodleId, listOfNotNull(current) + catalogue.filter { it != current }))
 
 /**
  * iOS's `OutboxSender.termAndNumber`: [moodleId] read as a term code followed by a course number,
