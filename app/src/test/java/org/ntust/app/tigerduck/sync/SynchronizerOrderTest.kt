@@ -37,52 +37,62 @@ class SynchronizerOrderTest {
     private var mayRun = true
     private var recorded: Set<String>? = null
 
-    private inner class RecordingSteps : PassSteps {
-        override suspend fun mayRun() = mayRun.also { log += "may run" }
+    /** Each mode's steps, the background's logged under [prefix], so a pass on the other mode's shows. */
+    private inner class RecordingSteps(private val prefix: String = "") : PassSteps {
+        private fun note(step: String) {
+            log += prefix + step
+        }
+        override suspend fun mayRun() = mayRun.also { note("may run") }
         override fun beginCourseSync() = DataCache.CourseSync(0L) {
-            log += "fetching"
+            note("fetching")
             0L
-        }.also { log += "course window opens" }
+        }.also { note("course window opens") }
         override fun endCourseSync(courseSync: DataCache.CourseSync) {
-            log += "course window closes"
+            note("course window closes")
         }
         override suspend fun retryUnsent(signIn: SignIn) {
-            log += "retries"
+            note("retries")
         }
-        override suspend fun stampDeletes() = 7L.also { log += "deletes stamped" }
-        override suspend fun fetch(signIn: SignIn): BackendSyncResult {
-            log += "fetch"
+        override suspend fun stampDeletes() = 7L.also { note("deletes stamped") }
+        override suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult {
+            // As the real steps do: the fetch marked, then made.
+            courseSync.fetching()
+            note("fetch")
             fetchThrows?.let { throw it }
             return result
         }
         override suspend fun listed(result: BackendSyncResult, signIn: SignIn) {
-            log += "adds listed"
+            note("adds listed")
         }
-        override fun policy() = policy.also { log += "policy read" }
+        override fun policy() = policy.also { note("policy read") }
         override fun recordTaken(pass: SyncPass, took: Set<String>) {
-            log += "categories taken"
+            note("categories taken")
             recorded = took
         }
         override fun noteRevision(pass: SyncPass) {
-            log += "watermark"
+            note("watermark")
         }
         override fun notePull(pass: SyncPass) {
-            log += "gate opens"
+            note("gate opens")
         }
         override fun synced() {
-            log += "status"
+            note("status")
         }
         override fun afterSync(pass: SyncPass) {
-            log += "after-steps"
+            note("after-steps")
         }
         override fun failed() {
-            log += "failed"
+            note("failed")
         }
     }
+
+    /** What each step was handed, by the name it logs under: the mode it ran in. */
+    private val modes: MutableMap<String, SyncMode> = Collections.synchronizedMap(mutableMapOf())
 
     private fun step(name: String, took: Boolean = true) = object : Reconciler {
         override suspend fun reconcile(pass: SyncPass): Boolean {
             log += name
+            modes[name] = pass.mode
             assertEquals("every step reads the one policy", policy, pass.policy)
             assertEquals(7L, pass.beforeFetch)
             return took
@@ -94,7 +104,8 @@ class SynchronizerOrderTest {
         overrides: Boolean = true,
         roster: Boolean = true,
     ) = Synchronizer(
-        RecordingSteps(),
+        foreground = RecordingSteps(),
+        background = RecordingSteps(prefix = "background "),
         marks = step("marks", marks),
         ignores = step("ignores"),
         overrides = step("overrides", overrides),
@@ -116,6 +127,42 @@ class SynchronizerOrderTest {
             ),
             log.toList(),
         )
+        assertEquals("every step ran in the foreground", setOf(SyncMode.FOREGROUND), modes.values.toSet())
+    }
+
+    @Test
+    fun `the background steps run in the pinned order, then the caller's, each step in the background`() = runBlocking {
+        val outcome = synchronizer().sync(SyncMode.BACKGROUND, school.current, afterSync = { log += "caller's after-steps" })
+
+        assertEquals(SyncOutcome.SYNCED, outcome)
+        assertEquals(
+            listOf(
+                "background may run", "background course window opens", "background retries", "background deletes stamped",
+                "background fetching", "background fetch", "background adds listed", "background policy read",
+                "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
+                "background categories taken", "background watermark", "background gate opens", "background status",
+                "background after-steps", "caller's after-steps", "background course window closes",
+            ),
+            log.toList(),
+        )
+        assertEquals("every step ran in the background", setOf(SyncMode.BACKGROUND), modes.values.toSet())
+    }
+
+    @Test
+    fun `a background pass that may not run does nothing else`() = runBlocking {
+        mayRun = false
+
+        assertEquals(SyncOutcome.SKIPPED, synchronizer().sync(SyncMode.BACKGROUND, school.current, afterSync = { log += "caller's after-steps" }))
+        assertEquals(listOf("background may run"), log.toList())
+    }
+
+    @Test
+    fun `a pass whose caller's after-steps fail says so, inside its course window`() = runBlocking {
+        val outcome = synchronizer().sync(SyncMode.BACKGROUND, school.current, afterSync = { throw IOException("made-up failure") })
+
+        assertEquals(SyncOutcome.FAILED, outcome)
+        assertEquals(listOf("background after-steps", "background failed", "background course window closes"), log.takeLast(3))
+        assertTrue("reported as synced", "background status" in log && log.indexOf("background status") < log.indexOf("background failed"))
     }
 
     @Test

@@ -34,7 +34,17 @@ internal class UnsentQueues(
     val pendingCourseDeletes: PendingCourseDeletes,
     val pendingCourseOverrides: PendingCourseOverrides,
     val pendingHolidayOverrides: PendingHolidayOverrides,
-)
+) {
+    /** Sends what waits in each, one queue after the other, in the order the retries always ran. */
+    suspend fun retry(signIn: SignIn) {
+        courseIgnoreSync.retryPending(signIn)
+        unsentMarks.retry(signIn)
+        pendingCourseAdds.retry(signIn)
+        pendingCourseDeletes.retry(signIn)
+        pendingCourseOverrides.retry(signIn)
+        pendingHolidayOverrides.retry(signIn)
+    }
+}
 
 /** Home's pass over the real stores, clients and status. */
 internal class ForegroundSteps(
@@ -77,18 +87,16 @@ internal class ForegroundSteps(
 
     override fun endCourseSync(courseSync: DataCache.CourseSync) = dataCache.endCourseSync(courseSync)
 
-    override suspend fun retryUnsent(signIn: SignIn) = with(queues) {
-        courseIgnoreSync.retryPending(signIn)
-        unsentMarks.retry(signIn)
-        pendingCourseAdds.retry(signIn)
-        pendingCourseDeletes.retry(signIn)
-        pendingCourseOverrides.retry(signIn)
-        pendingHolidayOverrides.retry(signIn)
-    }
+    override suspend fun retryUnsent(signIn: SignIn) = queues.retry(signIn)
 
     override suspend fun stampDeletes(): Long = queues.pendingCourseDeletes.stamp()
 
-    override suspend fun fetch(signIn: SignIn): BackendSyncResult = fetchSnapshot(signIn)
+    override suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult {
+        // An add back made from here on is newer than a course reset the snapshot reads. One
+        // attempt: a refused session is Home's to sign in again for, and the whole pass runs again.
+        courseSync.fetching()
+        return fetchSnapshot(signIn)
+    }
 
     override suspend fun listed(result: BackendSyncResult, signIn: SignIn) =
         queues.pendingCourseAdds.listed(result.serverCourses, signIn)

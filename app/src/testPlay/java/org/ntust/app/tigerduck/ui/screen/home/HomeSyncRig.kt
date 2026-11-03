@@ -35,11 +35,13 @@ internal class HomeSyncRig(
     val holidays: PendingHolidayOverrides,
     val ignores: CourseIgnoreSync,
     val gate: FirstPullGate,
+    val synchronizer: Synchronizer,
     val sync: HomeBackendSync,
 )
 
 /**
- * Builds [HomeSyncRig] over [w], its backend requests answered by [backend]. What would run past the
+ * Builds [HomeSyncRig] over [w], its backend requests answered by [backend]; the background worker
+ * runs its [Synchronizer] too (`backgroundSyncWorker`). What would run past the
  * sync, on the application scope, goes to [idleScope], which never runs it: the notification
  * settings pull, the roster requests, a re-enable check and the first-pull gate's sign-out watch. [ignores] is the course-ignore queue,
  * the real one unless a test needs its own.
@@ -60,12 +62,13 @@ internal fun homeSyncRig(
     val policies = SyncPolicies(w.appPrefs)
     val gate = FirstPullGate(w.sessions, idleScope)
     val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache, marks, w.pushApi)
-    val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies)
+    val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs)
     val synchronizer = Synchronizer(
         prefs = w.appPrefs,
         syncPolicies = policies,
         dataCache = w.dataCache,
         authTokenManager = w.tokens,
+        authService = w.auth,
         syncApiClient = syncApi,
         courseIgnoreSync = ignores,
         unsentMarks = marks,
@@ -85,11 +88,11 @@ internal fun homeSyncRig(
         holidays = HolidaysReconciler(holidays, w.academicCalendar),
         roster = RosterReconciler(
             w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
-            idleTermSync(w), idleScope,
+            idleTermSync(w), idleScope, w.appPrefs,
         ),
     )
     val sync = HomeBackendSync(synchronizer, w.auth, w.pushApi, w.notificationSettingsSync, marksReconciler, overridesReconciler)
-    return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, sync)
+    return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, synchronizer, sync)
 }
 
 /** Asks the school nothing: a run's roster requests never reach it. */

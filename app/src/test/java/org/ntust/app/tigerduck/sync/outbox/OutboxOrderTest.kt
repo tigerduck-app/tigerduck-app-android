@@ -6,11 +6,10 @@ import java.io.File
 
 /**
  * The order every sync sends what waits to go up in today, read from the source as
- * `SyncWiringTest` reads it: Home's full sync and its revision poll
- * (`ForegroundSteps.retryUnsent`) and the background worker each send the six queues one after
- * the other, in one order, [OutboxChannelId]'s. The outbox drains its channels in that order, so
- * moving the six onto it sends nothing in another order. Until `Outbox.drain` takes their place
- * (T3.23).
+ * `SyncWiringTest` reads it: Home's full sync and its revision poll and the background worker's
+ * pass each send the six queues through `UnsentQueues.retry`, one after the other, in one order,
+ * [OutboxChannelId]'s. The outbox drains its channels in that order, so moving the six onto it
+ * sends nothing in another order. Until `Outbox.drain` takes their place (T3.23).
  */
 class OutboxOrderTest {
 
@@ -44,6 +43,7 @@ class OutboxOrderTest {
     fun `Home's sync and the worker send what waits in the outbox's order`() {
         val today = OutboxChannelId.entries.map { queueOf.getValue(it) }
         assertEquals(today, sendsIn("sync/ForegroundSteps.kt"))
-        assertEquals(today, sendsIn("notification/BackgroundSyncWorker.kt"))
+        assertEquals(emptyList<String>(), sendsIn("sync/BackgroundSteps.kt"))
+        assertEquals(emptyList<String>(), sendsIn("notification/BackgroundSyncWorker.kt"))
     }
 }

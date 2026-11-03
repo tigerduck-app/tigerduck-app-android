@@ -276,35 +276,19 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
-    "kind": "full-sync-fetch",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
-    "kind": "long-file",
-    "count": 621
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.doWork()",
     "lines": 86
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
-    "kind": "long-function",
-    "name": "BackgroundSyncWorker.syncOverridesFromBackend(SignIn)",
-    "lines": 90
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "sync-switch-read",
-    "count": 10
+    "count": 5
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "sync-write",
-    "count": 2
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",

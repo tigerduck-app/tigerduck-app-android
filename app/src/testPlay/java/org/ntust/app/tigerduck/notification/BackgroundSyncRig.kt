@@ -42,8 +42,8 @@ internal fun settingsSyncAt(context: Context, w: AccountWorld, backend: OkHttpCl
     )
 
 /**
- * The background worker as Hilt builds it, over [w]'s stores and the queues and full sync of
- * [rig], which Home's sync sends from too; [settings] is its notification settings sync. The
+ * The background worker as Hilt builds it, over [w]'s stores and the full sync of [rig], whose
+ * queues Home's sync sends from too; [settings] is its notification settings sync. The
  * school and Moodle are never asked: a test leaves the courses and the assignments not due.
  * What would run on the application scope goes to [idleScope], which never runs it.
  */
@@ -104,20 +104,14 @@ internal fun backgroundSyncWorker(
                 liveActivityManager = liveUpdates,
                 prefs = w.appPrefs,
                 widgetUpdater = w.widgetUpdater,
-                syncApiClient = rig.syncApi,
                 pushApiClient = w.pushApi,
                 authTokenManager = w.tokens,
                 fcmBootstrap = FcmBootstrap(context, registration, idleScope),
                 notificationSettingsSync = settings,
-                courseIgnoreSync = rig.ignores,
                 storedPasswordLatch = latch,
-                unsentMarks = rig.marks,
-                pendingCourseAdds = rig.adds,
-                pendingCourseDeletes = rig.deletes,
-                pendingCourseOverrides = rig.overrides,
-                pendingHolidayOverrides = rig.holidays,
                 academicCalendar = w.academicCalendar,
                 termCourseSync = idleTermSync(w),
+                synchronizer = rig.synchronizer,
             )
     }
     // A periodic run's first attempt: a retry would fetch the school's data whatever is due.
