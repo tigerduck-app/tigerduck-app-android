@@ -186,10 +186,14 @@ class PendingCourseOverrides internal constructor(
         courseNo: String? = null,
         signIn: SignIn,
     ) {
-        // Under way from before it is kept, so a drain already running that sends it does not leave it to send again.
-        lane.keepAndDrain(signIn, { sends(colorHex != null) }) {
-            record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn).values.mapTo(HashSet(), ::fieldOf)
+        // Under way from before it is kept (a drain running that sends it counts for it), and requeued
+        // after it if a course upload landed meanwhile, as [drain] is.
+        val landed = memory.landedDuring {
+            lane.keepAndDrain(signIn, { sends(colorHex != null) }) {
+                record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn).values.mapTo(HashSet(), ::fieldOf)
+            }
         }
+        if (landed) lane.requeueParked(signIn)
     }
 
     /**
@@ -216,10 +220,8 @@ class PendingCourseOverrides internal constructor(
     suspend fun reserveVersion(): Long = mutex.withLock { memory.nextSeq(lane.entries()) }
 
     /**
-     * Keeps [change] stamped 0 and at the oldest version, unless a change of its colour or name
-     * waits: a value this phone held before the kind ever synced, which fills only a field the
-     * backend holds no stamp for (LWW D13). Sends nothing; nothing calls it until a kind's first
-     * sync on `/v4` does. False once [signIn] has ended.
+     * Keeps [change] stamped 0 at the oldest version unless a change of its key waits (LWW D13: it fills
+     * only a field the backend has no stamp for). Sends nothing; unused until a kind's first `/v4` sync.
      */
     suspend fun queueAsOldest(change: Change, signIn: SignIn): Boolean = mutex.withLock {
         val row = PendingCourseOverride(
@@ -232,20 +234,22 @@ class PendingCourseOverrides internal constructor(
 
     /**
      * Sends every change still waiting whose kind goes out, a failed one waiting for the next sync;
-     * each full sync starts with this, so the snapshot it fetches has them. The first under a
-     * sign-in in a process gives each parked change one more try: the upload it waits for may
-     * have landed in a process before, or by a path that does not tell the outbox.
+     * each full sync starts with this. The first under a sign-in in a process gives each parked
+     * change one more try, as its upload may have landed in a process before.
      */
     suspend fun retry(signIn: SignIn) = drain(signIn)
 
-    /** [retry]. */
+    /** [retry]. A send during which a course upload landed requeues after it, as [send] does: its 404 may predate the row. */
     override suspend fun drain(signIn: SignIn) {
-        if (memory.firstParkedTry(signIn)) requeueParked(signIn)
-        lane.drain(signIn)
+        if (memory.firstParkedTry(signIn)) lane.requeueParked(signIn)
+        if (memory.landedDuring { lane.drain(signIn) }) lane.requeueParked(signIn)
     }
 
     /** A course upload has landed: each parked change gets one more try at the next [retry]. */
-    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
+    override suspend fun requeueParked(signIn: SignIn) {
+        memory.uploadLanded()
+        lane.requeueParked(signIn)
+    }
 
     /**
      * A course upload of [semester] was answered: the backend took the courses [accepted] and left

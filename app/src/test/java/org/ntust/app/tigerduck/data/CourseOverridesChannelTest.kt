@@ -22,6 +22,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
@@ -414,6 +416,45 @@ class CourseOverridesChannelTest {
         overrides.retry(signIn)
 
         assertEquals(1, v3Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /**
+     * Greptile r1: a course upload that lands while a change's PATCH is out cannot be missed by
+     * that PATCH's 404, which the backend gave before the row was made: the change goes at the
+     * next sync rather than waiting, parked, for another upload.
+     */
+    @Test
+    fun `an upload that lands while a change's PATCH is out leaves it due though that PATCH gets a 404`() = runTest {
+        cache.saveCourses(listOf(calculus), term, signIn)
+        var calls = 0
+        val out = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val overrides = PendingCourseOverrides(
+            cache,
+            CourseOverrideSender { _, _, _, _, _, _, _ ->
+                if (++calls == 1) {
+                    out.complete(Unit)
+                    reply.await()
+                    throw BackendException(BackendError(404, "course_not_found"), "patchCourseOverride failed: HTTP 404")
+                }
+                true
+            },
+            records = { true },
+            sends = { true },
+        )
+        val outbox = Outbox(setOf(overrides))
+        // The process's one more try is spent, with nothing parked.
+        overrides.retry(signIn)
+
+        val pick = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
+        out.await()
+        outbox.courseUploadLanded(signIn)
+        reply.complete(Unit)
+        pick.join()
+        overrides.retry(signIn)
+
+        assertEquals(2, calls)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
