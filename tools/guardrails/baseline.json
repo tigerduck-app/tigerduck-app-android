@@ -68,11 +68,6 @@
     "count": 1781
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/AssignmentStatusWriter.kt",
-    "kind": "sync-write",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseRepository.kt",
     "kind": "demo-check",
     "count": 4
@@ -269,11 +264,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "sync-switch-read",
     "count": 5
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
-    "kind": "sync-write",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
@@ -741,7 +731,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-file",
-    "count": 2077
+    "count": 2076
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
@@ -1009,7 +999,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-file",
-    "count": 1178
+    "count": 1175
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
@@ -1021,16 +1011,11 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-function",
     "name": "HomeViewModel.fetchData(Boolean)",
-    "lines": 86
+    "lines": 83
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "sync-switch-read",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
-    "kind": "sync-write",
     "count": 1
   },
   {

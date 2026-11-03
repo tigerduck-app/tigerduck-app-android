@@ -682,8 +682,8 @@ class SyncWiringTest {
     @Test
     fun `Home's fetch lets a sign-out's cancellation through its assignment upload`() {
         val body = body("ui/screen/home/HomeViewModel.kt", "fetchData")
-        assertTrue("fetchData no longer uploads the assignments", "pushApiClient.uploadAssignments(written, remoteAssignments.answer.signIn)" in body)
-        assertTrue("fetchData catches the upload's cancellation", "runCatching { pushApiClient.uploadAssignments" !in body)
+        assertTrue("fetchData no longer uploads the assignments", "schoolUploads.assignments(written, remoteAssignments.answer.signIn)" in body)
+        assertTrue("fetchData catches the upload's cancellation", "runCatching { schoolUploads.assignments" !in body)
     }
 
     /**
@@ -757,7 +757,7 @@ class SyncWiringTest {
             "notification/TermCourseSync.kt", "sync",
             "val merged = commitFetchedTerm(",
             "waitingAdds = { waitingAdds(semester) }",
-            "merged, semester, roster = term.roster,",
+            "uploads.term(signIn, semester, merged, term.roster, uploading,",
             "uploader.upload(upload.courses, semester,",
         )
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")

@@ -50,10 +50,11 @@ class HomeRefreshOrderTest {
     }
 
     @Test
-    fun `the assignments the fetch wrote go up as soon as they are written`() {
+    fun `the assignments the fetch wrote go up after the first pull`() {
         val body = body("fetchData")
         val store = at(body, "moodleService.storeAssignments(it.assignments, it.answer)")
-        val upload = at(body, "pushApiClient.uploadAssignments(written, remoteAssignments.answer.signIn)")
+        val upload = at(body, "schoolUploads.assignments(written, remoteAssignments.answer.signIn) { e ->")
         assertTrue(store < upload)
+        assertTrue("Home uploads around the gate", "pushApiClient" !in source().joinToString("\n"))
     }
 }

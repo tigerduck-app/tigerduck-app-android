@@ -38,36 +38,61 @@ class SchoolUploadsWiringTest {
         for (call in calls) assertTrue("$where no longer has $call", call in text)
     }
 
+    /**
+     * Inside the commit's lock, after its checks, as before; the term waiting for the pull is
+     * built under that lock again, and checked again there.
+     */
     @Test
-    fun `the class table's term fetch uploads its term as it commits it`() {
+    fun `the class table's term fetch uploads its term after the first pull`() {
+        val body = body("ui/screen/classtable/ClassTableViewModel.kt", "fetchTermCourses")
         assertHas(
-            "fetchTermCourses", body("ui/screen/classtable/ClassTableViewModel.kt", "fetchTermCourses"),
+            "fetchTermCourses", body,
+            "schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, stillWanted = {",
+            "mayCommit() && (answer == null || dataCache.isLatestAnswer(semester, answer))",
             "runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }",
         )
+        val lock = body.indexOf("pendingCourseAdds.uploading {")
+        val term = body.indexOf("schoolUploads.term(")
+        assertTrue("the term no longer goes from inside the commit's lock", lock in 0 until term)
     }
 
     @Test
-    fun `the background's term fetch uploads through the app's push client`() {
+    fun `the background's term fetch uploads after the first pull, through the app's push client`() {
+        val source = source("notification/TermCourseSync.kt")
         assertHas(
-            "TermCourseSync", source("notification/TermCourseSync.kt"),
+            "TermCourseSync", source,
             "pushApiClient.uploadCourses(courses, semester, signIn, resend = resend, rosterTerms = rosterTerms)",
+            "uploads = schoolUploads,",
+            "uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested, stillWanted = {",
+            "answer == null || dataCache.isLatestAnswer(semester, answer)",
         )
     }
 
     @Test
-    fun `the background uploads the assignments its round wrote as it writes them`() {
+    fun `the background uploads the assignments its round wrote after the first pull`() {
         assertHas(
             "syncAssignments", body("notification/BackgroundSyncWorker.kt", "syncAssignments"),
-            "runCatching { pushApiClient.uploadAssignments(written, answer.signIn) }",
+            "schoolUploads.assignments(written, answer.signIn) {",
+            "prefs.setLastSyncSource(SyncSource.LOCAL)",
         )
     }
 
     @Test
-    fun `a status an assignment's page fetched goes up with the list it wrote as it writes it`() {
+    fun `a status an assignment's page fetched goes up with the list it wrote after the first pull`() {
         assertHas(
             "AssignmentStatusWriter", source("data/moodle/AssignmentStatusWriter.kt"),
-            "runCatching { pushApiClient.uploadAssignments(assignments, signIn) }",
+            "runCatching { schoolUploads.assignments(assignments, signIn) }",
         )
+    }
+
+    /** The full sync's own resend of a term goes in the pass, before its pull lands: never through the gate. */
+    @Test
+    fun `the full sync's resend of a term does not wait for the pull it is part of`() {
+        for (rel in listOf("sync/reconcile/RosterReconciler.kt", "sync/reconcile/CurrentTermCourses.kt")) {
+            val source = source(rel)
+            assertTrue("$rel no longer resends the term itself", "pushApiClient.uploadCourses(outcome.toUpload, semester," in source)
+            assertTrue("$rel waits for the first pull", "SchoolUploads" !in source && "schoolUploads" !in source)
+        }
     }
 
     /** `sync-order`, "A local edit SHALL be sent at once": a delete's upload waits for no pull. */

@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.Synchronizer
 import org.ntust.app.tigerduck.ui.RefreshPolicies
@@ -58,7 +59,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val liveActivityManager: org.ntust.app.tigerduck.liveactivity.LiveActivityManager,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
-    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
+    pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
     private val authTokenManager: org.ntust.app.tigerduck.auth.AuthTokenManager,
     private val fcmBootstrap: org.ntust.app.tigerduck.push.FcmBootstrap,
     private val notificationSettingsSync: org.ntust.app.tigerduck.push.NotificationSettingsSync,
@@ -66,6 +67,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val academicCalendar: AcademicCalendarStore,
     private val termCourseSync: TermCourseSync,
     private val synchronizer: Synchronizer,
+    /** Where the round's assignments go up: after this process's first pull in the app. */
+    private val schoolUploads: SchoolUploads = SchoolUploads.atOnce(dataCache, pushApiClient),
 ) : CoroutineWorker(context, params) {
 
     @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
@@ -225,11 +228,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // Uploaded as written: the write reconciles the list against
             // newer answers, and nothing is uploaded when it was refused.
             val written = moodleService.storeAssignments(merged, answer) ?: return true
-            runCatching { pushApiClient.uploadAssignments(written, answer.signIn) }
-                .onFailure {
-                    prefs.setLastSyncSource(SyncSource.LOCAL)
-                    Log.w(TAG, "uploadAssignments failed (non-fatal): ${it.logSummary()}")
-                }
+            // After this process's first pull: a run that does not pull leaves it waiting for one.
+            schoolUploads.assignments(written, answer.signIn) {
+                prefs.setLastSyncSource(SyncSource.LOCAL)
+                Log.w(TAG, "uploadAssignments failed (non-fatal): ${it.logSummary()}")
+            }
 
             if (prefs.notifyAssignments) {
                 notificationScheduler.scheduleAll(

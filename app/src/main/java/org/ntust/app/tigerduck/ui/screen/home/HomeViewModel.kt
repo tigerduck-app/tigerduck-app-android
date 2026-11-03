@@ -39,7 +39,7 @@ import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -108,7 +108,7 @@ class HomeViewModel @Inject constructor(
     private val liveActivityManager: LiveActivityManager,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
-    private val pushApiClient: PushApiClient,
+    private val schoolUploads: SchoolUploads,
     private val syncApiClient: SyncApiClient,
     private val authTokenManager: AuthTokenManager,
     private val backendSync: HomeBackendSync,
@@ -764,13 +764,10 @@ class HomeViewModel @Inject constructor(
                     }
                     if (written != null && remoteAssignments != null) {
                         assignments = written
-                        try {
-                            pushApiClient.uploadAssignments(written, remoteAssignments.answer.signIn)
-                        } catch (e: CancellationException) {
-                            // A sign-out cancels this fetch: taken for a failed upload, the
-                            // fetch would go on to show the departing account's lists again.
-                            throw e
-                        } catch (e: Exception) {
+                        // After this process's first pull. A sign-out cancels this fetch, and the
+                        // cancellation goes on up: taken for a failed upload, the fetch would go on to
+                        // show the departing account's lists again.
+                        schoolUploads.assignments(written, remoteAssignments.answer.signIn) { e ->
                             prefs.setLastSyncSource(SyncSource.LOCAL)
                             Log.w("HomeViewModel", "uploadAssignments failed (non-fatal): ${e.logSummary()}")
                         }

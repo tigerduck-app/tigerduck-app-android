@@ -36,7 +36,6 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.RefreshPolicy
@@ -119,8 +118,8 @@ class ClassTableViewModel @Inject constructor(
     private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
     private val authTokenManager: AuthTokenManager,
     @param:ApplicationScope private val appScope: CoroutineScope,
+    private val schoolUploads: org.ntust.app.tigerduck.sync.SchoolUploads,
 ) : ViewModel() {
-
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses
@@ -1831,7 +1830,7 @@ class ClassTableViewModel @Inject constructor(
      * one, at the snapshot or before the upload ([DataCache.isLatestAnswer]):
      * that answer dropped what it no longer lists, and its fetch saves and
      * sends the term. One refused as it was recorded is not even looked up
-     * ([RecordedSelection.Refused]).
+     * ([RecordedSelection.Refused]). The upload waits for this process's first pull: see [SchoolUploads.term].
      *
      * Returns whether every query went through: false when one failed, which
      * [warmTerms] stops on — the Moodle metadata a failed lookup falls back
@@ -1892,8 +1891,7 @@ class ClassTableViewModel @Inject constructor(
                         names = { courseCustomNames },
                         locale = currentCourseLocale,
                     )
-                    // Only apply if the user hasn't flipped to a different semester
-                    // mid-flight.
+                    // Shown only if the picker is still on the term.
                     folded?.let { merged ->
                         if (_currentSemester.value == semester) {
                             showCourses(merged, semester)
@@ -1912,9 +1910,8 @@ class ClassTableViewModel @Inject constructor(
             // The class table loaded: a day of use towards the Play rating ask
             // (issue #332).
             if (countsAsUse) reviewPrompt.classTableLoaded()
-            // Superseded during the save: the reset's wipe, or the newer
-            // fetch's save, takes the file, and these rows need not go up to
-            // be taken down again. A newer answer's roster would be undone.
+            // Superseded during the save: the reset's wipe, or the newer fetch's save, takes the file, and
+            // these rows need not go up to be taken down again. A newer answer's roster would be undone.
             if (!mayCommit()) return@uploading
             if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
             // As the term's roster when this fetch's course selection answer or a past term's final
@@ -1924,11 +1921,13 @@ class ClassTableViewModel @Inject constructor(
                 is ClassTableTermSource.Rebuild -> rebuiltRoster
                 else -> null
             }
-            val upload = CourseUpload.of(
-                merged, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
-            )
-            runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }
-                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
+            // After this process's first pull; until then the term waits, as it stands once it opens.
+            schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, stillWanted = {
+                mayCommit() && (answer == null || dataCache.isLatestAnswer(semester, answer))
+            }) { upload ->
+                runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }
+                    .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
+            }
             widgetUpdater.requestUpdate()
         }
         return answers.answered

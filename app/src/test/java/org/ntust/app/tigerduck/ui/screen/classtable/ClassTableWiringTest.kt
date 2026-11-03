@@ -408,10 +408,11 @@ class ClassTableWiringTest {
             "rebuiltRoster = it.roster",
             "is ClassTableTermSource.Selection -> source.rosterNos",
             "is ClassTableTermSource.Rebuild -> rebuiltRoster",
-            "hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos())",
+            // The upload SchoolUploads.term builds of the term with that roster, under SchoolUploadsTest.
+            "schoolUploads.term(signIn, semester, merged, roster,",
             "pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms)",
         )
-        assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("val upload = CourseUpload.of("))
+        assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("schoolUploads.term("))
     }
 
     /**
