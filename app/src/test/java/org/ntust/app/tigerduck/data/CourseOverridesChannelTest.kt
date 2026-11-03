@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
@@ -622,6 +623,43 @@ class CourseOverridesChannelTest {
         overrides.requeueParked(signIn)
 
         assertEquals(listOf(max - 1), waiting().map { it.attempts })
+    }
+
+    /**
+     * A newer pick made while the older is out goes once, however many drains run: the
+     * older pick's drain does not send it again after the newer pick's own sent it, and its refusal
+     * is counted once.
+     */
+    @Test
+    fun `a newer pick made while the older is out goes once, though it is refused`() = runTest {
+        val sentColors = mutableListOf<String?>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val overrides = PendingCourseOverrides(
+            cache,
+            CourseOverrideSender { _, colorHex, _, _, _, _, _ ->
+                sentColors += colorHex
+                if (sentColors.size > 1) throw PushApiException("patchCourseOverride failed: HTTP 422", 422)
+                firstOut.complete(Unit)
+                release.await()
+                true
+            },
+            records = { true },
+            sends = { true },
+        )
+
+        val first = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
+        firstOut.await()
+        val second = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#0000FF", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
+        withContext(Dispatchers.Default) {
+            while (cache.loadPendingCourseOverrides().singleOrNull()?.colorHex != "#0000FF") delay(5)
+        }
+        release.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(listOf("#FF0000", "#0000FF"), sentColors)
+        assertEquals("refused once", listOf(1), waiting().map { it.attempts })
     }
 
     // --- /v4 ---

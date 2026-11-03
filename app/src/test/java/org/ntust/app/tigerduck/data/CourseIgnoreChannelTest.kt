@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.WriteAnswer
@@ -301,6 +302,43 @@ class CourseIgnoreChannelTest {
 
         assertEquals(2, stamps.size)
         assertEquals("one time for the batch: $stamps", 1, stamps.toSet().size)
+    }
+
+    /**
+     * A newer tap made while the older is out goes once, however many drains run: the
+     * older tap's drain does not send it again after the newer tap's own sent it, and its refusal is
+     * counted once.
+     */
+    @Test
+    fun `a newer tap made while the older is out goes once, though it is refused`() = runTest {
+        val sent = mutableListOf<Boolean?>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var clockMs = 1_000L
+        val ignores = CourseIgnoreSync(
+            cache,
+            CourseIgnoreSender { _, ignore, _, _, _ ->
+                sent += ignore
+                if (sent.size > 1) throw PushApiException("patchCourseIgnore failed: HTTP 422", 422)
+                firstOut.complete(Unit)
+                release.await()
+                true
+            },
+            CourseIgnoreEffects {},
+            sends = { true },
+            clock = { clockMs++ },
+        )
+
+        val first = launch { ignores.setIgnored(term, "AAA", "${term}AAA", null, ignore = true, signIn = signIn) }
+        firstOut.await()
+        val second = launch { ignores.setIgnored(term, "AAA", "${term}AAA", null, ignore = false, signIn = signIn) }
+        testScheduler.advanceUntilIdle()
+        release.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(listOf<Boolean?>(true, false), sent)
+        assertEquals("refused once", listOf(1), waiting().map { it.attempts })
     }
 
     /** A landed course upload gives a parked ignore no try: it follows its own rule, once per process. */
