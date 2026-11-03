@@ -3,12 +3,14 @@ package org.ntust.app.tigerduck.sync
 import android.app.Application
 import android.content.Context
 import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -61,6 +63,9 @@ class FirstPullAbsenceTest {
     private lateinit var uploads: SchoolUploads
     private lateinit var termSync: TermCourseSync
 
+    /** When set, the background's fetch holds its commit lock at its start until the second is completed. */
+    private var fetchHold: Pair<CompletableDeferred<Unit>, CompletableDeferred<Unit>>? = null
+
     private val state = HomeSyncState(
         ignoredAssignmentIds = MutableStateFlow(emptySet()),
         markedCompletedIds = MutableStateFlow(emptySet()),
@@ -102,7 +107,15 @@ class FirstPullAbsenceTest {
                 w.pushApi.uploadCourses(courses, semester, s, resend = resend, rosterTerms = rosterTerms)
             },
             waitingAdds = { emptySet() },
-            uploading = { block -> block() },
+            uploading = { block ->
+                rig.adds.uploading {
+                    fetchHold?.let { (entered, resume) ->
+                        entered.complete(Unit)
+                        resume.await()
+                    }
+                    block()
+                }
+            },
             courseLocale = { "zh" },
             uploadFailed = {},
             uploads = uploads,
@@ -209,6 +222,83 @@ class FirstPullAbsenceTest {
 
         assertEquals("hidden", emptySet<String>(), hidden())
         assertEquals(setOf(OLD, NEW), shown())
+    }
+
+    /**
+     * Codex on PR R, fix round 1, finding 1: a fetch commits its term, then asks for the upload
+     * that waits; a pull's course list step reading the term between the two saw the new course
+     * and no upload waiting for it. [commitThenUpload] runs as the class table's commit does, under
+     * the adds' send lock, the term saved, held there, then the upload asked for; [pull] runs
+     * meanwhile. Whether it waits for the commit is read with a bound, not a race: on the base it
+     * finishes at once, the course hidden.
+     */
+    private suspend fun pullDuringCommit(pull: suspend () -> Unit): Boolean = kotlinx.coroutines.coroutineScope {
+        val saved = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        val committed = listOf(OLD, NEW).map { Course(courseNo = it, courseName = "School $it", moodleIdNumber = "$term$it") }
+        val commit = launch(Dispatchers.Default) {
+            rig.adds.uploading {
+                w.dataCache.saveCourses(committed, term, signIn)
+                saved.complete(Unit)
+                resume.await()
+                uploads.term(signIn, term, committed, listOf(OLD, NEW), { block -> block() }, stillWanted = { true }) { upload ->
+                    w.pushApi.uploadCourses(upload.courses, term, signIn, rosterTerms = upload.rosterTerms)
+                }
+            }
+        }
+        withTimeoutOrNull(10_000) { saved.await() }
+        answerSnapshot()
+        val pulling = launch(Dispatchers.Default) { pull() }
+        val finished = withTimeoutOrNull(5_000) { pulling.join() } != null
+        resume.complete(Unit)
+        withTimeoutOrNull(10_000) {
+            commit.join()
+            pulling.join()
+        }
+        finished
+    }
+
+    @Test
+    fun `on v3 Home's pull does not read a term between its fetch's commit and its upload's ask`() = runBlocking {
+        setUp("v3")
+        val finished = pullDuringCommit { rig.sync.pull(state, signIn) }
+
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
+        assertEquals("the pull's course list waited for the commit and its upload's ask", false, finished)
+    }
+
+    @Test
+    fun `on v3 the background's pull does not read a term between its fetch's commit and its upload's ask`() = runBlocking {
+        setUp("v3")
+        val finished = pullDuringCommit { rig.synchronizer.sync(SyncMode.BACKGROUND, signIn) }
+
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
+        assertEquals("the pull's course list waited for the commit and its upload's ask", false, finished)
+    }
+
+    /** The background's term fetch commits and asks for its upload under the same lock, which the pull waits out. */
+    @Test
+    fun `on v3 Home's pull waits out the background's term fetch's commit`() = runBlocking {
+        setUp("v3")
+        val entered = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        fetchHold = entered to resume
+        val fetch = kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { backgroundFetch() }
+        withTimeoutOrNull(10_000) { entered.await() }
+        answerSnapshot()
+        val pulling = kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { rig.sync.pull(state, signIn) }
+        val finished = withTimeoutOrNull(5_000) { pulling.join() } != null
+        resume.complete(Unit)
+        withTimeoutOrNull(10_000) {
+            fetch.join()
+            pulling.join()
+        }
+
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
+        assertEquals("the pull's course list waited for the fetch's commit", false, finished)
     }
 
     private companion object {
