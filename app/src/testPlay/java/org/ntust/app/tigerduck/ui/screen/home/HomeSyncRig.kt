@@ -93,7 +93,7 @@ internal fun homeSyncRig(
 }
 
 /** Asks the school nothing: a run's roster requests never reach it. */
-private fun idleTermSync(w: AccountWorld) = TermCourseSync(
+internal fun idleTermSync(w: AccountWorld) = TermCourseSync(
     w.dataCache,
     sources = object : TermCourseSync.Sources {
         override fun servesSelection(semester: String) = false
