@@ -139,6 +139,8 @@ class SchoolUploads internal constructor(
      * answer whose fetch has not committed yet is no roster of this term, which goes as on dev,
      * where it went at its commit; a later fetch that does upload takes this one's place.
      * [requested] marks the backend's own request for the roster, which waits apart from a fetch's.
+     * A reset of the term since the ask (`DataCache.saveSemesterResetAt`, under the adds' send lock the
+     * reset holds and the released upload takes) lets the waiting term go: its fetch is of a term gone.
      */
     internal suspend fun term(
         signIn: SignIn,
@@ -151,12 +153,13 @@ class SchoolUploads internal constructor(
         answer: SelectionAnswer? = null,
         send: suspend (CourseUpload) -> Unit,
     ) {
+        val resetBefore = dataCache.loadSemesterResetAt()[semester]
         afterFirstPull(
             signIn, "$COURSES$semester" + if (requested) REQUESTED else "",
             now = { send(upload(committed, semester, roster)) },
             later = { pinned ->
                 uploading {
-                    if (!pinned.isCurrent || !stillWanted()) return@uploading
+                    if (!pinned.isCurrent || !stillWanted() || resetSince(semester, resetBefore)) return@uploading
                     val (held, commit) = dataCache.termAndCommit(semester)
                     val last = commit?.takeIf { it.first === pinned }
                     val paired = if (answer == null || last == null) roster else last.second?.courseNos
@@ -165,6 +168,10 @@ class SchoolUploads internal constructor(
             },
         )
     }
+
+    // A reset stamp newer than [before]; one a snapshot outlived and cleared is no reset.
+    private suspend fun resetSince(semester: String, before: Long?): Boolean =
+        dataCache.loadSemesterResetAt()[semester]?.let { now -> before == null || now > before } == true
 
     private suspend fun upload(courses: List<Course>, semester: String, roster: Collection<String>?): CourseUpload =
         CourseUpload.of(courses, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()))

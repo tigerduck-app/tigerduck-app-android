@@ -202,8 +202,8 @@ class DataCache @Inject constructor(
     // Every write of a term's courses, one at a time; see updateCourses.
     private val coursesMutex = Mutex()
 
-    // Under [coursesMutex], in memory, by term: the sign-in and course selection answer a fetch last committed it with.
-    private val committedAnswers = HashMap<String, Pair<SignIn, SelectionAnswer?>>()
+    // In memory, by term: the sign-in and course selection answer a fetch last committed it with; a reset lets go of it.
+    private val committedAnswers = java.util.concurrent.ConcurrentHashMap<String, Pair<SignIn, SelectionAnswer?>>()
 
     /** Inside [updateCourses]' change: a fetch commits [semester] for [answer], or none, stored with the write. */
     fun committedWith(semester: String, answer: SelectionAnswer?, signIn: SignIn) { committedAnswers[semester] = signIn to answer }
@@ -712,7 +712,7 @@ class DataCache @Inject constructor(
     fun resettingSemesters(): Set<String> = resetting.toSet()
 
     suspend fun saveSemesterResetAt(semester: String, atMs: Long, signIn: SignIn) =
-        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json", signIn)
+        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json", signIn).also { committedAnswers.remove(semester) }
 
     /** Drops stamps a newer snapshot has outlived — see [CourseSyncReconciler.resetStampsOutlived]. */
     suspend fun clearSemesterResetAt(semesters: Set<String>, signIn: SignIn) {

@@ -38,6 +38,7 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermReset
 import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.Date
@@ -393,6 +394,35 @@ class SchoolUploadsTest {
         until("the term went up") { termUploads().isNotEmpty() }
         delay(300)
         assertEquals(listOf(listOf(CS1) to listOf(TERM)), termUploads())
+    }
+
+    /**
+     * Codex on PR R, fix round 4, finding 2: a roster waits, the student resets the term (the class
+     * table's reset, under the adds' send lock), its refetch fails, and the first pull restores the
+     * server's school courses, one merged down as another device's. Nothing goes from the wait from
+     * before the reset, and nothing pairs the restored term with the answer from before it.
+     */
+    @Test
+    fun `a term reset lets go of the term waiting to go up and of the answer stored with its commit`() = runBlocking {
+        answer = listOf(CS1)
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        adds.removing { ClassTableTermReset(cache).run(TERM, signIn) {} }
+        // The pull's restore: the server's rows, the second merged down as another device's.
+        cache.saveCourses(
+            listOf(
+                Course(courseNo = CS1, courseName = CS1, moodleIdNumber = "$TERM$CS1"),
+                Course(courseNo = CS2, courseName = CS2, moodleIdNumber = "$TERM$CS2", isManual = true),
+            ),
+            TERM, signIn,
+        )
+
+        gate.notePull(signIn)
+
+        until("the waiting upload let go") { gate.waiting == 0 && uploads.waitingUploads == 0 }
+        delay(300)
+        assertEquals("nothing went from the wait before the reset", emptyList<Any>(), termUploads())
+        assertEquals("no commit's answer stands for the term after its reset", null, cache.termAndCommit(TERM).second)
     }
 
     @Test
