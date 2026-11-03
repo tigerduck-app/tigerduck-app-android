@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.network.backend.backendError
+import org.ntust.app.tigerduck.push.CourseKeyUnknownException
 import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -112,6 +113,20 @@ internal fun placeOf(row: PendingCourseOverride): CoursePlace? {
 }
 
 /**
+ * The current term's courses by their Moodle id, read once: where a change that names no term is,
+ * as the class table holds the course now. The first course with an id, as a lookup finds it.
+ */
+internal suspend fun currentTermPlaces(dataCache: DataCache): Map<String, CoursePlace> {
+    val semester = dataCache.currentSemesterCode()
+    val places = LinkedHashMap<String, CoursePlace>()
+    for (course in dataCache.loadCourses(semester)) {
+        val moodleId = course.moodleIdNumber ?: continue
+        places.putIfAbsent(moodleId, CoursePlace(semester, course.courseNo))
+    }
+    return places
+}
+
+/**
  * The field ([SyncField]) [row] edits: its course's color, or its name in its locale, by the
  * course's key where the row names its term, else by its Moodle id, which no snapshot row names.
  * Read from the row alone, so one row always edits one field.
@@ -165,9 +180,12 @@ internal class CourseOverrideSends(
      * What [change]'s failed PATCH comes to. Refused as ahead of the backend's clock once more,
      * after the client's one restamp, it says nothing about the change. A 404 for a course no
      * longer cached in the term it was made in lets it go at once: the row went with the course,
-     * and kept it would be sent, and refused, at every sync and count as unsynced data for good.
-     * Refused [PendingCourseOverrides.MAX_ATTEMPTS] times, it is let go too. Any other failure is
-     * as [SendResult.afterFailure] reads it.
+     * no upload brings it back, and kept it would be sent, and refused, after every one. A course
+     * still on this phone that the backend does not have yet (404 `course_not_found`, as a rename
+     * made before its course's upload landed gets, or a key that cannot be built) parks it until a
+     * course upload lands (spec §5.3 race 3, refactor-v4 R3). Any other failure is as
+     * [SendResult.afterFailure] reads it: a refusal counts, and parks it at
+     * [PendingCourseOverrides.MAX_ATTEMPTS], never lets it go.
      */
     private suspend fun afterFailure(change: PendingCourseOverride, e: Exception): SendResult {
         if (e.backendError()?.isClockAhead == true) return SendResult.Retry
@@ -175,13 +193,13 @@ internal class CourseOverrideSends(
             Log.w(TAG, "course override let go: its course has left this phone")
             return SendResult.Sent(null)
         }
-        val result = SendResult.afterFailure(e)
-        if (result == SendResult.Refused && change.attempts + 1 >= PendingCourseOverrides.MAX_ATTEMPTS) {
-            Log.w(TAG, "course override let go: refused ${PendingCourseOverrides.MAX_ATTEMPTS} times")
-            return SendResult.Sent(null)
-        }
-        return result
+        if (waitsForUpload(e)) return SendResult.WaitsForUpload
+        return SendResult.afterFailure(e)
     }
+
+    // Whether [e] says the backend has no row for the course yet, which a course upload makes.
+    private fun waitsForUpload(e: Exception): Boolean =
+        e is CourseKeyUnknownException || e.backendError()?.let { it.status == HTTP_NOT_FOUND && it.code == COURSE_NOT_FOUND } == true
 
     // Whether [e] is a 404 for a course no longer cached in the term [change] was made in: deleted
     // on another device, with the backend's row, and pruned here by a sync. Not known without the term.
@@ -193,12 +211,8 @@ internal class CourseOverrideSends(
 
     // A row an older build wrote with no term: the current term's course with its Moodle id, as
     // `/v4` names a course by its key. Null when no such course is cached.
-    private suspend fun located(change: PendingCourseOverride): CoursePlace? {
-        val moodleId = change.moodleId ?: return null
-        val semester = dataCache.currentSemesterCode()
-        val course = dataCache.loadCourses(semester).firstOrNull { it.moodleIdNumber == moodleId } ?: return null
-        return CoursePlace(semester, course.courseNo)
-    }
+    private suspend fun located(change: PendingCourseOverride): CoursePlace? =
+        change.moodleId?.let { currentTermPlaces(dataCache)[it] }
 
     /**
      * LWW D12, a write response's winner: when the backend kept a later value of [change]'s field,
@@ -240,6 +254,7 @@ internal class CourseOverrideSends(
     private companion object {
         const val TAG = "PendingCourseOverrides"
         const val HTTP_NOT_FOUND = 404
+        const val COURSE_NOT_FOUND = "course_not_found"
 
         // The reply's fields (`docs/api-v4.md`, "Course override"), and its names of them in `applied`.
         const val COLOR = "color_hex"

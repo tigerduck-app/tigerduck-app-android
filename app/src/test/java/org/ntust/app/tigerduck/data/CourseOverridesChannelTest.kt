@@ -32,7 +32,9 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
@@ -227,6 +229,139 @@ class CourseOverridesChannelTest {
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
+    // --- Parked, not let go (spec §5.3 race 3, refactor-v4 R3; amended with xinshou, Telegram 1663) ---
+
+    private val max = PendingCourseOverrides.MAX_ATTEMPTS
+
+    @Test
+    fun `on v3 a 404 for a course still on this phone parks its change at once, and a landed course upload sends it`() = runTest {
+        cache.saveCourses(listOf(calculus), term, testSignIn())
+        queue(color(calculus, "#FF0000", semester = term))
+        v3Backend.answer(pathOf(calculus), 404, """{"detail":"course_not_found"}""")
+        val overrides = v3Overrides()
+
+        repeat(3) { overrides.retry(signIn) }
+        assertEquals("parked at the first 404, and not sent again", 1, v3Backend.sent.size)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        Outbox(setOf(overrides)).courseUploadLanded(signIn)
+        overrides.retry(signIn)
+
+        assertEquals(List(2) { patch("1151MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}""") }, v3Shapes())
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** The upload a parked change waits for may have landed in a process before, or by a path that tells no one. */
+    @Test
+    fun `on v3 a parked change goes once more at the first retry of the next process`() = runTest {
+        queue(color(calculus, "#FF0000").copy(attempts = max))
+        repeat(2) { v3Backend.answer(pathOf(calculus), 422, """{"detail":"invalid_request"}""") }
+
+        val first = v3Overrides()
+        repeat(2) { first.retry(signIn) }
+        val next = v3Overrides()
+        repeat(2) { next.retry(signIn) }
+
+        assertEquals("once per process, refused again and parked", 2, v3Backend.sent.size)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+    }
+
+    /** Recorded with its term and number, so a 404 once its course is gone lets it go. */
+    @Test
+    fun `a pick that names no term records the current term's course with its Moodle id`() = runTest {
+        val current = cache.currentSemesterCode()
+        cache.saveCourses(listOf(calculus), current, signIn)
+        // The colors' re-enable check holds them, so both wait.
+        prefs.school.pendingConflictCategories.set(setOf(PendingCourseOverrides.category(color = true)), testSignIn())
+
+        v3Overrides().send(calculus.moodleIdNumber!!, colorHex = "#FF0000", signIn = signIn)
+        v3Overrides().send(physics.moodleIdNumber!!, colorHex = "#00FF00", signIn = signIn)
+
+        assertEquals(
+            listOf<Pair<String?, String?>>(current to calculus.courseNo, null to null),
+            waiting().map { it.semester to it.courseNo },
+        )
+    }
+
+    @Test
+    fun `on v4 a change whose course key cannot be built parks until a course upload lands`() = runTest {
+        val current = cache.currentSemesterCode()
+        queue(name(calculus, "Calc", "en"))
+        val overrides = v4Overrides()
+
+        repeat(2) { overrides.retry(signIn) }
+        assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        // The course reaches this phone's current term, and an upload lands.
+        cache.saveCourses(listOf(calculus), current, signIn)
+        Outbox(setOf(overrides)).courseUploadLanded(signIn)
+        overrides.retry(signIn)
+
+        assertEquals(listOf("$v4/sync/courses/client:$current:MA1010002/override"), v4Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /**
+     * Use Local's name held back on v4 goes into the queue with a Moodle id derived from its term
+     * and number, which names no cached course: a 404 for it parks it while its course is here,
+     * and lets it go once the course has left.
+     */
+    @Test
+    fun `a name Use Local held back on v4 parks on a 404 while its course is here, and goes once it has left`() = runTest {
+        val typed = Course(courseNo = "XA0000009", courseName = "Typed", isManual = true)
+        val derived = "$term${typed.courseNo}"
+        cache.saveCourses(listOf(typed), term, signIn)
+        val overrides = v4Overrides()
+        overrides.queue(
+            listOf(PendingCourseOverrides.Change(derived, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo)),
+            overrides.reserveVersion(), signIn,
+        )
+        repeat(2) { v4Backend.answer("/v4/sync/courses/client:$term:${typed.courseNo}/override", 404, """{"error":"course_not_found","message":"No such course."}""") }
+
+        overrides.retry(signIn)
+        assertEquals(listOf(derived to max), waiting().map { it.moodleId to it.attempts })
+
+        cache.saveCourses(emptyList(), term, signIn)
+        Outbox(setOf(overrides)).courseUploadLanded(signIn)
+        overrides.retry(signIn)
+
+        assertEquals(2, v4Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /**
+     * A course added by hand and renamed before its add's upload landed: the rename's 404 parks it
+     * through every sync the upload keeps failing in, and the upload's landing sends it.
+     */
+    @Test
+    fun `a rename of a course added by hand waits for its add's upload, however many syncs that takes`() = runTest {
+        val typed = Course(courseNo = "XA0000009", courseName = "Typed", isManual = true, moodleIdNumber = "1151XA0000009")
+        cache.saveCourses(listOf(typed), term, signIn)
+        val client = pushApiClientAt(v3, v3Backend.client, prefs)
+        lateinit var outbox: Outbox
+        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs), outbox = dagger.Lazy { outbox })
+        val overrides = PendingCourseOverrides(cache, client, prefs)
+        outbox = Outbox(setOf(adds, overrides))
+        val upload = "/v3/sync/courses/upload"
+        repeat(max + 1) { v3Backend.answer(upload, 503, """{"detail":"unavailable"}""") }
+        repeat(2) { v3Backend.answer(pathOf(typed), 404, """{"detail":"course_not_found"}""") }
+
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs, signIn = signIn)
+        overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
+        repeat(max) { outbox.drain(signIn) }
+        // Once as it was made, once more at the process's first sync, and parked since.
+        assertEquals(2, v3Backend.sent.count { it.url.endsWith("/override") })
+
+        v3Backend.sent.clear()
+        // The upload lands, and the same sync sends the rename after it.
+        v3Backend.answer(upload, 200, """{"accepted_keys":["client:$term:${typed.courseNo}"]}""")
+        outbox.drain(signIn)
+
+        assertEquals(listOf("$v3/sync/courses/upload", "$v3/sync/courses/1151XA0000009/override"), v3Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
     // --- /v4 ---
 
     private val v4 = "http://127.0.0.1:9/v4"
@@ -290,7 +425,7 @@ class CourseOverridesChannelTest {
     /**
      * The key parts go with the change: its own term and number, though the cached course with its
      * Moodle id is now another. A row an older build wrote with none goes by the current term's
-     * course with its Moodle id, and one no course names waits, uncounted, until one does.
+     * course with its Moodle id, and one no course names parks until a course upload lands.
      */
     @Test
     fun `on v4 a change goes to its own row's course, and a row with no term by the current term's course with its Moodle id`() = runTest {
@@ -308,7 +443,7 @@ class CourseOverridesChannelTest {
             ),
             v4Shapes(),
         )
-        assertEquals(listOf(physics.moodleIdNumber to 0), waiting().map { it.moodleId to it.attempts })
+        assertEquals(listOf(physics.moodleIdNumber to PendingCourseOverrides.MAX_ATTEMPTS), waiting().map { it.moodleId to it.attempts })
     }
 
     /** Review Focus 1: never its send time, and never refused for want of a stamp. */

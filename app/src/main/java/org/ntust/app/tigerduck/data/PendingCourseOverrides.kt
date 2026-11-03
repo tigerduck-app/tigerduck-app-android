@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.outbox.OutboxLane
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,12 +45,16 @@ import javax.inject.Singleton
  * grows ([PendingCourseOverride.seq]); a batch ([queue]) is written whole at
  * a version reserved before its data was read, so a change made while the
  * batch is read or goes up one by one is the newer, landed already or not,
- * and is not replaced when the batch's own reaches its turn. The changes
- * wait in an [OutboxLane] over the queue's own file, one per colour or name
- * ([fieldOf]), one PATCH at a time ([CourseOverrideSends]). A change goes
- * once the backend confirms it, once the backend has refused it
- * [MAX_ATTEMPTS] times, or at once on a 404 for a course no longer cached in
- * the term it was made in: the row went with the course. Account-scoped: sent
+ * and is not replaced when the batch's own reaches its turn. Each records
+ * its course's term and number, from the current term's courses when its
+ * caller names none. The changes wait in an [OutboxLane] over the queue's own
+ * file, one per colour or name ([fieldOf]), one PATCH at a time
+ * ([CourseOverrideSends]). A change goes once the backend confirms it, or at
+ * once on a 404 for a course no longer cached in the term it was made in: the
+ * row went with the course. Refused [MAX_ATTEMPTS] times, or answered that
+ * the backend has no such course yet, it parks, never let go: kept at this
+ * phone's value, and tried again once a course upload lands ([requeueParked])
+ * and at a process's first [retry] (spec §5.3 race 3). Account-scoped: sent
  * only under the sign-in that made it, and wiped with the user data at sign-out.
  *
  * With TigerSync or the kind's switch off ([records] false) colours or names
@@ -111,9 +116,7 @@ class PendingCourseOverrides internal constructor(
     ) : this(
         dataCache = dataCache,
         writer = CourseOverrideWriter { change, target, signIn, allowed ->
-            pushApiClient.patchCourseOverrideAnswered(
-                target, signIn, change.colorHex, change.customName, change.locale, allowed, change.madeAtMs,
-            )
+            pushApiClient.patchCourseOverrideAnswered(target, signIn, change.colorHex, change.customName, change.locale, allowed, change.madeAtMs)
         },
         records = { color -> policies.current.keeps(kindOf(color)) },
         sends = { color -> policies.current.sends(kindOf(color)) },
@@ -145,6 +148,9 @@ class PendingCourseOverrides internal constructor(
 
     // The versions given out and the keys' last changes, under [mutex].
     private val memory = CourseOverrideMemory(clock)
+
+    // Whether this process has given the parked changes their one more try.
+    private val parkedRequeued = AtomicBoolean(false)
 
     private val sendPath = CourseOverrideSends(
         dataCache, writer, sends, lastWriterWins,
@@ -213,12 +219,10 @@ class PendingCourseOverrides internal constructor(
     suspend fun reserveVersion(): Long = mutex.withLock { memory.nextSeq(lane.entries()) }
 
     /**
-     * Keeps [change] stamped 0, the oldest stamp there is, unless a change of
-     * its colour or name waits: a value this phone held before the kind ever
-     * synced, which fills only a field the backend holds no stamp for (LWW
-     * D13). Its version is the oldest too, so any change made later replaces
-     * it. Sends nothing; nothing calls it until a kind's first sync on `/v4`
-     * does. False once [signIn] has ended.
+     * Keeps [change] stamped 0 and at the oldest version, unless a change of its colour or name
+     * waits: a value this phone held before the kind ever synced, which fills only a field the
+     * backend holds no stamp for (LWW D13). Sends nothing; nothing calls it until a kind's first
+     * sync on `/v4` does. False once [signIn] has ended.
      */
     suspend fun queueAsOldest(change: Change, signIn: SignIn): Boolean = mutex.withLock {
         val row = PendingCourseOverride(
@@ -230,19 +234,26 @@ class PendingCourseOverrides internal constructor(
     }
 
     /**
-     * Sends every change still waiting whose kind goes out; each full sync
-     * starts with this, so the snapshot it fetches has them.
+     * Sends every change still waiting whose kind goes out, a failed one waiting for the next sync;
+     * each full sync starts with this, so the snapshot it fetches has them. The first under a
+     * sign-in in a process gives each parked change one more try: the upload it waits for may
+     * have landed in a process before, or by a path that does not tell the outbox.
      */
     suspend fun retry(signIn: SignIn) = drain(signIn)
 
-    /** [retry]: each change in turn, a failed one waiting for the next sync and the next one going. */
-    override suspend fun drain(signIn: SignIn) = lane.drain(signIn)
+    /** [retry]. */
+    override suspend fun drain(signIn: SignIn) {
+        if (signIn.ifCurrent { parkedRequeued.compareAndSet(false, true) } == true) lane.requeueParked(signIn)
+        lane.drain(signIn)
+    }
 
+    /** A course upload has landed: each parked change gets one more try at the next [retry]. */
     override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
 
-    override fun forgetMemory() = lane.forgetMemory()
+    /** At a sign-out: the next student's parked changes get their own one more try in this process. */
+    override fun forgetMemory() = lane.forgetMemory().also { parkedRequeued.set(false) }
 
     /**
      * The keys ([PendingCourseOverride.key]) a snapshot fetched at
@@ -301,6 +312,8 @@ class PendingCourseOverrides internal constructor(
         version: Long? = null,
     ): Map<String, PendingCourseOverride> =
         mutex.withLock {
+            // Where a change names no term, the current term's course with its Moodle id.
+            val places = if (changes.all { it.semester != null && it.courseNo != null }) emptyMap() else currentTermPlaces(dataCache)
             val now = clock()
             val madeAtMs = stamp()
             var seq = 0L
@@ -312,8 +325,9 @@ class PendingCourseOverrides internal constructor(
                 val updated = LinkedHashMap(waiting)
                 recorded = LinkedHashMap()
                 for (c in changes) {
+                    val place = if (c.semester != null && c.courseNo != null) CoursePlace(c.semester, c.courseNo) else places[c.moodleId]
                     val entry = PendingCourseOverride(
-                        c.moodleId, c.colorHex, c.customName, c.locale, now, c.semester, c.courseNo, seq = seq, madeAtMs = madeAtMs,
+                        c.moodleId, c.colorHex, c.customName, c.locale, now, place?.semester, place?.courseNo, seq = seq, madeAtMs = madeAtMs,
                     )
                     val key = entry.key ?: continue
                     if (memory.outbids(key, waiting[key]?.seq, seq)) continue
@@ -342,7 +356,7 @@ class PendingCourseOverrides internal constructor(
         get() = colorHex != null
 
     companion object {
-        /** Refusals before a change is let go; the marks and course ignores park after as many. */
+        /** Refusals before a change is parked, as the marks and course ignores park. */
         const val MAX_ATTEMPTS = 5
 
         // The stamp of a value queued as the oldest there is (LWW D13).
