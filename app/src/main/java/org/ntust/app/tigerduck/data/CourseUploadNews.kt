@@ -17,16 +17,22 @@ import javax.inject.Singleton
  * took and the ones it left out as tombstoned, to the course colors and names
  * ([PendingCourseOverrides.courseUploadAnswered]), then that it landed
  * ([Outbox.courseUploadLanded]), so an edit parked until the backend had its course goes again.
- * Under the upload's own sign-in. Both lazily, as each of them sends through the client that
- * tells this.
+ * A hand-added course the upload could not name ([CourseUploadAnswer.leftOut]) is kept as the
+ * oldest add of the adds channel ([PendingCourseAdds.queueAsOldest]), which sends it at the next
+ * sync. Under the upload's own sign-in. Each lazily, as each sends through the client that tells
+ * this.
  */
 @Singleton
 class CourseUploadNews @Inject constructor(
     private val overrides: Lazy<PendingCourseOverrides>,
     private val outbox: Lazy<Outbox>,
+    // The adds channel, which keeps an add of each hand-added course an upload left out; none in a test that is not about it.
+    private val adds: Lazy<PendingCourseAdds>? = null,
 ) : CourseUploadListener {
     override suspend fun landed(semester: String, sent: List<String>, answer: CourseUploadAnswer, signIn: SignIn) {
         overrides.get().courseUploadAnswered(semester, answer.accepted, answer.skippedOf(sent), signIn)
+        // Left out past the fifty an upload names, as the oldest add: it fills only what the backend holds no stamp for.
+        answer.leftOut.forEach { courseNo -> adds?.get()?.queueAsOldest(semester, courseNo, signIn) }
         outbox.get().courseUploadLanded(signIn)
     }
 }

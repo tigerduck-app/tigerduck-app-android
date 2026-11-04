@@ -286,6 +286,24 @@ class V4WritesTest {
         assertEquals("every hand-added course listed is named", listed - school.courseNo, named)
     }
 
+    /**
+     * Past the fifty an upload names, a copy of a row the backend holds as added by hand is the one
+     * left out ([Course.isUserAddedOnServer] true): its row loses nothing, and every course the
+     * backend may not hold yet is named.
+     */
+    @Test
+    fun `an upload with more than fifty adds to name leaves out a copy of a row the backend holds first`() = runTest {
+        val held = Course(courseNo = "XE0000001", courseName = "Held", moodleIdNumber = "1151XE0000001", isManual = true, isUserAddedOnServer = true)
+        val typed = (1..50).map { Course(courseNo = "XB%07d".format(it), courseName = "Mine $it", isManual = true) }
+
+        client.uploadCoursesAnswered(listOf(held) + typed, "1151", signIn)
+
+        val body = JSONObject(backend.sent.single().body!!)
+        val listed = body.getJSONArray("courses").let { c -> (0 until c.length()).map { c.getJSONObject(it).getString("course_no") } }
+        assertEquals(typed.map { it.courseNo }, listed)
+        assertEquals(50, body.getJSONArray("adds").length())
+    }
+
     @Test
     fun `a school roster names a hand-added course too, and a forced key, both as the oldest`() = runTest {
         client.uploadCoursesAnswered(listOf(school, addedBefore), "1151", signIn, forceKeys = listOf("client:1151:XA0000001"))

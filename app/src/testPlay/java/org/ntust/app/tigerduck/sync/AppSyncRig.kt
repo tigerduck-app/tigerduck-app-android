@@ -120,10 +120,14 @@ internal fun appSyncRig(
     val ack = AckClock()
     lateinit var overrides: PendingCourseOverrides
     lateinit var outbox: Outbox
-    val pushApi = PushApiClient(client, w.appPrefs, w.tokens, clock, dagger.Lazy { CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }) })
+    lateinit var adds: PendingCourseAdds
+    val pushApi = PushApiClient(
+        client, w.appPrefs, w.tokens, clock,
+        dagger.Lazy { CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }, dagger.Lazy { adds }) },
+    )
     val syncApi = SyncApiClient(w.tokens, w.appPrefs, client, clock)
     val marks = UnsentMarks(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime)
-    val adds = PendingCourseAdds(w.dataCache, pushApi, policies, ack, appScope, oldEntryTime)
+    adds = PendingCourseAdds(w.dataCache, pushApi, policies, ack, appScope, oldEntryTime)
     val deletes = PendingCourseDeletes(w.dataCache, adds, pushApi, clock, policies, ack, appScope)
     overrides = PendingCourseOverrides(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime, w.semesterCatalog)
     val holidays = PendingHolidayOverrides(w.appPrefs, pushApi, policies, clock, ack, appScope, oldEntryTime, w.academicCalendar)
