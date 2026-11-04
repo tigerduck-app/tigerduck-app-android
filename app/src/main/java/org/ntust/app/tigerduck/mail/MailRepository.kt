@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.auth.session.follow
@@ -436,8 +438,7 @@ class MailRepository @Inject constructor(
             uids.forEach { uid -> demoUpdate(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) } }
         } else {
             // [signIn]'s own credentials, read with it off the caller's thread: never a later student's.
-            val owner = withContext(Dispatchers.IO) { account.snapshot() }?.takeIf { it.signIn == signIn }
-                ?: throw MailError.Abandoned()
+            val owner = withContext(Dispatchers.IO) { account.snapshot() }?.takeIf { it.signIn == signIn } ?: throw MailError.Abandoned()
             var asked = false
             try {
                 withSession({ signIn.isCurrent }, owner) { session ->
@@ -445,15 +446,13 @@ class MailRepository @Inject constructor(
                     session.setSeen(folder, uids, seen, uidValidity)
                     markSeenInIndex(signIn, folder, uids, seen, uidValidity)
                 }
-            } catch (e: MailError) {
-                // A folder recreated is read again; a STORE refused or cut off once out, its mail's flags.
+            } catch (e: Exception) {
+                // A folder recreated is read again; a STORE refused or cut off once out, or its caller cancelled, its mail's flags.
                 if (e is MailError.FolderChanged) changed(MailChange.Changed(folder, signIn))
                 else if (asked) reconcileSeen(signIn, owner, folder, uidValidity, uids)
                 throw e
             }
-            updateCached(folder, uidValidity, { signIn.isCurrent }) { s ->
-                if (s.uid in uids) s.copy(flags = s.flags.copy(seen = seen)) else s
-            }
+            updateCached(folder, uidValidity, { signIn.isCurrent }) { s -> if (s.uid in uids) s.copy(flags = s.flags.copy(seen = seen)) else s }
         }
         uids.forEach { changed(MailChange.Seen(folder, it, seen, signIn)) }
     }
@@ -461,25 +460,27 @@ class MailRepository @Inject constructor(
     /**
      * [uids]' flags as the server holds them, after a STORE that may have marked only some: read back as [signIn]'s
      * account under [uidValidity], into the index, cache and lists; if that fails, out of the index, so pages ask the server.
+     * Run to its end whatever becomes of the caller, whose list the student may have left; a read-back past [SEEN_READ_BACK_MS] failed.
      */
-    private suspend fun reconcileSeen(signIn: SignIn, owner: MailAccount.Snapshot, folder: String, uidValidity: Long?, uids: List<Long>) {
-        val flags = try {
-            withSession({ signIn.isCurrent }, owner) { session ->
-                if (uidValidity != null && session.uidValidity(folder) != uidValidity) throw MailError.FolderChanged()
-                session.refreshFlags(folder, uids).also { read ->
-                    inIndex(signIn, folder, uidValidity) { w, v -> searchIndex.updateFlags(w.address, folder, v, read) { stillIndexOwner(w) } }
+    private suspend fun reconcileSeen(signIn: SignIn, owner: MailAccount.Snapshot, folder: String, uidValidity: Long?, uids: List<Long>) =
+        withContext(Dispatchers.IO + NonCancellable) {
+            val flags = try {
+                withTimeoutOrNull(SEEN_READ_BACK_MS) {
+                    withSession({ signIn.isCurrent }, owner) { session ->
+                        if (uidValidity != null && session.uidValidity(folder) != uidValidity) throw MailError.FolderChanged()
+                        session.refreshFlags(folder, uids).also { read ->
+                            inIndex(signIn, folder, uidValidity) { w, v -> searchIndex.updateFlags(w.address, folder, v, read) { stillIndexOwner(w) } }
+                        }
+                    }
                 }
-            }
-        } catch (e: MailError) {
-            withContext(Dispatchers.IO) {
+            } catch (_: MailError) { null }
+            if (flags == null) {
                 inIndex(signIn, folder, uidValidity) { w, v -> searchIndex.remove(w.address, folder, v, uids) { stillIndexOwner(w) } }
+                return@withContext changed(MailChange.Changed(folder, signIn))
             }
-            changed(MailChange.Changed(folder, signIn))
-            return
+            updateCached(folder, uidValidity, { signIn.isCurrent }) { s -> flags[s.uid]?.let { s.copy(flags = it) } ?: s }
+            flags.forEach { (uid, now) -> changed(MailChange.Seen(folder, uid, now.seen, signIn)) }
         }
-        updateCached(folder, uidValidity, { signIn.isCurrent }) { s -> flags[s.uid]?.let { s.copy(flags = it) } ?: s }
-        flags.forEach { (uid, now) -> changed(MailChange.Seen(folder, uid, now.seen, signIn)) }
-    }
 
     override suspend fun move(folder: String, uid: Long, target: String, uidValidity: Long?, stillWanted: () -> Boolean) {
         val signIn = account.currentSignIn
@@ -1283,6 +1284,9 @@ class MailRepository @Inject constructor(
         /** The most UIDs one `UID STORE` names, which keeps its line well under a server's limit. */
         const val SEEN_STORE_UIDS = 500
 
+        /** The longest a STORE's read-back waits for and holds the connection: twice a read's socket timeout ([MailProperties.imap]). */
+        private const val SEEN_READ_BACK_MS = 60_000L
+
         /**
          * The newest mail a search adds to the index before it looks, of what came in since the
          * index last caught up: the background run fetches the rest.
@@ -1294,9 +1298,5 @@ class MailRepository @Inject constructor(
 
         /** The only roles [ensureFolder] may create; see its doc for why the other two are out. */
         private val CREATED_ON_DEMAND = setOf(SpecialFolder.SENT, SpecialFolder.DRAFTS, SpecialFolder.TRASH)
-
-        private val DEMO_FOLDERS = ResolvedFolders(
-            SpecialFolder.entries.associateWith { it.decodedName }, emptyList(),
-        )
     }
 }

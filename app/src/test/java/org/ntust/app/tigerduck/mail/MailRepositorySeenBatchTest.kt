@@ -4,6 +4,7 @@ package org.ntust.app.tigerduck.mail
 
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -148,6 +149,30 @@ class MailRepositorySeenBatchTest {
         val older = repo.loadPage("INBOX", newest.nextBeforeSeq)
 
         assertEquals("the older page came from the phone", fetched, server.pageFetches.size)
+        assertEquals(batch.take(2).toSet(), older.messages.filter { it.flags.seen }.map { it.uid }.toSet())
+    }
+
+    @Test
+    fun `a STORE refused partway as its list is left still has the index end at the server's flags`() = runTest {
+        server.passwords["B00015999"] = "not-a-real-password"
+        val (account, repo) = setUp(backgroundScope)
+        val uids = (1..60).map { server.deliver("m$it") }
+        account.signIn("b00015999", "not-a-real-password")
+        repo.updateSearchIndex()
+        val newest = repo.loadPage("INBOX", null)
+        val batch = uids.take(5)
+        // The student switches tabs while the STORE is on the server, which marks two and refuses:
+        // the list's scope is cancelled with the Mail entry.
+        val listScope = Job()
+        server.refuseSeenAfter = 2
+        server.onSetSeen = { listScope.cancel() }
+        launch(listScope) { repo.setSeen(account.signInNow, "INBOX", server.uidValidity, batch, seen = true) }.join()
+        server.refuseSeenAfter = null
+        server.onSetSeen = null
+
+        // Back in Mail: the older page, from the phone or, its mail out of the index, from the server.
+        val older = repo.loadPage("INBOX", newest.nextBeforeSeq)
+
         assertEquals(batch.take(2).toSet(), older.messages.filter { it.flags.seen }.map { it.uid }.toSet())
     }
 

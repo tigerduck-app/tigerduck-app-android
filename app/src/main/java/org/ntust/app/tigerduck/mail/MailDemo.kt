@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
+import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
@@ -157,6 +158,9 @@ class AssetsMailDemoGate @Inject constructor(
         return if (locale?.language == "zh") "zh" else "en"
     }
 }
+
+/** The demo mailbox's folders: each special folder under its own name, and no others. */
+internal val DEMO_FOLDERS = ResolvedFolders(SpecialFolder.entries.associateWith { it.decodedName }, emptyList())
 
 /** Turns what the compose screen is about to save or send into a [DemoMail] under [uid] -- entirely
  *  in memory; never touches the network or the real cache. */
