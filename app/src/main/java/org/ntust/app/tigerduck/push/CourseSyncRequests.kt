@@ -104,7 +104,10 @@ internal class CourseSyncRequests(
      *
      * On `/v4` the upload carries no colors and no [forceKeys], and names every hand-added
      * course in its adds, each stamped with its [addedAt] entry or as the oldest; see
-     * [CourseUploadPayload.handAdds] (X9). One refused as ahead goes once more, its timed adds
+     * [CourseUploadPayload.handAdds] (X9). A copy merged down that no snapshot has told about goes
+     * only when added now ([CourseUploadPayload.sendable]), and the ledger, the roster recorded and
+     * the listeners take the courses that went; with every one left out, nothing is sent and the
+     * answer accepts none. One refused as ahead goes once more, its timed adds
      * stamped again from the refusal's clock, never without them, if course sync is still on:
      * switched off meanwhile, nothing went and the answer is null.
      */
@@ -122,17 +125,20 @@ internal class CourseSyncRequests(
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl()
         val api = BackendApi.of(base)
+        val sent = if (api == BackendApi.V4) CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt) else courses
+        // Every course left out: nothing the backend would change.
+        if (sent.isEmpty() && courses.isNotEmpty()) return@withContext CourseUploadAnswer(emptyList(), emptyList())
         val bodies = when (api) {
-            BackendApi.V3 -> v3Upload(courses, semester, forceKeys, rosterTerms, addedAt)
-            BackendApi.V4 -> v4Upload(courses, semester, forceKeys, rosterTerms, addedAt)
+            BackendApi.V3 -> v3Upload(sent, semester, forceKeys, rosterTerms, addedAt)
+            BackendApi.V4 -> v4Upload(sent, semester, forceKeys, rosterTerms, addedAt)
         }
         // What the accepted list enrolled as the term's roster, for serverDropped.
-        val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
+        val roster = if (semester in rosterTerms) sent.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
         var landed = false
         try {
             courseUploads(semester).sendIfDue(
-                fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
+                fingerprint = courseUploadFingerprint(base, sent, semester, rosterTerms),
                 // The pair in one step, so a sign-out's clear cannot fall between
                 // the check and the record; see UploadLedger.sendIfDue.
                 record = { fingerprint, atMs ->
@@ -163,7 +169,7 @@ internal class CourseSyncRequests(
         } catch (e: ResendHeldBack) {
             return@withContext null
         }
-        if (landed) tell(semester, courses, accepted, signIn)
+        if (landed) tell(semester, sent, accepted, signIn)
         accepted
     }
 

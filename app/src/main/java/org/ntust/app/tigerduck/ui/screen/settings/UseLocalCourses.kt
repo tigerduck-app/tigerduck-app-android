@@ -73,8 +73,9 @@ internal fun handOverCourseHold(
  * [checked], the snapshot the re-enable check compared
  * ([CourseMembership.followingRows]): on `/v4` Use Local's adds are made now,
  * so a copy of a school row named there would become a hand-add for real.
- * One still not told goes as added by hand (`CourseUploadPayload
- * .isAddedByHand`), as every copy does without a [checked] to tell them by.
+ * One still not told goes as added by hand, an add made now
+ * (`PushCourseSyncBackend.uploadTerm`), as every copy does without a [checked]
+ * to tell them by; every upload but Use Local's leaves such a copy out.
  */
 internal suspend fun useLocalCourses(
     terms: List<Pair<String, List<Course>>>,

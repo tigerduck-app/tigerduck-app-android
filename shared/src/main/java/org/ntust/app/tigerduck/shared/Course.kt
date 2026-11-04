@@ -84,9 +84,10 @@ data class Course(
      * this phone has no Moodle id, which tells it apart, and one fetched from the school is the
      * school's.
      *
-     * `/v4`'s upload names a copy in its adds unless this is false (`CourseUploadPayload
-     * .isAddedByHand`): an unnamed `user_added` row turns into a school row, which a later roster
-     * drops from every device, while a school row named costs at most an add at 0.
+     * `/v4`'s upload names a copy in its adds when this is true and lists it as the school's when
+     * false. While it is null the copy goes in no upload but Use Local's (`CourseUploadPayload
+     * .sendable`): named, a school row would take an add that keeps every roster from dropping it;
+     * listed unnamed, a `user_added` row would turn into a school row.
      *
      * Nullable, so a cache written before this field existed reads null (Gson's Unsafe path), which
      * is what it is: not told yet. Every reader takes null as such.

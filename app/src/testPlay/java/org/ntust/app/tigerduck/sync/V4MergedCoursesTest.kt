@@ -252,48 +252,80 @@ class V4MergedCoursesTest {
         olderBuildsCopiesAfter { assertEquals(SyncOutcome.SYNCED, backgroundPass()) }
 
     /**
-     * Codex on round 3 (P2): a copy cached before this build has not been told what its row is, and
-     * goes as added by hand until a `/v4` pull tells it. Unnamed, a `user_added` row would turn into
-     * a school row, which a later roster drops from every device; named, a school row takes at most
-     * an add at 0. The class table's delete and its upload go here before any pull; the pull then
-     * tells each copy what its row is, and keeps it.
+     * Codex on rounds 3 and 4 (P2): a copy cached before this build has not been told what its row
+     * is, and goes in no upload until a `/v4` pull tells it. Named, a school row would take an add
+     * that keeps every roster from dropping it; listed unnamed, a `user_added` row would turn into a
+     * school row. Left out, the backend changes nothing. The class table's delete and its upload go
+     * here before any pull; the pull then tells each copy what its row is, and the next upload, which
+     * the ledger does not take for the last one, lists both copies and names the hand-added row's.
      */
     @Test
-    fun `a copy no v4 pull has told about goes as added by hand until one tells it what its row is`() = runBlocking {
+    fun `a copy no v4 pull has told about goes in no upload until one tells it what its row is`() = runBlocking {
         w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
-        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000001"), olderCopy("XA0000002"), olderCopy("XE0000005")), TERM, signIn))
+        val addedHere = Course(courseNo = "XH0000009", courseName = "Added here", isManual = true)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000001"), olderCopy("XA0000002"), olderCopy("XE0000005"), addedHere), TERM, signIn))
 
         deleteOnTheClassTable("XA0000001")
 
-        assertEquals(listOf(key("XA0000002"), key("XE0000005")), uploads().single().adds().sorted())
+        val afterDelete = uploads().single()
+        assertEquals(listOf("XH0000009"), afterDelete.courseNos())
+        assertEquals(listOf(key("XH0000009")), afterDelete.adds())
 
-        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000)))
+        val byHand = SERVER_HLC - 5_000
+        backend.answer(
+            "GET /v4/sync/full", 200,
+            snapshot(row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = byHand), row("XH0000009", source = "user_added", addedHlc = byHand)),
+        )
         rig.home.sync.pull(state, signIn)
-        uploadTaken("XA0000002", "XE0000005")
-        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn, resend = true)
+        uploadTaken("XA0000002", "XE0000005", "XH0000009")
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
 
-        assertEquals(listOf(key("XE0000005")), uploads().last().adds())
+        assertEquals(2, uploads().size)
+        val told = uploads().last()
+        assertEquals(listOf("XA0000002", "XE0000005", "XH0000009"), told.courseNos().sorted())
+        assertEquals(listOf(key("XE0000005"), key("XH0000009")), told.adds().sorted())
         assertEquals(emptyList<String>(), rules.refused)
     }
 
     /**
      * A copy the school's fetch lists is the school's course from then on, whatever a pull told it:
      * the fetch's merge says so ([ClassTableCourseMerge.mergeFetched], which every fetch folds
-     * through), and the term's upload does not name it. A copy the school does not list, which no
-     * pull has told about, is still named.
+     * through), and the term's upload lists it unnamed. A copy the school does not list, which no
+     * pull has told about, goes in no upload, a fetch's with no roster included.
      */
     @Test
-    fun `a copy the school's fetch lists goes as the school's, and one it does not list as added by hand`() = runBlocking {
+    fun `a copy the school's fetch lists goes as the school's, and one it does not list goes in no upload`() = runBlocking {
         val cached = listOf(olderCopy("XA0000002"), olderCopy("XE0000005"))
         assertTrue(w.dataCache.saveCourses(cached, TERM, signIn))
         val fetched = listOf(Course(courseNo = "XA0000002", courseName = "School XA0000002", moodleIdNumber = "${TERM}XA0000002"))
         assertTrue(w.dataCache.saveCourses(ClassTableCourseMerge.mergeFetched(fetched, cached, emptyMap(), "zh", emptySet()), TERM, signIn))
-        uploadTaken("XA0000002", "XE0000005")
+        uploadTaken("XA0000002")
 
         rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
 
-        assertEquals(listOf("XA0000002", "XE0000005"), uploads().single().courseNos().sorted())
-        assertEquals(listOf(key("XE0000005")), uploads().single().adds())
+        val upload = uploads().single()
+        assertEquals(listOf("XA0000002"), upload.courseNos())
+        assertEquals(emptyList<String>(), upload.adds())
+    }
+
+    /**
+     * A roster upload lists no copy no pull has told about either. The school's fetch tells every
+     * copy it lists, so such a copy is one the school does not list: a school row the roster drops,
+     * or a hand-added one roster pruning skips.
+     */
+    @Test
+    fun `a roster upload leaves out a copy no v4 pull has told about`() = runBlocking {
+        val school = Course(courseNo = "XA0000001", courseName = "School XA0000001", moodleIdNumber = "${TERM}XA0000001")
+        val courses = listOf(school, olderCopy("XA0000002"))
+        assertTrue(w.dataCache.saveCourses(courses, TERM, signIn))
+        uploadTaken("XA0000001")
+
+        rig.pushApi.uploadCourses(courses, TERM, signIn, rosterTerms = listOf(TERM))
+
+        val roster = uploads().single()
+        assertEquals(listOf("XA0000001"), roster.courseNos())
+        assertEquals(emptyList<String>(), roster.adds())
+        assertEquals(TERM, roster.getJSONArray("roster_terms").getString(0))
     }
 
     /** The worker's pass, off the main thread, whose looper runs meanwhile, as `SynchronizerBackgroundTest` runs it. */

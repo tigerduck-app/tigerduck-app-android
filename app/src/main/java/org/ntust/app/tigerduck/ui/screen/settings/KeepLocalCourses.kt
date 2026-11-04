@@ -119,9 +119,12 @@ internal class PushCourseSyncBackend(
         ensureSends()
         // On /v4 a course added by hand goes as an add made now, after the term's reset: as the
         // oldest, as a roster names it, the reset would keep it out. Not a copy of a school row
-        // merged down, which the upload lists as the school's.
+        // merged down, which the upload lists as the school's. A copy still not told after Use
+        // Local told each by the check's rows (useLocalCourses) goes as one too: the snapshot has
+        // no row of it, and the student chose this phone's list; every other upload leaves it out.
         val addedAt = if (!stampsOverrides) emptyMap() else {
-            courses.filter(CourseUploadPayload::isAddedByHand).associate { it.courseNo to api.stampMs() }
+            courses.filter { CourseUploadPayload.isAddedByHand(it) || CourseUploadPayload.isUntoldCopy(it) }
+                .associate { it.courseNo to api.stampMs() }
         }
         // Null: switched off between the check and the request.
         api.uploadCoursesAnswered(courses, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
