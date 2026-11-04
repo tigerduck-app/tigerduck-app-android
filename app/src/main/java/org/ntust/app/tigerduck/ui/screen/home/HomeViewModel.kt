@@ -728,11 +728,11 @@ class HomeViewModel @Inject constructor(
                     val (remote, remoteAssignments) = fetched ?: return@run
 
                     if (remote != null && remote.courses.isNotEmpty()) {
-                        // Onto the term as it stands, so a concurrent color change isn't
-                        // erased and manually-added courses survive the refresh.
+                        // Onto the term as it stands, so a concurrent color change isn't erased and manually-added
+                        // courses survive the refresh; under the lock a sync's upload of the term reads and sends under.
                         val names = dataCache.loadCourseCustomNames()
                         val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
-                        courses = commitFetchedTerm(
+                        courses = pendingCourseAdds.uploading { commitFetchedTerm(
                             dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer, remote.signIn,
                             waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) },
                         ) { fetched, current, hidden ->
@@ -744,7 +744,7 @@ class HomeViewModel @Inject constructor(
                                 deletedNos = hidden,
                                 onlyGains = remote.onlyGains,
                             )
-                        }
+                        } }
                             // A newer course selection answer's fetch committed the term instead.
                             ?: dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
                         // The class table loaded: a day of use towards the Play rating ask
