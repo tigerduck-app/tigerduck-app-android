@@ -162,13 +162,13 @@ class DataCache @Inject constructor(
     // --- Courses (semester-scoped) ---
 
     /**
-     * Save courses for a specific semester. Splits the list: remote-fetched courses go to
-     * `cacheDir/courses_<semester>.json` (evictable), manual courses go to
-     * `userDataDir/manual_courses_<semester>.json` (durable). Manual courses have no remote source:
-     * if the cache is evicted they can only be recovered from userDataDir.
+     * Save courses for a specific semester: remote-fetched ones to `cacheDir/courses_<semester>.json`
+     * (evictable), manual ones to `userDataDir/manual_courses_<semester>.json` (durable, as a manual
+     * course has no remote source). Each keeps what the term holds now of its server row: a whole
+     * list read before says nothing new of it ([CourseProvenance.asStored]).
      */
     suspend fun saveCourses(courses: List<Course>, semester: String, signIn: SignIn) =
-        coursesMutex.withLock { writeCourses(courses, semester, signIn, before = if (courseSyncs.isEmpty()) null else loadCourses(semester)) }
+        coursesMutex.withLock { CourseProvenance.keptOver(courses) { loadCourses(semester) }.let { (kept, stored) -> writeCourses(kept, semester, signIn, stored) } }
 
     /**
      * [semester]'s courses as [change] makes them of the list as it stands and of the course numbers
