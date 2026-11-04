@@ -341,12 +341,12 @@ class PushApiClient @Inject constructor(
     suspend fun serverDropped(semester: String, courseNos: Collection<String>) = courseSync.serverDropped(semester, courseNos)
 
     /** A course's delete, with the backend's answer; see [CourseSyncRequests.deleteCourse]. */
-    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: String?): WriteAnswer =
-        courseSync.deleteCourse(courseKey, signIn, hiddenAt, kind)
+    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?): WriteAnswer =
+        courseSync.deleteCourse(courseKey, signIn, hiddenAt)
 
-    /** [deleteCourseAnswered], with no kind. */
+    /** [deleteCourseAnswered], without its answer. */
     suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) {
-        refusedAsBefore { deleteCourseAnswered(courseKey, signIn, hiddenAt, kind = null) }
+        refusedAsBefore { deleteCourseAnswered(courseKey, signIn, hiddenAt) }
     }
 
     /** A term's reset, or every term's, with the backend's answer; see [CourseSyncRequests.deleteAllCourses]. */

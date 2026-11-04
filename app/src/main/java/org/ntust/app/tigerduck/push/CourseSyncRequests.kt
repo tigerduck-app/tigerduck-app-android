@@ -268,10 +268,11 @@ internal class CourseSyncRequests(
      * Deletes the course row [courseKey] names. [signIn] pins the request to
      * that sign-in, as [uploadCoursesAnswered] does: a delete queued as one account and sent after a sign-out and
      * another sign-in goes without a token, not with the next account's,
-     * which could take that account's own course off. [kind], `hide` or `remove`, is
-     * `/v4`'s; `/v3` takes none.
+     * which could take that account's own course off. With no kind, on either version: the
+     * backend decides from its row, a hide of a school course and the removal of one added by
+     * hand, as the iPhone's `deleteCourse` sends it.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: String?): WriteAnswer =
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
             val base = baseUrl()
@@ -287,7 +288,7 @@ internal class CourseSyncRequests(
                     clock.answer(it, version, "deleteCourse", WriteAnswer.MEMBERSHIP)
                 }
                 // The resend past the gate the first request passed, read again: course sync can have gone off meanwhile.
-                BackendApi.V4 -> executeStampedV4(hiddenAt, clock, ::sends, { hlc -> service.removeCourseStamped(header, courseKey, EmptyBody, hlc, kind) }) {
+                BackendApi.V4 -> executeStampedV4(hiddenAt, clock, ::sends, { hlc -> service.removeCourseStamped(header, courseKey, EmptyBody, hlc) }) {
                     clock.answer(it, version, "deleteCourse", WriteAnswer.MEMBERSHIP)
                 }
             } ?: WriteAnswer.NOT_SENT

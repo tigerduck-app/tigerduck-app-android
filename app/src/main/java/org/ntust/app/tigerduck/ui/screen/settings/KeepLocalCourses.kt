@@ -125,7 +125,7 @@ internal class PushCourseSyncBackend(
 
     override suspend fun hideCourse(courseKey: String) {
         ensureSends()
-        api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null, kind = null)
+        api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null)
     }
 
     override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {

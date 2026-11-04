@@ -104,7 +104,7 @@ class PushApiClientAnswerTest {
         backend.answer("/v3/sync/courses", 200, """{"deleted":2,"reset_hlc":1792900000000000}""")
 
         val holiday = client.putHolidayOverrideAnswered(3, notify = true, signIn = signIn, madeAtMs = null)
-        val delete = client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = "hide")
+        val delete = client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null)
         val reset = client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = 1_790_000_000_000L)
 
         assertEquals(WriteAnswer(true, 1792900000000123L, emptySet(), mapOf(
@@ -135,7 +135,7 @@ class PushApiClientAnswerTest {
         assertEquals(WriteAnswer.NOT_SENT, client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseOverrideAnswered(moodleId, signIn, colorHex = "#FF0000"))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseIgnoreAnswered(moodleId, true, null, signIn, madeAtMs = null))
-        assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null))
         assertEquals(WriteAnswer.NOT_SENT, client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null))
         prefs.cloudSyncEnabled = false
         assertEquals(WriteAnswer.NOT_SENT, client.putHolidayOverrideAnswered(3, true, signIn, madeAtMs = null))
