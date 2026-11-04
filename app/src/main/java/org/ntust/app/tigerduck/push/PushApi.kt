@@ -81,10 +81,7 @@ internal interface PushApi {
     @POST("sync/courses/upload")
     fun coursesUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
 
-    /**
-     * [hlc] the hide's time, in microseconds since the epoch, and [kind], `hide` or `remove`, when
-     * the caller knows it.
-     */
+    /** [hlc] the hide's time, in microseconds since the epoch; no kind, as the backend decides from its row. */
     @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
     fun removeCourse(
         @Header("Authorization") auth: String,
