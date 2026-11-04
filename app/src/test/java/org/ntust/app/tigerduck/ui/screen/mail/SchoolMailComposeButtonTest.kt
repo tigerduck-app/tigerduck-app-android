@@ -95,6 +95,10 @@ class SchoolMailComposeButtonTest {
             override val password: String? = null
         }
         val accountViewModel = MailAccountViewModel(account, schoolMailSite(), noNtustAccount, mailSignOutPlans(account))
+        val settings = SchoolMailSettingsViewModel(
+            state, RecordingScheduler(), ExactAlarmAccess { false }, account,
+            SystemPermissions(RuntimeEnvironment.getApplication()),
+        )
         composeRule.setContent {
             TigerDuckAppTheme(darkTheme = false) {
                 SchoolMailScreen(
@@ -105,10 +109,7 @@ class SchoolMailComposeButtonTest {
                     onOpenGuide = {},
                     viewModel = list,
                     accountViewModel = accountViewModel,
-                    settingsViewModel = SchoolMailSettingsViewModel(
-                        state, RecordingScheduler(), ExactAlarmAccess { false }, account,
-                        SystemPermissions(RuntimeEnvironment.getApplication()),
-                    ),
+                    settingsViewModel = settings,
                 )
             }
         }
