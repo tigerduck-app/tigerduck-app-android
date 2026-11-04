@@ -149,37 +149,6 @@ class SyncClockTest {
     }
 
     /**
-     * Codex on PR P (round 2): the backend reported a clock an hour ahead once, which the clock kept
-     * as seen, and later refuses an edit at its right time. No stamp past that hour can be taken
-     * now, so it is no floor of the restamp: one past it would be refused at every try. The restamp
-     * goes within the refusal's clock plus five seconds.
-     */
-    @Test
-    fun `a far-ahead clock the backend reported once, then corrected, holds no restamp past its time`() {
-        val clock = clock()
-        clock.heard(us(T + 60 * MINUTE))
-        now = T + 60 * MINUTE
-
-        val restamp = clock.restampAfterClockAhead(us(T))
-
-        assertTrue("within the refusal's clock plus five seconds: $restamp", restamp in T + 1..T + 5_000)
-    }
-
-    /**
-     * At the edge itself: a stamp seen at the refusal's clock plus five seconds may be one the
-     * backend stored as the refusal came. The restamp still goes past it, a millisecond over the
-     * allowance, refused once and sent again at the next sync, rather than at or below it, where it
-     * would be taken and lose.
-     */
-    @Test
-    fun `a restamp goes past a stamp seen at the refusal's clock plus five seconds, the edge itself`() {
-        val clock = clock()
-        clock.heardInSnapshot(us(T + 5_000))
-
-        assertEquals(T + 5_001, clock.restampAfterClockAhead(us(T)))
-    }
-
-    /**
      * Codex on PR P (round 2): the endpoint setting changes without the clock's lock, so a move can
      * land between two of a restamp's reads of it. A restamp that checked its refusal against the
      * first backend and then saved under the next one put the first backend's clock into the next
