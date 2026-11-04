@@ -42,7 +42,6 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.sync.MailClock
 import org.ntust.app.tigerduck.shared.account.SignIn
-import java.time.Instant
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 
@@ -717,6 +716,26 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     /**
+     * The filter's Mark all as read: every unread row shown, one at a time through [toggleRead]'s
+     * write, and none once the sign-in it began under has ended. A refusal ends it, said once.
+     */
+    fun markAllRead() {
+        val signIn = account.currentSignIn
+        val rows = _state.value.let { st -> st.displayed.filter { !it.summary.flags.seen && it.key !in st.writing } }
+        viewModelScope.launch {
+            for (row in rows) {
+                if (!signIn.isCurrent) return@launch
+                try {
+                    repository.setSeen(row.folder, row.uid, true)
+                } catch (e: MailError) {
+                    if (!dropped(e, signIn)) actionFail(e, signIn)
+                    return@launch
+                }
+            }
+        }
+    }
+
+    /**
      * Asks before [row] is deleted, as the mail's own screen does: which question depends on
      * whether the delete moves it to the trash or destroys it, and only the server can say (a
      * missing trash is created on the way; see [SchoolMailRepository.deletesPermanently]).
@@ -1185,7 +1204,7 @@ class SchoolMailListViewModel @Inject constructor(
                         mergeOlderPage(rows, folder, pageWith(folder, page, arrived.drop(windows.getValue(folder))))
                     }
                     st.copy(
-                        messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NEWEST_FIRST) else merged.sortedByDescending { it.uid },
+                        messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NewestFirst) else merged.sortedByDescending { it.uid },
                         cursors = st.cursors - pages.map { it.first }.toSet() + cursorsOf(pages),
                     )
                 }
@@ -1645,17 +1664,6 @@ class SchoolMailListViewModel @Inject constructor(
         )
     }
 
-    private fun rowsOf(selection: FolderSelection, pages: List<Pair<String, MailPage>>): List<MailRow> =
-        ordered(selection, pages.flatMap { (folder, page) -> page.messages.map { MailRow(folder, it, page.uidValidity) } })
-
-    /**
-     * A merged view is ordered by date, because the folders' UID spaces say nothing about each
-     * other. A single folder is left exactly as the server returned it, so nothing about the
-     * existing lists changes just because All mail exists.
-     */
-    private fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
-        if (selection is FolderSelection.AllMail) rows.sortedWith(NEWEST_FIRST) else rows
-
     /**
      * A load failed: the page itself has nothing to show, so [LoadState.Failed] is the truth. A
      * rejected password reaches the account for [signIn], the one the request started under, in
@@ -1683,10 +1691,6 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun searchFail(error: MailError, signIn: SignIn) =
         if (error is MailError.Certificate) fail(error, signIn) else actionFail(error, signIn)
-
-    /** A failure after which a search stops asking the server for the folders still to go. */
-    private fun endsServerSearch(error: MailError): Boolean =
-        error is MailError.AuthFailed || error is MailError.Network || error is MailError.Certificate
 
     fun dismissActionError() = _state.update { it.copy(actionError = null) }
 
@@ -1720,11 +1724,5 @@ class SchoolMailListViewModel @Inject constructor(
 
         /** Newest arrivals whose body one poll will warm. The same bound [MailChecker] uses. */
         internal const val BODY_PREFETCH_LIMIT = 5
-
-        /** The date the card itself shows, then folder and UID so the merge order is stable. */
-        private val NEWEST_FIRST =
-            compareByDescending<MailRow> { it.summary.sentAt ?: it.summary.receivedAt ?: Instant.MIN }
-                .thenBy { it.folder }
-                .thenByDescending { it.uid }
     }
 }
