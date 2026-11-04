@@ -112,7 +112,7 @@ class SyncApiClient @Inject constructor(
                 throw PushApiException("sync/full failed: HTTP ${response.code}", response.code)
             }
             val json = JSONObject(response.body.string())
-            parseFullSync(json, heard = { syncClock?.heardInSnapshot(it) })
+            parseFullSync(json, heard = { syncClock?.heardInSnapshot(it, response.request.url) })
                 .copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
         }
     }

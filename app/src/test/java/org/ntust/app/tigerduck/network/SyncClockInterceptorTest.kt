@@ -43,7 +43,7 @@ class SyncClockInterceptorTest {
             .build()
 
     private val client = OkHttpClient.Builder()
-        .addInterceptor(SyncClockInterceptor({ backend }, { heard += it }))
+        .addInterceptor(SyncClockInterceptor({ backend }, { clock, _ -> heard += clock }))
         .addInterceptor { chain -> answer(chain.request()) }
         .build()
 
@@ -131,7 +131,7 @@ class SyncClockInterceptorTest {
         answer = { request -> reply(request).also { arrived = request; answered = it } }
         val outer = OkHttpClient.Builder()
             .addInterceptor { chain -> chain.proceed(chain.request()).also { handedBack = it } }
-            .addInterceptor(SyncClockInterceptor({ backend }, { heard += it }))
+            .addInterceptor(SyncClockInterceptor({ backend }, { clock, _ -> heard += clock }))
             .addInterceptor { chain -> answer(chain.request()) }
             .build()
 
@@ -145,7 +145,7 @@ class SyncClockInterceptorTest {
     @Test
     fun `a clock that cannot record what it heard fails nothing`() {
         val failing = OkHttpClient.Builder()
-            .addInterceptor(SyncClockInterceptor({ backend }, { throw IllegalStateException("disk") }))
+            .addInterceptor(SyncClockInterceptor({ backend }, { _, _ -> throw IllegalStateException("disk") }))
             .addInterceptor { chain -> reply(chain.request(), code = 201) }
             .build()
 

@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.sync
 
+import okhttp3.HttpUrl
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
@@ -20,22 +21,24 @@ import javax.inject.Singleton
  * ([org.ntust.app.tigerduck.shared.clock.AppClock]): a debug jump in time must not stamp edits.
  *
  * What it keeps is one backend's: the values heard from it and the stamps issued under it. A move
- * of the endpoint to another backend ([backend], [ApiBase.backendKey]) forgets them, as another
+ * of the endpoint to another backend ([endpoint], [ApiBase.backendKey]) forgets them, as another
  * backend's clock says nothing of this one's, and one that ran far ahead would hold every stamp up
  * on the next. A sign-out keeps them, as the clock spec says, and so does a move between the API
- * versions of one backend.
+ * versions of one backend. For the same reason a value comes only from the backend the endpoint
+ * names as it is heard: one whose response, given as `from`, went to another, the endpoint having
+ * moved while it was out, is not heard, and a refusal of its is no restamp (Codex on PR P).
  */
 @Singleton
 class SyncClock internal constructor(
     private val store: SyncClockStore,
     private val wallClock: () -> Long,
-    // The backend the endpoint names now, by its key; null when it cannot be read, which forgets nothing.
-    private val backend: () -> String? = { null },
+    // The base the endpoint names now; null when it cannot be read, which forgets and turns away nothing.
+    private val endpoint: () -> String? = { null },
 ) {
     /** The app's clock, for the backend the endpoint setting in [prefs] names. */
     @Inject
     constructor(store: SyncClockStore, prefs: AppPreferences) :
-        this(store, System::currentTimeMillis, { runCatching { ApiBase.backendKey(resolveAnnouncementEndpoint(prefs).url) }.getOrNull() })
+        this(store, System::currentTimeMillis, { runCatching { resolveAnnouncementEndpoint(prefs).url }.getOrNull() })
 
     // A leaf: nothing done under it takes another of the app's locks, so a write the store makes at
     // once, under it, keeps the values in the order they were made and waits on nothing else.
@@ -54,12 +57,17 @@ class SyncClock internal constructor(
         state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + SyncClockState.DURABLE_LEAD_MS) }
     }
 
-    /** The backend's clock, from an `X-TigerSync-Clock` header heard now; ignored unless [isPlausibleClockUs]. */
-    fun heard(serverClockUs: Long) {
+    /**
+     * The backend's clock, from an `X-TigerSync-Clock` header heard now, on a response to [from];
+     * ignored unless [isPlausibleClockUs], and unless [from] went to the backend the endpoint names.
+     */
+    fun heard(serverClockUs: Long, from: HttpUrl? = null) {
         if (!isPlausibleClockUs(serverClockUs)) return
         synchronized(lock) {
+            val base = endpoint()
+            if (!servedBy(base, from)) return
             val now = wallClock()
-            val state = state()
+            val state = state(base)
             val raised = serverClockUs > state.lastSeenUs
             val next = state.copy(lastSeenUs = maxOf(state.lastSeenUs, serverClockUs), heardUs = serverClockUs, heardAtMs = now)
             save(next, durable = raised && next.lastSeenUs > (now + SyncClockState.DURABLE_LEAD_MS) * 1_000)
@@ -67,14 +75,17 @@ class SyncClock internal constructor(
     }
 
     /**
-     * A clock value read in a snapshot or in a write's answer: it raises the last seen value only,
-     * and is ignored unless [isPlausibleClockUs].
+     * A clock value read in a snapshot or in a write's answer, to [from]: it raises the last seen
+     * value only, and is ignored unless [isPlausibleClockUs], and unless [from] went to the backend
+     * the endpoint names.
      */
-    fun heardInSnapshot(clockUs: Long) {
+    fun heardInSnapshot(clockUs: Long, from: HttpUrl? = null) {
         if (!isPlausibleClockUs(clockUs)) return
         synchronized(lock) {
+            val base = endpoint()
+            if (!servedBy(base, from)) return
             val now = wallClock()
-            val state = state()
+            val state = state(base)
             if (clockUs > state.lastSeenUs) {
                 save(state.copy(lastSeenUs = clockUs), durable = clockUs > (now + SyncClockState.DURABLE_LEAD_MS) * 1_000)
             }
@@ -97,28 +108,41 @@ class SyncClock internal constructor(
      * has seen. A value seen was at most the backend's time plus five seconds when it was stored, so
      * the restamp stays within the refusal's clock plus five seconds, but by a millisecond at the
      * edge, when the backend refuses it once more, and the channels send it at the next sync.
+     *
+     * Null, with nothing heard or changed, when [refused], the refused request, went to a backend
+     * the endpoint has moved off since: its clock is that backend's, and its write goes no further.
      */
-    fun restampAfterClockAhead(serverClockUs: Long?): Long = synchronized(lock) {
-        val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return@synchronized stampMs()
-        heard(refusedAt)
+    fun restampAfterClockAhead(serverClockUs: Long?, refused: HttpUrl): Long? =
+        synchronized(lock) { if (servedBy(endpoint(), refused)) restamp(serverClockUs, refused) else null }
+
+    /** [restampAfterClockAhead] for a refusal whose request is not named: from the backend the endpoint names. */
+    fun restampAfterClockAhead(serverClockUs: Long?): Long = synchronized(lock) { restamp(serverClockUs, null) }
+
+    // Under lock.
+    private fun restamp(serverClockUs: Long?, refused: HttpUrl?): Long {
+        val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return stampMs()
+        heard(refusedAt, refused)
         // In whole ms, strictly past each value in µs: the refusal's clock, and the last value seen.
         val stamp = maxOf(Math.floorDiv(refusedAt, 1_000L), lastRestampMs, Math.floorDiv(state().lastSeenUs, 1_000L)) + 1
         lastRestampMs = stamp
         val state = state()
         // Below the last value issued, as it is for an edit stamped ahead, it leaves that alone.
         if (stamp > state.lastIssuedMs) save(state.copy(lastIssuedMs = stamp), durable = stamp > wallClock() + SyncClockState.DURABLE_LEAD_MS)
-        stamp
+        return stamp
     }
 
     // Under lock: the last restamp issued in this process, which the next stays above. A process
     // death needs none: the backend's clock has moved past it by the next launch.
     private var lastRestampMs = 0L
 
-    // Under lock: as the store holds it, for the backend the endpoint names now. Values kept for
-    // another are forgotten; those a build before the key kept are taken as this one's.
-    private fun state(): SyncClockState {
+    // Whether [from] went to the backend [base] names; any, with no base or no request named.
+    private fun servedBy(base: String?, from: HttpUrl?): Boolean = from == null || base == null || ApiBase.serves(base, from)
+
+    // Under lock: as the store holds it, for the backend [base], the endpoint now, names. Values kept
+    // for another are forgotten; those a build before the key kept are taken as this one's.
+    private fun state(base: String? = endpoint()): SyncClockState {
         val held = known ?: store.load().also { known = it }
-        val key = backend() ?: return held
+        val key = base?.let(ApiBase::backendKey) ?: return held
         if (held.backendKey == key) return held
         val next = if (held.backendKey == null) held.copy(backendKey = key) else SyncClockState(backendKey = key).also { lastRestampMs = 0 }
         save(next, durable = true)

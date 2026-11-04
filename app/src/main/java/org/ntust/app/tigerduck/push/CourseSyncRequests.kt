@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -153,11 +154,13 @@ internal class CourseSyncRequests(
                 val again = bodies.again
                 if (again != null && isClockAhead(response)) {
                     val serverClockUs = serverClockOf(response)
+                    val refused = response.request.url
                     response.close()
                     // Past the gate the first request passed, read again: course sync can have gone
-                    // off meanwhile. Nothing then went, and the ledger records nothing.
+                    // off meanwhile, or the endpoint moved to another backend. Nothing then went,
+                    // and the ledger records nothing.
                     if (!sends()) throw ResendHeldBack()
-                    response = service.coursesUpload(header, again(serverClockUs)).execute()
+                    response = service.coursesUpload(header, again(serverClockUs, refused) ?: throw ResendHeldBack()).execute()
                 }
                 accepted = response.use(::answered)
                 landed = true
@@ -189,8 +192,8 @@ internal class CourseSyncRequests(
     // An upload refused as ahead whose resend the gate stopped: not sent.
     private class ResendHeldBack : Exception()
 
-    /** An upload's body, and the body it goes again with once refused as ahead. */
-    private class UploadBodies(val first: RequestBody, val again: ((serverClockUs: Long?) -> RequestBody)?)
+    /** An upload's body, and the body it goes again with once refused as ahead, if it may go again. */
+    private class UploadBodies(val first: RequestBody, val again: ((serverClockUs: Long?, refused: HttpUrl) -> RequestBody?)?)
 
     // The courses and their hand-adds. Once refused as ahead, each add stamped later than the restamp,
     // one tick past the refusal's clock, goes again at it, and the oldest stay the oldest.
@@ -199,9 +202,8 @@ internal class CourseSyncRequests(
     ): UploadBodies {
         val adds = CourseUploadPayload.handAdds(courses, semester, forceKeys, addedAt)
         fun body(stamps: Map<String, Long>) = gson.toJson(CourseUploadPayload.build(courses, semester, rosterTerms, stamps)).toRequestBody(jsonType)
-        val again = { serverClockUs: Long? ->
-            val restamp = clock.restampAfterClockAhead(serverClockUs)
-            body(adds.mapValues { (_, atMs) -> minOf(atMs, restamp) })
+        val again = { serverClockUs: Long?, refused: HttpUrl ->
+            clock.restampAfterClockAhead(serverClockUs, refused)?.let { restamp -> body(adds.mapValues { (_, atMs) -> minOf(atMs, restamp) }) }
         }
         return UploadBodies(body(adds), again = again.takeIf { adds.values.any { it > 0 } })
     }
@@ -218,7 +220,7 @@ internal class CourseSyncRequests(
         val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
         val keys = json?.optJSONArray("accepted_keys")
         val answers = json?.optJSONArray("adds")?.let { (0 until it.length()).mapNotNull(it::optJSONObject) }.orEmpty()
-        answers.mapNotNull { nullableLong(it, "hlc") }.maxOrNull()?.let(clock::hear)
+        answers.mapNotNull { nullableLong(it, "hlc") }.maxOrNull()?.let { clock.hear(it, response.request.url) }
         // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
         fun no(key: String) = key.substringAfterLast(':')
         val listed = keys?.let { (0 until it.length()).map { i -> it.getString(i) } }.orEmpty() +
