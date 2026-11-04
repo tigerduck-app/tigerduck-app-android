@@ -82,7 +82,7 @@ class AssignmentOverrideReconcilerTest {
         // first sync: the switch keeps the two apart, as on iOS.
         assertEquals(
             "Assignments sync is off",
-            AssignmentOverrideReconciler.reasonToLeaveMarks(syncsMarks = false, pendingConflictCategories = emptySet()),
+            AssignmentOverrideReconciler.reasonToLeaveMarks(syncsMarks = false, held = emptySet()),
         )
     }
 
@@ -90,7 +90,7 @@ class AssignmentOverrideReconcilerTest {
     fun `the assignments re-enable check leaves the marks alone too`() {
         assertEquals(
             "re-enable check pending",
-            AssignmentOverrideReconciler.reasonToLeaveMarks(syncsMarks = true, pendingConflictCategories = setOf("assignments")),
+            AssignmentOverrideReconciler.reasonToLeaveMarks(syncsMarks = true, held = setOf("assignments")),
         )
     }
 
@@ -98,7 +98,7 @@ class AssignmentOverrideReconcilerTest {
     fun `with the switch on and no check pending a full sync syncs the marks`() {
         assertEquals(
             null,
-            AssignmentOverrideReconciler.reasonToLeaveMarks(syncsMarks = true, pendingConflictCategories = setOf("courses")),
+            AssignmentOverrideReconciler.reasonToLeaveMarks(syncsMarks = true, held = setOf("courses")),
         )
     }
 }

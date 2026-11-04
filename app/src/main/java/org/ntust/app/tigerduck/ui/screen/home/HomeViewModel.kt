@@ -41,6 +41,7 @@ import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.sync.RefreshOrder
 import org.ntust.app.tigerduck.sync.SchoolUploads
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -646,11 +647,9 @@ class HomeViewModel @Inject constructor(
 
     fun stopRevisionPolling() = revisionPoller.stop()
 
-    // cloudSyncEnabled already reads false on fdroid at its source
-    // (AppPreferences.cloudSyncEnabled), so no separate flavor check is
-    // needed here.
+    // TigerSync as SyncPolicy reads it: off on fdroid whatever the switch says.
     private suspend fun pollRevision(): RevisionPollOutcome = pollRevisionOnce(
-        syncEnabled = { prefs.cloudSyncEnabled },
+        syncEnabled = { SyncPolicies(prefs).current.tigerSyncOn },
         online = networkChecker::isAvailable,
         signIn = authTokenManager::signInIfSignedOut,
         fetchRevision = syncApiClient::fetchRevision,

@@ -8,7 +8,9 @@ import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 
 /**
@@ -96,10 +98,12 @@ internal class AssignmentMarkStep(
         private const val TAG = "HomeViewModel"
 
         /** The step over this phone's preferences and files, as Home's sync runs it. */
-        fun over(prefs: AppPreferences, dataCache: DataCache) = AssignmentMarkStep(
-            switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
-            store = MarkStore { signIn, change -> dataCache.updateAssignmentMarks(signIn, change) },
-        )
+        fun over(prefs: AppPreferences, dataCache: DataCache) = SyncPolicies(prefs).let { policies ->
+            AssignmentMarkStep(
+                switchOn = { SyncCategory.ASSIGNMENTS in policies.current.switchedOn },
+                pendingConflicts = { policies.current.held.mapTo(HashSet()) { it.stored } },
+                store = MarkStore { signIn, change -> dataCache.updateAssignmentMarks(signIn, change) },
+            )
+        }
     }
 }

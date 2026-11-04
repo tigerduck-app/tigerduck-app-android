@@ -5,7 +5,9 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 
 /**
@@ -49,10 +51,12 @@ internal class BackgroundMarkStep(
         private val NOT_TAKEN = Outcome(taken = false, changed = false)
 
         /** The step over this phone's preferences and files, as the background worker runs it. */
-        fun over(prefs: AppPreferences, dataCache: DataCache) = BackgroundMarkStep(
-            switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
-            store = AssignmentMarkStep.MarkStore { signIn, change -> dataCache.updateAssignmentMarks(signIn, change) },
-        )
+        fun over(prefs: AppPreferences, dataCache: DataCache) = SyncPolicies(prefs).let { policies ->
+            BackgroundMarkStep(
+                switchOn = { SyncCategory.ASSIGNMENTS in policies.current.switchedOn },
+                pendingConflicts = { policies.current.held.mapTo(HashSet()) { it.stored } },
+                store = AssignmentMarkStep.MarkStore { signIn, change -> dataCache.updateAssignmentMarks(signIn, change) },
+            )
+        }
     }
 }

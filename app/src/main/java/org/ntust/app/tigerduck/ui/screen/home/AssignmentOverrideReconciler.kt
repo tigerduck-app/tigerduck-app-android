@@ -71,18 +71,19 @@ object AssignmentOverrideReconciler {
      * no difference or the user's answer to it has been applied. Taking the
      * server's set in that window would answer for the user.
      */
-    fun isHeldForReenable(pendingConflictCategories: Set<String>): Boolean =
-        REENABLE_CATEGORY in pendingConflictCategories
+    fun isHeldForReenable(held: Set<String>): Boolean =
+        REENABLE_CATEGORY in held
 
     /**
      * Why a full sync leaves this device's marks as they are, or null to sync
      * them. [syncsMarks] is the Assignments sync switch: with it off, the
      * done and ignored marks are this device's own, as on iOS. The re-enable
-     * check holds them too; see [isHeldForReenable].
+     * check holds them too, while [held], the categories it holds, names
+     * them; see [isHeldForReenable].
      */
-    fun reasonToLeaveMarks(syncsMarks: Boolean, pendingConflictCategories: Set<String>): String? = when {
+    fun reasonToLeaveMarks(syncsMarks: Boolean, held: Set<String>): String? = when {
         !syncsMarks -> "Assignments sync is off"
-        isHeldForReenable(pendingConflictCategories) -> "re-enable check pending"
+        isHeldForReenable(held) -> "re-enable check pending"
         else -> null
     }
 

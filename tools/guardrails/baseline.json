@@ -17,11 +17,6 @@
     "lines": 101
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt",
-    "kind": "sync-switch-read",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "demo-check",
     "count": 6
@@ -921,21 +916,6 @@
     "lines": 106
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/AssignmentMarkStep.kt",
-    "kind": "sync-switch-read",
-    "count": 2
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/AssignmentOverrideReconciler.kt",
-    "kind": "sync-switch-read",
-    "count": 4
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/BackgroundMarkStep.kt",
-    "kind": "sync-switch-read",
-    "count": 2
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeAssignmentList.kt",
     "kind": "long-function",
     "name": "SwipeableAssignmentRow(Assignment, Course?, Boolean, Boolean, Boolean, Boolean, ()->Unit, ()->Unit, ()->Unit)",
@@ -983,7 +963,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-file",
-    "count": 1174
+    "count": 1173
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
@@ -996,11 +976,6 @@
     "kind": "long-function",
     "name": "HomeViewModel.fetchData(Boolean)",
     "lines": 81
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
-    "kind": "sync-switch-read",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/ShortcutGrid.kt",
