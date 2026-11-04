@@ -76,17 +76,22 @@ data class Course(
      */
     val requireOption: String? = null,
     /**
-     * True for a copy merged down from the server ([isManual], with a Moodle id) whose row the
-     * backend holds as added by hand, on whichever device (`source = user_added`), as the last
-     * `/v4` snapshot that listed the row said. `/v4`'s upload names such a course in its adds, or
-     * the backend would take it for a school row; it never names a copy of a school row. False
-     * for every other course: one added on this phone has no Moodle id, which tells it apart, and
-     * one fetched from the school is the school's.
+     * For a copy merged down from the server ([isManual], with a Moodle id), what the last `/v4`
+     * snapshot that listed its row said of it: true when the backend holds the row as added by
+     * hand, on whichever device (`source = user_added`), false when it is a school row. Null while
+     * none has told this copy: one cached before this field existed, or merged by `/v3`. A copy the
+     * school's fetch lists is the school's, false. Meaningless for any other course: one added on
+     * this phone has no Moodle id, which tells it apart, and one fetched from the school is the
+     * school's.
      *
-     * A primitive, so a cache written before this field existed reads false (Gson's Unsafe path)
-     * until a `/v4` pull lists the row.
+     * `/v4`'s upload names a copy in its adds unless this is false (`CourseUploadPayload
+     * .isAddedByHand`): an unnamed `user_added` row turns into a school row, which a later roster
+     * drops from every device, while a school row named costs at most an add at 0.
+     *
+     * Nullable, so a cache written before this field existed reads null (Gson's Unsafe path), which
+     * is what it is: not told yet. Every reader takes null as such.
      */
-    val isUserAddedOnServer: Boolean = false,
+    val isUserAddedOnServer: Boolean? = null,
 ) {
     /** Resolved name for display: user override if set, else the derived default. */
     val displayName: String

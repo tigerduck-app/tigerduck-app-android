@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -226,8 +227,7 @@ class V4MergedCoursesTest {
      */
     private fun olderBuildsCopiesAfter(pull: suspend () -> Unit) = runBlocking {
         w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
-        val merged = { no: String -> Course(courseNo = no, courseName = "Course $no", moodleIdNumber = "$TERM$no", isManual = true) }
-        assertTrue(w.dataCache.saveCourses(listOf(merged("XA0000002"), merged("XE0000005")), TERM, signIn))
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000002"), olderCopy("XE0000005")), TERM, signIn))
         backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000)))
         pull()
         uploadTaken("XA0000002", "XE0000005")
@@ -240,6 +240,9 @@ class V4MergedCoursesTest {
         assertEquals(emptyList<String>(), rules.refused)
     }
 
+    /** A copy merged down as an older build kept it: manual, with a Moodle id, and nothing of its row. */
+    private fun olderCopy(no: String) = Course(courseNo = no, courseName = "Course $no", moodleIdNumber = "$TERM$no", isManual = true)
+
     @Test
     fun `a copy an older build merged of a row added by hand elsewhere is named once Home's pull lists it`() =
         olderBuildsCopiesAfter { rig.home.sync.pull(state, signIn) }
@@ -247,6 +250,51 @@ class V4MergedCoursesTest {
     @Test
     fun `a copy an older build merged of a row added by hand elsewhere is named once a background pull lists it`() =
         olderBuildsCopiesAfter { assertEquals(SyncOutcome.SYNCED, backgroundPass()) }
+
+    /**
+     * Codex on round 3 (P2): a copy cached before this build has not been told what its row is, and
+     * goes as added by hand until a `/v4` pull tells it. Unnamed, a `user_added` row would turn into
+     * a school row, which a later roster drops from every device; named, a school row takes at most
+     * an add at 0. The class table's delete and its upload go here before any pull; the pull then
+     * tells each copy what its row is, and keeps it.
+     */
+    @Test
+    fun `a copy no v4 pull has told about goes as added by hand until one tells it what its row is`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000001"), olderCopy("XA0000002"), olderCopy("XE0000005")), TERM, signIn))
+
+        deleteOnTheClassTable("XA0000001")
+
+        assertEquals(listOf(key("XA0000002"), key("XE0000005")), uploads().single().adds().sorted())
+
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000)))
+        rig.home.sync.pull(state, signIn)
+        uploadTaken("XA0000002", "XE0000005")
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn, resend = true)
+
+        assertEquals(listOf(key("XE0000005")), uploads().last().adds())
+        assertEquals(emptyList<String>(), rules.refused)
+    }
+
+    /**
+     * A copy the school's fetch lists is the school's course from then on, whatever a pull told it:
+     * the fetch's merge says so ([ClassTableCourseMerge.mergeFetched], which every fetch folds
+     * through), and the term's upload does not name it. A copy the school does not list, which no
+     * pull has told about, is still named.
+     */
+    @Test
+    fun `a copy the school's fetch lists goes as the school's, and one it does not list as added by hand`() = runBlocking {
+        val cached = listOf(olderCopy("XA0000002"), olderCopy("XE0000005"))
+        assertTrue(w.dataCache.saveCourses(cached, TERM, signIn))
+        val fetched = listOf(Course(courseNo = "XA0000002", courseName = "School XA0000002", moodleIdNumber = "${TERM}XA0000002"))
+        assertTrue(w.dataCache.saveCourses(ClassTableCourseMerge.mergeFetched(fetched, cached, emptyMap(), "zh", emptySet()), TERM, signIn))
+        uploadTaken("XA0000002", "XE0000005")
+
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
+
+        assertEquals(listOf("XA0000002", "XE0000005"), uploads().single().courseNos().sorted())
+        assertEquals(listOf(key("XE0000005")), uploads().single().adds())
+    }
 
     /** The worker's pass, off the main thread, whose looper runs meanwhile, as `SynchronizerBackgroundTest` runs it. */
     private fun backgroundPass(): SyncOutcome {

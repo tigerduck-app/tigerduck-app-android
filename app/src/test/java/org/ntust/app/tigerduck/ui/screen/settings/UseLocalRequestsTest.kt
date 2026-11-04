@@ -22,8 +22,10 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.SpeaksV3
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RecordingBackend
+import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SchoolUploads
@@ -232,7 +234,8 @@ class UseLocalRequestsTest {
     fun `on v4 a term's upload names the course added here, and no copy of a school row merged down`() = runTest {
         val onV4 = onV4()
         val (courses, v4) = onV4.courses to onV4.backend
-        val merged = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", isManual = true)
+        // A pull told it its row is the school's.
+        val merged = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", isManual = true, isUserAddedOnServer = false)
         val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
         onV4.holds("1151", listOf(merged, manual))
 
@@ -243,6 +246,65 @@ class UseLocalRequestsTest {
         assertEquals(listOf("CS1", "MY1"), courseNos)
         val adds = upload.getJSONArray("adds").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_key") } }
         assertEquals(listOf("client:1151:MY1"), adds)
+    }
+
+    /**
+     * Codex on round 3 (P2): a copy merged down that no `/v4` snapshot has told about, with no rows
+     * of the re-enable check to tell it by, goes up as added by hand, an add made now. Unnamed, a
+     * `user_added` row would come back from the term's reset as a school row, which a later roster
+     * drops from every device.
+     */
+    @Test
+    fun `on v4 a copy no snapshot has told about goes as added by hand when Use Local has no rows to tell it by`() = runTest {
+        val onV4 = onV4()
+        val (courses, v4) = onV4.courses to onV4.backend
+        val older = Course(courseNo = "XE1", courseName = "XE1", moodleIdNumber = "1151XE1", isManual = true)
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
+        onV4.holds("1151", listOf(older, manual))
+
+        keepLocalCourses(terms = listOf("1151" to listOf(older, manual)), hiding = emptySet(), backend = courses)
+
+        assertEquals(listOf("client:1151:MY1", "client:1151:XE1"), addsOf(v4).sorted())
+    }
+
+    /** The adds of the one course upload [v4] took. */
+    private fun addsOf(v4: RecordingBackend): List<String> =
+        JSONObject(v4.sent.single { it.url.endsWith("/v4/sync/courses/upload") }.body!!).getJSONArray("adds")
+            .let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_key") } }
+
+    /**
+     * Codex on round 3 (P2), with the rows the re-enable check compared: Use Local tells each copy no
+     * snapshot has told about by them before it decides its adds. A copy of a school row goes as the
+     * school's, one of a row added by hand as an add made now, and one the snapshot does not list
+     * still as added by hand.
+     */
+    @Test
+    fun `on v4 Use Local tells each copy no snapshot has told about by the rows the re-enable check compared`() = runTest {
+        val onV4 = onV4()
+        val older = { no: String -> Course(courseNo = no, courseName = no, moodleIdNumber = "1151$no", isManual = true) }
+        val courses = listOf(older("CS1"), older("XE1"), older("XU1"), Course(courseNo = "MY1", courseName = "Mine", isManual = true))
+        onV4.holds("1151", courses)
+        val checked = BackendSyncResult(
+            ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = setOf("CS1", "XE1"),
+            serverCourses = listOf(
+                ServerCourse(courseNo = "CS1", courseName = "CS1", semester = "1151", moodleId = "1151CS1", source = "ntust_portal"),
+                ServerCourse(courseNo = "XE1", courseName = "XE1", semester = "1151", moodleId = "1151XE1", source = "user_added"),
+            ),
+            currentRevision = 1,
+        )
+        val host = object : UseLocalHost {
+            override fun beginReset(semester: String) = true
+            override fun endReset(semester: String) = Unit
+            override suspend fun stampReset(semester: String, atMs: Long) = Unit
+            override fun askAgain() = Unit
+        }
+
+        useLocalCourses(
+            terms = listOf("1151" to courses), hiding = emptySet(), backend = onV4.courses, customNames = emptyMap(),
+            portalCached = { true }, latch = UseLocalLatch(listOf("1151"), host), host = host, checked = checked, isCurrent = { true },
+        )
+
+        assertEquals(listOf("client:1151:MY1", "client:1151:XE1", "client:1151:XU1"), addsOf(onV4.backend).sorted())
     }
 
     @Test

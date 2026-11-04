@@ -121,9 +121,9 @@ internal object CourseMembership {
      * [courses], a term's list, with each copy merged down from the server ([Course.isManual], with
      * a Moodle id) saying what [rows], the snapshot's of [semester], say of its row: whether it was
      * added by hand on some device ([Course.isUserAddedOnServer]), for the term's uploads. A copy
-     * an older build merged kept none, and a row the school's roster lists since is the school's.
-     * A copy whose row the snapshot does not list keeps what it has, and so does every course
-     * added here or fetched from the school.
+     * no snapshot has told (null, as an older build left it) is told now, school row or not; a row
+     * the school's roster lists since is the school's. A copy whose row the snapshot does not list
+     * keeps what it has, and so does every course added here or fetched from the school.
      */
     fun followingRows(courses: List<Course>, semester: String, rows: List<ServerCourse>): List<Course> {
         val filed = rows.filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }

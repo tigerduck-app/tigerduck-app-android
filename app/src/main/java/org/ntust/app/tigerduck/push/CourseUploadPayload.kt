@@ -91,12 +91,13 @@ internal object CourseUploadPayload {
             .associate { key(semester, it.courseNo) to (addedAt[it.courseNo] ?: 0L) }
 
     /**
-     * Whether [course] was added by hand, on this phone or another: added here, with no Moodle id
-     * ([TranscriptTerms.isAddedHere], as the iPhone tells it), or a copy merged down of a row the
-     * backend holds as added by hand ([Course.isUserAddedOnServer]). A copy of a school row is
-     * manual here too, and is none.
+     * Whether [course] goes as added by hand, on this phone or another: added here, with no Moodle
+     * id ([TranscriptTerms.isAddedHere], as the iPhone tells it), or a copy merged down whose row
+     * is not known to be a school row ([Course.isUserAddedOnServer] true, or null while no `/v4`
+     * snapshot has told the copy). A copy of a school row is manual here too, and is none.
      */
-    fun isAddedByHand(course: Course): Boolean = TranscriptTerms.isAddedHere(course) || course.isUserAddedOnServer
+    fun isAddedByHand(course: Course): Boolean =
+        TranscriptTerms.isAddedHere(course) || (course.isManual && course.isUserAddedOnServer != false)
 
     /** The key the upload route derives for a course: "client:{semester}:{course_no}". */
     fun key(semester: String, courseNo: String): String = "client:$semester:$courseNo"

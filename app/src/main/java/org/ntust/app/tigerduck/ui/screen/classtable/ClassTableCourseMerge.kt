@@ -24,7 +24,8 @@ object ClassTableCourseMerge {
      * and the `isManual` flag. A course the user added by hand that the
      * school now also lists must not lose its flag, or deleting it later
      * would take the wrong path. Not what a copy merged down said of its
-     * server row ([Course.isUserAddedOnServer]): the school lists it now.
+     * server row ([Course.isUserAddedOnServer]): the school lists it now, so
+     * it is the school's, false, though no `/v4` pull has told the copy yet.
      *
      * Carried across from [names]: the rename, resolved for [locale]. Done
      * here rather than by a later pass so a language switch mid-refresh
@@ -63,6 +64,7 @@ object ClassTableCourseMerge {
                 customCourseName = CourseNameOverrides.overrideFor(names, course.courseNo, locale),
                 moodleIdNumber = if (addedHere) prior?.moodleIdNumber else course.moodleIdNumber,
                 moodleNumericCourseId = if (addedHere) prior?.moodleNumericCourseId else course.moodleNumericCourseId,
+                isUserAddedOnServer = if (prior?.isManual == true && !addedHere) false else course.isUserAddedOnServer,
             )
         }
         val fetchedNos = restored.mapTo(mutableSetOf()) { it.courseNo }
