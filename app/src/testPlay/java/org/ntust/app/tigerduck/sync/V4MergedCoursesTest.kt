@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync
 
 import android.app.Application
 import android.content.Context
+import android.os.Looper
 import androidx.work.testing.WorkManagerTestInitHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,9 +32,13 @@ import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * The courses a `/v4` snapshot merged down, as the device check on PR V found them: a freshly
@@ -216,16 +221,15 @@ class V4MergedCoursesTest {
 
     /**
      * A phone updated from the released build holds copies it merged on `/v3`, which kept nothing
-     * of their rows. The first `/v4` pull that lists one tells it apart: the copy of a row another
-     * device added by hand is named in the term's upload, a school course's is not.
+     * of their rows, and [pull]s. The first `/v4` pull that lists one tells it apart: the copy of
+     * a row another device added by hand is named in the term's upload, a school course's is not.
      */
-    @Test
-    fun `a copy an older build merged of a row added by hand elsewhere is named once a pull lists it`() = runBlocking {
+    private fun olderBuildsCopiesAfter(pull: suspend () -> Unit) = runBlocking {
         w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
         val merged = { no: String -> Course(courseNo = no, courseName = "Course $no", moodleIdNumber = "$TERM$no", isManual = true) }
         assertTrue(w.dataCache.saveCourses(listOf(merged("XA0000002"), merged("XE0000005")), TERM, signIn))
         backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000)))
-        rig.home.sync.pull(state, signIn)
+        pull()
         uploadTaken("XA0000002", "XE0000005")
 
         rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
@@ -234,6 +238,31 @@ class V4MergedCoursesTest {
         assertEquals(listOf("XA0000002", "XE0000005"), upload.courseNos().sorted())
         assertEquals(listOf(key("XE0000005")), upload.adds())
         assertEquals(emptyList<String>(), rules.refused)
+    }
+
+    @Test
+    fun `a copy an older build merged of a row added by hand elsewhere is named once Home's pull lists it`() =
+        olderBuildsCopiesAfter { rig.home.sync.pull(state, signIn) }
+
+    @Test
+    fun `a copy an older build merged of a row added by hand elsewhere is named once a background pull lists it`() =
+        olderBuildsCopiesAfter { assertEquals(SyncOutcome.SYNCED, backgroundPass()) }
+
+    /** The worker's pass, off the main thread, whose looper runs meanwhile, as `SynchronizerBackgroundTest` runs it. */
+    private fun backgroundPass(): SyncOutcome {
+        val thread = Executors.newSingleThreadExecutor()
+        try {
+            val run = thread.submit(Callable { runBlocking { rig.home.synchronizer.sync(SyncMode.BACKGROUND, signIn) } })
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
+            while (!run.isDone) {
+                check(System.nanoTime() < deadline) { "the background pass never finished" }
+                shadowOf(Looper.getMainLooper()).idle()
+                Thread.sleep(2)
+            }
+            return run.get()
+        } finally {
+            thread.shutdownNow()
+        }
     }
 
     private companion object {
