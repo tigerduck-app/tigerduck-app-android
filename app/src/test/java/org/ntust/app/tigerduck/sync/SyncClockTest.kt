@@ -196,6 +196,42 @@ class SyncClockTest {
         assertEquals(ahead + 2, clock.stampMs())
     }
 
+    /**
+     * PR B's parked window: the values heard from one backend and the stamps issued under it say
+     * nothing of another's, and a backend whose clock ran far ahead would hold every stamp up on the
+     * next. A move of the endpoint to another backend ([org.ntust.app.tigerduck.network.backend.ApiBase.backendKey])
+     * forgets them; a sign-out does not ([SyncClockAcrossSignOutTest]), nor does a move between the
+     * API versions of one backend.
+     */
+    @Test
+    fun `the endpoint moved to another backend forgets what the clock heard and issued`() {
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://one.example.test/v3" }
+        val clock = SyncClock(SyncClockStore(file), prefs)
+        val ahead = System.currentTimeMillis() + 60 * MINUTE
+        clock.heard(us(ahead))
+        clock.heardInSnapshot(us(ahead))
+        assertEquals(ahead + 1, clock.stampMs())
+        prefs.announcementApiBaseUrlOverride = "https://one.example.test/v4"
+        assertEquals("the same backend at another version keeps them", ahead + 2, clock.stampMs())
+
+        prefs.announcementApiBaseUrlOverride = "https://two.example.test/v4"
+        val before = System.currentTimeMillis()
+        val stamp = clock.stampMs()
+
+        assertTrue("stamped by the wall clock, uncapped: $stamp", stamp in before + 1..System.currentTimeMillis() + 1)
+        assertEquals(stamp, SyncClockStore(file).load().lastIssuedMs)
+        assertEquals("nothing heard of the new backend", null, SyncClockStore(file).load().heardUs)
+    }
+
+    @Test
+    fun `values a build before the backend's key kept are the endpoint's backend's`() {
+        val ahead = System.currentTimeMillis() + 60 * MINUTE
+        file.edit().putLong("lastIssuedMs", ahead).putLong("lastSeenUs", us(ahead)).commit()
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://one.example.test/v4" }
+
+        assertEquals(ahead + 1, SyncClock(SyncClockStore(file), prefs).stampMs())
+    }
+
     @Test
     fun `a clock value outside any plausible time is not heard`() {
         val clock = clock()

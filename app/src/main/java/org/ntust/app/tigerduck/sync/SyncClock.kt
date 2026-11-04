@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.sync
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.ApiBase
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,19 +18,24 @@ import javax.inject.Singleton
  *
  * The wall clock is the system's, not the debug override's
  * ([org.ntust.app.tigerduck.shared.clock.AppClock]): a debug jump in time must not stamp edits.
+ *
+ * What it keeps is one backend's: the values heard from it and the stamps issued under it. A move
+ * of the endpoint to another backend ([backend], [ApiBase.backendKey]) forgets them, as another
+ * backend's clock says nothing of this one's, and one that ran far ahead would hold every stamp up
+ * on the next. A sign-out keeps them, as the clock spec says, and so does a move between the API
+ * versions of one backend.
  */
 @Singleton
 class SyncClock internal constructor(
     private val store: SyncClockStore,
     private val wallClock: () -> Long,
+    // The backend the endpoint names now, by its key; null when it cannot be read, which forgets nothing.
+    private val backend: () -> String? = { null },
 ) {
-    /**
-     * The app's clock. [prefs] is unread: it named the API whose stamps were the raw wall clock,
-     * which no base speaks since the move to `/v4`, and the app's wiring and its tests still pass it.
-     */
+    /** The app's clock, for the backend the endpoint setting in [prefs] names. */
     @Inject
-    constructor(store: SyncClockStore, @Suppress("UNUSED_PARAMETER") prefs: AppPreferences) :
-        this(store, System::currentTimeMillis)
+    constructor(store: SyncClockStore, prefs: AppPreferences) :
+        this(store, System::currentTimeMillis, { runCatching { ApiBase.backendKey(resolveAnnouncementEndpoint(prefs).url) }.getOrNull() })
 
     // A leaf: nothing done under it takes another of the app's locks, so a write the store makes at
     // once, under it, keeps the values in the order they were made and waits on nothing else.
@@ -97,8 +104,16 @@ class SyncClock internal constructor(
     // death needs none: the backend's clock has moved past it by the next launch.
     private var lastRestampMs = 0L
 
-    // Under lock.
-    private fun state(): SyncClockState = known ?: store.load().also { known = it }
+    // Under lock: as the store holds it, for the backend the endpoint names now. Values kept for
+    // another are forgotten; those a build before the key kept are taken as this one's.
+    private fun state(): SyncClockState {
+        val held = known ?: store.load().also { known = it }
+        val key = backend() ?: return held
+        if (held.backendKey == key) return held
+        val next = if (held.backendKey == null) held.copy(backendKey = key) else SyncClockState(backendKey = key).also { lastRestampMs = 0 }
+        save(next, durable = true)
+        return next
+    }
 
     // Under lock, so the store's writes go in the order the values were made. A value more than
     // [SyncClockState.DURABLE_LEAD_MS] ahead of the wall clock is [durable]: written before the
@@ -131,6 +146,8 @@ internal data class SyncClockState(
     val lastSeenUs: Long = 0,
     val heardUs: Long? = null,
     val heardAtMs: Long = 0,
+    // The backend they are of (ApiBase.backendKey); null for none named yet, as a build before it kept them.
+    val backendKey: String? = null,
 ) {
     /** The backend's time at [nowMs] as last heard, plus the five seconds it allows; null with nothing heard. */
     fun capMs(nowMs: Long): Long? = heardUs?.let { it / 1_000 + maxOf(0, nowMs - heardAtMs) + SKEW_ALLOWED_MS }
