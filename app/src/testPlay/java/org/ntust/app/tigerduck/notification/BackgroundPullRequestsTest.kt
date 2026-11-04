@@ -263,6 +263,44 @@ class BackgroundPullRequestsTest {
         )
     }
 
+    /** A `/v4` snapshot of the course here with the color and the names another device set it. */
+    private fun overriddenSnapshot() = JSONObject(snapshot(rows = true)).put("server_hlc", 1_793_000_000_000_000L)
+        .put(
+            "course_overrides",
+            JSONArray().put(
+                JSONObject().put("moodle_id", moodleId()).put("course_no", COURSE).put("semester", term).put("color_hex", "#123456")
+                    .put("custom_names", JSONObject().put("zh", "資結").put("en", "Data Structures")),
+            ),
+        )
+        .toString()
+
+    /**
+     * T0.3's parked window, a worker-level seam for the background's gating: driven through the
+     * worker the app builds ([backgroundSyncWorker]), not pinned only in its source. With [colors]
+     * switched on and names off, or the other way round, the category whose switch is off takes
+     * nothing of the snapshot, and the one whose switch is on takes it. A switch is only turned off:
+     * one turned back on waits for the re-enable check.
+     */
+    private fun workerTakesOnly(colors: Boolean) {
+        runBlocking { w.dataCache.saveCourses(listOf(Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = moodleId())), term, signIn) }
+        // Both have synced here before, so the background takes what their switches let through (C2).
+        assertTrue(w.appPrefs.school.syncedCategories.set(setOf("course_colors", "course_names"), signIn))
+        if (colors) w.appPrefs.syncCourseNames = false else w.appPrefs.syncCourseColors = false
+        backend.answer("GET /sync/full", 200, overriddenSnapshot())
+
+        assertEquals(ListenableWorker.Result.success(), runWorker())
+
+        val course = runBlocking { w.dataCache.loadCourses(term) }.single()
+        assertEquals("the snapshot's color", if (colors) "#123456" else null, course.customColorHex)
+        assertEquals("the snapshot's names", !colors, runBlocking { w.dataCache.loadCourseCustomNames() }.containsKey(COURSE))
+    }
+
+    @Test
+    fun `the worker takes the snapshot's colors with their switch on, and no names with theirs off`() = workerTakesOnly(colors = true)
+
+    @Test
+    fun `the worker takes the snapshot's names with their switch on, and no colors with theirs off`() = workerTakesOnly(colors = false)
+
     /**
      * The color fill check parked to phase 3 (iOS, Telegram 1488): a color the background's pass
      * sends, refused as ahead of the backend's clock, goes again only past the gate the first
