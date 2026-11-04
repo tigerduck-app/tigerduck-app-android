@@ -2308,10 +2308,10 @@ class NotificationSettingsSync internal constructor(
             // in flight: the server holds the older values, and that
             // edit's own push, queued behind this one, must still find the
             // flag set — or a process death before it runs would lose the
-            // edit with the flag already reading "confirmed". Mirrors
-            // iOS's canClearPendingMarker.
-            if (liveActivitySucceeded && liveActivityPreferences.syncSnapshot() == sentLiveActivity) {
-                liveActivityPreferences.hasUnconfirmedSyncEdit = false
+            // edit with the flag already reading "confirmed"; and so does a restart
+            // since it read, as an edit made after it can match. Mirrors iOS's canClearPendingMarker.
+            if (liveActivitySucceeded && liveActivityPreferences.syncSnapshot() == sentLiveActivity) synchronized(recordLock) {
+                if (liveActivityRestarts == liveActivityRestartsAtBase) liveActivityPreferences.hasUnconfirmedSyncEdit = false
             }
         }
 
@@ -2336,8 +2336,8 @@ class NotificationSettingsSync internal constructor(
             }
             val currentAssignments =
                 AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
-            if (assignmentsSucceeded && currentAssignments == sentAssignments) {
-                assignmentStore.hasUnconfirmedEdit = false
+            if (assignmentsSucceeded && currentAssignments == sentAssignments) synchronized(recordLock) {
+                if (assignmentRestarts == assignmentRestartsAtBase) assignmentStore.hasUnconfirmedEdit = false
             }
         }
 

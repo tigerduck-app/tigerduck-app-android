@@ -3253,6 +3253,69 @@ class NotificationSettingsSyncTest {
     }
 
     @Test
+    fun `an assignments edit made after the switch came on, matching what a push on the wire sent, still goes up`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+        device.server("A").anotherDeviceWrites("assignments") { addProperty("enabled", false) }
+
+        // This phone's offsets edit goes up, keeping the other device's switch-off, and is on the
+        // wire while sync goes off, reminders go off here, sync comes back on, and they go on again.
+        val landing = CompletableDeferred<Unit>()
+        device.server("A").holdWrite = landing
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+        device.switchAssignmentReminderSync(true)
+        runCurrent()
+        device.assignments.enabled = true
+        device.sync.markAssignmentUnconfirmedAndPush()
+
+        landing.complete(Unit)
+        runQueue()
+
+        assertTrue("the edit made after the switch came on stands", device.assignments.enabled)
+        assertTrue("and goes up", device.server("A").section("assignments").get("enabled").asBoolean)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `a live_activity edit made after the switch came on, matching what a push on the wire sent, still goes up`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+        device.server("A").anotherDeviceWrites("live_activity") { addProperty("show_assignment", false) }
+
+        val landing = CompletableDeferred<Unit>()
+        device.server("A").holdWrite = landing
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.prefs.showAssignment = false
+        device.sync.markUnconfirmedAndPush()
+        device.switchLiveActivitySync(true)
+        runCurrent()
+        device.prefs.showAssignment = true
+        device.sync.markUnconfirmedAndPush()
+
+        landing.complete(Unit)
+        runQueue()
+
+        assertTrue("the edit made after the switch came on stands", device.prefs.showAssignment)
+        assertTrue("and goes up", device.server("A").section("live_activity").get("show_assignment").asBoolean)
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
     fun `signed in at the update with nothing pending, a first edit sends only itself`() = runTest {
         // Just updated to this build, and not pulled yet: the iPhone's
         // settings are on the server, not here.
