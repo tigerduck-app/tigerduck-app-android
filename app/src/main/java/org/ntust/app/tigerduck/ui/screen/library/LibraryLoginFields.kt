@@ -2,9 +2,11 @@ package org.ntust.app.tigerduck.ui.screen.library
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 
 /**
@@ -18,15 +20,30 @@ import androidx.compose.runtime.setValue
  * reveal or sign in with. The ID starts as a fresh page's does, prefilled on purpose with the stored
  * library ID or the student's own NTUST ID ([LibraryViewModel.suggestedUsername]).
  *
- * Keyed on [storedUsername] too, a StateFlow the plain suggestedUsername getter is not, so a sign-in
- * with a different NTUST account starts the ID over as well.
+ * Nothing else starts them over, so what the student types stays through a resume, a recomposition
+ * or a rotation. The stored ID settles after a sign-out only at the next resume, which reads it
+ * again; that moves the prefill, which the ID shows until the student edits it, and nothing else.
  */
 @Stable
-internal class LibraryLoginFields(username: String) {
-    var username by mutableStateOf(username)
+internal class LibraryLoginFields(private val prefill: State<String>) {
+    /** The ID as the student edited it; null while it is still the prefill. */
+    private var edited by mutableStateOf<String?>(null)
+
+    var username: String
+        get() = edited ?: prefill.value
+        set(value) {
+            edited = value
+        }
+
     var password by mutableStateOf("")
 }
 
+/**
+ * Keyed on the sign-in state alone. The prefill is read again as [storedUsername] moves, a StateFlow's,
+ * which the plain suggestedUsername getter is not: an ID the student has not edited follows it.
+ */
 @Composable
-internal fun rememberLibraryLoginFields(signedIn: Boolean, storedUsername: String?, suggested: () -> String): LibraryLoginFields =
-    remember(signedIn, storedUsername) { LibraryLoginFields(suggested()) }
+internal fun rememberLibraryLoginFields(signedIn: Boolean, storedUsername: String?, suggested: () -> String): LibraryLoginFields {
+    val prefill = rememberUpdatedState(remember(signedIn, storedUsername) { suggested() })
+    return remember(signedIn) { LibraryLoginFields(prefill) }
+}
