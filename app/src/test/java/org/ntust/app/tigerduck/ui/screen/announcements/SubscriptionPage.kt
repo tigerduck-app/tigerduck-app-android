@@ -13,6 +13,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -22,6 +24,9 @@ import org.junit.Assert.fail
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
@@ -29,15 +34,22 @@ import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.util.JvmContext
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * A subscription settings page as the app builds one, signed in as the first student (`access-a`),
  * its requests answered by [backend] and nothing else. Its view model runs on one thread of its
  * own, as on the phone's main thread, and the backend's answers come back on OkHttp's, so a test
- * waits for what it checks ([eventually]) and acts on the page as the screen does ([onMain]).
+ * waits for what it checks ([eventually]) and acts on the page as the screen does ([onMain]). Each
+ * sign-out and sign-in is told as the app tells it ([AccountEvent], [signOut], [nextStudentSignsIn]).
+ *
+ * The app's saves run on the page's thread, unless [savesOnTheirOwnThread], as on the phone, where
+ * they run on the application scope and the page hears of each answer on its thread a moment later.
  */
-class SubscriptionPage : TestWatcher() {
+class SubscriptionPage(private val savesOnTheirOwnThread: Boolean = false) : TestWatcher() {
     val backend = SubscriptionBackend()
     private val context = JvmContext()
     private val prefs = AppPreferences(context)
@@ -45,6 +57,11 @@ class SubscriptionPage : TestWatcher() {
     val manager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
     val api = BulletinApiClient(backend.client, prefs, manager)
     private lateinit var main: ExecutorCoroutineDispatcher
+    private var savesThread: ExecutorCoroutineDispatcher? = null
+
+    // Whether the school account shows as signed in, as AuthService's state says, which the
+    // session's changes start from.
+    private val signedIn = MutableStateFlow(true).also(manager.session::signedInFrom)
 
     /**
      * The app's `/v4` saves, one for every page this test opens, as the process has one. Its
@@ -59,7 +76,8 @@ class SubscriptionPage : TestWatcher() {
     override fun starting(description: Description) {
         main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         Dispatchers.setMain(main)
-        savesScope = CoroutineScope(SupervisorJob() + main)
+        val worker = if (savesOnTheirOwnThread) Executors.newSingleThreadExecutor().asCoroutineDispatcher().also { savesThread = it } else main
+        savesScope = CoroutineScope(SupervisorJob() + worker)
         saves = SubscriptionListSaves(api, savesScope)
     }
 
@@ -83,6 +101,7 @@ class SubscriptionPage : TestWatcher() {
         }
         Dispatchers.resetMain()
         main.close()
+        savesThread?.close()
     }
 
     /**
@@ -158,12 +177,60 @@ class SubscriptionPage : TestWatcher() {
     /** How many saves the app has begun, once the pages' thread has run what is queued there. */
     fun savesBegun(): Int = onMain { saves.probe.savesBegun.get() }
 
-    /** The first student signs out, and the second ([SECOND]) signs in with a session of their own. */
-    fun nextStudentSignsIn(vararg rules: String) {
-        backend.seed(SECOND, *rules)
+    /**
+     * The first student signs out, and the second ([SECOND]) signs in with a session of their own,
+     * each told as the app tells it ([signOut], [secondSignsIn]). With [heard], the page has heard
+     * of each by the time this returns; without, as when its thread is held, it hears later.
+     */
+    fun nextStudentSignsIn(vararg rules: String, heard: Boolean = true) {
+        signOut(heard)
+        secondSignsIn(*rules, heard = heard)
+    }
+
+    /** The student signs out: the session's sign-in ends, and then the sign-out is told, as `SignOutPlans` does. */
+    fun signOut(heard: Boolean = true) {
+        val ended = manager.session.signIns.current
         manager.logout()
+        signedIn.value = false
+        manager.session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, ended, address = null))
+        if (heard) onMain { }
+    }
+
+    /** The second student ([SECOND]) signs in, and the account shows as signed in, as `AuthService` tells it. */
+    fun secondSignsIn(vararg rules: String, heard: Boolean = true) {
+        backend.seed(SECOND, *rules)
         manager.session.open()
         tokens.save(SECOND, "refresh-b", Long.MAX_VALUE)
+        signedIn.value = true
+        manager.session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false))
+        if (heard) onMain { }
+    }
+
+    /**
+     * Holds the page's thread with a task of its own until the returned call lets it go: what the
+     * page is told meanwhile, it handles after, in the order it was told.
+     */
+    fun holdMain(): () -> Unit {
+        val running = CountDownLatch(1)
+        val go = CountDownLatch(1)
+        CoroutineScope(main).launch {
+            running.countDown()
+            go.await(10, TimeUnit.SECONDS)
+        }
+        check(running.await(10, TimeUnit.SECONDS)) { "the page's thread never ran the hold" }
+        return go::countDown
+    }
+
+    /** Queues [block] on the page's thread, as a tap does, without waiting for it: behind a [holdMain]. */
+    fun queueOnMain(block: () -> Unit) {
+        CoroutineScope(main).launch { block() }
+    }
+
+    /** Every state [page] shows from now on, each as it is set, on whichever thread sets it. */
+    fun shownFromNow(page: SubscriptionSettingsViewModel): List<SubscriptionSettingsViewModel.State> {
+        val shown = CopyOnWriteArrayList<SubscriptionSettingsViewModel.State>()
+        CoroutineScope(savesScope.coroutineContext + Dispatchers.Unconfined).launch { page.state.collect { shown += it } }
+        return shown
     }
 
     companion object {

@@ -11,11 +11,11 @@ import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewM
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewModel.SaveState
 
 /**
- * A subscription page the sign-out did not close, as one kept on another tab's back stack: the
- * rules it shows are the student's who signed out. Nothing of theirs is sent under the next
- * student's session, and no answer to a save of theirs touches the page, which may show the next
- * student's rules by then. An edit of the rules the sign-out left, and a read answered after it,
- * find the page reading the next student's rules instead.
+ * A subscription page the sign-out did not close, as one kept on another tab's back stack: it
+ * starts over at the sign-out and at the next sign-in, and reads the next student's rules then
+ * (`SubscriptionsFollowSignInTest`). Nothing of the departed student's is sent under the next
+ * student's session, and no answer to a save of theirs touches the page, which shows the next
+ * student's rules by then. An edit made before the page hears of the sign-out finds it ended.
  */
 class SubscriptionsAcrossSignOutTest {
 
@@ -51,37 +51,30 @@ class SubscriptionsAcrossSignOutTest {
     }
 
     /**
-     * After a save of the first student's is answered across the sign-out ([before] is the page
-     * as it stood when the save went): the page is as it was, nothing went with the second
-     * student's session, and the next edit finds the rules the first student's and reads the
-     * second's.
+     * After a save of the first student's is answered across the sign-out: the page shows the
+     * second student's rules, read at their sign-in, the answer leaves it so, and nothing else
+     * went with the second student's session.
      */
-    private fun SubscriptionSettingsViewModel.leftAloneThenStartsOver(
-        before: Triple<List<SubscriptionRule>, LoadState, SaveState>,
-        read: String,
-    ) {
+    private fun SubscriptionSettingsViewModel.showsTheNextStudentsPastTheAnswer() {
+        showsTheNextStudents(listOf("Grants" to true))
+        val shownThen = seen()
         // The app's saves' answer to it.
         page.awaitSaves(1)
-        assertEquals("the answer left the page alone", before, seen())
-        assertEquals(emptyList<String>(), sentAsSecond())
-
-        page.onMain { toggleEnabled(0) }
-
-        showsTheNextStudents(listOf("Grants" to true), read)
+        assertEquals("the answer left the page alone", shownThen, seen())
+        assertEquals(listOf(V4_READ), sentAsSecond())
     }
 
     @Test
-    fun `on v4 a save across a sign-out leaves the page alone`() {
+    fun `on v4 a save across a sign-out leaves the next student's page alone`() {
         val vm = page.open(V4, "Scholarships")
         val put = page.backend.hold(V4_SAVE)
         page.onMain { vm.toggleEnabled(0) }
         put.awaitArrival()
-        val before = vm.seen()
 
         page.nextStudentSignsIn("Grants")
         put.release()
 
-        vm.leftAloneThenStartsOver(before, V4_READ)
+        vm.showsTheNextStudentsPastTheAnswer()
     }
 
     @Test
@@ -91,13 +84,12 @@ class SubscriptionsAcrossSignOutTest {
         page.onMain { vm.toggleEnabled(0) }
         put.awaitArrival()
         page.onMain { vm.toggleEnabled(1) }
-        val before = vm.seen()
 
         page.nextStudentSignsIn("Grants")
         put.release()
 
         // The first save's answer is handled, and the waiting save dropped, unsent.
-        vm.leftAloneThenStartsOver(before, V4_READ)
+        vm.showsTheNextStudentsPastTheAnswer()
         assertEquals(1, page.saves.probe.dropped.get())
         assertEquals(1, page.savesBegun())
         assertEquals(1, page.backend.sent(V4_SAVE).size)
@@ -111,19 +103,18 @@ class SubscriptionsAcrossSignOutTest {
         val put = page.backend.hold(V4_SAVE)
         page.onMain { vm.deleteRule(0) }
         put.awaitArrival()
-        val before = vm.seen()
 
         page.nextStudentSignsIn("Grants")
         put.release(503 to "{}")
 
-        vm.leftAloneThenStartsOver(before, V4_READ)
+        vm.showsTheNextStudentsPastTheAnswer()
     }
 
     /**
-     * The first student's save is still out when the next student signs in, edits the kept page,
-     * which reads their rules instead, and edits those. The first answer comes back after that:
-     * it leaves the page alone, and the next student's save carries their edited list whole.
-     * No save ever carries an empty list nobody made.
+     * The first student's save is still out when the next student signs in, and the kept page reads
+     * their rules, which they edit. The first answer comes back after that: it leaves the page
+     * alone, and the next student's save carries their edited list whole. No save ever carries an
+     * empty list nobody made.
      */
     @Test
     fun `on v4 a departed student's save answered after the next one's edit leaves that edit whole`() {
@@ -133,7 +124,6 @@ class SubscriptionsAcrossSignOutTest {
         put.awaitArrival()
         page.nextStudentSignsIn("Grants", "Talks")
         val secondIds = page.backend.clientIds(SECOND)
-        page.onMain { vm.toggleEnabled(0) }
         page.eventually("the page reads the second student's rules") {
             vm.state.value.loadState == LoadState.Loaded && vm.shown() == listOf("Grants" to true, "Talks" to true)
         }
@@ -152,9 +142,9 @@ class SubscriptionsAcrossSignOutTest {
     }
 
     /**
-     * The departed student's save is still out when the next student, on the kept page, reads
-     * their rules, edits them and reads them again: their save waits behind the departed one's,
-     * and the read keeps their newest list.
+     * The departed student's save is still out when the next student, on the kept page, which read
+     * their rules at their sign-in, edits them and reads them again: their save waits behind the
+     * departed one's, and the read keeps their newest list.
      */
     @Test
     fun `on v4 a read while the next student's save waits behind a departed one's keeps their newest list`() {
@@ -163,15 +153,15 @@ class SubscriptionsAcrossSignOutTest {
         page.onMain { vm.toggleEnabled(0) }
         put.awaitArrival()
         page.nextStudentSignsIn("Grants", "Talks")
-        page.onMain { vm.toggleEnabled(0) }
         page.eventually("the page reads the second student's rules") {
             vm.state.value.loadState == LoadState.Loaded && vm.shown() == listOf("Grants" to true, "Talks" to true)
         }
         page.onMain { vm.toggleEnabled(1) }
+        // Every read before this one has been answered, or cut short by the one after it.
+        val answered = page.onMain { vm.probe.answersHandled.get() }
 
         page.onMain { vm.load() }
-        // The first read, the second student's, and this one.
-        page.awaitAnswers(vm, 3)
+        page.awaitAnswers(vm, answered + 1)
 
         assertEquals("the read keeps the newest list", listOf("Grants" to true, "Talks" to false), vm.shown())
         put.release()
@@ -191,21 +181,30 @@ class SubscriptionsAcrossSignOutTest {
         vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
     }
 
+    /** Made before the page hears of the sign-out, which comes on its thread a moment later. */
     @Test
     fun `on v4 an edit of the rules a sign-out left on the page sends nothing`() {
         val vm = page.open(V4, "Scholarships", "Lectures")
-        page.nextStudentSignsIn("Grants")
-
-        val left = page.onMain {
+        val letGo = page.holdMain()
+        var left: List<Pair<String?, Boolean>>? = null
+        page.queueOnMain {
             vm.toggleEnabled(0)
             vm.deleteRule(1)
             vm.upsertRule(SubscriptionRule(name = "Lectures"), replacingIndex = null)
-            vm.shown()
+            left = vm.shown()
         }
+        page.nextStudentSignsIn("Grants", heard = false)
 
+        letGo()
+
+        page.eventually("the edits ran") { left != null }
         assertEquals("the first student's rules leave the page at the first edit", emptyList<Pair<String?, Boolean>>(), left)
-        vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
+        page.eventually("the page shows the second student's rules") {
+            vm.state.value.loadState == LoadState.Loaded && vm.shown() == listOf("Grants" to true)
+        }
+        // The edit and the sign-out and sign-in each start the page over, each reading anew.
         assertEquals(listOf(V4_READ), page.backend.routes().drop(1).distinct())
+        assertEquals(listOf(V4_READ), sentAsSecond().distinct())
     }
 
     /** Answered between the sign-out and the next sign-in: it writes nothing, and nothing more is asked. */
@@ -215,9 +214,10 @@ class SubscriptionsAcrossSignOutTest {
         val put = page.backend.hold(V4_SAVE)
         page.onMain { vm.toggleEnabled(0) }
         put.awaitArrival()
+        page.signOut()
+        page.eventually("the page has started over, with no one to read for") { vm.state.value.loadState is LoadState.Failed }
         val before = vm.seen()
 
-        page.manager.logout()
         put.release()
 
         page.awaitSaves(1)
