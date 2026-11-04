@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
+import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -72,6 +73,9 @@ class BackgroundPullRequestsTest {
     private lateinit var signIn: SignIn
     private lateinit var term: String
 
+    /** Runs as each request goes out, with its path, before the backend answers it. */
+    @Volatile private var duringRequest: ((String) -> Unit)? = null
+
     @Before
     fun setUp() {
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
@@ -83,7 +87,8 @@ class BackgroundPullRequestsTest {
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         // As the app builds its clients and queues, under /v4's rules for a write.
         val clock = SyncClock(SyncClockStore(context), prefs)
-        val client = appBackendClient(prefs, clock, backend.client, rules)
+        // The rules, behind whatever a test does as a request goes out.
+        val client = appBackendClient(prefs, clock, backend.client) { chain -> duringRequest?.invoke(chain.request().url.encodedPath); rules.intercept(chain) }
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client)
         rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS)).home
         settings = settingsSyncAt(context, w, client, idleScope)
@@ -256,6 +261,47 @@ class BackgroundPullRequestsTest {
             listOf("GET /sync/full | Bearer access-1 | null | ", MOVED_COLOR.replace("{key}", "client:$term:$COURSE")) + SETTINGS_PULL,
             sentSince(from),
         )
+    }
+
+    /**
+     * The color fill check parked to phase 3 (iOS, Telegram 1488): a color the background's pass
+     * sends, refused as ahead of the backend's clock, goes again only past the gate the first
+     * request passed, read again: course colors switched off while it was out, it is kept, unsent.
+     * Colors no longer ride the course upload on `/v4`, so this PATCH is the one way a fill goes.
+     */
+    @Test
+    fun `a color the background moved, refused as ahead once its switch went off, is kept and not sent again`() {
+        val first = Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = moodleId())
+        val second = Course(courseNo = OTHER, courseName = "Other", moodleIdNumber = "$term$OTHER")
+        runBlocking { w.dataCache.saveCourses(listOf(first, second), term, signIn) }
+        assertTrue(w.appPrefs.school.syncedCategories.set(setOf("course_colors"), signIn))
+        val snapshot = JSONObject(snapshot(rows = true)).put("server_hlc", 1_793_000_000_000_000L)
+            .put(
+                "courses",
+                JSONArray()
+                    .put(JSONObject().put("course_no", COURSE).put("course_name", "Kept").put("semester", term).put("moodle_id", moodleId()))
+                    .put(JSONObject().put("course_no", OTHER).put("course_name", "Other").put("semester", term).put("moodle_id", "$term$OTHER")),
+            )
+            .put(
+                "course_overrides",
+                JSONArray()
+                    .put(JSONObject().put("moodle_id", moodleId()).put("course_no", COURSE).put("semester", term).put("color_hex", "#123456"))
+                    .put(JSONObject().put("moodle_id", "$term$OTHER").put("course_no", OTHER).put("semester", term).put("color_hex", "#123456")),
+            )
+        backend.answer("GET /sync/full", 200, snapshot.toString())
+        val patch = "/v4/sync/courses/client:$term:$COURSE/override"
+        backend.answer("PATCH /sync/courses/client:$term:$COURSE/override", 409, syncFixture("v4/error-clock-ahead.json"))
+        // The student turns course colors off while the PATCH is out.
+        duringRequest = { path -> if (path == patch) w.appPrefs.syncCourseColors = false }
+        val from = backend.endpoints().size
+
+        assertEquals(ListenableWorker.Result.success(), runWorker())
+
+        assertEquals(
+            listOf("GET /sync/full | Bearer access-1 | null | ", MOVED_COLOR.replace("{key}", "client:$term:$COURSE")) + SETTINGS_PULL,
+            sentSince(from),
+        )
+        assertEquals("kept while its switch is off", 1, runBlocking { rig.overrides.heldFields() }.size)
     }
 
     private companion object {
