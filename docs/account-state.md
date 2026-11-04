@@ -12,6 +12,11 @@ has one list. A typed sign-in as another student runs that sign-out once the sch
 stores nothing until its wipe is done. School Mail's sign-out is `MailAccount.signOut()`, and the
 library's is `LibrarySession.signOut()`, each run only by `SignOutPlans`.
 
+The school account's edits that have yet to reach the backend wait in the outbox (`Outbox`), one
+channel per queue, each in its queue's own file or keys: their rows below say what clears them. The
+outbox is one of `SchoolStores.late`, so the school's sign-out also clears what its channels hold in
+memory, before DataCache's clearing takes the queue files.
+
 `AccountStateInventoryTest` reads the tables of stored state below and fails in these cases:
 
 - a store the app declares has no row: a SharedPreferences or DataStore file it opens, a key of
@@ -74,7 +79,7 @@ Scopes:
 | Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()`, which `SignOutPlans`' school `clearAccount` starts after the demo's exit |
 | Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()`, first of `SchoolStores.late`, in the wipe the school's sign-out starts; another student's sign-in empties it too (`accountDidSignIn`) |
 | Which courses take Moodle's default color, `noBackupFilesDir/moodle_course_colors.json`, and the `.tmp` a write a process death cut short left beside it | `MoodleColorStore.forgetAccount()` in `AccountSessionEffects.onSignedOut`; a sign-out a process death cut short is caught at the next load, which deletes a file whose owner (a hash of the student ID kept in it) is not the student signed in, or any file while signed out (`MoodleColorStore.ensureLoaded()`) |
-| What the outbox's channels hold in memory for the account: a parked edit's one more try in this process, the attempts counted for this process where a queue keeps none on disk, and the kind (hide or removal) of each course delete the class table told the course deletes. The edits themselves are in each queue's own file or keys, which their rows clear | `Outbox.forgetAccount()`, on `SchoolStores.late` before DataCache, whose clearing takes the queue files |
+| What the outbox and the pull hold in memory for the account: a parked edit's one more try in this process, and the attempts counted for this process where a queue keeps none on disk; the courses the last course upload left out as tombstoned, for the course overrides' parked changes (`CourseOverrideMemory`); each field's last acknowledged write, by the backend's clock, which a pull keeps this phone's value of over an older snapshot (`AckClock`, LWW D12); and whether this process has pulled for the sign-in (`FirstPullGate`). The edits themselves are in each queue's own file or keys, which their rows clear | `Outbox.forgetAccount()`, on `SchoolStores.late` before DataCache, whose clearing takes the queue files. The skipped courses, the acknowledgments and the gate are each in a `SignInBound`, which reads empty once its sign-in has ended |
 | A share link held for a sign-in, in memory | Nothing: `HeldShareLink` keeps it in a `SignInBound`, which reads empty once its sign-in has ended. So does `HomeSyncState.lastKnownRevision`, the watermark of the backend's change feed |
 | An upload a school or Moodle fetch derived, waiting in memory for this process's first pull | Nothing: `SchoolUploads` waits on `FirstPullGate`, which lets go of it at the sign-out's event, its sign-in ended, and the upload is dropped. The upload ledger never recorded it, so the next sign-in's fetch sends its own |
 | The demo account | `DemoAccount.exit()` in `SignOutPlans`' school `clearAccount`, after everything that must still see the demo |

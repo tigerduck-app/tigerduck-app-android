@@ -189,10 +189,11 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   each with today's stored string and the backend's `sync_*` name. A `when` on it has
   no `else`, so a new category does not compile until every rule answers for it.
 - `SyncPolicy` (`app/.../sync/SyncPolicy.kt`): whether a category keeps,
-  sends or applies, from the master switch, the flavor, the category switches, the
-  re-enable hold and last writer wins, read once through `SyncPolicies.current`. The
-  `sync-switch-read` ratchet counts lines naming a switch or the hold anywhere but
-  there and the files that store or send them.
+  sends or applies, from the master switch, the flavor, the category switches and the
+  re-enable hold, read once through `SyncPolicies.current`. The backend settles every
+  field by its stamp (last writer wins), so an edit is kept whatever its switches say
+  and sent once they are on. The `sync-switch-read` ratchet counts lines naming a switch
+  or the hold anywhere but there and the files that store or send them.
 - `SyncClock` (`app/.../sync/SyncClock.kt`): every edit's TigerSync stamp, in
   whole milliseconds, capped by the backend clock it last heard (`tigersync-clock`).
   `SyncClockTest` pins that spec's scenarios.
@@ -203,16 +204,23 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   `/v3` or `/v4` path segment in one, outside `ApiBase.kt`, and takes no baseline
   entries. `status-in-message` counts a status or error code searched for in a
   message.
-- `Outbox` (`app/.../sync/outbox/`, coming): every unsent edit, one lane per channel
-  with one request in flight, drained in a pinned order. The `sync-write` ratchet
-  counts calls of a backend sync write, and references to one (`client::deleteCourse`),
-  outside `push/`, `sync/` and the queues.
-- `Synchronizer`, with `FirstPullGate` and `RefreshOrder` (`app/.../sync/`, coming):
-  one full sync for Home and the background worker, its reconcilers in a pinned order;
-  nothing derived from school data goes up before a process's first pull; a refresh
-  applies the pull before the school's data, then pushes. The `full-sync-fetch` ratchet counts
-  calls of and references to `fetchFullSync` outside `SyncApiClient` and the `Synchronizer`, and the
-  reconciler and refresh order tests hold the orders.
+- `Outbox` and `OutboxLane` (`app/.../sync/outbox/`): every unsent edit, one lane per
+  channel with one request in flight, each edit stamped by `SyncClock` and, written by an
+  older build with no time, by its old-entry time (`OldEntryTime`), and each answer's clock
+  kept as its field's acknowledgment (`AckClock`). The six queues (`UnsentMarks`,
+  `PendingHolidayOverrides`, `PendingCourseOverrides`, `CourseIgnoreQueue`,
+  `PendingCourseAdds`, `PendingCourseDeletes`) keep their own files and register as
+  channels from them (`@IntoSet`); `OutboxTest` holds the drain order. The `sync-write`
+  ratchet counts calls of a backend sync write, and references to one
+  (`client::deleteCourse`), outside `push/`, `sync/` and the queues.
+- `Synchronizer`, with `FirstPullGate`, `SchoolUploads` and `RefreshOrder`
+  (`app/.../sync/`): one full sync for Home and the background worker, its reconcilers in
+  the order `Reconcilers` pins, each taking the snapshot field by field but what this phone
+  keeps (`SyncPass.holds`, `PullHolds`, LWW D12); nothing derived from school data goes up
+  before a process's first pull; a refresh applies the pull before the school's data, then
+  pushes. The `full-sync-fetch` ratchet counts calls of and references to `fetchFullSync`
+  outside `SyncApiClient` and the `Synchronizer`, and `SynchronizerOrderTest` and
+  `RefreshOrderTest` hold the orders.
 
 ## Greptile
 
