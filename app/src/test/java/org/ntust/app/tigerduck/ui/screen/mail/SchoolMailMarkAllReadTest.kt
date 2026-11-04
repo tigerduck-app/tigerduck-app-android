@@ -163,6 +163,23 @@ class SchoolMailMarkAllReadTest {
     }
 
     @Test
+    fun `a STORE refused partway has the list read the folder again, and show the server's flags`() {
+        val loads = repo.loadsSent.size
+        // The server marks 4 and 3 of the batch's 4, 3 and 1, then refuses.
+        repo.seenRefusedAfter = 2
+        vm.markAllRead()
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue("the folder was not read again", repo.loadsSent.size > loads)
+        assertEquals(
+            listOf(4L to true, 3L to true, 2L to true, 1L to false),
+            vm.state.value.displayed.map { it.uid to it.summary.flags.seen },
+        )
+        assertNotNull(vm.state.value.actionError)
+        assertEquals(emptySet<String>(), vm.state.value.writing)
+    }
+
+    @Test
     fun `each batch carries the UIDVALIDITY its mail was read under, and a folder recreated since marks nothing`() {
         repo.pageValidity = 2L
         vm.markAllRead()

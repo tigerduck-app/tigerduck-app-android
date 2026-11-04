@@ -110,6 +110,28 @@ class MailRepositorySeenBatchTest {
     }
 
     @Test
+    fun `a STORE refused once it was out tells the list to read the folder again, and guesses no mail read`() = runTest {
+        val (account, repo) = setUp(backgroundScope)
+        val uids = listOf(server.deliver("a"), server.deliver("b"), server.deliver("c"))
+        account.signIn("b10000001", "pw")
+        val signIn = account.signInNow
+        // The server marks the first two, then ends the STORE with a NO.
+        server.refuseSeenAfter = 2
+        val changes = mutableListOf<MailChange>()
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
+
+        val sent = runCatching { repo.setSeen(signIn, "INBOX", server.uidValidity, uids, seen = true) }
+        runCurrent()
+
+        assertTrue(sent.exceptionOrNull() is MailError.Protocol)
+        assertEquals(listOf(MailChange.Changed("INBOX", signIn)), changes)
+        // Read again, the folder shows what the server holds: the two the STORE reached, read.
+        server.refuseSeenAfter = null
+        val page = repo.loadPage("INBOX", null)
+        assertEquals(uids.take(2).toSet(), page.messages.filter { it.flags.seen }.map { it.uid }.toSet())
+    }
+
+    @Test
     fun `a batch larger than one STORE names goes in parts, each as it lands`() = runTest {
         val (account, repo) = setUp(backgroundScope)
         val uids = (1..MailRepository.SEEN_STORE_UIDS + 1).map { server.deliver("m$it") }

@@ -403,11 +403,25 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         seenError?.let { throw it }
         if (!signIn.isCurrent) throw MailError.Abandoned()
         refuseUnder(uidValidity)
+        seenRefusedAfter?.let { landed -> refusePartway(signIn, folder, uids.take(landed), seen) }
         record(SeenBatch(signIn, folder, uidValidity, uids, seen))
     }
 
     /** Set for a folder, its batch waits on it once it holds the connection, as [seenGate] holds every one. */
     val seenFolderGates = mutableMapOf<String, CompletableDeferred<Unit>>()
+
+    /**
+     * Set, a batch's STORE marks this many of its mail on the server and is then refused, as a
+     * tagged NO after some FETCH answers: as the real repository, the list is told only to read the
+     * folder again, and nothing of which mail landed.
+     */
+    var seenRefusedAfter: Int? = null
+
+    private suspend fun refusePartway(signIn: SignIn, folder: String, landed: List<Long>, seen: Boolean) {
+        landed.forEach { uid -> update(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) } }
+        _changes.emit(MailChange.Changed(folder, signIn))
+        throw MailError.Protocol("STORE refused partway")
+    }
 
     private suspend fun record(batch: SeenBatch) {
         foldersTouched += batch.folder

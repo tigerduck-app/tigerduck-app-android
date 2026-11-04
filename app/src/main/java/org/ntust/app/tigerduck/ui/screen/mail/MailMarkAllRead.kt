@@ -22,13 +22,14 @@ import org.ntust.app.tigerduck.shared.account.SignIn
  * still to go as they are, on the list as on the server.
  *
  * @param hold holds the keys it is given, and answers what lets them go again.
- * @param failed what a refusal under the sign-in is told as.
+ * @param failed what a refusal under the sign-in is told as, with the folder whose batch it ended,
+ *   which the list reads again where the STORE may have marked some of its mail.
  */
 internal class MailMarkAllRead(
     private val scope: CoroutineScope,
     private val repository: SchoolMailRepository,
     private val hold: (Set<String>) -> ((Set<String>) -> Unit),
-    private val failed: (MailError, SignIn) -> Unit,
+    private val failed: (MailError, SignIn, Collection<String>) -> Unit,
 ) {
     private var running: Job? = null
 
@@ -43,8 +44,10 @@ internal class MailMarkAllRead(
         val held = batches.values.flatten().mapTo(HashSet()) { it.key }
         val release = hold(held.toSet())
         running = scope.launch {
+            var sending: String? = null
             try {
                 for ((at, rows) in batches) {
+                    sending = at.first
                     repository.setSeen(signIn, at.first, at.second, rows.map { it.uid }, seen = true)
                     val landed = rows.mapTo(HashSet()) { it.key }
                     held -= landed
@@ -53,7 +56,7 @@ internal class MailMarkAllRead(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failed(MailErrors.classify(e), signIn)
+                failed(MailErrors.classify(e), signIn, listOfNotNull(sending))
             } finally {
                 release(held.toSet())
             }

@@ -448,32 +448,30 @@ class MailRepository @Inject constructor(
         for (part in uids.distinct().chunked(SEEN_STORE_UIDS)) storeSeen(signIn, folder, uidValidity, part, seen)
     }
 
-    /**
-     * One `UID STORE` of [setSeen]'s, told to the lists once it lands: a later one refused leaves
-     * this one's mail on the list as it now is on the server.
-     */
+    /** One `UID STORE` of [setSeen]'s, told to the lists as it lands, before the next part goes. */
     private suspend fun storeSeen(signIn: SignIn, folder: String, uidValidity: Long?, uids: List<Long>, seen: Boolean) {
         if (account.isDemo) {
             if (!signIn.isCurrent) throw MailError.Abandoned()
             uids.forEach { uid -> demoUpdate(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) } }
         } else {
-            // The credentials of [signIn]'s own account, read with it, and off the caller's thread,
-            // as they decrypt the password: another student's, signed in since, are never used.
+            // [signIn]'s own credentials, read with it off the caller's thread: never a later student's.
             val owner = withContext(Dispatchers.IO) { account.snapshot() }?.takeIf { it.signIn == signIn }
                 ?: throw MailError.Abandoned()
+            var asked = false
             try {
                 withSession({ signIn.isCurrent }, owner) { session ->
+                    asked = true
                     session.setSeen(folder, uids, seen, uidValidity)
                     writerOfIndex(signIn)?.let { markSeenInIndex(it, folder, uids, seen, uidValidity) }
                 }
-            } catch (e: MailError.FolderChanged) {
-                // Nothing was sent; the list holds rows of a mailbox the server has replaced.
-                changed(MailChange.Changed(folder, signIn))
+            } catch (e: MailError) {
+                // A folder recreated, or a STORE refused or cut off once out, which may have marked
+                // some of the mail: the list, and the cache with it, reads the folder again, no guess.
+                if (e is MailError.FolderChanged || asked) changed(MailChange.Changed(folder, signIn))
                 throw e
             }
-            val marked = uids.toSet()
             updateCached(folder, uidValidity, { signIn.isCurrent }) { s ->
-                if (s.uid in marked) s.copy(flags = s.flags.copy(seen = seen)) else s
+                if (s.uid in uids) s.copy(flags = s.flags.copy(seen = seen)) else s
             }
         }
         uids.forEach { changed(MailChange.Seen(folder, it, seen, signIn)) }

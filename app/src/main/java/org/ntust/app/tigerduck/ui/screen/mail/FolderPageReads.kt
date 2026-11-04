@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import org.ntust.app.tigerduck.mail.MailError
+import org.ntust.app.tigerduck.mail.SearchOutcome
 import org.ntust.app.tigerduck.mail.imap.FolderSelection
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailRow
@@ -86,3 +87,10 @@ internal val NewestFirst: Comparator<MailRow> =
     compareByDescending<MailRow> { it.summary.sentAt ?: it.summary.receivedAt ?: Instant.MIN }
         .thenBy { it.folder }
         .thenByDescending { it.uid }
+
+/** The UIDVALIDITY the outcome's matches were read under, or null where nothing said. */
+internal val SearchOutcome.version: Long?
+    get() = when (this) {
+        is SearchOutcome.Server -> uidValidity
+        is SearchOutcome.LoadedOnly -> uidValidity
+    }

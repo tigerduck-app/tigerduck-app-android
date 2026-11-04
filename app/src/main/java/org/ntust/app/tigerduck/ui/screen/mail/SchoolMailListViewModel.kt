@@ -279,13 +279,6 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private var unfetchedMatches: Map<String, UnfetchedMatches> = emptyMap()
 
-    /** The UIDVALIDITY the outcome's matches were read under, or null where nothing said. */
-    private val SearchOutcome.version: Long?
-        get() = when (this) {
-            is SearchOutcome.Server -> uidValidity
-            is SearchOutcome.LoadedOnly -> uidValidity
-        }
-
     /** A folder's matches still to fetch, and the UIDVALIDITY they were found under ([SearchOutcome.Server.uidValidity]). */
     private data class UnfetchedMatches(val uidValidity: Long?, val uids: List<Long>)
 
@@ -708,17 +701,24 @@ class SchoolMailListViewModel @Inject constructor(
             try {
                 repository.setSeen(signIn, row.folder, row.uidValidity, listOf(row.uid), seen)
             } catch (e: MailError) {
-                // One swipe that didn't stick is not the page failing: the list on screen is
-                // exactly as good as it was a moment ago. Nor is it the next student's to see,
-                // once one has signed in over this one ([dropped]).
-                if (!dropped(e, signIn)) actionFail(e, signIn)
+                seenFailed(e, signIn, listOf(row.folder))
             }
         }
     }
 
-    private val markingAll = MailMarkAllRead(viewModelScope, repository, ::hold) { e, signIn ->
-        if (!dropped(e, signIn)) actionFail(e, signIn)
+    /**
+     * A mark-read of [folders] that failed, said once but never to the next student ([dropped]). A STORE
+     * refused or cut off once out may have marked some of it, so the folders on screen are read again.
+     */
+    private fun seenFailed(e: MailError, signIn: SignIn, folders: Collection<String>) {
+        if (dropped(e, signIn)) return
+        actionFail(e, signIn)
+        if (e is MailError.AuthFailed || e is MailError.Certificate || e is MailError.FolderChanged) return
+        folders.forEach { staleFolders[it] = changeSeq }
+        loadIfNeeded()
     }
+
+    private val markingAll = MailMarkAllRead(viewModelScope, repository, ::hold, ::seenFailed)
 
     /** The filter's Mark all as read, a batch of each folder at a time: see [MailMarkAllRead]. */
     fun markAllRead() = markingAll.start(account.currentSignIn, _state.value)

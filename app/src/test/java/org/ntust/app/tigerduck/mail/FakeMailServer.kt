@@ -73,6 +73,9 @@ class FakeMailServer {
     /** Fires inside a STORE of the seen flag, before it takes: a test acts while a mark-read is on the server. */
     var onSetSeen: (() -> Unit)? = null
 
+    /** Set, a STORE of the seen flag marks this many of the mail it names, then is refused, as a NO after some FETCHes. */
+    var refuseSeenAfter: Int? = null
+
     /** One `UID STORE` of the seen flag as it landed: whose login sent it, and which mail it named. */
     data class SeenStore(val login: String, val folder: String, val uids: List<Long>, val seen: Boolean)
 
@@ -194,8 +197,10 @@ class FakeMailServer {
         override fun setSeen(folder: String, uids: List<Long>, seen: Boolean, uidValidity: Long?) = call {
             refuseUnder(uidValidity)
             onSetSeen?.invoke()
+            val landed = refuseSeenAfter?.let { uids.take(it) } ?: uids
+            list(folder).filter { it.summary.uid in landed }.forEach { it.summary = it.summary.copy(flags = it.summary.flags.copy(seen = seen)) }
+            if (landed.size < uids.size) throw MailError.Protocol("NO STORE refused partway")
             seenStores += SeenStore(login, folder, uids, seen)
-            list(folder).filter { it.summary.uid in uids }.forEach { it.summary = it.summary.copy(flags = it.summary.flags.copy(seen = seen)) }
         }
 
         override fun setAnswered(folder: String, uid: Long) = call {
