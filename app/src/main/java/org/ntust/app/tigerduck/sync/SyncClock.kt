@@ -106,8 +106,13 @@ class SyncClock internal constructor(
      * below that stamp would lose to it (last writer wins: ties and older lose), and the student's
      * newer value would revert (Codex on PR P); so would one below another device's edit this phone
      * has seen. A value seen was at most the backend's time plus five seconds when it was stored, so
-     * the restamp stays within the refusal's clock plus five seconds, but by a millisecond at the
-     * edge, when the backend refuses it once more, and the channels send it at the next sync.
+     * the restamp stays within the refusal's clock plus five seconds. A floor past that, which the
+     * backend could take no stamp above now, is no stamp it stored: a clock it reported ahead once
+     * and corrected since, which would keep every restamp refused. It counts for nothing (Codex on
+     * PR P, round 2). One at the edge itself, the refusal's clock plus five seconds to the ms, may be
+     * a stamp stored as the refusal came: it still counts, the restamp a millisecond past it is
+     * refused once, and the channel sends it at the next sync, when the backend's clock has moved on,
+     * rather than send one at or below that stamp, which would be taken and lose.
      *
      * Null, with nothing heard or changed, when [refused], the refused request, went to a backend
      * the endpoint has moved off since: its clock is that backend's, and its write goes no further.
@@ -122,8 +127,11 @@ class SyncClock internal constructor(
     private fun restamp(serverClockUs: Long?, refused: HttpUrl?): Long {
         val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return stampMs()
         heard(refusedAt, refused)
-        // In whole ms, strictly past each value in µs: the refusal's clock, and the last value seen.
-        val stamp = maxOf(Math.floorDiv(refusedAt, 1_000L), lastRestampMs, Math.floorDiv(state().lastSeenUs, 1_000L)) + 1
+        // In whole ms, strictly past each value in µs: the refusal's clock, and each floor the backend
+        // could have stored, at most its clock plus five seconds: the last restamp, the last value seen.
+        val refusedMs = Math.floorDiv(refusedAt, 1_000L)
+        val floors = listOf(lastRestampMs, Math.floorDiv(state().lastSeenUs, 1_000L)).filter { it <= refusedMs + SyncClockState.SKEW_ALLOWED_MS }
+        val stamp = maxOf(refusedMs, floors.maxOrNull() ?: 0L) + 1
         lastRestampMs = stamp
         val state = state()
         // Below the last value issued, as it is for an edit stamped ahead, it leaves that alone.
