@@ -21,7 +21,10 @@ import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.LookedUpCourse
+import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
+import org.ntust.app.tigerduck.push.TombstoneKind
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermFetch
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermSource
@@ -56,20 +59,22 @@ class CourseSyncDropsTest {
         rows: List<ServerCourse>,
         selectionDropped: Set<String> = emptySet(),
         tombstones: Set<String> = emptySet(),
+        tombstoneNos: Set<String> = emptySet(),
         serverKnown: Set<String> = local.mapTo(mutableSetOf()) { it.courseNo },
         answer: SelectionAnswer? = null,
         fetchedAtMs: Long = 0L,
-    ) = CourseSyncReconciler.reconcileSemester(
+    ) = CourseMembership.reconcileTerm(
         semester = TERM,
         localCourses = local,
         serverRows = rows,
-        tombstoneNos = emptySet(),
-        tombstones = tombstones,
+        tombstones = tombstoneNos.map { CourseTombstone("client:$TERM:$it", it, TERM, deletedAt = "", hlc = 1L, kind = TombstoneKind.HIDE) },
+        hides = tombstones,
+        keeps = { false },
         serverKnownNos = serverKnown,
         selectionDroppedNos = selectionDropped,
         answer = answer,
         fetchedAtMs = fetchedAtMs,
-    )
+    ).outcome
 
     /** [ms] as the backend writes a row's `updated_at`. */
     private fun iso(ms: Long) = java.time.Instant.ofEpochMilli(ms).atOffset(java.time.ZoneOffset.UTC).toString()
@@ -125,6 +130,8 @@ class CourseSyncDropsTest {
             local = listOf(fetched(ENROLLED), fetched(FETCHED), addedHere(ADDED), mergedCopy(MERGED)),
             rows = rowsAfterARoster,
             tombstones = setOf("$TERM:$ELSEWHERE"),
+            // Hidden here, and its hide held by a tombstone of the snapshot's.
+            tombstoneNos = setOf(ELSEWHERE),
         )
 
         assertEquals(setOf("$TERM:$ELSEWHERE"), out.tombstones)
@@ -342,7 +349,7 @@ class CourseSyncDropsTest {
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         overrides = PendingCourseOverrides(
             cache,
-            { _, _, _, _, _, _, _ -> false },
+            { _, _, _, _ -> WriteAnswer.NOT_SENT },
             records = { true },
             sends = { false },
         )
@@ -359,24 +366,26 @@ class CourseSyncDropsTest {
         try {
             val localCourses = cache.loadCourses(TERM)
             val stored = cache.loadDeletedCourseNos()
-            val outcome = CourseSyncReconciler.reconcileSemester(
+            val membership = CourseMembership.reconcileTerm(
                 semester = TERM,
                 localCourses = localCourses,
                 serverRows = rows.toList(),
-                tombstoneNos = emptySet(),
-                tombstones = stored,
+                tombstones = emptyList(),
+                hides = stored,
+                keeps = { false },
                 serverKnownNos = cache.loadServerKnownNos()[TERM].orEmpty().toSet(),
                 selectionDroppedNos = cache.loadSelectionDroppedNos()[TERM].orEmpty().toSet(),
                 answer = cache.selectionAnswerIn(TERM),
                 fetchedAtMs = fetchedAtMs,
             )
+            val outcome = membership.outcome
             cache.recordServerDrops(TERM, outcome.serverDrops, testSignIn())
             beforeCommit()
             cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()), testSignIn())
             val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
             commitReconciledTerm(
                 cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left,
-                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn(),
+                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn(), membership.gone,
             )
         } finally {
             cache.endCourseSync(courseSync)

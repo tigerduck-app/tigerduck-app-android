@@ -253,8 +253,10 @@ class BackgroundPullRequestsTest {
         val first = Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = moodleId())
         val second = Course(courseNo = OTHER, courseName = "Other", moodleIdNumber = "$term$OTHER")
         runBlocking { w.dataCache.saveCourses(listOf(first, second), term, signIn) }
+        // Colors have synced here before, so the background takes the snapshot's (LWW D13, C2).
+        assertTrue(w.appPrefs.school.syncedCategories.set(setOf("course_colors"), signIn))
         // An older build left both on one color: the later pick, by course number, keeps it.
-        val snapshot = JSONObject(snapshot(rows = true))
+        val snapshot = JSONObject(snapshot(rows = true)).put("server_hlc", 1_793_000_000_000_000L)
             .put(
                 "courses",
                 JSONArray()

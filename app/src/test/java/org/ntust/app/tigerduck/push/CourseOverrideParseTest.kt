@@ -4,7 +4,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.ui.screen.home.StampedCourseOverrides
 
 /** The `course_overrides` of `GET /sync/full`, from an older backend and a current one. */
 class CourseOverrideParseTest {
@@ -86,13 +86,13 @@ class CourseOverrideParseTest {
         )
 
         val overrides = parseCourseOverrides(json, emptyMap())
-        val merged = CourseSyncReconciler.mergeCustomNames(
+        val merged = StampedCourseOverrides.names(
             existing = mapOf(
                 "CS1001301" to mapOf("zh-TW" to "微積分", "en" to "Calculus"),
                 "CS1001302" to mapOf("zh-TW" to "物理"),
             ),
             overrides = overrides,
-            syncNames = true,
+            held = emptySet(),
         )
 
         assertEquals(mapOf("zh-TW" to "", "en" to "Calc"), overrides[0].customNames)
