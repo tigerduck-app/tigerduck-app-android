@@ -195,6 +195,7 @@ fun HomeScreen(
         onAdd = { showAddSectionDialog = true },
         onDone = editing::finish,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        menu = rememberHomeMenu(onEdit = editing::start),
     ) { padding ->
         HomePage(
             sections = visibleSections,
@@ -287,7 +288,6 @@ fun HomeScreen(
             onKeepServer = { viewModel.resolveSyncConflicts(keepLocal = false) },
         )
     }
-
 }
 /**
  * Home's page under its pull to refresh: [header], [banner] when there is one, and [sections],
