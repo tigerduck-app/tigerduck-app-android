@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.network.backend
 import android.content.Context
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -11,7 +10,6 @@ import org.ntust.app.tigerduck.network.canonicalBackend
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
-import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -225,14 +223,13 @@ class ApiBaseTest {
     }
 
     @Test
-    fun `a setting ending in v3 takes every v4 rule, last writer wins and the clock's stamps`() {
+    fun `a setting ending in v3 takes the clock's stamps`() {
         val context = JvmContext()
         val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://api.example.test/v3" }
         val clock = SyncClock(SyncClockStore(context.getSharedPreferences("tigerduck_sync_clock", Context.MODE_PRIVATE)), prefs)
         val ahead = System.currentTimeMillis() + 3_600_000
         clock.heardInSnapshot(ahead * 1_000)
 
-        assertTrue(SyncPolicies(prefs).current.lastWriterWins)
         // Not the wall clock, as /v3's stamp was: never below the backend's clock as last seen.
         assertEquals(ahead + 1, clock.stampMs())
     }

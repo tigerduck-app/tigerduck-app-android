@@ -37,13 +37,12 @@ class SchoolKeys internal constructor(
 
     /**
      * Whether a full sync has taken the signed-in account's assignment marks
-     * on this phone, or sent them up as its first sync, so that from now on a
-     * server holding no marks is the truth — see
-     * `AssignmentOverrideReconciler.isFirstUpload`. False on an install that
-     * predates it, which therefore runs that first sync once more. Cleared at
-     * sign-out by [AppPreferences.clearSyncStamps]. Turning sync off keeps it:
-     * turning it back on marks the category for the re-enable check, and syncs
-     * leave the marks alone until that is settled.
+     * on this phone, or an older build sent them up as its first sync, so the
+     * marks have synced here before (LWW D13): no first sync queues them as
+     * the oldest again. Cleared at sign-out by [AppPreferences.clearSyncStamps].
+     * Turning sync off keeps it: turning it back on marks the category for
+     * the re-enable check, and syncs leave the marks alone until that is
+     * settled.
      */
     val assignmentMarksSyncedOnce = AccountKey(
         read = { prefs.getBoolean("assignmentMarksSyncedOnce", false) },
@@ -52,11 +51,11 @@ class SchoolKeys internal constructor(
     )
 
     /**
-     * The server's `courses_reset_at` as the last full sync read it, for the
-     * next one to tell a new reset from one already applied; empty once a
-     * sync found none, and null before the signed-in account's first sync
-     * here — see `CourseSyncReconciler.coursesReset`. Cleared at sign-out by
-     * [AppPreferences.clearSyncStamps].
+     * The server's `courses_reset_at` as an older build's last full sync read
+     * it, to tell a new reset from one already applied. Nothing reads it any
+     * more: a reset's tombstones take the courses it cleared, field by field
+     * (LWW D10). Kept so a sign-out still clears what an older build stored
+     * ([AppPreferences.clearSyncStamps]).
      */
     val lastSeenCoursesResetAt = AccountKey<String?>(
         read = { prefs.getString("lastSeenCoursesResetAt", null) },

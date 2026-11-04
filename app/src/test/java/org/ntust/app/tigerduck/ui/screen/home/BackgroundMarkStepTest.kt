@@ -5,46 +5,44 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.cache.AssignmentMarks
+import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.push.BackendSyncResult
-import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_COMPLETED
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
- * The background worker's mark step ([BackgroundMarkStep]): it takes the
- * server's marks only while the Assignments switch stays on and no tap has
- * changed this phone's marks since it read them (Greptile on #306).
+ * The background worker's mark step ([BackgroundMarkStep]): it takes the server's marks only while
+ * the Assignments switch stays on, decided in the write's own step (Greptile on #306).
  */
 class BackgroundMarkStepTest {
 
     private var switchOn = true
     private var pending = emptySet<String>()
-    private var syncedBefore = true
     private var ignored = emptySet<String>()
     private var completed = emptySet<String>()
-    private var version = 0
     private var writes = 0
     private var unsent = emptyMap<String, String>()
 
-    /** Runs as the step reads the waiting marks, for a change made meanwhile. */
+    /** Runs as the store reads the waiting marks, for a change made meanwhile. */
     private var onUnsentRead: () -> Unit = {}
+
+    private val holds = PullHolds(1L, AckClock())
 
     private val step = BackgroundMarkStep(
         switchOn = { switchOn },
         pendingConflicts = { pending },
-        syncedBefore = { syncedBefore },
-        marksVersion = { version },
-        store = object : AssignmentMarkStep.MarkStore {
-            override suspend fun ignored() = ignored
-            override suspend fun completed() = completed
-            override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
-                writes++
-                version++
-                this@BackgroundMarkStepTest.ignored = ignored
-                this@BackgroundMarkStepTest.completed = completed
+        // As DataCache.updateAssignmentMarks: the marks and those waiting read in one step, written only when changed.
+        store = AssignmentMarkStep.MarkStore { _, change ->
+            val waiting = unsent.map { (id, status) -> UnsentMark(id, status) }.also { onUnsentRead() }
+            val stored = AssignmentMarks(ignored, completed)
+            change(stored, waiting).also {
+                if (it != stored) writes++
+                ignored = it.ignored
+                completed = it.completed
             }
         },
-        unsent = { unsent.also { onUnsentRead() } },
     )
 
     private fun server(ignored: Set<String> = emptySet()) = BackendSyncResult(
@@ -57,7 +55,7 @@ class BackgroundMarkStepTest {
 
     @Test
     fun `the server's marks are taken`() = runTest {
-        val outcome = step.pull(server(ignored = setOf("1")), testSignIn())
+        val outcome = step.pull(server(ignored = setOf("1")), testSignIn(), holds, syncedBefore = true)
 
         assertTrue(outcome.taken)
         assertTrue(outcome.changed)
@@ -69,80 +67,24 @@ class BackgroundMarkStepTest {
         completed = setOf("2")
         onUnsentRead = { switchOn = false }
 
-        val outcome = step.pull(server(ignored = setOf("1")), testSignIn())
+        val outcome = step.pull(server(ignored = setOf("1")), testSignIn(), holds, syncedBefore = true)
 
         assertFalse(outcome.taken)
         assertEquals(0, writes)
         assertEquals(setOf("2"), completed)
-    }
-
-    @Test
-    fun `a tap made since the marks were read stops the write, for the next sync to merge`() = runTest {
-        onUnsentRead = {
-            // Marked done on Home meanwhile.
-            completed = setOf("2")
-            version++
-        }
-
-        val outcome = step.pull(server(ignored = setOf("1")), testSignIn())
-
-        assertFalse(outcome.taken)
-        assertEquals(setOf("2"), completed)
-    }
-
-    @Test
-    fun `a waiting mark keeps the status its tap set`() = runTest {
-        unsent = mapOf("3" to STATUS_COMPLETED)
-
-        step.pull(server(ignored = setOf("3")), testSignIn())
-
-        assertEquals(setOf("3"), completed)
-        assertEquals(emptySet<String>(), ignored)
     }
 
     @Test
     fun `with the switch off, the check pending or a first sync nothing is written`() = runTest {
         switchOn = false
-        assertFalse(step.pull(server(ignored = setOf("1")), testSignIn()).taken)
+        assertFalse(step.pull(server(ignored = setOf("1")), testSignIn(), holds, syncedBefore = true).taken)
         switchOn = true
         pending = setOf("assignments")
-        assertFalse(step.pull(server(ignored = setOf("1")), testSignIn()).taken)
+        assertFalse(step.pull(server(ignored = setOf("1")), testSignIn(), holds, syncedBefore = true).taken)
         pending = emptySet()
-        syncedBefore = false
         ignored = setOf("9")
-        assertFalse(step.pull(server(), testSignIn()).taken)
+        assertFalse(step.pull(server(), testSignIn(), holds, syncedBefore = false).taken)
 
         assertEquals(0, writes)
-    }
-
-    /**
-     * A tap saved after the step checked the marks' version and before its write: the write's own
-     * step reads the marks again and, finding them moved, takes nothing, so the tap stays and the
-     * next sync merges it.
-     */
-    @Test
-    fun `a tap saved between the version check and the write leaves the marks to the next sync`() = runTest {
-        var reads = 0
-        val racing = BackgroundMarkStep(
-            switchOn = { switchOn },
-            pendingConflicts = { pending },
-            syncedBefore = { syncedBefore },
-            marksVersion = { version },
-            store = object : AssignmentMarkStep.MarkStore {
-                // The step's read is the first; the second is its write's own, after the tap's save.
-                override suspend fun ignored() = if (++reads == 2) ignored + "9" else ignored
-                override suspend fun completed() = completed
-                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
-                    this@BackgroundMarkStepTest.ignored = ignored
-                    this@BackgroundMarkStepTest.completed = completed
-                }
-            },
-            unsent = { unsent },
-        )
-
-        val outcome = racing.pull(server(ignored = setOf("1")), testSignIn())
-
-        assertFalse(outcome.taken)
-        assertEquals(setOf("9"), ignored)
     }
 }

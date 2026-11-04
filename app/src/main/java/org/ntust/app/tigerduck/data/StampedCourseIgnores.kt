@@ -8,11 +8,11 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncField
 
 /**
- * A `/v4` pull's ignored courses, course by course (LWW D12, [CourseIgnoreReconciler.stamped]),
- * for [CourseIgnoreSync.applySnapshot]. Decided and written under [mutex], the lock every write of
+ * A pull's ignored courses, course by course (LWW D12, [CourseIgnoreReconciler.stamped]), for
+ * [CourseIgnoreSync.applySnapshot]. Decided and written under [mutex], the lock every write of
  * the ignored courses and of the changes waiting takes, with the waiting changes read there: a tap
  * kept after the pull's other reads is kept here too. Nothing is resent and no rows are recorded:
- * those were `/v3`'s ways to guess what the backend had lost.
+ * the snapshot's stamps say what the backend holds.
  */
 internal class StampedCourseIgnores(
     private val dataCache: DataCache,

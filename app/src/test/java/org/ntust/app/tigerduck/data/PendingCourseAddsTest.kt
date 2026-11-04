@@ -92,9 +92,10 @@ class PendingCourseAddsTest {
         assertEquals(mapOf(term to listOf("MA1010002")), cache.loadPendingCourseAdds())
 
         answer = { listOf("MA1010002") }
-        adds.retry(signIn)
+        adds.drain(signIn)
 
-        assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002")), uploads.last())
+        // Asked with no moment, it goes with its old-entry time, none known here: 0, the oldest (X1).
+        assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002"), addedAt = mapOf("MA1010002" to 0L)), uploads.last())
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 
@@ -114,7 +115,7 @@ class PendingCourseAddsTest {
         assertEquals(mapOf(term to mapOf("MA1010002" to 5_000L)), cache.loadPendingCourseAddTimes())
 
         answer = { listOf("MA1010002") }
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         assertEquals(mapOf("MA1010002" to 5_000L), uploads.last().addedAt)
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -174,18 +175,6 @@ class PendingCourseAddsTest {
         assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
     }
 
-    /** One an older install kept has no moment: it goes as it did, unstamped. */
-    @Test
-    fun `an add kept with no moment goes unstamped, as before`() = runTest {
-        cache.saveCourses(listOf(portal, typed), term, testSignIn())
-        cache.savePendingCourseAdds(mapOf(term to listOf("MA1010002")), signIn)
-        answer = { listOf("MA1010002") }
-
-        adds.retry(signIn)
-
-        assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002")), uploads.single())
-    }
-
     /**
      * A full sync for an account that has since signed out runs under the sign-in it began
      * with; the snapshot it brings back lists that account's courses, and must not take the
@@ -214,7 +203,7 @@ class PendingCourseAddsTest {
 
         answer = { throw PushApiException("uploadCourses failed: HTTP 500") }
         adds.send(listOf(typed), term, typed.courseNo, signIn = signIn)
-        adds.retry(signIn)
+        adds.drain(signIn)
         assertEquals(mapOf(term to listOf("MA1010002")), cache.loadPendingCourseAdds())
     }
 
@@ -229,13 +218,8 @@ class PendingCourseAddsTest {
         assertEquals(mapOf(term to listOf("MA1010002", "PE1010003")), cache.loadPendingCourseAdds())
 
         answer = { listOf("PE1010003") }
-        adds.retry(signIn)
+        adds.drain(signIn)
         assertEquals(mapOf(term to listOf("MA1010002")), cache.loadPendingCourseAdds())
-
-        // Nothing sent, course sync being off: the re-enable check answers for it.
-        answer = { null }
-        adds.retry(signIn)
-        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 
     @Test
@@ -250,7 +234,7 @@ class PendingCourseAddsTest {
             beforeHeader = {}
             signOut()
         }
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         assertEquals(emptyList<Upload>(), uploads.filter { it.account == 2 })
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -271,7 +255,7 @@ class PendingCourseAddsTest {
             events += "upload"
             listOf("MA1010002")
         }
-        val retry = launch { adds.retry(signIn) }
+        val retry = launch { adds.drain(signIn) }
         sending.await()
         // Deleted by hand meanwhile: off this phone, then off the server.
         cache.saveCourses(emptyList(), term, testSignIn())
@@ -299,10 +283,10 @@ class PendingCourseAddsTest {
             landed.await()
             listOf("MA1010002")
         }
-        val first = launch { adds.retry(signIn) }
+        val first = launch { adds.drain(signIn) }
         sending.await()
         // Read the add while it still waited, then queued behind the upload under way.
-        val second = launch { adds.retry(signIn) }
+        val second = launch { adds.drain(signIn) }
         runCurrent()
         answer = { listOf("MA1010002") }
         landed.complete(Unit)
@@ -322,7 +306,7 @@ class PendingCourseAddsTest {
         uploads.clear()
 
         answer = { listOf("MA1010002") }
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         assertEquals(emptyList<Upload>(), uploads)
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -352,7 +336,7 @@ class PendingCourseAddsTest {
         assertEquals(emptySet<String>(), adds.waitingIn("1142"))
 
         answer = { listOf("MA1010002") }
-        adds.retry(signIn)
+        adds.drain(signIn)
         assertEquals(emptySet<String>(), adds.waitingIn(term))
     }
 
@@ -371,7 +355,7 @@ class PendingCourseAddsTest {
 
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
         answer = { emptyList() }
-        adds.retry(signIn)
+        adds.drain(signIn)
         assertEquals(emptyList<Upload>(), uploads)
     }
 
@@ -384,7 +368,7 @@ class PendingCourseAddsTest {
         uploads.clear()
 
         answer = { emptyList() }
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         assertEquals(emptyList<Upload>(), uploads)
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -427,7 +411,7 @@ class PendingCourseAddsTest {
         val times = cache.loadPendingCourseAddTimes()
 
         val ended = series.end()
-        adds.retry(ended)
+        adds.drain(ended)
         adds.send(listOf(typed), term, "PH1010003", addedAt = 2L, signIn = ended)
         adds.listed(listOf(row("MA1010002")), ended)
         adds.forgetAll(ended)
@@ -447,14 +431,14 @@ class PendingCourseAddsTest {
         cache.saveCourses(listOf(added), term, testSignIn())
         answer = { throw IOException("offline") }
         adds.send(listOf(added), term, added.courseNo, signIn = signIn)
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         adds.listed(listOf(row(added.courseNo, source = "ntust_portal", status = "dropped")), signIn)
         assertEquals(mapOf(term to listOf(added.courseNo)), cache.loadPendingCourseAdds())
 
         answer = { listOf(added.courseNo) }
-        adds.retry(signIn)
-        assertEquals(Upload(listOf(added.courseNo), term, listOf("client:$term:${added.courseNo}")), uploads.last())
+        adds.drain(signIn)
+        assertEquals(Upload(listOf(added.courseNo), term, listOf("client:$term:${added.courseNo}"), addedAt = mapOf(added.courseNo to 0L)), uploads.last())
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 

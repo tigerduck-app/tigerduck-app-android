@@ -807,8 +807,8 @@ class DataCache @Inject constructor(
     // Until a snapshot fetched since lists a course brought back, its
     // absence there is no delete elsewhere: Home's fetch uploads nothing, and
     // the class table's upload can fail. restored_courses.json holds it
-    // meanwhile, with when it was brought back, and the reconcile leaves it
-    // be (CourseSyncReconciler.reconcileSemester's restoredNos).
+    // meanwhile, with when it was brought back, until a snapshot lists it
+    // (restoredCoursesListed).
     // selection_rosters.json keeps each term's latest course selection
     // answer, which a delete is judged by.
     //

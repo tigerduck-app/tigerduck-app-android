@@ -239,7 +239,7 @@ class DataMigration @Inject constructor(
          * server's courses were applied here long ago and there is no copy
          * of this phone's left for Use Local to keep. This build holds the
          * course list while the check waits
-         * (`CourseSyncReconciler.syncsCourseList`), which would freeze it
+         * (`SyncPolicy.applies`), which would freeze it
          * until the user next opened TigerSync.
          */
         internal fun dropStaleCoursesCheck(prefs: AppPreferences, signIn: SignIn) {

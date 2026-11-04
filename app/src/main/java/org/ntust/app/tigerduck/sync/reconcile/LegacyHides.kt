@@ -14,10 +14,10 @@ import org.ntust.app.tigerduck.shared.account.SignIn
  * carry stays bare, still hidden everywhere, rather than guessed at.
  *
  * The one rule for both steps that read the hides by their terms: the course list's
- * ([RosterReconciler]), and before it in the same pass a first course sync on `/v4`
+ * ([RosterReconciler]), and before it in the same pass a first course sync
  * ([FirstSyncReconciler]), which queues each hide as its term's delete. Pinned by the course list
- * alone, a hide nothing queued is one the backend does not hold, which `/v4`'s membership takes
- * away (`CourseMembership`), and the hidden course came back.
+ * alone, a hide nothing queued is one the backend does not hold, which the membership takes away
+ * (`CourseMembership`), and the hidden course came back.
  */
 internal suspend fun DataCache.pinnedLegacyHides(semesters: Collection<String>, signIn: SignIn): Set<String> {
     val stored = loadDeletedCourseNos()

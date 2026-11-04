@@ -227,28 +227,6 @@ class BackgroundPullRequestsTest {
     }
 
     @Test
-    fun `a background sync uploads the current term when the server holds none of it`() {
-        runBlocking { oneChangeInEachQueue() }
-        backend.answer("GET /sync/full", 200, snapshot(rows = false))
-        val from = backend.endpoints().size
-
-        assertEquals(ListenableWorker.Result.success(), runWorker())
-
-        val keptRow = """{"semester":"$term","course_no":"$COURSE","course_name":"Kept","moodle_id":"${moodleId()}","credits":0.0,""" +
-            """"classroom":"","instructors":[],"schedule_json":{},"classroom_map":{}}"""
-        assertEquals(
-            whatWaits() + listOf(
-                "GET /sync/full | Bearer access-1 | null | ",
-                // The hand-added course named as an add, stamped as the oldest, as this upload adds
-                // nothing itself (X9); no color rides it.
-                "POST /sync/courses/upload | Bearer access-1 | null | " +
-                    """{"courses":[$keptRow,${addRow()}],"adds":[{"course_key":"client:$term:$ADDED","hlc":0}]}""",
-            ) + SETTINGS_PULL,
-            sentSince(from),
-        )
-    }
-
-    @Test
     fun `a background sync sends the color it moved off a course the server holds on another's`() {
         val first = Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = moodleId())
         val second = Course(courseNo = OTHER, courseName = "Other", moodleIdNumber = "$term$OTHER")

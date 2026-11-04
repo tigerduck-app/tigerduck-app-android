@@ -11,8 +11,12 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.LookedUpCourse
+import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
+import org.ntust.app.tigerduck.push.TombstoneKind
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.home.CourseMembership
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import java.io.File
@@ -46,7 +50,7 @@ class ClassTableHandAddedHideTest {
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         overrides = PendingCourseOverrides(
             cache,
-            { _, _, _, _, _, _, _ -> false },
+            { _, _, _, _ -> WriteAnswer.NOT_SENT },
             records = { true },
             sends = { false },
         )
@@ -89,20 +93,20 @@ class ClassTableHandAddedHideTest {
         if (resetElsewhere) sync.supersedeAddsBack()
         val localCourses = cache.loadCourses(TERM)
         afterCoursesRead()
-        val restored = cache.restoredCoursesIn(TERM, Long.MAX_VALUE)
-        val stored = CourseSyncReconciler.withoutRestored(TERM, cache.loadDeletedCourseNos(), restored)
-        val outcome = CourseSyncReconciler.reconcileSemester(
+        val stored = cache.loadDeletedCourseNos()
+        val membership = CourseMembership.reconcileTerm(
             semester = TERM,
             localCourses = localCourses,
             serverRows = listOf(ServerCourse(enrolled.courseNo, enrolled.courseName, TERM, moodleId = enrolled.moodleIdNumber)),
-            tombstoneNos = setOf(course.courseNo),
-            tombstones = stored,
+            tombstones = listOf(hideOf(course.courseNo)),
+            hides = stored,
+            keeps = { false },
             serverKnownNos = setOf(enrolled.courseNo, course.courseNo),
-            restoredNos = restored,
         )
+        val outcome = membership.outcome
         beforeCommit()
         val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
-        commitReconciledTerm(cache, sync, TERM, stored, outcome.tombstones, setOf(course.courseNo), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn())
+        commitReconciledTerm(cache, sync, TERM, stored, outcome.tombstones, setOf(course.courseNo), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn(), membership.gone)
     }
 
     /**
@@ -119,23 +123,27 @@ class ClassTableHandAddedHideTest {
         beforeCommit: suspend () -> Unit = {},
     ) = reconciling(sync) { courseSync ->
         val localCourses = cache.loadCourses(TERM)
-        val restored = cache.restoredCoursesIn(TERM, fetchedAtMs)
-        val stored = CourseSyncReconciler.withoutRestored(TERM, hides ?: cache.loadDeletedCourseNos(), restored)
-        val outcome = CourseSyncReconciler.reconcileSemester(
+        val stored = hides ?: cache.loadDeletedCourseNos()
+        val membership = CourseMembership.reconcileTerm(
             semester = TERM,
             localCourses = localCourses,
             serverRows = serverNos.map { ServerCourse(it, it, TERM, moodleId = "$TERM$it") },
-            tombstoneNos = emptySet(),
-            tombstones = stored,
+            tombstones = emptyList(),
+            hides = stored,
+            keeps = { false },
             serverKnownNos = cache.loadServerKnownNos()[TERM].orEmpty().toSet(),
-            restoredNos = restored,
         )
+        val outcome = membership.outcome
         beforeCommit()
         cache.restoredCoursesListed(TERM, serverNos.toList(), fetchedAtMs, testSignIn())
         cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()), testSignIn())
         val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
-        commitReconciledTerm(cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn())
+        commitReconciledTerm(cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn(), membership.gone)
     }
+
+    /** A hide another device wrote for [courseNo] in the term, as a snapshot's tombstone names it. */
+    private fun hideOf(courseNo: String) =
+        CourseTombstone("client:$TERM:$courseNo", courseNo, TERM, deletedAt = "", hlc = 1L, kind = TombstoneKind.HIDE)
 
     /**
      * A fetch of the term whose course selection answer lists [courseNos], as the class table makes
@@ -596,29 +604,6 @@ class ClassTableHandAddedHideTest {
     }
 
     @Test
-    fun `a course brought back stays through a sync that does not list it before its upload lands`() = runTest {
-        cache.saveCourses(listOf(enrolled, handAdded), TERM, testSignIn())
-        // The server has had both: the hand-added course went up when it was added.
-        syncListing(enrolled.courseNo, handAdded.courseNo)
-        fetchListing(enrolled.courseNo)
-        delete(handAdded)
-        // Its DELETE landed; the backend leaves the tombstone out of this device's snapshot.
-        syncListing(enrolled.courseNo)
-        fetchListing(enrolled.courseNo, handAdded.courseNo)
-
-        // Home's fetch uploads nothing, and the class table's upload can fail: the next snapshot
-        // does not list it yet, which is no delete elsewhere.
-        syncListing(enrolled.courseNo)
-        assertEquals(emptySet<String>(), hidden())
-        assertEquals(listOf(enrolled.courseNo, handAdded.courseNo), cache.loadCourses(TERM).map { it.courseNo }.sorted())
-
-        // Once a snapshot lists it, the upload has landed, and its absence is a delete elsewhere again.
-        syncListing(enrolled.courseNo, handAdded.courseNo)
-        syncListing(enrolled.courseNo)
-        assertEquals(setOf(handAdded.courseNo), hidden())
-    }
-
-    @Test
     fun `a course deleted and added back while a sync that prunes it for another device's delete waits stays in the term`() = runTest {
         cache.saveCourses(listOf(enrolled, handAdded), TERM, testSignIn())
         syncListing(enrolled.courseNo, handAdded.courseNo)
@@ -663,54 +648,6 @@ class ClassTableHandAddedHideTest {
 
         // A snapshot fetched since lists the course, and no sync that began before it is left.
         syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
-        syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
-
-        assertEquals(false, holds(handAdded))
-        assertEquals(listOf(enrolled.courseNo, handAdded.courseNo), courseNos())
-    }
-
-    @Test
-    fun `a hold a snapshot has listed stays until a sync that began before it ends`() = runTest {
-        cache.saveCourses(listOf(enrolled, handAdded), TERM, testSignIn())
-        syncListing(enrolled.courseNo, handAdded.courseNo)
-        fetchListing(enrolled.courseNo)
-        delete(handAdded)
-        syncListing(enrolled.courseNo)
-        // Home's sync begins, fetches its snapshot and reads the hides, then waits while the rest happens.
-        val older = cache.beginCourseSync()
-        val olderFetchedAt = System.currentTimeMillis()
-        val read = cache.loadDeletedCourseNos()
-        fetchListing(enrolled.courseNo, handAdded.courseNo)
-        // Background syncs fetched since list the course: its upload landed.
-        syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
-        syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
-        assertEquals(true, holds(handAdded))
-
-        // Home's older snapshot, from before the upload, does not list it.
-        syncListing(enrolled.courseNo, hides = read, fetchedAtMs = olderFetchedAt, sync = older)
-        cache.endCourseSync(older)
-        assertEquals(listOf(enrolled.courseNo, handAdded.courseNo), courseNos())
-        assertEquals(emptySet<String>(), hidden())
-
-        syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
-        assertEquals(false, holds(handAdded))
-    }
-
-    @Test
-    fun `a restart lets go of the holds a sync of the last process might have needed`() = runTest {
-        cache.saveCourses(listOf(enrolled, handAdded), TERM, testSignIn())
-        syncListing(enrolled.courseNo, handAdded.courseNo)
-        fetchListing(enrolled.courseNo)
-        delete(handAdded)
-        syncListing(enrolled.courseNo)
-        // A sync that the process ends under, before it ends itself.
-        cache.beginCourseSync()
-        fetchListing(enrolled.courseNo, handAdded.courseNo)
-        syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
-        assertEquals(true, holds(handAdded))
-
-        // The next process, whose first sync's snapshot lists the course too.
-        setUp()
         syncListing(enrolled.courseNo, handAdded.courseNo, fetchedAtMs = nextMillis())
 
         assertEquals(false, holds(handAdded))

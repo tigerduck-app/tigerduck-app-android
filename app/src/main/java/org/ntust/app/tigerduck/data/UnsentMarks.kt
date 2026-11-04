@@ -38,11 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sends one assignment's mark, and says only whether it went out; for a test that sends through one. */
-internal fun interface MarkSender {
-    suspend fun send(assignmentId: Int, status: String, signIn: SignIn, madeAtMs: Long?): Boolean
-}
-
 /** Sends one assignment's mark, and says what the backend answered; see [PushApiClient.patchAssignmentOverrideAnswered]. */
 internal fun interface MarkWriter {
     suspend fun write(assignmentId: Int, status: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer
@@ -67,24 +62,23 @@ internal fun interface MarkWriter {
  * per process and again [PARKED_RETRY_MS] after its last refusal.
  *
  * Whether a tap is kept is [records] (`SyncPolicy.keeps`), whether it goes
- * [sends] (`SyncPolicy.sends`). With the Assignments switch or TigerSync off
- * on `/v3` the marks are this phone's own: a tap goes nowhere and is not
- * kept, but replaces a mark waiting for the same assignment. On `/v4` a tap
- * is kept while either is off and goes once both are on (LWW D12). While the
- * assignments re-enable check is pending a tap is kept but not sent, as the
- * user's answer decides the marks. What waits goes out once marks are sent
- * again, or is dropped when the server's marks are taken over this phone's
- * ([forget]). Account-scoped: wiped with the user data at sign-out.
+ * [sends] (`SyncPolicy.sends`). A tap is kept while the Assignments switch or
+ * TigerSync is off and goes once both are on (LWW D12); on a build without
+ * TigerSync it goes nowhere and is not kept, but replaces a mark waiting for
+ * the same assignment. While the assignments re-enable check is pending a tap
+ * is kept but not sent, as the user's answer decides the marks. What waits
+ * goes out once marks are sent again, or is dropped when the server's marks
+ * are taken over this phone's ([forget]). Account-scoped: wiped with the user
+ * data at sign-out.
  *
- * Each tap is stamped by the sync clock ([stamp]), which on `/v3` is the
- * wall clock as it always was. A mark an older build wrote with no time goes
- * without one on `/v3`, as it always has; on `/v4` it is given its old-entry
- * time at its first load there and written back (X1), never its send time.
- * On `/v4` a reply writes nothing on this phone, the backend's later mark
- * included: Home saves the marks from its own state, outside the queue, so
- * no check at a reply could tell an older reply's mark from a newer tap. A
- * mark the backend kept in place of this phone's is another device's later
- * write, which the change feed brings and the next pull applies.
+ * Each tap is stamped by the sync clock ([stamp]). A mark an older build
+ * wrote with no time is given its old-entry time at its first load and
+ * written back (X1), never its send time. A reply writes nothing on this
+ * phone, the backend's later mark included: Home saves the marks from its own
+ * state, outside the queue, so no check at a reply could tell an older
+ * reply's mark from a newer tap. A mark the backend kept in place of this
+ * phone's is another device's later write, which the change feed brings and
+ * the next pull applies.
  */
 @Singleton
 class UnsentMarks internal constructor(
@@ -93,23 +87,12 @@ class UnsentMarks internal constructor(
     private val records: () -> Boolean,
     private val sends: () -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
-    // The time a tap is stamped with: the sync clock's, which is the wall clock on /v3.
+    // The time a tap is stamped with: the sync clock's.
     private val stamp: () -> Long = clock,
-    // Whether the backend settles each mark by its stamp, as /v4 does.
-    private val lastWriterWins: () -> Boolean = { false },
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
 ) : OutboxChannel {
-
-    /** The queue for a test that sends through a [MarkSender], as the queue's own tests do. */
-    internal constructor(
-        dataCache: DataCache,
-        sender: MarkSender,
-        records: () -> Boolean,
-        sends: () -> Boolean,
-        clock: () -> Long = System::currentTimeMillis,
-    ) : this(dataCache, sender.answering(), records, sends, clock)
 
     @Inject constructor(
         dataCache: DataCache,
@@ -128,7 +111,6 @@ class UnsentMarks internal constructor(
         records = { policies.current.keeps(SyncCategory.ASSIGNMENTS) },
         sends = { policies.current.sends(SyncCategory.ASSIGNMENTS) },
         stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
-        lastWriterWins = { policies.current.lastWriterWins },
         ack = ack,
         scope = scope,
         oldEntryTime = oldEntryTime,
@@ -158,8 +140,7 @@ class UnsentMarks internal constructor(
                 sameEdit = { a, b -> a.assignmentId == b.assignmentId && a.isSameTap(b) },
             ),
             untimed = UntimedEntries(
-                // On /v3 a mark with no time goes without one, as it always has, so it is given none.
-                timeOf = { mark -> mark.madeAtMs ?: if (lastWriterWins()) null else SENT_WITHOUT_TIME },
+                timeOf = { mark -> mark.madeAtMs },
                 withTime = { mark, atMs -> mark.copy(madeAtMs = atMs) },
                 oldEntryTimeMs = { oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.UNSENT_MARKS)) ?: 0L },
             ),
@@ -207,17 +188,14 @@ class UnsentMarks internal constructor(
     /**
      * Keeps [status] as [assignmentId]'s mark stamped 0, the oldest stamp there is, unless a mark
      * waits for it: a value this phone held before the category ever synced, which fills only a
-     * mark the backend holds no stamp for (LWW D13). Written only while [signIn] stands. Nothing
-     * calls it until a category's first sync on `/v4` does.
+     * mark the backend holds no stamp for (LWW D13), as a category's first sync queues it. Written
+     * only while [signIn] stands.
      */
     suspend fun queueAsOldest(assignmentId: String, status: String, signIn: SignIn) {
         lane.edit(signIn) { marks ->
             if (marks.any { it.assignmentId == assignmentId }) marks else marks + UnsentMark(assignmentId, status, madeAtMs = OLDEST)
         }
     }
-
-    /** Sends every mark still waiting; each full sync starts with this. */
-    suspend fun retry(signIn: SignIn) = drain(signIn)
 
     /** The server's marks were taken over this phone's, so what waited is no longer wanted. */
     suspend fun forget(signIn: SignIn) {
@@ -285,20 +263,7 @@ class UnsentMarks internal constructor(
         // The stamp of a value queued as the oldest there is (LWW D13).
         private const val OLDEST = 0L
 
-        // What a mark with no time reads as on /v3, where it goes without one: a time it needs none of.
-        private const val SENT_WITHOUT_TIME = 0L
-
-        /** Whether a tap is kept to send: `SyncPolicy.keeps` of the assignments, as the switches stand. */
-        fun recordsMarks(prefs: AppPreferences): Boolean = SyncPolicies(prefs).current.keeps(SyncCategory.ASSIGNMENTS)
-
-        /** Whether marks go out: `SyncPolicy.sends` of the assignments, which the re-enable check holds. */
-        fun sendsMarks(prefs: AppPreferences): Boolean = SyncPolicies(prefs).current.sends(SyncCategory.ASSIGNMENTS)
     }
-}
-
-// A sender that says only whether a mark went: an answer with nothing more in it.
-private fun MarkSender.answering() = MarkWriter { id, status, signIn, madeAtMs ->
-    if (send(id, status, signIn, madeAtMs)) WriteAnswer(sent = true, serverClockUs = null, applied = null, values = emptyMap()) else WriteAnswer.NOT_SENT
 }
 
 /** The marks join the outbox's channels (`OutboxModule`). */

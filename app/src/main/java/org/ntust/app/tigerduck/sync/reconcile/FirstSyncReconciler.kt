@@ -15,8 +15,8 @@ import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler
 import javax.inject.Inject
 
 /**
- * A category's first sync on `/v4` (LWW D13, `tigersync-merge`, "Existing device data counts as
- * oldest"), first of the steps, before any reads what waits ([SyncPass.holds]).
+ * A category's first sync (LWW D13, `tigersync-merge`, "Existing device data counts as oldest"),
+ * first of the steps, before any reads what waits.
  *
  * - A category this account has synced here before ([SyncPass.syncedBefore]) sends nothing it
  *   holds unstamped: its values are a copy of the server's, and the snapshot replaces them (D12).
@@ -31,9 +31,8 @@ import javax.inject.Inject
  *   delete waits for is queued too, by its term. A bare one from before hides had terms is pinned
  *   to its terms first ([pinnedLegacyHides]); one no term here carries is not sent.
  *
- * Home's alone: the background's pass leaves a category never synced here to it (C2). On `/v3`
- * it does nothing, and the marks' first-sync upload stays (`AssignmentOverrideReconciler.isFirstUpload`).
- * Returns false: it takes nothing from the snapshot.
+ * Home's alone: the background's pass leaves a category never synced here to it (C2). Returns
+ * false: it takes nothing from the snapshot.
  */
 class FirstSyncReconciler @Inject constructor(
     private val dataCache: DataCache,
@@ -44,7 +43,7 @@ class FirstSyncReconciler @Inject constructor(
 ) : Reconciler {
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
-        if (pass.result.serverHlc == null || pass.mode != SyncMode.FOREGROUND) return false
+        if (pass.mode != SyncMode.FOREGROUND) return false
         val signIn = pass.signIn
         for (category in SyncCategory.entries) {
             if (category in pass.syncedBefore || !pass.policy.applies(category) || !signIn.isCurrent) continue

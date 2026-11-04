@@ -32,15 +32,9 @@ import org.ntust.app.tigerduck.sync.outbox.OutboxLane
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.sync.outbox.UntimedEntries
 import org.ntust.app.tigerduck.util.logSummary
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.CoroutineContext
-
-/** Sends one holiday's choice as sign-in [signIn], and says only whether it went; for a test that sends through one. */
-internal fun interface HolidayOverrideSender {
-    suspend fun send(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): Boolean
-}
 
 /** Sends one holiday's choice as sign-in [signIn], and says what the backend answered; see [PushApiClient.putHolidayOverrideAnswered]. */
 internal fun interface HolidayOverrideWriter {
@@ -58,7 +52,7 @@ internal fun interface HolidayOverrideWriter {
  * set over this phone's, took it back. Now a choice is marked as waiting
  * before its PUT and let go only once the backend holds the value the user
  * still wants. Every full sync sends what waits first, and its snapshot keeps
- * the waiting choices as this phone has them ([merged]).
+ * the waiting choices as this phone has them ([keptOver]).
  *
  * The choices go through an [OutboxLane]: one PUT at a time, oldest first,
  * each reading the choice as it is sent, so a retry sends today's value and
@@ -71,14 +65,12 @@ internal fun interface HolidayOverrideWriter {
  * departing account's set back after the clear. As the iPhone's
  * `enqueueHolidayUpload` and `unacknowledgedHolidayIDs`.
  *
- * With TigerSync off on `/v3` a choice is this phone's own and goes nowhere;
- * on `/v4` it is kept and goes once TigerSync is on (LWW D12). Each choice is
- * stamped by the sync clock ([stamp]), which on `/v3` is the wall clock as it
- * always was. One an older build left waiting with no time goes without one
- * on `/v3`, as it always has; on `/v4` it is given this build's first run as
- * its time at its first load there and written back (X1), never its send
- * time. On `/v4` a reply that says the backend kept a later choice puts that
- * choice on this phone, unless the user has chosen again since (LWW D12).
+ * A choice made while TigerSync is off is kept and goes once it is on (LWW
+ * D12). Each choice is stamped by the sync clock ([stamp]). One an older build
+ * left waiting with no time is given this build's first run as its time at its
+ * first load and written back (X1), never its send time. A reply that says the
+ * backend kept a later choice puts that choice on this phone, unless the user
+ * has chosen again since (LWW D12).
  */
 @Singleton
 class PendingHolidayOverrides internal constructor(
@@ -86,12 +78,10 @@ class PendingHolidayOverrides internal constructor(
     private val writer: HolidayOverrideWriter,
     private val syncs: () -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
-    // Whether a choice is kept to send: whether it goes, on /v3.
-    private val keeps: () -> Boolean = syncs,
-    // The time a choice is stamped with: the sync clock's, which is the wall clock on /v3.
+    // Whether a choice is kept to send ([SyncPolicy.keepsHolidays]).
+    private val keeps: () -> Boolean = { true },
+    // The time a choice is stamped with: the sync clock's.
     private val stamp: () -> Long = clock,
-    // Whether the backend settles each choice by its stamp, as /v4 does.
-    private val lastWriterWins: () -> Boolean = { false },
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
@@ -100,14 +90,6 @@ class PendingHolidayOverrides internal constructor(
     // The Calendar's thread, which its switch writes a choice on.
     private val main: CoroutineContext = Dispatchers.Main,
 ) : OutboxChannel {
-
-    /** The queue for a test that sends through a [HolidayOverrideSender], as the queue's own tests do. */
-    internal constructor(
-        prefs: AppPreferences,
-        sender: HolidayOverrideSender,
-        syncs: () -> Boolean,
-        clock: () -> Long = System::currentTimeMillis,
-    ) : this(prefs, sender.answering(), syncs, clock)
 
     @Inject constructor(
         prefs: AppPreferences,
@@ -127,7 +109,6 @@ class PendingHolidayOverrides internal constructor(
         syncs = { policies.current.tigerSyncOn },
         keeps = { policies.current.keepsHolidays },
         stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
-        lastWriterWins = { policies.current.lastWriterWins },
         ack = ack,
         scope = scope,
         oldEntryTime = oldEntryTime,
@@ -145,13 +126,6 @@ class PendingHolidayOverrides internal constructor(
     // The waiting set's and the edit times' read-modify-writes.
     private val lock = Any()
 
-    // PUTs asked and not finished: a snapshot fetched meanwhile may predate one.
-    private val inFlight = AtomicInteger(0)
-
-    // The last choice made or PUT landed: a snapshot fetched before either may not hold it.
-    @Volatile
-    private var lastChangeAtMs = 0L
-
     private val lane = OutboxLane(
         id = OutboxChannelId.HOLIDAYS,
         store = Waiting(),
@@ -160,8 +134,7 @@ class PendingHolidayOverrides internal constructor(
             maxAttempts = NEVER_PARKED,
             attempts = InMemoryAttempts { choice: Choice -> SyncField.holiday(choice.id) },
             untimed = UntimedEntries(
-                // On /v3 a choice with no time goes without one, as it always has, so it is given none.
-                timeOf = { choice -> choice.madeAtMs ?: if (lastWriterWins()) null else SENT_WITHOUT_TIME },
+                timeOf = { choice -> choice.madeAtMs },
                 withTime = { choice, atMs -> choice.copy(madeAtMs = atMs) },
                 // Kept in preferences other edits write too, so their file's time says nothing:
                 // only this build's first run counts.
@@ -178,13 +151,12 @@ class PendingHolidayOverrides internal constructor(
 
     /**
      * The user just wrote [holidayId]'s choice into the local set: its time
-     * kept, and the choice kept as waiting and sent. Asked before this
-     * suspends ([merged] applies no snapshot meanwhile), and kept only while
+     * kept, before this suspends, so a pull keeps the choice from then on
+     * ([keptOver]), and the choice kept as waiting and sent, only while
      * [signIn] stands: kept after the sign-out's clear, it would go up as the
      * next account's.
      */
     suspend fun send(holidayId: Int, signIn: SignIn) {
-        lastChangeAtMs = clock()
         val madeAtMs = stamp()
         // Before the keep check: a choice still waiting from before is this one now, and goes up
         // with this time whenever it goes.
@@ -192,16 +164,8 @@ class PendingHolidayOverrides internal constructor(
             synchronized(lock) { prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to madeAtMs) }
         }
         if (!keeps()) return
-        inFlight.incrementAndGet()
-        try {
-            lane.enqueueAndDrain(Choice(holidayId, madeAtMs), signIn, syncs)
-        } finally {
-            inFlight.decrementAndGet()
-        }
+        lane.enqueueAndDrain(Choice(holidayId, madeAtMs), signIn, syncs)
     }
-
-    /** Sends every choice still waiting; each full sync starts with this. */
-    suspend fun retry(signIn: SignIn) = drain(signIn)
 
     /** Sends every choice still waiting, oldest first, unless TigerSync is off. */
     override suspend fun drain(signIn: SignIn) {
@@ -217,20 +181,7 @@ class PendingHolidayOverrides internal constructor(
     override fun forgetMemory() = lane.forgetMemory()
 
     /**
-     * The set a full sync fetched at [fetchedAtMs] ([snapshot]), with the
-     * choices still waiting kept as this phone has them ([local]); null when
-     * the snapshot must not be applied at all: fetched before the last choice
-     * or the last PUT that landed, or while a PUT is under way, it may not hold
-     * that choice yet, and the next sync settles it.
-     */
-    fun merged(snapshot: Set<Int>, fetchedAtMs: Long, local: Set<Int>): Set<Int>? {
-        if (inFlight.get() > 0 || fetchedAtMs <= lastChangeAtMs) return null
-        val waiting = waitingIds
-        return snapshot - waiting + (local intersect waiting)
-    }
-
-    /**
-     * The holidays whose choice a `/v4` pull keeps as this phone has it (LWW D12), read in the step
+     * The holidays whose choice a pull keeps as this phone has it (LWW D12), read in the step
      * that writes the pull's: each waiting to go up, and each chosen after the snapshot began (its
      * time later than [serverHlc], in µs), whose choice may not be waiting yet.
      */
@@ -248,31 +199,25 @@ class PendingHolidayOverrides internal constructor(
 
     // The lane's send of [choice] under [signIn], read as it was about to go: what became of it.
     private suspend fun sendNow(choice: Choice, signIn: SignIn): SendResult {
-        inFlight.incrementAndGet()
-        try {
-            // Read after its time, which the lane read: see [Waiting].
-            val notify = choice.id in prefs.holidayNotifyOverrides
-            val answer = try {
-                writer.write(choice.id, notify, signIn, choice.madeAtMs)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "holiday override upload failed: ${e.logSummary()}")
-                // A choice is never parked, so a refusal keeps it as an outage does.
-                return SendResult.afterFailure(e)
-            }
-            // Not sent, as with TigerSync turned off before its turn (the client's own gate): it still waits.
-            if (!answer.sent) return SendResult.NotSent
-            lastChangeAtMs = clock()
-            // Changed during the request with no choice made, which would have a time of its own:
-            // the backend holds the older value, and this one waits for the next sync, as a choice
-            // changed under its PUT always has.
-            if (changedUnder(choice, notify)) return SendResult.Retry
-            if (lastWriterWins()) takeWinner(choice, answer, signIn)
-            return SendResult.Sent(answer.serverClockUs)
-        } finally {
-            inFlight.decrementAndGet()
+        // Read after its time, which the lane read: see [Waiting].
+        val notify = choice.id in prefs.holidayNotifyOverrides
+        val answer = try {
+            writer.write(choice.id, notify, signIn, choice.madeAtMs)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "holiday override upload failed: ${e.logSummary()}")
+            // A choice is never parked, so a refusal keeps it as an outage does.
+            return SendResult.afterFailure(e)
         }
+        // Not sent, as with TigerSync turned off before its turn (the client's own gate): it still waits.
+        if (!answer.sent) return SendResult.NotSent
+        // Changed during the request with no choice made, which would have a time of its own:
+        // the backend holds the older value, and this one waits for the next sync, as a choice
+        // changed under its PUT always has.
+        if (changedUnder(choice, notify)) return SendResult.Retry
+        takeWinner(choice, answer, signIn)
+        return SendResult.Sent(answer.serverClockUs)
     }
 
     // LWW D12, a write response's winner: the backend kept a later choice than [choice], so this
@@ -281,8 +226,8 @@ class PendingHolidayOverrides internal constructor(
     // it. On the main thread, where the Calendar's switch writes a choice and then its time without
     // a pause, and under the lane's lock with the choice let go, in one step: no switch comes
     // between the check and the write, and nothing sends the taken value as this phone's. A value
-    // changed with no choice made is the snapshot's, which no pull applies while a PUT is under way
-    // ([merged]), and this runs inside one.
+    // changed with no choice made is a pull's, which applies on the same thread and keeps a choice
+    // still waiting, as this one is until let go here ([keptOver]).
     private suspend fun takeWinner(choice: Choice, answer: WriteAnswer, signIn: SignIn) {
         val applied = answer.applied ?: return
         if (WriteAnswer.NOTIFY in applied) return
@@ -341,22 +286,7 @@ class PendingHolidayOverrides internal constructor(
 
         // A refused choice is never parked: every sync sends it again, as it always has.
         const val NEVER_PARKED = Int.MAX_VALUE
-
-        // What a choice with no time reads as on /v3, where it goes without one: a time it needs none of.
-        const val SENT_WITHOUT_TIME = 0L
     }
-}
-
-/**
- * Whether a holiday's choice is kept to send. Holidays have no switch of their own and no
- * re-enable check, so it is TigerSync's switch, as [SyncPolicy.sends] answers a category; under
- * last writer wins it is kept whatever that says, as [SyncPolicy.keeps] keeps a category's edit.
- */
-internal val SyncPolicy.keepsHolidays: Boolean get() = flavorSyncs && (lastWriterWins || tigerSyncOn)
-
-// A sender that says only whether a choice went: an answer with nothing more in it.
-private fun HolidayOverrideSender.answering() = HolidayOverrideWriter { id, notify, signIn, madeAtMs ->
-    if (send(id, notify, signIn, madeAtMs)) WriteAnswer(sent = true, serverClockUs = null, applied = null, values = emptyMap()) else WriteAnswer.NOT_SENT
 }
 
 /** The holiday choices join the outbox's channels (`OutboxModule`). */

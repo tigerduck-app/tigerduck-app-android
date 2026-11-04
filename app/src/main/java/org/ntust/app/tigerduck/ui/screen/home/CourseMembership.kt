@@ -11,17 +11,18 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SyncField
 
 /**
- * One term's course membership from a `/v4` snapshot (LWW D10, D12): pure, for the course list's
- * reconcile, which commits it as it commits `/v3`'s ([commitReconciledTerm]).
+ * One term's course membership from a snapshot (LWW D10, D12): pure, for the course list's
+ * reconcile, which commits it ([commitReconciledTerm]).
  *
  * - **The term's courses are the snapshot's rows,** school roster and hand-added alike. A course
  *   whose key holds a `hide` tombstone and no later add is hidden, here as everywhere: its hide is
  *   kept and the course leaves the term. A row listed with no later hide lifts this phone's hide
  *   and comes down when this phone lacks it.
  * - **A removal or a reset is no hide.** A course a `remove` or `reset` tombstone took off the
- *   backend with no row left leaves the term with no hide when it was added by hand (a merged
- *   copy or one added here), so a roster that lists it brings it back. A course this phone has
- *   from the school stays: school data is the base layer, and a roster upload lists it again
+ *   backend with no row left leaves the term with no hide when this phone did not get it from
+ *   the school's fetch ([Course.isManual]: a copy merged down or one added here, whatever its
+ *   row was), so a roster that lists it brings it back. A course this phone has from the school
+ *   stays: school data is the base layer, and a roster upload lists it again
  *   (`tigersync-refresh-order`). The backend has already applied `term_resets` and
  *   `courses_reset_hlc` to its rows and tombstones, so they need no rule of their own here.
  * - **A course the snapshot does not mention** keeps this phone's: a school course its roster
@@ -29,21 +30,18 @@ import org.ntust.app.tigerduck.sync.SyncField
  *   does not hold is lifted, as D12 takes a field's absence.
  * - **What this phone holds** ([keeps], by course number: its add or delete waiting, or
  *   acknowledged since the snapshot began) stays as this phone has it, hide and course alike.
- * - **School data's own rules** stay as `/v3`'s: a misfiled row is no roster row, and a row a
- *   roster dropped leaves the term with no hide but a course added by hand
- *   ([CourseSyncReconciler.reconcileSemester]).
+ * - **School data's own rules:** a misfiled row is no roster row
+ *   ([CourseSyncReconciler.isFiled]), and a row a roster dropped leaves the term with no hide but
+ *   a course added by hand ([CourseSyncReconciler.serverDropTimes]).
  * - **A copy merged down keeps what its row is** ([Course.isUserAddedOnServer]): added by hand on
- *   some device or the school's, which its manual flag cannot tell. A copy this phone holds
- *   follows its row at each pull that lists it ([followingRows]).
- *
- * The `/v3` rules (`deleted_by_reset`, `deleted_by_this_device`, `courses_reset_at`, the server's
- * known numbers as the evidence of a delete) stay until the `/v3` rules go (Z2).
+ *   some device or the school's, which its manual flag cannot tell, for the uploads' adds. A copy
+ *   this phone holds follows its row at each pull that lists it ([followingRows]).
  */
 internal object CourseMembership {
 
     /**
-     * The term's [outcome], committed as `/v3`'s is, and the courses that leave the term with no
-     * hide ([gone]): taken back by a removal or a reset elsewhere.
+     * The term's [outcome], committed as the course list's reconcile commits a term, and the
+     * courses that leave the term with no hide ([gone]): taken back by a removal or a reset elsewhere.
      */
     data class TermOutcome(val outcome: CourseSyncReconciler.SemesterOutcome, val gone: Set<String>)
 
@@ -93,6 +91,8 @@ internal object CourseMembership {
                 else -> {
                     // Absent: a hide of this term the backend does not hold follows it; a bare one, no.
                     updated = updated - CourseTombstoneKeys.key(semester, no)
+                    // Taken off by a removal or a reset: a copy merged down or a course added here
+                    // follows it, as no fetch of the school's here lists it.
                     if (no in marks && local[no]?.isManual == true) gone += no
                 }
             }
@@ -100,8 +100,8 @@ internal object CourseMembership {
         val hiddenNow = CourseTombstoneKeys.hiddenIn(semester, updated)
         val merged = rows.values
             .filter { it.courseNo !in local && it.courseNo !in hiddenNow && !keeps(it.courseNo) }
-            .map { row -> CourseSyncReconciler.toCourse(row).copy(isUserAddedOnServer = row.isUserAdded) }
-        // Nothing uploaded for this term yet: what this phone has goes up, as on /v3, but what it hides.
+            .map(::toCourse)
+        // Nothing uploaded for this term yet: what this phone has goes up, but what it hides.
         val toUpload = if (rows.isNotEmpty() || dropTimes.isNotEmpty()) emptyList() else {
             localCourses.filter { it.courseNo !in hiddenNow && it.courseNo !in gone && it.courseNo !in left }
         }
@@ -117,6 +117,26 @@ internal object CourseMembership {
         )
         return TermOutcome(outcome, gone)
     }
+
+    /**
+     * [row] merged down as a course of this phone's: marked [Course.isManual], as from this phone's
+     * point of view it did not come from the school's fetch, and a later refresh must not wipe it,
+     * and saying what its row is ([Course.isUserAddedOnServer]).
+     */
+    private fun toCourse(row: ServerCourse) = Course(
+        courseNo = row.courseNo,
+        courseName = row.courseName,
+        instructor = row.instructors.joinToString(", "),
+        credits = row.credits,
+        classroom = row.classroom,
+        enrolledCount = row.enrolledCount,
+        maxCount = row.maxCount,
+        moodleIdNumber = row.moodleId,
+        isManual = true,
+        scheduleJson = row.scheduleJson,
+        classroomMapJson = row.classroomMapJson,
+        isUserAddedOnServer = row.isUserAdded,
+    )
 
     /**
      * [courses], a term's list, with each copy merged down from the server ([Course.isManual], with
@@ -159,7 +179,7 @@ internal object CourseMembership {
     }
 
     /**
-     * What a full `/v4` [snapshot] holds of [semester], for [followingRows]: the course number of
+     * What a full [snapshot] holds of [semester], for [followingRows]: the course number of
      * every row and tombstone of the term, the misfiled rows' included, as each holds its key. Null
      * when a reset covers the term (`term_resets`, `courses_reset_hlc`): an add at 0 loses to it,
      * so a number the snapshot holds nothing of tells nothing.

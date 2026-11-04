@@ -11,8 +11,6 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
@@ -23,15 +21,12 @@ import javax.inject.Singleton
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * What goes up from a school or Moodle fetch: a term's courses, and the assignments. On `/v4` each
- * waits for this process's first pull under its sign-in ([FirstPullGate]), so a roster or a list
- * fetched before the pull is not sent ahead of what the backend holds (`sync-order`, "A refresh
- * reads the backend before it uploads school data"; refactor-v4 D13; iOS `SchoolDataUploader`). On
- * `/v3` none waits: it goes at once, in its caller, as it always did, as `/v3`'s pull hides a
- * fetched school course the backend does not list, so an upload held past the pull would lose it
- * (the coordinator's ruling, PR R fix round 3). The version is read as each upload decides. A
- * local edit never comes here: it goes at once, through its channel's outbox, and so does the
- * full sync's own resend of a term.
+ * What goes up from a school or Moodle fetch: a term's courses, and the assignments. Each waits
+ * for this process's first pull under its sign-in ([FirstPullGate]), so a roster or a list fetched
+ * before the pull is not sent ahead of what the backend holds (`sync-order`, "A refresh reads the
+ * backend before it uploads school data"; refactor-v4 D13; iOS `SchoolDataUploader`). A local edit
+ * never comes here: it goes at once, through its channel's outbox, and so does the full sync's own
+ * resend of a term.
  *
  * Asked for once the gate is open for its sign-in, an upload goes at once, in its caller, as it
  * always did. Asked for before, it goes on the application scope once the gate opens, built then
@@ -44,20 +39,19 @@ class SchoolUploads internal constructor(
     private val gate: FirstPullGate?,
     private val scope: CoroutineScope,
     private val dataCache: DataCache,
-    /** The API the backend's base speaks now; only `/v4`'s uploads wait for the first pull. */
-    private val api: () -> BackendApi,
     private val sendAssignments: suspend (List<Assignment>, SignIn) -> Unit,
 ) {
+    /**
+     * The app's uploads. [prefs] is unread: it named the API whose uploads did not wait, which no
+     * base speaks since the move to `/v4`, and the app's wiring and its tests still pass it.
+     */
     @Inject constructor(
         gate: FirstPullGate,
         @ApplicationScope scope: CoroutineScope,
         dataCache: DataCache,
         pushApiClient: PushApiClient,
-        prefs: AppPreferences,
-    ) : this(
-        gate, scope, dataCache, { BackendApi.of(resolveAnnouncementEndpoint(prefs).url.trimEnd('/')) },
-        { assignments, signIn -> pushApiClient.uploadAssignments(assignments, signIn) },
-    )
+        @Suppress("UNUSED_PARAMETER") prefs: AppPreferences,
+    ) : this(gate, scope, dataCache, { assignments, signIn -> pushApiClient.uploadAssignments(assignments, signIn) })
 
     private class Later(val signIn: SignIn)
 
@@ -72,14 +66,14 @@ class SchoolUploads internal constructor(
     internal val waitingUploads: Int get() = synchronized(lock) { waiting.size }
 
     /**
-     * Runs [now] at once, in the caller, on `/v3`, or when this process has pulled under [signIn]: a
-     * caller's cancellation stops it, as it always did. Otherwise [later] runs on the application scope once
+     * Runs [now] at once, in the caller, when this process has pulled under [signIn], or with no
+     * gate ([atOnce]): a caller's cancellation stops it, as it always did. Otherwise [later] runs on the application scope once
      * a pull under [signIn] lands, which a cancelled caller no longer stops: it is not the caller's
      * any more. It does not run once [signIn] has ended, nor once a newer upload of the same [what]
      * was asked for, waiting or sent at once, as the newest has what it would send.
      */
     suspend fun afterFirstPull(signIn: SignIn, what: String, now: suspend () -> Unit, later: suspend (SignIn) -> Unit) {
-        if (gate == null || api() != BackendApi.V4 || gate.hasPulled(signIn)) {
+        if (gate == null || gate.hasPulled(signIn)) {
             synchronized(lock) { waiting.remove(what) }
             return now()
         }
@@ -219,7 +213,7 @@ class SchoolUploads internal constructor(
          * parameter added with it, so a caller built by hand keeps today's timing.
          */
         fun atOnce(dataCache: DataCache, pushApiClient: PushApiClient? = null) =
-            SchoolUploads(null, CoroutineScope(EmptyCoroutineContext), dataCache, { BackendApi.V3 }) { assignments, signIn ->
+            SchoolUploads(null, CoroutineScope(EmptyCoroutineContext), dataCache) { assignments, signIn ->
                 pushApiClient?.uploadAssignments(assignments, signIn)
             }
     }

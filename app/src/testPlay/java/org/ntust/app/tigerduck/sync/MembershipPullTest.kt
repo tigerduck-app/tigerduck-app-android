@@ -34,7 +34,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Home's `/v4` pull over the real stores, the course list's membership from the snapshot's
- * tombstones (LWW D10), committed as `/v3`'s is: a hidden course out and hidden, a hand-add a
+ * tombstones (LWW D10): a hidden course out and hidden, a hand-add a
  * removal took out with no hide, another device's row down, a hide the backend lacks lifted, a
  * school course it does not mention kept, and a course whose delete waits kept hidden. Made-up
  * accounts and courses.
@@ -127,12 +127,11 @@ class MembershipPullTest {
     }
 
     /**
-     * On `/v4` a course reset elsewhere reaches this phone as its tombstones: the `/v3` wipe of
-     * every hand-added course does not run, and the reset is remembered, so a `/v3` pull after
-     * never applies one `/v4` has settled.
+     * A course reset elsewhere reaches this phone as its tombstones: no wipe of every hand-added
+     * course runs, whatever `courses_reset_at` an older build remembered.
      */
     @Test
-    fun `a course reset read on v4 is remembered, not applied as v3's wipe`() = runBlocking {
+    fun `a course reset read on a pull wipes no hand-added course its tombstones do not take`() = runBlocking {
         w.appPrefs.school.lastSeenCoursesResetAt.set("2026-09-01T00:00:00+00:00", signIn)
         w.dataCache.saveCourses(listOf(Course(courseNo = "B", courseName = "Added B", isManual = true)), term, signIn)
         val snapshot = JSONObject()
@@ -148,12 +147,11 @@ class MembershipPullTest {
         rig.sync.pull(state, signIn)
 
         assertEquals(listOf("B", "C"), w.dataCache.loadCourses(term).map { it.courseNo }.sorted())
-        assertEquals("2026-10-30T00:00:00+00:00", w.appPrefs.school.lastSeenCoursesResetAt.get())
     }
 
     /**
      * A delete kept after the pull read the outbox (here, a read that found none) is read again
-     * at the term's own step, as `/v3` reads its deletes there: its hide stays, though the snapshot
+     * at the term's own step: its hide stays, though the snapshot
      * lists the course.
      */
     @Test
@@ -168,11 +166,11 @@ class MembershipPullTest {
         val policies = SyncPolicies(w.appPrefs)
         val roster = org.ntust.app.tigerduck.sync.reconcile.RosterReconciler(
             w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, rig.adds, rig.deletes, rig.overrides,
-            org.ntust.app.tigerduck.ui.screen.home.idleTermSync(w), idleScope, w.appPrefs, policies,
+            org.ntust.app.tigerduck.ui.screen.home.idleTermSync(w), idleScope, policies,
         )
         val pass = SyncPass(
             result, signIn, SyncMode.FOREGROUND, policies.current, state, org.ntust.app.tigerduck.data.cache.DataCache.CourseSync(0L) { 0L }, 0L,
-            syncedBefore = SyncCategory.entries.toSet(), heldFields = { emptySet() },
+            syncedBefore = SyncCategory.entries.toSet(),
         )
 
         roster.reconcile(pass)

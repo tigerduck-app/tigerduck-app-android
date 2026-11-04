@@ -8,7 +8,8 @@ import org.junit.Test
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler
-import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
@@ -153,7 +154,7 @@ class ReenableMarksTest {
         DataMigration.dropStaleCoursesCheck(prefs, testSignIn())
 
         assertEquals(setOf("assignments"), prefs.school.pendingConflictCategories.get())
-        assertTrue(CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.school.pendingConflictCategories.get()))
+        assertTrue(SyncPolicies(prefs).current.applies(SyncCategory.COURSES))
     }
 
     private fun taken(

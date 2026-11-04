@@ -85,18 +85,14 @@ class SyncWiringTest {
     }
 
     /**
-     * tigerduck-app#727's Android side: a course added back is kept while its add waits, but not
-     * past a course reset made on another device, which takes the hand-added courses.
+     * tigerduck-app#727's Android side: a course added back is kept while its add waits, a reset
+     * elsewhere's tombstone included (CourseMembershipTest): its add, or its delete, waiting is one
+     * this phone keeps, read at the term's step.
      */
     @Test
     fun `Home's sync and the worker keep a course whose add still waits`() {
-        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "pendingAddNos = pendingCourseAdds.waitingIn(semester)")
-        assertCalls("sync/reconcile/CourseResetReconciler.kt", "applyCourseReset", "pendingCourseAdds.forgetAll(signIn)")
-        assertCalls(
-            "sync/reconcile/CurrentTermCourses.kt", "reconcile",
-            "CourseSyncReconciler.coursesReset(",
-            "pendingAddNos = if (resetElsewhere) emptySet() else pendingCourseAdds.waitingIn(semester)",
-        )
+        assertCalls("sync/reconcile/RosterReconciler.kt", "stampedTerm", "pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)")
+        assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)")
     }
 
     /**
@@ -141,9 +137,6 @@ class SyncWiringTest {
         // What a run its sign-out overtook says of the backend, it says for the next account.
         assertTrue("a pass past its sign-out reports a failure again", sync.indexOf("if (!signIn.isCurrent) return SyncOutcome.SKIPPED") in 0 until sync.indexOf("steps.failed()"))
         assertCalls("sync/BackgroundSteps.kt", "failed", "prefs.setLastSyncSource(SyncSource.LOCAL)")
-        // A course reset elsewhere takes the hand-added courses and their adds, those under way too.
-        assertCalls("sync/reconcile/CourseResetReconciler.kt", "applyCourseReset", "courseSync.supersedeAddsBack()")
-        assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "if (resetElsewhere) courseSync.supersedeAddsBack()")
     }
 
     /**
@@ -374,24 +367,23 @@ class SyncWiringTest {
         assertCalls("ui/screen/calendar/CalendarViewModel.kt", "setNotifyOnHoliday", "pendingHolidayOverrides.send(")
         // Sent by the outbox's drain, the holidays one of its channels (OutboxDrainWiringTest).
         assertTrue("the holiday choices are no longer an outbox channel", "OutboxChannelId.HOLIDAYS" in source("data/PendingHolidayOverrides.kt").joinToString("\n"))
-        // Before the fetch, and the snapshot applied after it: SynchronizerOrderTest.
-        assertCalls("sync/reconcile/HolidaysReconciler.kt", "apply", "HolidayOverrideApply.apply(", "HolidayOverrideApply.applyStamped(")
+        // Before the fetch, and the snapshot applied after it, keeping what waits: SynchronizerOrderTest.
+        assertCalls("sync/reconcile/HolidaysReconciler.kt", "apply", "HolidayOverrideApply.applyStamped(")
+        assertCalls("data/HolidayOverrideApply.kt", "applyStamped", "pending.keptOver(serverHlc)")
     }
 
     /** tigerduck-app-android#404: applied after the sign-out cleared them, the departing account's choices came back. */
     @Test
     fun `Home's sync and the worker apply the holiday snapshot through the one apply, under the sign-in it fetched with`() {
         val reconcile = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
-        assertEquals("each mode no longer applies through the one apply", 2, Regex("""apply\(pass, snapshot, holds, stamped\)""").findAll(reconcile).count())
-        // The v3 snapshot's set, or the v4 one's field by field (LWW D12), under the pass's sign-in.
+        assertEquals("each mode no longer applies through the one apply", 2, Regex("""apply\(pass, holds, stamped\)""").findAll(reconcile).count())
+        // The snapshot's choices field by field (LWW D12), under the pass's sign-in.
         val holidays = body("sync/reconcile/HolidaysReconciler.kt", "apply")
-        assertEquals(1, Regex("""HolidayOverrideApply\.apply\([^)]*signIn, pendingHolidayOverrides, academicCalendar\)""").findAll(holidays).count())
-        assertTrue("val signIn = pass.signIn" in holidays && "signIn, pendingHolidayOverrides, academicCalendar,\n" in holidays)
+        assertTrue("pass.signIn, pendingHolidayOverrides, academicCalendar,\n" in holidays)
         val apply = source("data/HolidayOverrideApply.kt").joinToString("\n")
         assertTrue(
             "the holiday snapshot is no longer applied under signIn.ifCurrent",
-            Regex("""signIn\.ifCurrent \{\s*pending\.merged\(""").containsMatchIn(apply) &&
-                Regex("""signIn\.ifCurrent \{\s*val local = calendar\.optedInHolidayIds\s*val kept = pending\.keptOver""").containsMatchIn(apply),
+            Regex("""signIn\.ifCurrent \{\s*val local = calendar\.optedInHolidayIds\s*val kept = pending\.keptOver""").containsMatchIn(apply),
         )
     }
 
@@ -401,16 +393,16 @@ class SyncWiringTest {
         val body = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
         assertTrue(
             "the worker's pass no longer applies the holiday snapshot inside withContext(Dispatchers.Main)",
-            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{ apply\(pass, snapshot, holds, stamped\) \}""").containsMatchIn(body),
+            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{ apply\(pass, holds, stamped\) \}""").containsMatchIn(body),
         )
     }
 
     /** Names go through the one apply, with the same re-enable hold as colours. */
     @Test
     fun `Home's sync and the worker apply custom names through the one apply, held for the re-enable check`() {
-        assertCalls("sync/reconcile/OverridesReconciler.kt", "applyCourseOverrides", "CourseSyncReconciler.applyNameOverrides(")
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "applyStamped", "BackgroundCourseOverrides.apply(")
         assertCalls("sync/reconcile/OverridesReconciler.kt", "reconcileCachedTerm", "BackgroundCourseOverrides.apply(")
-        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "CourseSyncReconciler.applyNameOverrides(")
+        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "stamped.names(current)")
         assertCalls("sync/reconcile/OverridesReconciler.kt", "reconcileCachedTerm", "val policy = syncPolicies.current", "policy.applies(SyncCategory.COURSE_NAMES)")
         // The cached courses are what the widgets read.
         assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "CourseNameOverrides.stamp(")
@@ -423,19 +415,16 @@ class SyncWiringTest {
      */
     @Test
     fun `the syncs apply names and colours as one update of the names and courses as they stand`() {
-        val names = body("ui/screen/home/CourseSyncReconciler.kt", "applyNameOverrides")
+        val names = body("notification/BackgroundCourseOverrides.kt", "apply")
         assertTrue(
-            "the names are no longer merged inside one update, with the held keys read there",
-            Regex("""dataCache\.updateCourseCustomNames\(signIn\) \{[^}]*held = held\(\)""").containsMatchIn(names),
+            "the names are no longer merged inside one update, with what waits read there",
+            Regex("""dataCache\.updateCourseCustomNames\(signIn\) \{ current -> stamped\.names\(current\)""").containsMatchIn(names),
         )
         for (call in listOf("dataCache.loadCourseCustomNames(", "dataCache.saveCourseCustomNames(")) {
-            assertFalse("applyNameOverrides reads or saves the names outside the update", call in names)
+            assertFalse("the apply reads or saves the names outside the update", call in names)
         }
-        // Read where the names are merged, not before the pass.
-        for (name in listOf("reconcile", "reconcileCachedTerm")) {
-            assertCalls("sync/reconcile/OverridesReconciler.kt", name, "{ pendingCourseOverrides.held(result.fetchedAtMs) }")
-        }
-        assertCalls("sync/reconcile/OverridesReconciler.kt", "applyCourseOverrides", "applyNameOverrides(dataCache, overrides, syncNames, signIn, held)")
+        // What waits is read where the names are merged, not before the pass.
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "stamped", "pendingCourseOverrides::heldFields")
 
         assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "dataCache.updateCoursesIfChanged(semester, signIn) { cached ->")
         for ((rel, name) in listOf(
@@ -510,10 +499,12 @@ class SyncWiringTest {
             "the waiting colours and names are no longer an outbox channel",
             "OutboxChannelId.COURSE_OVERRIDES" in overrides && "fun channel(overrides: PendingCourseOverrides): OutboxChannel = overrides" in overrides,
         )
-        // Both modes: sent before the fetch, held in a step after it (SynchronizerOrderTest).
-        for (name in listOf("reconcile", "reconcileCachedTerm")) {
-            assertCalls("sync/reconcile/OverridesReconciler.kt", name, "pendingCourseOverrides.held(result.fetchedAtMs)")
+        // Both modes: sent before the fetch, held in a step after it (SynchronizerOrderTest), by
+        // what waits as each merge runs.
+        for (name in listOf("applyStamped", "reconcileCachedTerm")) {
+            assertCalls("sync/reconcile/OverridesReconciler.kt", name, "stamped(result, holds, term)")
         }
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "stamped", "pendingCourseOverrides::heldFields")
     }
 
     /** tigerduck-app-android#380: sent directly, a reset's or a sync's colour races the outbox, and an older queued one lands over it. */
@@ -543,7 +534,7 @@ class SyncWiringTest {
         val read = body.indexOf("dataCache.loadCourses()")
         val queued = body.indexOf("pendingCourseOverrides.queue(")
         val saved = body.indexOf("dataCache.saveCourses(updated, signIn)")
-        val sent = body.indexOf("pendingCourseOverrides.retry(signIn)")
+        val sent = body.indexOf("pendingCourseOverrides.drain(signIn)")
         assertTrue("resetAllColors no longer reserves the batch's version before reading the colours", reserved in 0 until read)
         assertTrue("resetAllColors no longer queues every colour before saving them", queued in read until saved)
         assertTrue("resetAllColors no longer sends the queued colours after saving them", sent > saved)
@@ -586,8 +577,7 @@ class SyncWiringTest {
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {
         // The term's commit hands the courses it took out to the forget (commitReconciledTerm).
-        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),\n")
-        assertCalls("sync/reconcile/CourseResetReconciler.kt", "applyCourseReset", "pendingCourseOverrides.forget(")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership.gone,\n")
         assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "pendingCourseOverrides, signIn,\n")
     }
 
@@ -597,7 +587,7 @@ class SyncWiringTest {
         assertCalls("ui/screen/settings/SettingsViewModel.kt", "resolve", "pendingCourseOverrides.adoptServer(conflict.categories, signIn)")
         val body = body("ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict")
         val lifted = body.indexOf("prefs.school.pendingConflictCategories.get() - held")
-        val retry = body.indexOf("pendingCourseOverrides.retry(signIn)")
+        val retry = body.indexOf("pendingCourseOverrides.drain(signIn)")
         assertTrue("resolveReenableConflict no longer sends the queued colours and names once the hold is lifted", retry > lifted && lifted >= 0)
     }
 
@@ -870,19 +860,20 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker's read the answer's time and record the server drops`() {
+        // Home's term: the answer read for the membership, the drops recorded as it commits.
+        assertCalls("sync/reconcile/RosterReconciler.kt", "stampedTerm", "answer = dataCache.selectionAnswerIn(semester)", "fetchedAtMs = run.result.fetchedAtMs")
         for ((rel, name) in listOf(
             "sync/reconcile/RosterReconciler.kt" to "reconcileTerm",
             "sync/reconcile/CurrentTermCourses.kt" to "reconcile",
         )) {
             assertCalls(
                 rel, name,
-                "answer = dataCache.selectionAnswerIn(semester)",
-                "fetchedAtMs = result.fetchedAtMs",
                 "dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)",
                 // A roster from here listing one goes again unchanged; see TermCourseSyncTest.
                 "pushApiClient.serverDropped(semester, outcome.serverDrops.keys)",
             )
         }
+        assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "answer = dataCache.selectionAnswerIn(semester)", "fetchedAtMs = result.fetchedAtMs")
         val commit = source("ui/screen/home/HomeBackendSync.kt").joinToString("\n").substringAfter("internal suspend fun commitReconciledTerm(")
         assertTrue("the commit no longer reads the term's answer with its time", "dataCache.selectionAnswerIn(semester)" in commit)
         val fetched = source("ui/screen/home/FetchedTermCommit.kt").joinToString("\n")
@@ -897,8 +888,8 @@ class SyncWiringTest {
     @Test
     fun `the synchronizer runs the first sync first and reads the outbox and the acknowledgments`() {
         val source = source("sync/Synchronizer.kt").joinToString("\n")
-        assertTrue("firstSync ?: NO_FIRST_SYNC, outbox::heldFields, ack," in source)
-        assertTrue("Reconcilers.inOrder(firstSync, marks, ignores, overrides, reset, holidays, roster)" in source)
-        assertTrue("steps.syncedBefore(), heldFields, ack)" in source)
+        assertTrue("firstSync ?: NO_FIRST_SYNC, ack," in source)
+        assertTrue("Reconcilers.inOrder(firstSync, marks, ignores, overrides, holidays, roster)" in source)
+        assertTrue("steps.syncedBefore(), ack)" in source)
     }
 }

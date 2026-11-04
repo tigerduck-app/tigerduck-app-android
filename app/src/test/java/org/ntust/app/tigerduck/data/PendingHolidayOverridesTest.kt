@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.push.StampedValue
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -55,7 +56,7 @@ class PendingHolidayOverridesTest {
         prefs = AppPreferences(JvmContext())
         holidays = PendingHolidayOverrides(
             prefs = prefs,
-            sender = HolidayOverrideSender { id, notify, signIn, madeAtMs ->
+            writer = HolidayOverrideWriter { id, notify, signIn, madeAtMs ->
                 signIns += signIn
                 stamps += madeAtMs
                 sent += id to notify
@@ -66,7 +67,7 @@ class PendingHolidayOverridesTest {
                     prefs.forgetHolidayOverrides()
                     series.open()
                 }
-                delivered
+                tookIf(delivered)
             },
             syncs = { syncs },
             clock = { now },
@@ -89,7 +90,7 @@ class PendingHolidayOverridesTest {
         // Changed back while it waited: the retry sends what the user wants now.
         prefs.holidayNotifyOverrides = emptySet()
         answer = { _, _ -> }
-        holidays.retry(signIn)
+        holidays.drain(signIn)
 
         assertEquals(listOf(3 to true, 3 to false), sent)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
@@ -104,7 +105,7 @@ class PendingHolidayOverridesTest {
         now = 3_000L
         tap(5, notify = true)
         now = 4_000L
-        holidays.retry(signIn)
+        holidays.drain(signIn)
 
         // 3 failed at T1, 5 landed at T2, and the retry sent 3 again at its own time.
         assertEquals(listOf<Long?>(2_000L, 3_000L, 2_000L), stamps)
@@ -125,22 +126,10 @@ class PendingHolidayOverridesTest {
         tap(3, notify = false)
         syncs = true
         now = 4_000L
-        holidays.retry(signIn)
+        holidays.drain(signIn)
 
         assertEquals(listOf(3 to true, 3 to false), sent)
         assertEquals(listOf<Long?>(2_000L, 3_000L), stamps)
-    }
-
-    @Test
-    fun `a choice waiting from the build before has no time, and goes out without one`() = runTest {
-        prefs.holidayNotifyOverrides = setOf(4)
-        prefs.holidayOverridesAwaitingUpload = setOf(4)
-        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
-
-        holidays.retry(signIn)
-
-        assertEquals(listOf<Long?>(null), stamps)
-        assertEquals(listOf(4 to true), sent)
     }
 
     @Test
@@ -180,8 +169,8 @@ class PendingHolidayOverridesTest {
         assertEquals(mapOf(9 to 2_000L, 5 to 3_000L), prefs.holidayOverrideEditTimes)
 
         now = 5_000L
-        HolidayOverrideApply.apply(
-            setOf(5), fetchedAtMs = now, signIn = signIn, pending = holidays, calendar = calendar,
+        HolidayOverrideApply.applyStamped(
+            mapOf(5 to StampedValue(true, 1L)), serverHlc = now * 1_000, keeps = { false }, signIn = signIn, pending = holidays, calendar = calendar,
         )
 
         assertEquals(setOf(5), prefs.holidayNotifyOverrides)
@@ -194,16 +183,6 @@ class PendingHolidayOverridesTest {
 
         assertEquals(listOf(3 to true), sent)
         assertEquals(listOf(signIn), signIns)
-        assertEquals(emptySet<Int>(), holidays.waitingIds)
-    }
-
-    @Test
-    fun `with TigerSync off a choice goes nowhere and is not kept`() = runTest {
-        syncs = false
-        tap(3, notify = true)
-        holidays.retry(signIn)
-
-        assertEquals(emptyList<Pair<Int, Boolean>>(), sent)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
     }
 
@@ -252,7 +231,7 @@ class PendingHolidayOverridesTest {
         val times = prefs.holidayOverrideEditTimes
 
         val ended = series.end()
-        holidays.retry(ended)
+        holidays.drain(ended)
         // The sign-out's clear has run by now, or runs before the wipe: marked here it would stay.
         prefs.forgetHolidayOverrides()
         holidays.send(4, ended)
@@ -271,28 +250,13 @@ class PendingHolidayOverridesTest {
         now += 1_000
 
         // The server knows 5 and 9 but not 3, and still has the 5 this phone took back.
-        val merged = holidays.merged(snapshot = setOf(5, 9), fetchedAtMs = now, local = prefs.holidayNotifyOverrides)
+        val calendar = AcademicCalendarStore(JvmContext(), OkHttpClient(), prefs)
+        HolidayOverrideApply.applyStamped(
+            mapOf(5 to StampedValue(true, 1L), 9 to StampedValue(true, 1L)), serverHlc = now * 1_000, keeps = { false },
+            signIn = signIn, pending = holidays, calendar = calendar,
+        )
 
-        assertEquals(setOf(3, 9), merged)
-    }
-
-    @Test
-    fun `a snapshot fetched before the last choice, or during a PUT, is not applied`() = runTest {
-        tap(3, notify = true)
-        assertNull("fetched before the tap", holidays.merged(emptySet(), fetchedAtMs = now - 1, local = setOf(3)))
-
-        val gate = CompletableDeferred<Unit>()
-        answer = { _, _ -> gate.await() }
-        now += 1_000
-        val tapping = launch { tap(4, notify = true) }
-        testScheduler.runCurrent()
-        now += 1_000
-        assertNull("a PUT under way", holidays.merged(emptySet(), fetchedAtMs = now, local = setOf(3, 4)))
-
-        gate.complete(Unit)
-        tapping.join()
-        now += 1_000
-        assertEquals(setOf(3, 4), holidays.merged(setOf(3, 4), fetchedAtMs = now, local = setOf(3, 4)))
+        assertEquals(setOf(3, 9), prefs.holidayNotifyOverrides)
     }
 
     @Test
@@ -331,20 +295,6 @@ class PendingHolidayOverridesTest {
         first.join()
 
         assertEquals(setOf(3), holidays.waitingIds)
-    }
-
-    @Test
-    fun `a snapshot fetched before a PUT landed is not applied`() = runTest {
-        answer = { _, _ -> throw IOException("offline") }
-        tap(3, notify = true)
-        now += 1_000
-        val fetchedAt = now
-        now += 1_000
-        answer = { _, _ -> }
-        // Sent by the worker while Home's fetch was under way.
-        holidays.retry(signIn)
-
-        assertNull(holidays.merged(emptySet(), fetchedAtMs = fetchedAt, local = setOf(3)))
     }
 
     @Test

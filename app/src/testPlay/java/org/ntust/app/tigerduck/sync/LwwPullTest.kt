@@ -127,7 +127,6 @@ class LwwPullTest {
         result: BackendSyncResult,
         mode: SyncMode,
         syncedBefore: Set<SyncCategory> = SyncCategory.entries.toSet(),
-        heldFields: suspend () -> Set<String> = outbox::heldFields,
     ) = SyncPass(
         result = result,
         signIn = signIn,
@@ -137,7 +136,6 @@ class LwwPullTest {
         courseSync = DataCache.CourseSync(0L) { 0L },
         beforeFetch = 0L,
         syncedBefore = syncedBefore,
-        heldFields = heldFields,
         ack = ack,
     )
 
@@ -223,7 +221,7 @@ class LwwPullTest {
     }
 
     private fun reconcilers() = listOf(
-        MarksReconciler(w.appPrefs, w.dataCache, marks, w.pushApi),
+        MarksReconciler(w.appPrefs, w.dataCache),
         IgnoresReconciler(ignores),
         OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, SyncPolicies(w.appPrefs), w.appPrefs),
         HolidaysReconciler(holidays, w.academicCalendar),
@@ -251,14 +249,14 @@ class LwwPullTest {
 
     /**
      * Each step decides in its own write, from its channel's edits waiting there: an edit kept
-     * after the pull read the outbox (here, a read that found none) is kept all the same, and so is
-     * a holiday chosen after the snapshot began whose choice is not waiting yet.
+     * while the pull runs is kept all the same, and so is a holiday chosen after the snapshot began
+     * whose choice is not waiting yet.
      */
     @Test
     fun `each step keeps the edits its channel holds as it writes, though the pull read the outbox before them`() = runBlocking {
         seed()
         w.appPrefs.holidayOverrideEditTimes = mapOf(10 to serverHlc / 1000 + 1)
-        val pass = pass(snapshot(), SyncMode.FOREGROUND, heldFields = { emptySet() })
+        val pass = pass(snapshot(), SyncMode.FOREGROUND)
 
         for (step in reconcilers()) step.reconcile(pass)
 

@@ -46,7 +46,7 @@ internal fun interface CourseDeleter {
  * it waits for the lock or during the request keeps it too, every full sync
  * sends it again first, as [PendingCourseAdds] does for adds, and the
  * reconcile keeps the course out of the term until it lands
- * (`CourseSyncReconciler.reconcileSemester`'s `graceCourseNos`). It goes
+ * (`CourseMembership.reconcileTerm`'s `keeps`). It goes
  * once the DELETE lands, once the course is added back (the add's force key
  * would otherwise lose to a DELETE landing after it), once its term is
  * reset, which deletes the term's rows itself, or once a full sync reads a
@@ -71,9 +71,9 @@ internal fun interface CourseDeleter {
  *
  * The deletes wait in an [OutboxLane] over the queue's own file ([CourseDeletesStore]), one per
  * course ([membershipField]), one request per hold of the lock. A delete is never given up on for
- * its refusals, as before. The stamps come from the [SyncClock], the wall clock on `/v3`. A delete
- * goes with no kind, on `/v4` too, as the iPhone's does: the backend decides from its row, and
- * hides a school course or removes one added by hand. On `/v4` one made while course sync is off
+ * its refusals, as before. The stamps come from the [SyncClock]. A delete goes with no kind, as
+ * the iPhone's does: the backend decides from its row, and hides a school course or removes one
+ * added by hand. One made while course sync is off
  * is kept until it is on (LWW D12), and one the backend refused, the course being added since
  * elsewhere, lifts this phone's hide of it unless the course was deleted again since.
  *
@@ -91,7 +91,7 @@ class PendingCourseDeletes internal constructor(
     private val load: suspend () -> Map<String, Map<String, Long>>,
     private val outbox: MembershipOutbox,
 ) : OutboxChannel {
-    /** A queue alone, on `/v3`, its DELETEs answered by [deleter] and stamped by [clock]. */
+    /** A queue alone, its DELETEs answered by [deleter] and stamped by [clock]. */
     internal constructor(
         dataCache: DataCache,
         pendingCourseAdds: PendingCourseAdds,
@@ -197,7 +197,7 @@ class PendingCourseDeletes internal constructor(
      * keeping it again: a full sync's retry may have sent it since, and a
      * course selection answer brought the course back with the roster after
      * it landed, which a second DELETE would take off the server again. Sent
-     * only while it is still queued, as [retry] sends. Takes
+     * only while it is still queued, as [drain] sends. Takes
      * [PendingCourseAdds.removing] itself, so call it outside that lock.
      */
     suspend fun sendKept(semester: String, courseNo: String, signIn: SignIn) {
@@ -231,11 +231,9 @@ class PendingCourseDeletes internal constructor(
     /**
      * Sends every delete still waiting, each under the lock on its own, so an
      * add or a reset can come between two; each full sync starts with this,
-     * so the snapshot lacks them.
+     * so the snapshot lacks them. A delete that fails waits for the next sync,
+     * and the next one goes.
      */
-    suspend fun retry(signIn: SignIn) = drain(signIn)
-
-    /** [retry]: a delete that fails waits for the next sync, and the next one goes. */
     override suspend fun drain(signIn: SignIn) {
         for ((semester, entries) in waiting()) {
             for (courseNo in entries.keys) {

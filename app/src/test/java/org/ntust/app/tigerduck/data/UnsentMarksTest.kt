@@ -56,12 +56,12 @@ class UnsentMarksTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = UnsentMarks(
         dataCache = cache,
-        sender = MarkSender { id, status, signIn, madeAtMs ->
+        writer = MarkWriter { id, status, signIn, madeAtMs ->
             signIns += signIn
             stamps += madeAtMs
             sent += id to status
             answer(id, status)
-            true
+            TOOK
         },
         records = { records },
         sends = { records && sends },
@@ -91,7 +91,7 @@ class UnsentMarksTest {
         assertEquals(setOf("7"), marks.ids())
 
         answer = { _, _ -> }
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "locally_completed", 7 to "locally_completed"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -106,24 +106,11 @@ class UnsentMarksTest {
         now = 3_000L
         marks.send("8", "locally_completed", signIn)
         now = 4_000L
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         // 7 failed at T1, 8 landed at T2, and the retry sent 7 again at its own time.
         assertEquals(listOf<Long?>(2_000L, 3_000L, 2_000L), stamps)
         assertEquals(emptySet<String>(), marks.ids())
-    }
-
-    @Test
-    fun `a mark stored by the build before has no time, and goes out without one`() = runTest {
-        File(context.filesDir, "TigerDuckData/unsent_marks.json").writeText(
-            """[{"assignmentId":"7","status":"ignored","attempts":0,"lastRefusedAtMs":0}]""",
-        )
-        assertEquals(null, cache.loadUnsentMarks().single().madeAtMs)
-
-        marks.retry(signIn)
-
-        assertEquals(listOf<Long?>(null), stamps)
-        assertEquals(listOf(7 to "ignored"), sent)
     }
 
     @Test
@@ -132,7 +119,7 @@ class UnsentMarksTest {
             """[{"status":"ignored","attempts":0},{"assignmentId":"7","status":"ignored","attempts":0}]""",
         )
 
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         val file = File(context.filesDir, "TigerDuckData/unsent_marks.json").readText()
@@ -206,7 +193,7 @@ class UnsentMarksTest {
         records = false
 
         marks.send("8", "ignored", signIn)
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(setOf("7"), marks.ids())
@@ -278,7 +265,7 @@ class UnsentMarksTest {
         sent.clear()
 
         // A sync's retry reads both, and sends 8 first.
-        val retry = launch { marks.retry(signIn) }
+        val retry = launch { marks.drain(signIn) }
         eightOut.await()
         // The user unmarks 7 while 8 is out.
         val tap = launch { marks.send("7", "none", signIn) }
@@ -303,7 +290,7 @@ class UnsentMarksTest {
             }
         }
 
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
     }
@@ -317,7 +304,7 @@ class UnsentMarksTest {
         val waiting = cache.loadUnsentMarks()
 
         val ended = series.end()
-        marks.retry(ended)
+        marks.drain(ended)
         marks.send("7", "locally_completed", ended)
         marks.send("8", "ignored", ended)
         marks.keep("9", "ignored", ended)
@@ -346,9 +333,9 @@ class UnsentMarksTest {
             release.await()
         }
 
-        val one = launch { marks.retry(signIn) }
+        val one = launch { marks.drain(signIn) }
         out.await()
-        val two = launch { marks.retry(signIn) }
+        val two = launch { marks.drain(signIn) }
         testScheduler.runCurrent()
         release.complete(Unit)
         one.join()
@@ -369,7 +356,7 @@ class UnsentMarksTest {
         records = true
         answer = { _, _ -> }
         sent.clear()
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(emptyList<Pair<Int, String>>(), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -384,7 +371,7 @@ class UnsentMarksTest {
         assertEquals(setOf("7"), marks.ids())
 
         sends = true
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -395,7 +382,7 @@ class UnsentMarksTest {
         // A 404: the backend has no such assignment for this account.
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
         marks.send("7", "ignored", signIn)
-        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.drain(signIn) }
 
         assertEquals(UnsentMarks.MAX_ATTEMPTS, sent.size)
         assertEquals("still kept at this phone's value", setOf("7"), marks.ids())
@@ -405,12 +392,12 @@ class UnsentMarksTest {
     fun `a parked mark gets one more try in a new process`() = runTest {
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
         marks.send("7", "ignored", signIn)
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         sent.clear()
 
         val next = newProcess()
-        next.retry(signIn)
-        next.retry(signIn)
+        next.drain(signIn)
+        next.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
     }
@@ -419,9 +406,9 @@ class UnsentMarksTest {
     fun `a server error or no network is not counted as a refusal`() = runTest {
         answer = { _, _ -> throw PushApiException("HTTP 503", 503) }
         marks.send("7", "ignored", signIn)
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         answer = { _, _ -> throw IOException("offline") }
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
 
         assertEquals(1 + 2 * UnsentMarks.MAX_ATTEMPTS, sent.size)
     }
@@ -430,7 +417,7 @@ class UnsentMarksTest {
     fun `a new tap of a parked mark goes up at once`() = runTest {
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
         marks.send("7", "ignored", signIn)
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         answer = { _, _ -> }
         sent.clear()
 
@@ -458,16 +445,16 @@ class UnsentMarksTest {
         // row, which runs every eight hours; the app may stay open for days.
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
         marks.send("7", "ignored", signIn)
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         sent.clear()
 
         now += 60 * 60 * 1000L
-        marks.retry(signIn)
+        marks.drain(signIn)
         assertEquals("parked for now", emptyList<Pair<Int, String>>(), sent)
 
         now += 7 * 60 * 60 * 1000L
         answer = { _, _ -> }
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(emptySet<String>(), marks.ids())

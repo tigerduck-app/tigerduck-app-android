@@ -89,10 +89,9 @@ internal fun answerOf(response: Response, what: String, field: String? = null): 
 
 /**
  * A course as a request names it: its key, `client:{semester}:{course_no}`, which the caller may
- * not know. [moodleId] is the course's Moodle id where the caller has it, which no request names a
- * course by since `/v3`'s path went; the queues' senders for tests still read it.
+ * not know.
  */
-data class CourseRef(val moodleId: String? = null, val courseKey: String?) {
+data class CourseRef(val courseKey: String?) {
     /**
      * The course as a path names it, sent raw as the key may hold a `/`; for [what], a
      * [CourseKeyUnknownException] when the caller does not know its key.

@@ -33,7 +33,8 @@ import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseColorStore
-import org.ntust.app.tigerduck.data.MarkSender
+import org.ntust.app.tigerduck.data.MarkWriter
+import org.ntust.app.tigerduck.data.TOOK
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -105,7 +106,7 @@ class HomeViewModelTest {
 
     /** Taps kept on this phone alone, as with sync off: nothing leaves for a backend. */
     private val unsentMarks by lazy {
-        UnsentMarks(cache, MarkSender { _, _, _, _ -> true }, records = { false }, sends = { false })
+        UnsentMarks(cache, MarkWriter { _, _, _, _ -> TOOK }, records = { false }, sends = { false })
     }
 
     /**

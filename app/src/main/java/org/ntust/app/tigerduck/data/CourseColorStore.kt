@@ -115,7 +115,7 @@ class CourseColorStore @Inject constructor(
         TigerDuckTheme.clearCourseColorMap()
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
-        pendingCourseOverrides.retry(signIn)
+        pendingCourseOverrides.drain(signIn)
     }
 
     private fun formatHex(color: Color): String =

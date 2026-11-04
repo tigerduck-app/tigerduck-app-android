@@ -1,38 +1,28 @@
 package org.ntust.app.tigerduck.sync.reconcile
 
-import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.push.BackendSyncResult
-import org.ntust.app.tigerduck.push.PushApiClient
-import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentMarkStep
 import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
-import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
 import javax.inject.Inject
 
 /**
  * The assignment marks: Home's mark step ([AssignmentMarkStep]), with the Assignments switch as the
- * pass read it, and the conflict dialog's "keep the server's" answer. In the background, the
- * worker's ([BackgroundMarkStep]), which takes the server's marks and sends none up (C2): a first
- * sync's marks are Home's to send. On `/v4` both take the snapshot's marks field by field, but
+ * pass read it. In the background, the worker's ([BackgroundMarkStep]), which sends none up (C2):
+ * a first sync's marks are Home's to queue. Both take the snapshot's marks field by field, but
  * those this phone keeps ([SyncPass.holds], LWW D12).
  */
 class MarksReconciler @Inject constructor(
     private val prefs: AppPreferences,
     dataCache: DataCache,
-    unsentMarks: UnsentMarks,
-    pushApiClient: PushApiClient,
 ) : Reconciler {
 
-    private val markStep = AssignmentMarkStep.over(prefs, dataCache, unsentMarks) { id, status, signIn ->
-        pushApiClient.patchAssignmentOverrideAnswered(id, status, signIn, madeAtMs = null)
-    }
+    private val markStep = AssignmentMarkStep.over(prefs, dataCache)
 
-    private val backgroundStep = BackgroundMarkStep.over(prefs, dataCache, unsentMarks)
+    private val backgroundStep = BackgroundMarkStep.over(prefs, dataCache)
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
         val signIn = pass.signIn
@@ -49,8 +39,4 @@ class MarksReconciler @Inject constructor(
         if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
         return marksTaken
     }
-
-    /** Takes [result]'s marks, the user having picked the server's in the conflict dialog. */
-    suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult, signIn: SignIn) =
-        markStep.keepServer(state, result, signIn)
 }

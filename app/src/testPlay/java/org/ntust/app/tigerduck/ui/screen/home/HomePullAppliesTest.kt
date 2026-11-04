@@ -133,24 +133,6 @@ class HomePullAppliesTest {
         assertEquals(listOf<String?>("#123456"), state.allCourses.value.map { it.customColorHex })
     }
 
-    /** The conflict dialog's "keep the server's": the snapshot that was contested, marks and colors. */
-    @Test
-    fun `Use Server takes the contested snapshot's marks and colors`() = runBlocking {
-        val signIn = w.sessions.school.signIns.current
-        val contested = BackendSyncResult(
-            ignoredIds = setOf("7"),
-            completedIds = emptySet(),
-            courseOverrides = listOf(CourseOverrideResult(moodleCourseId = MOODLE_ID, courseNo = COURSE, colorHex = "#123456", semester = TERM)),
-            serverCourseNos = setOf(COURSE),
-            currentRevision = 42,
-        )
-
-        rig.sync.applyResolution(state, contested, emptyList(), keepLocal = false, signIn = signIn)
-
-        assertEquals(setOf("7"), state.ignoredAssignmentIds.value)
-        assertEquals(listOf<String?>("#123456"), state.allCourses.value.map { it.customColorHex })
-    }
-
     private companion object {
         const val STUDENT = "B00015999"
         const val TERM = "1141"

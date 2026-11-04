@@ -103,7 +103,7 @@ class ClockAheadHoldTest {
 
         // The hold lifts: the next sync sends it, and it clears.
         prefs.school.pendingConflictCategories.set(emptySet(), testSignIn())
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(2, backend.received(endpoint).size)
         assertFalse(overrides.hasPending())
     }
@@ -125,7 +125,7 @@ class ClockAheadHoldTest {
         assertEquals("still waiting, not counted as refused", 0, row.attempts)
 
         prefs.syncAssignments = true
-        marks.retry(signIn)
+        marks.drain(signIn)
         assertEquals(2, backend.received(endpoint).size)
         assertEquals("the retry keeps the time it was made", true, "hlc" in backend.received(endpoint).last().body)
         assertEquals(emptyList<Any>(), cache.loadUnsentMarks())
@@ -140,8 +140,8 @@ class ClockAheadHoldTest {
             effects = CourseIgnoreEffects {},
             sends = { CourseIgnoreSync.syncsCourseIgnores(prefs) },
             clock = System::currentTimeMillis,
-            // As the app wires it on /v4: the backend settles each change by its stamp.
-            outbox = IgnoreOutbox(System::currentTimeMillis, { true }, AckClock(), CallersScope(), null),
+            // As the app wires it: the backend settles each change by its stamp.
+            outbox = IgnoreOutbox(System::currentTimeMillis, AckClock(), CallersScope(), null),
         )
         val sent = async { ignores.setIgnored("1141", "AAA", "1141AAA", null, ignore = true, signIn = signIn) }
         val held = backend.hold(endpoint)
@@ -178,7 +178,7 @@ class ClockAheadHoldTest {
         assertEquals(setOf(3), holidays.waitingIds)
 
         prefs.cloudSyncEnabled = true
-        holidays.retry(signIn)
+        holidays.drain(signIn)
         assertEquals(2, backend.received(endpoint).size)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
     }

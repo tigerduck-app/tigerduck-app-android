@@ -18,7 +18,6 @@ import org.ntust.app.tigerduck.sync.FirstPullGate
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.Synchronizer
 import org.ntust.app.tigerduck.sync.outbox.Outbox
-import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
 import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
 import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
@@ -63,7 +62,7 @@ internal fun homeSyncRig(
     val holidays = PendingHolidayOverrides(w.appPrefs, w.pushApi)
     val policies = SyncPolicies(w.appPrefs)
     val gate = FirstPullGate(w.sessions, idleScope)
-    val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache, marks, w.pushApi)
+    val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache)
     val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs)
     val synchronizer = Synchronizer(
         prefs = w.appPrefs,
@@ -84,14 +83,13 @@ internal fun homeSyncRig(
         marks = marksReconciler,
         ignores = IgnoresReconciler(ignores),
         overrides = overridesReconciler,
-        reset = CourseResetReconciler(w.appPrefs, w.dataCache, adds, deletes, overrides),
         holidays = HolidaysReconciler(holidays, w.academicCalendar),
         roster = RosterReconciler(
             w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
-            termSync, idleScope, w.appPrefs, policies,
+            termSync, idleScope, policies,
         ),
     )
-    val sync = HomeBackendSync(synchronizer, w.auth, w.pushApi, w.notificationSettingsSync, marksReconciler, overridesReconciler)
+    val sync = HomeBackendSync(synchronizer, w.auth, w.pushApi, w.notificationSettingsSync)
     return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, synchronizer, sync)
 }
 

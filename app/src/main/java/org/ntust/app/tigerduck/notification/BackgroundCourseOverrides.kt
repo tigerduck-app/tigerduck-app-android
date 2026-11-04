@@ -1,26 +1,22 @@
 package org.ntust.app.tigerduck.notification
 
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.StampedMerges
 
 /**
- * The background sync's pass of a snapshot's course colours and names over the
- * term it caches, which the synchronizer's colors and names step runs in the
- * background (`OverridesReconciler`), and on `/v4` in Home's pass too, over
- * Home's term. An object of its own, so its tests run it over a real cache.
+ * A pull's pass of a snapshot's course colours and names over the term it caches, which the
+ * synchronizer's colors and names step runs in the background (`OverridesReconciler`), and in
+ * Home's pass too, over Home's term. An object of its own, so its tests run it over a real cache.
  */
 internal object BackgroundCourseOverrides {
 
     /**
-     * Home's colour and name passes ([CourseSyncReconciler.applyColorOverrides],
-     * [CourseSyncReconciler.applyNameOverrides]) over [semester]'s cached
-     * courses, with the names stamped onto them in [locale]: the widgets read
-     * the cached courses, not the names file. [held] reads what the snapshot
-     * must not overwrite. With [stamped], a `/v4` pull's, both are its merges instead (LWW D12).
+     * The pull's merges of the colours and names ([stamped], LWW D12) over [semester]'s cached
+     * courses, with the names stamped onto them in [locale]: the widgets read the cached courses,
+     * not the names file.
      *
      * Applied to the courses and the names as they stand, each under its lock
      * ([DataCache.updateCoursesIfChanged], [DataCache.updateCourseCustomNames]),
@@ -33,28 +29,18 @@ internal object BackgroundCourseOverrides {
     suspend fun apply(
         dataCache: DataCache,
         semester: String,
-        overrides: List<CourseOverrideResult>,
-        held: suspend () -> Set<String>,
         syncColors: Boolean,
         syncNames: Boolean,
         locale: String,
         signIn: SignIn,
-        stamped: StampedMerges? = null,
+        stamped: StampedMerges,
     ): CourseSyncReconciler.ColorOutcome? {
         var applied: CourseSyncReconciler.ColorOutcome? = null
         val written = dataCache.updateCoursesIfChanged(semester, signIn) { cached ->
             if (cached.isEmpty()) return@updateCoursesIfChanged cached
-            val names = when {
-                stamped == null -> CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, signIn, held)
-                syncNames -> dataCache.updateCourseCustomNames(signIn) { current -> stamped.names(current) ?: current }
-                else -> null
-            }
+            val names = if (syncNames) dataCache.updateCourseCustomNames(signIn) { current -> stamped.names(current) ?: current } else null
             val named = if (names != null) CourseNameOverrides.stamp(cached, names, locale) else cached
-            val outcome = when {
-                stamped == null -> CourseSyncReconciler.applyColorOverrides(named, overrides, syncColors, held())
-                syncColors -> stamped.colors(named)
-                else -> null
-            }
+            val outcome = if (syncColors) stamped.colors(named) else null
             val updated = outcome?.courses ?: named
             applied = CourseSyncReconciler.ColorOutcome(updated, outcome?.moved.orEmpty())
             updated

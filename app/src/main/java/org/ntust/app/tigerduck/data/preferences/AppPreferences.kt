@@ -260,9 +260,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     val school = SchoolKeys(prefs) { _schoolDataSyncedAtMs.value = it }
 
     /**
-     * This phone's clock at an older build's last full sync, epoch ms, or 0:
-     * read by the first sync since the update, which then forgets it
-     * ([forgetLegacyLastCourseSyncAt]); see `CourseSyncReconciler.coursesReset`.
+     * This phone's clock at an older build's last full sync, epoch ms, or 0: read by no rule since
+     * a reset's tombstones take the courses it cleared (LWW D10), and forgotten at a sign-out
+     * ([forgetLegacyLastCourseSyncAt]).
      */
     val legacyLastCourseSyncAtMs: Long
         get() = legacySyncPrefs.getLong("last_course_sync_at", 0L)

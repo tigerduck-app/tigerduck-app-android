@@ -104,7 +104,7 @@ class CourseDeletesChannelTest {
 
     /** A delete is never given up on for its refusals: every sync sends it again, as before it was a channel. */
     @Test
-    fun `on v3 a delete refused time after time still goes at every sync`() = runTest {
+    fun `a delete refused time after time still goes at every sync`() = runTest {
         var refusals = 0
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null })
         val deletes = PendingCourseDeletes(cache, adds, { _, _, _ ->
@@ -112,7 +112,7 @@ class CourseDeletesChannelTest {
         })
         deletes.send(term, typed, 5_000L, signIn)
 
-        repeat(6) { deletes.retry(signIn) }
+        repeat(6) { deletes.drain(signIn) }
 
         assertEquals(7, refusals)
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
@@ -123,7 +123,7 @@ class CourseDeletesChannelTest {
      * the send lock, after an upload that was waiting for the lock before it, as it always went.
      */
     @Test
-    fun `on v3 a removal made while its first DELETE is out goes at its own turn of the send lock`() = runTest {
+    fun `a removal made while its first DELETE is out goes at its own turn of the send lock`() = runTest {
         val events = mutableListOf<String>()
         val out = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
@@ -210,7 +210,7 @@ class CourseDeletesChannelTest {
         caller.join()
         assertEquals(mapOf(term to mapOf(typed to 10L)), queued())
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(2, calls)
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
@@ -225,7 +225,7 @@ class CourseDeletesChannelTest {
         val (deletes, _) = v4Deletes()
         backend.answer(deletePath("CS1003", "1141"), 200, syncFixture("v4/answer-delete.json"))
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(
             listOf(listOf("DELETE", "$v4/sync/courses/client:1141:CS1003?hlc=1700000001000000", listOf(bearer), null, "")),
@@ -246,7 +246,7 @@ class CourseDeletesChannelTest {
         assertEquals(setOf(field(typed)), deletes.heldFields())
 
         prefs.syncCourses = true
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000123000"), backend.sent.map { it.url })
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
@@ -375,7 +375,7 @@ class CourseDeletesChannelTest {
         deletes.keep(term, typed, 1_790_000_000_020L, signIn)
         deletes.keep(term, typed, 1_790_000_000_010L, signIn)
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000"), backend.sent.map { it.url })
     }
@@ -415,7 +415,7 @@ class CourseDeletesChannelTest {
         val waiting = queued()
 
         val ended = series.end()
-        deletes.retry(ended)
+        deletes.drain(ended)
         deletes.sendKept(term, typed, ended)
         deletes.keep(term, other, 6L, ended)
         deletes.send(term, other, 7L, ended)
@@ -460,7 +460,7 @@ class CourseDeletesChannelTest {
         assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_001L, other to 0L)), queued())
 
         prefs.syncCourses = true
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(
             listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000001000", "$v4/sync/courses/client:$term:$other?hlc=0"),
             backend.sent.map { it.url },
@@ -513,7 +513,7 @@ class CourseDeletesChannelTest {
         deletes.keep(term, other, 1_790_000_000_456L, signIn)
         backend.answer("/v4/sync/courses/client:$term:$typed", 500, "{}")
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(
             listOf(
@@ -533,7 +533,7 @@ class CourseDeletesChannelTest {
         deletes.send(term, typed, 1_790_000_000_123L, signIn)
         assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(2, backend.sent.size)
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())

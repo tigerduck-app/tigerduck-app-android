@@ -209,19 +209,9 @@ class KeepLocalCoursesTest {
     }
 
     @Test
-    fun `on v3 a term's colors ride its upload, and nothing else is sent for them`() = runTest {
-        val server = FakeCourseServer(rows = setOf("client:1151:CS1"))
-        val colored = Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")
-
-        keepLocalCourses(listOf("1151" to listOf(colored)), hiding = emptySet(), backend = server)
-
-        assertEquals(listOf("reset 1151", "upload 1151"), server.requests)
-    }
-
-    @Test
     fun `Use Local on v4 sends a term's colors as stamped overrides after its upload`() = runTest {
         // A term reset, and one whose portal courses are not cached, which is not.
-        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2", "client:1142:MY9"), stampsOverrides = true)
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2", "client:1142:MY9"))
         val terms = listOf(
             "1151" to listOf(
                 Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000"),
@@ -256,7 +246,7 @@ class KeepLocalCoursesTest {
     @Test
     fun `on v4 a term uploaded without a reset sends its colors as overrides after its upload`() = runTest {
         // The cache lost the term's portal rows: its hand-typed courses go up, and nothing is reset.
-        val server = FakeCourseServer(rows = setOf("client:1151:CS1"), stampsOverrides = true)
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1"))
         val terms = listOf(
             "1151" to listOf(
                 Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#0000FF"),
@@ -279,7 +269,7 @@ class KeepLocalCoursesTest {
 
     @Test
     fun `on v4 each color and name goes as the phone holds it after the reset, not as Use Local read it`() = runTest {
-        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2"), stampsOverrides = true)
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2"))
         // While the reset is out the student recolors CS1, renames it, and clears CS2's color.
         server.afterReset = {
             server.local["client:1151:CS1"] = LocalChoices("#00FF00", mapOf("en" to "New", "zh" to ""))
@@ -367,8 +357,6 @@ class UseLocalCoursesTest {
         override suspend fun resetTerm(semester: String) = throw IOException("offline")
         override suspend fun uploadTerm(courses: List<Course>, semester: String) = Unit
         override suspend fun hideCourse(courseKey: String) = Unit
-        override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
-        override val stampsOverrides = false
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
         override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
@@ -377,9 +365,6 @@ class UseLocalCoursesTest {
         override suspend fun resetTerm(semester: String) = throw CourseSyncOffException()
         override suspend fun uploadTerm(courses: List<Course>, semester: String) = throw CourseSyncOffException()
         override suspend fun hideCourse(courseKey: String) = throw CourseSyncOffException()
-        override suspend fun patchCustomName(moodleId: String, name: String, locale: String) =
-            throw CourseSyncOffException()
-        override val stampsOverrides = false
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) =
             throw CourseSyncOffException()
         override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
@@ -389,8 +374,6 @@ class UseLocalCoursesTest {
         override suspend fun resetTerm(semester: String) = onRequest()
         override suspend fun uploadTerm(courses: List<Course>, semester: String) = onRequest()
         override suspend fun hideCourse(courseKey: String) = onRequest()
-        override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = onRequest()
-        override val stampsOverrides = false
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = onRequest()
         override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
@@ -407,8 +390,6 @@ class UseLocalCoursesTest {
                 if (++uploads == 2) throw IOException("connection lost")
             }
             override suspend fun hideCourse(courseKey: String) = Unit
-            override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
-            override val stampsOverrides = false
             override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
             override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
         }
@@ -526,7 +507,6 @@ class UseLocalLatchTest {
 private class FakeCourseServer(
     rows: Set<String>,
     val tombstones: MutableMap<String, Boolean> = mutableMapOf(),
-    override val stampsOverrides: Boolean = false,
 ) : CourseSyncBackend {
     val rows = rows.toMutableSet()
 
@@ -557,10 +537,6 @@ private class FakeCourseServer(
      */
     val names = mutableMapOf<String, MutableMap<String, String>>()
 
-    // The moodle_id each row was stored under, which the override PATCH
-    // resolves: the uploaded one, or "{semester}{course_no}" without one.
-    private val moodleIds = rows.associateWith { it.removePrefix("client:").replace(":", "") }.toMutableMap()
-
     override suspend fun resetTerm(semester: String) {
         requests += "reset $semester"
         resets += semester
@@ -581,7 +557,6 @@ private class FakeCourseServer(
             if (tombstones[key] == true) tombstones.remove(key)
             if (key in tombstones) continue
             rows += key
-            moodleIds[key] = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
         }
     }
 
@@ -600,15 +575,7 @@ private class FakeCourseServer(
     /** Whether every name PATCH fails before reaching the server. */
     var failingNames = false
 
-    override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {
-        if (failingNames) throw IOException("connection lost")
-        val key = rows.firstOrNull { moodleIds[it] == moodleId } ?: throw IOException("HTTP 404")
-        requests += "name $key $locale"
-        names.getOrPut(key) { mutableMapOf() }[locale] = name
-    }
-
     override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) {
-        check(stampsOverrides) { "a stamped override sent to a backend that takes none" }
         val courseKey = "client:$semester:$courseNo"
         if (failingNames) throw IOException("connection lost")
         if (courseKey !in rows) throw IOException("HTTP 404")
