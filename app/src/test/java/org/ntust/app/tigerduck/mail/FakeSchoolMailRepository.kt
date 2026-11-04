@@ -399,11 +399,15 @@ class FakeSchoolMailRepository : SchoolMailRepository {
      */
     override suspend fun setSeen(signIn: SignIn, folder: String, uidValidity: Long?, uids: List<Long>, seen: Boolean) {
         seenGate?.await()
+        seenFolderGates[folder]?.await()
         seenError?.let { throw it }
         if (!signIn.isCurrent) throw MailError.Abandoned()
         refuseUnder(uidValidity)
         record(SeenBatch(signIn, folder, uidValidity, uids, seen))
     }
+
+    /** Set for a folder, its batch waits on it once it holds the connection, as [seenGate] holds every one. */
+    val seenFolderGates = mutableMapOf<String, CompletableDeferred<Unit>>()
 
     private suspend fun record(batch: SeenBatch) {
         foldersTouched += batch.folder

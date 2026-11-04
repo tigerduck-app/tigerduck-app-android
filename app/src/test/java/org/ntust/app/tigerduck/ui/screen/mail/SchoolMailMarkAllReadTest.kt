@@ -8,6 +8,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -27,6 +28,7 @@ import org.ntust.app.tigerduck.mail.RecordingScheduler
 import org.ntust.app.tigerduck.mail.SentCopyNotices
 import org.ntust.app.tigerduck.mail.cancelAndJoinBlocking
 import org.ntust.app.tigerduck.mail.imap.FolderSelection
+import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.signInNow
@@ -131,6 +133,33 @@ class SchoolMailMarkAllReadTest {
 
         assertEquals(1, repo.seenBatches.size)
         assertTrue(vm.state.value.displayed.first { it.uid == 3L }.summary.flags.seen)
+    }
+
+    @Test
+    fun `a move started once a folder's batch landed keeps its hold when the next folder's batch ends`() {
+        val sent = repo.resolved.nameOf(SpecialFolder.SENT)!!
+        repo.add(sent, mailSummary(7))
+        vm.selectFolder(FolderSelection.AllMail)
+        val gate = CompletableDeferred<Unit>()
+        repo.seenFolderGates[sent] = gate
+        vm.markAllRead()
+        main.dispatcher.scheduler.runCurrent()
+        // The inbox's batch has landed and let its mail go; the sent folder's is still out.
+        val moving = vm.state.value.displayed.single { it.folder == "INBOX" && it.uid == 3L }
+        assertTrue(moving.summary.flags.seen)
+        assertFalse(moving.key in vm.state.value.writing)
+        repo.writeGate = CompletableDeferred()
+        vm.requestMove(moving)
+        main.dispatcher.scheduler.runCurrent()
+        vm.moveTo(repo.resolved.nameOf(SpecialFolder.TRASH)!!)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(moving.key in vm.state.value.writing)
+
+        gate.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("INBOX", sent), repo.seenBatches.map { it.folder })
+        assertTrue("the move's hold was let go before the move landed", moving.key in vm.state.value.writing)
     }
 
     @Test

@@ -38,20 +38,24 @@ internal class MailMarkAllRead(
             .filter { !it.summary.flags.seen && it.key !in state.writing && it.uidValidity != null }
             .groupBy { it.folder to it.uidValidity }
         if (batches.isEmpty()) return
-        val keys = batches.values.flatten().mapTo(HashSet()) { it.key }
-        val release = hold(keys)
+        // The keys this press still holds, each let go once: one let go as its batch landed may be
+        // held by a later write by now, a move started meanwhile, which must keep its hold.
+        val held = batches.values.flatten().mapTo(HashSet()) { it.key }
+        val release = hold(held.toSet())
         running = scope.launch {
             try {
                 for ((at, rows) in batches) {
                     repository.setSeen(signIn, at.first, at.second, rows.map { it.uid }, seen = true)
-                    release(rows.mapTo(HashSet()) { it.key })
+                    val landed = rows.mapTo(HashSet()) { it.key }
+                    held -= landed
+                    release(landed)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 failed(MailErrors.classify(e), signIn)
             } finally {
-                release(keys)
+                release(held.toSet())
             }
         }
     }
