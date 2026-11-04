@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.util.JvmContext
@@ -82,14 +83,41 @@ class SyncClockTest {
     }
 
     @Test
-    fun `a refusal stamps again at the backend's time plus five seconds, and caps the next edit`() {
+    fun `a refusal stamps again one tick past the backend's clock, and keeps the last value issued`() {
         val clock = clock()
         now = T + MINUTE
         assertEquals(T + MINUTE + 1, clock.stampMs())
 
         // 409 clock_ahead, its answer carrying the backend's clock.
-        assertEquals(T + 5_000 + 1, clock.restampAfterClockAhead(us(T)))
-        assertEquals(T + 5_000 + 2, clock.stampMs())
+        assertEquals(T + 1, clock.restampAfterClockAhead(us(T)))
+        // The next edit stamps after the last value issued, until the cap passes it.
+        assertEquals(T + MINUTE + 2, clock.stampMs())
+        now += MINUTE
+        assertEquals(T + MINUTE + 5_000 + 1, clock.stampMs())
+    }
+
+    /**
+     * Agreed with the iOS lead and the owner (Telegram 1638, 1651): the restamp is the clock the 409
+     * carries plus one tick, a millisecond here, and the last value issued is never lowered for it,
+     * so a still wall clock cannot issue one stamp twice (`tigersync-clock`, "A device re-stamps an
+     * edit refused as ahead").
+     */
+    @Test
+    fun `two refusals with a still wall clock give two different, increasing stamps, each under the refusal's clock plus five seconds`() {
+        val clock = clock()
+        now = T + MINUTE
+        val offline = clock.stampMs()
+
+        // Two edits refused as ahead, each answered with the backend's clock, which has not moved.
+        val first = clock.restampAfterClockAhead(us(T) + 456)
+        val between = clock.stampMs()
+        val second = clock.restampAfterClockAhead(us(T) + 456)
+
+        assertTrue("two refusals, two stamps: $first, $second", second > first)
+        assertEquals("one tick past the refusal's clock", T + 1, first)
+        assertTrue("under the refusal's clock plus five seconds: $second", second < T + 5_000)
+        assertEquals("an edit between them stamps after the last value issued", offline + 1, between)
+        assertEquals("the last value issued is never lowered", offline + 1, SyncClockStore(file).load().lastIssuedMs)
     }
 
     @Test

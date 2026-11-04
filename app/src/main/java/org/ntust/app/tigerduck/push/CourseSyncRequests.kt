@@ -190,8 +190,8 @@ internal class CourseSyncRequests(
     /** An upload's body, and the body it goes again with once refused as ahead. */
     private class UploadBodies(val first: RequestBody, val again: ((serverClockUs: Long?) -> RequestBody)?)
 
-    // The courses and their hand-adds. Once refused as ahead, each add stamped later than the clock
-    // now allows goes again at that, and the oldest stay the oldest.
+    // The courses and their hand-adds. Once refused as ahead, each add stamped later than the restamp,
+    // one tick past the refusal's clock, goes again at it, and the oldest stay the oldest.
     private fun upload(
         courses: List<Course>, semester: String, forceKeys: List<String>, rosterTerms: List<String>, addedAt: Map<String, Long>,
     ): UploadBodies {

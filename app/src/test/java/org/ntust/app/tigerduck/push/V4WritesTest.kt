@@ -120,8 +120,14 @@ class V4WritesTest {
         "/v4/sync/courses" to { c -> c.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) },
     )
 
+    /**
+     * Restamped one tick past the reply's clock, and the last value the clock issued kept
+     * (`tigersync-clock`, "A device re-stamps an edit refused as ahead"; Telegram 1638, 1651): the
+     * next edit stamps after it, past the cap until the cap passes it, unless this clock never
+     * issued the refused one (a mark queued with its own time), when the next edit is capped.
+     */
     @Test
-    fun `a write refused as ahead is stamped again from the reply's clock and sent once, and the next is capped`() = runTest {
+    fun `a write refused as ahead is stamped again one tick past the reply's clock and sent once, and the next follows the last stamp issued`() = runTest {
         // A phone a minute ahead that has not heard the backend yet (Review Focus 3).
         val serverMs = nowMs
         nowMs += 60_000
@@ -137,8 +143,9 @@ class V4WritesTest {
 
             val stamps = backend.sent.map(::hlcOf)
             assertTrue("$path: refused past the cap", stamps[0]!! > (serverMs + 5_000) * 1_000)
-            // At the backend's time plus five seconds, plus one tick; the next edit a tick later.
-            assertEquals(path, listOf((serverMs + 5_001) * 1_000, (serverMs + 5_002) * 1_000), stamps.drop(1))
+            // At the backend's time plus one tick; the next edit after the last stamp the clock issued.
+            val next = if (path == "/v4/sync/assignments/7/override") serverMs + 5_001 else nowMs + 2
+            assertEquals(path, listOf((serverMs + 1) * 1_000, next * 1_000), stamps.drop(1))
         }
     }
 
@@ -288,7 +295,7 @@ class V4WritesTest {
         assertEquals(2, backend.sent.size)
         assertTrue(backend.sent.all { it.headers == listOf(bearer) })
         assertEquals(
-            """[{"course_key":"client:1151:XA0000009","hlc":${(serverMs + 5_001) * 1_000}},{"course_key":"client:1151:XA0000008","hlc":0}]""",
+            """[{"course_key":"client:1151:XA0000009","hlc":${(serverMs + 1) * 1_000}},{"course_key":"client:1151:XA0000008","hlc":0}]""",
             JSONObject(backend.sent[1].body!!).getJSONArray("adds").toString(),
         )
     }

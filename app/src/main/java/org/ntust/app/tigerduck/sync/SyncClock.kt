@@ -76,18 +76,26 @@ class SyncClock internal constructor(
 
     /**
      * The new stamp of an edit the backend refused as ahead of its clock (409 `clock_ahead`), whose
-     * answer carried [serverClockUs]: heard, the last issued value lowered to the cap, and stamped
-     * again. Lowering it is safe: every stamp the backend stored is at most its time plus five
-     * seconds, and the last seen value covers those this device has read (LWW D1).
+     * answer carried [serverClockUs]: heard, and stamped one tick past it, so strictly after the
+     * refusal's clock and at most a millisecond past (`tigersync-clock`, "A device re-stamps an edit
+     * refused as ahead"; iOS resends one microsecond past it). The last value issued is never lowered
+     * for it, and each restamp follows the one before, so a still wall clock never issues one value
+     * twice (Telegram 1638, 1651). An answer with no plausible clock is stamped as an edit made now.
      */
     fun restampAfterClockAhead(serverClockUs: Long?): Long = synchronized(lock) {
-        if (serverClockUs != null) heard(serverClockUs)
+        val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return@synchronized stampMs()
+        heard(refusedAt)
+        val stamp = maxOf(Math.floorDiv(refusedAt, 1_000L), lastRestampMs) + 1
+        lastRestampMs = stamp
         val state = state()
-        val cap = state.capMs(wallClock())
-        // Lost, a lowering only leaves the last issued value higher.
-        if (cap != null && state.lastIssuedMs > cap) save(state.copy(lastIssuedMs = cap), durable = false)
-        stampMs()
+        // Below the last value issued, as it is for an edit stamped ahead, it leaves that alone.
+        if (stamp > state.lastIssuedMs) save(state.copy(lastIssuedMs = stamp), durable = stamp > wallClock() + SyncClockState.DURABLE_LEAD_MS)
+        stamp
     }
+
+    // Under lock: the last restamp issued in this process, which the next stays above. A process
+    // death needs none: the backend's clock has moved past it by the next launch.
+    private var lastRestampMs = 0L
 
     // Under lock.
     private fun state(): SyncClockState = known ?: store.load().also { known = it }
