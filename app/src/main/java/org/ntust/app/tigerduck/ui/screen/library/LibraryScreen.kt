@@ -150,14 +150,7 @@ fun LibraryScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(presence) }
     }
 
-    // Key on `storedUsername` (a real StateFlow) instead of the plain
-    // suggestedUsername getter — Compose can't observe a non-State property,
-    // so keying on it doesn't re-init the field after a logout + sign-in
-    // with a different NTUST account.
-    var libUsername by remember(storedUsername) {
-        mutableStateOf(viewModel.suggestedUsername)
-    }
-    var libPassword by remember { mutableStateOf("") }
+    val fields = rememberLibraryLoginFields(isLoggedIn, storedUsername) { viewModel.suggestedUsername }
 
     PageScaffold(
         title = stringResource(R.string.feature_library),
@@ -214,16 +207,16 @@ fun LibraryScreen(
                 )
             } else {
                 LoginPromptCard(
-                    username = libUsername,
-                    password = libPassword,
+                    username = fields.username,
+                    password = fields.password,
                     isLoggingIn = isLoggingIn,
-                    onUsernameChange = { libUsername = it.filter { ch -> !ch.isWhitespace() } },
+                    onUsernameChange = { fields.username = it.filter { ch -> !ch.isWhitespace() } },
                     // Library credentials are provisioned against an ASCII-only
                     // backend — strip anything the IME or paste inserts outside
                     // printable ASCII so silent non-ASCII chars can't poison the
                     // login attempt.
-                    onPasswordChange = { libPassword = it.filter { ch -> ch.code in 0x20..0x7E } },
-                    onSubmit = { viewModel.loginAndRefresh(libUsername, libPassword) }
+                    onPasswordChange = { fields.password = it.filter { ch -> ch.code in 0x20..0x7E } },
+                    onSubmit = { viewModel.loginAndRefresh(fields.username, fields.password) }
                 )
             }
 
@@ -369,7 +362,7 @@ private fun CountdownIndicator(countdown: Int) {
 }
 
 @Composable
-private fun LoginPromptCard(
+internal fun LoginPromptCard(
     username: String,
     password: String,
     isLoggingIn: Boolean,
