@@ -1,8 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.library
 
-import android.app.Activity
-import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -52,7 +51,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
@@ -96,15 +94,7 @@ fun LibraryScreen(
     // the library page — the rotating QR is meant to be held up to a scanner,
     // and an unexpected rotate animation mid-scan disrupts that. Restore the
     // previous request on exit so MainActivity's rotation preference resumes.
-    val context = LocalContext.current
-    val activity = remember(context) {
-        var c = context
-        while (c is ContextWrapper) {
-            if (c is Activity) return@remember c
-            c = c.baseContext
-        }
-        null
-    }
+    val activity = LocalActivity.current
     DisposableEffect(activity) {
         val previous = activity?.requestedOrientation
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
@@ -173,6 +163,7 @@ fun LibraryScreen(
         title = stringResource(R.string.feature_library),
         headerPosition = PageHeaderPosition.InContent,
         syncDot = { LibrarySyncDot(failed = errorMessage != null, isLoggedIn, isLoadingQR, syncedAtMs) },
+        menu = rememberLibraryMenu(),
     ) { padding ->
         Column(
             modifier = Modifier
