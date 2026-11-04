@@ -48,13 +48,20 @@ class SyncClock internal constructor(
     // kept in step with it since.
     private var known: SyncClockState? = null
 
+    // Each step below reads the endpoint once, under the lock, and keeps to that one backend for its
+    // check, its state and its write: the setting changes without the lock, and a move between two
+    // reads would put one backend's values into the other's (Codex on PR P, round 2).
+
     /** The stamp of a user edit made now, in epoch ms. */
-    fun stampMs(): Long = synchronized(lock) {
+    fun stampMs(): Long = synchronized(lock) { stamp(endpoint()) }
+
+    // Under lock: [stampMs] for the backend [base] names.
+    private fun stamp(base: String?): Long {
         val now = wallClock()
-        val state = state()
+        val state = state(base)
         // Well past the wall clock, a stamp must outlive a process death: the next launch, its
         // wall clock still behind it, would stamp at or below it.
-        state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + SyncClockState.DURABLE_LEAD_MS) }
+        return state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + SyncClockState.DURABLE_LEAD_MS) }
     }
 
     /**
@@ -65,13 +72,17 @@ class SyncClock internal constructor(
         if (!isPlausibleClockUs(serverClockUs)) return
         synchronized(lock) {
             val base = endpoint()
-            if (!servedBy(base, from)) return
-            val now = wallClock()
-            val state = state(base)
-            val raised = serverClockUs > state.lastSeenUs
-            val next = state.copy(lastSeenUs = maxOf(state.lastSeenUs, serverClockUs), heardUs = serverClockUs, heardAtMs = now)
-            save(next, durable = raised && next.lastSeenUs > (now + SyncClockState.DURABLE_LEAD_MS) * 1_000)
+            if (servedBy(base, from)) hear(serverClockUs, base)
         }
+    }
+
+    // Under lock: [heard] for the backend [base] names.
+    private fun hear(serverClockUs: Long, base: String?) {
+        val now = wallClock()
+        val state = state(base)
+        val raised = serverClockUs > state.lastSeenUs
+        val next = state.copy(lastSeenUs = maxOf(state.lastSeenUs, serverClockUs), heardUs = serverClockUs, heardAtMs = now)
+        save(next, durable = raised && next.lastSeenUs > (now + SyncClockState.DURABLE_LEAD_MS) * 1_000)
     }
 
     /**
@@ -117,23 +128,25 @@ class SyncClock internal constructor(
      * Null, with nothing heard or changed, when [refused], the refused request, went to a backend
      * the endpoint has moved off since: its clock is that backend's, and its write goes no further.
      */
-    fun restampAfterClockAhead(serverClockUs: Long?, refused: HttpUrl): Long? =
-        synchronized(lock) { if (servedBy(endpoint(), refused)) restamp(serverClockUs, refused) else null }
+    fun restampAfterClockAhead(serverClockUs: Long?, refused: HttpUrl): Long? = synchronized(lock) {
+        val base = endpoint()
+        if (servedBy(base, refused)) restamp(serverClockUs, base) else null
+    }
 
     /** [restampAfterClockAhead] for a refusal whose request is not named: from the backend the endpoint names. */
-    fun restampAfterClockAhead(serverClockUs: Long?): Long = synchronized(lock) { restamp(serverClockUs, null) }
+    fun restampAfterClockAhead(serverClockUs: Long?): Long = synchronized(lock) { restamp(serverClockUs, endpoint()) }
 
-    // Under lock.
-    private fun restamp(serverClockUs: Long?, refused: HttpUrl?): Long {
-        val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return stampMs()
-        heard(refusedAt, refused)
+    // Under lock: the restamp, for the backend [base] names, which the refused request went to.
+    private fun restamp(serverClockUs: Long?, base: String?): Long {
+        val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return stamp(base)
+        hear(refusedAt, base)
         // In whole ms, strictly past each value in µs: the refusal's clock, and each floor the backend
         // could have stored, at most its clock plus five seconds: the last restamp, the last value seen.
         val refusedMs = Math.floorDiv(refusedAt, 1_000L)
-        val floors = listOf(lastRestampMs, Math.floorDiv(state().lastSeenUs, 1_000L)).filter { it <= refusedMs + SyncClockState.SKEW_ALLOWED_MS }
+        val state = state(base)
+        val floors = listOf(lastRestampMs, Math.floorDiv(state.lastSeenUs, 1_000L)).filter { it <= refusedMs + SyncClockState.SKEW_ALLOWED_MS }
         val stamp = maxOf(refusedMs, floors.maxOrNull() ?: 0L) + 1
         lastRestampMs = stamp
-        val state = state()
         // Below the last value issued, as it is for an edit stamped ahead, it leaves that alone.
         if (stamp > state.lastIssuedMs) save(state.copy(lastIssuedMs = stamp), durable = stamp > wallClock() + SyncClockState.DURABLE_LEAD_MS)
         return stamp
@@ -148,7 +161,7 @@ class SyncClock internal constructor(
 
     // Under lock: as the store holds it, for the backend [base], the endpoint now, names. Values kept
     // for another are forgotten; those a build before the key kept are taken as this one's.
-    private fun state(base: String? = endpoint()): SyncClockState {
+    private fun state(base: String?): SyncClockState {
         val held = known ?: store.load().also { known = it }
         val key = base?.let(ApiBase::backendKey) ?: return held
         if (held.backendKey == key) return held

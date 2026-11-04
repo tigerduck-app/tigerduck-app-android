@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.sync
 
 import android.content.Context
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -178,6 +179,23 @@ class SyncClockTest {
         assertEquals(T + 5_001, clock.restampAfterClockAhead(us(T)))
     }
 
+    /**
+     * Codex on PR P (round 2): the endpoint setting changes without the clock's lock, so a move can
+     * land between two of a restamp's reads of it. A restamp that checked its refusal against the
+     * first backend and then saved under the next one put the first backend's clock into the next
+     * one's stamps. Each of the clock's steps reads the endpoint once: here the restamp is the first
+     * backend's whole, and the next backend's first stamp follows the wall clock.
+     */
+    @Test
+    fun `an endpoint move during a restamp puts nothing of the first backend's into the next one's stamps`() {
+        var reads = 0
+        val clock = SyncClock(SyncClockStore(file), { now }, { if (reads++ == 0) FIRST else NEXT })
+
+        clock.restampAfterClockAhead(us(T + 60 * MINUTE), "$FIRST/sync/assignments/7/override".toHttpUrl())
+
+        assertEquals("the next backend's stamp follows the wall clock", T + 1, clock.stampMs())
+    }
+
     @Test
     fun `a refusal with no clock in its answer stamps after the last one issued`() {
         val clock = clock()
@@ -323,5 +341,7 @@ class SyncClockTest {
         // 2027-01-15T08:00:00Z.
         const val T = 1_800_000_000_000L
         const val MINUTE = 60_000L
+        const val FIRST = "http://127.0.0.1:9/v4"
+        const val NEXT = "http://127.0.0.2:9/v4"
     }
 }
