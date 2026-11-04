@@ -88,7 +88,7 @@ class SchoolMailMarkAllReadTest {
     }
 
     @Test
-    fun `once the sign-in it started under ends, the rest is not sent`() {
+    fun `once the sign-in it started under ends, nothing is sent`() {
         val gate = CompletableDeferred<Unit>()
         repo.seenGate = gate
         vm.markAllRead()
@@ -98,7 +98,8 @@ class SchoolMailMarkAllReadTest {
         gate.complete(Unit)
         main.dispatcher.scheduler.runCurrent()
 
-        assertEquals("only the mail already on its way", listOf(4L), repo.seenCalls.map { it.second })
+        assertEquals(emptyList<Long>(), repo.seenCalls.map { it.second })
+        assertEquals(null, vm.state.value.actionError)
     }
 
     @Test

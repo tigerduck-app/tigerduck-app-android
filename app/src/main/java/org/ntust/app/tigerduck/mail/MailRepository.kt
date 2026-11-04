@@ -168,10 +168,11 @@ class MailRepository @Inject constructor(
      */
     private fun writerOfIndex(signIn: SignIn): MailIndexer.Owner? = indexOwnerNow()?.takeIf { it.signIn == signIn }
 
-    private fun markSeenInIndex(owner: MailIndexer.Owner, folder: String, uid: Long, seen: Boolean) {
-        val validity = searchIndex.uidValidity(owner.address, folder) ?: return
-        val summary = searchIndex.summaries(owner.address, folder, validity, listOf(uid))[uid] ?: return
-        searchIndex.updateFlags(owner.address, folder, validity, mapOf(uid to summary.flags.copy(seen = seen))) { stillIndexOwner(owner) }
+    /** [uidValidity], when the write had one, is the version of [folder] the index must hold. */
+    private fun markSeenInIndex(owner: MailIndexer.Owner, folder: String, uids: List<Long>, seen: Boolean, uidValidity: Long?) {
+        val validity = searchIndex.uidValidity(owner.address, folder)?.takeIf { uidValidity == null || it == uidValidity } ?: return
+        val flags = searchIndex.summaries(owner.address, folder, validity, uids).mapValues { (_, s) -> s.flags.copy(seen = seen) }
+        if (flags.isNotEmpty()) searchIndex.updateFlags(owner.address, folder, validity, flags) { stillIndexOwner(owner) }
     }
 
     /**
@@ -439,19 +440,43 @@ class MailRepository @Inject constructor(
 
     // --- actions -----------------------------------------------------------------------
 
-    override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) {
-        // Read before the write goes out, as every write here reads it: see [MailChange.signIn].
-        val signIn = account.currentSignIn
+    // Read before the write goes out, as every write here reads it: see [MailChange.signIn].
+    override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) =
+        setSeen(account.currentSignIn, folder, null, listOf(uid), seen)
+
+    override suspend fun setSeen(signIn: SignIn, folder: String, uidValidity: Long?, uids: List<Long>, seen: Boolean) {
+        for (part in uids.distinct().chunked(SEEN_STORE_UIDS)) storeSeen(signIn, folder, uidValidity, part, seen)
+    }
+
+    /**
+     * One `UID STORE` of [setSeen]'s, told to the lists once it lands: a later one refused leaves
+     * this one's mail on the list as it now is on the server.
+     */
+    private suspend fun storeSeen(signIn: SignIn, folder: String, uidValidity: Long?, uids: List<Long>, seen: Boolean) {
         if (account.isDemo) {
-            demoUpdate(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) }
+            if (!signIn.isCurrent) throw MailError.Abandoned()
+            uids.forEach { uid -> demoUpdate(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) } }
         } else {
-            withSession { session ->
-                session.setSeen(folder, listOf(uid), seen)
-                writerOfIndex(signIn)?.let { markSeenInIndex(it, folder, uid, seen) }
+            // The credentials of [signIn]'s own account, read with it, and off the caller's thread,
+            // as they decrypt the password: another student's, signed in since, are never used.
+            val owner = withContext(Dispatchers.IO) { account.snapshot() }?.takeIf { it.signIn == signIn }
+                ?: throw MailError.Abandoned()
+            try {
+                withSession({ signIn.isCurrent }, owner) { session ->
+                    session.setSeen(folder, uids, seen, uidValidity)
+                    writerOfIndex(signIn)?.let { markSeenInIndex(it, folder, uids, seen, uidValidity) }
+                }
+            } catch (e: MailError.FolderChanged) {
+                // Nothing was sent; the list holds rows of a mailbox the server has replaced.
+                changed(MailChange.Changed(folder, signIn))
+                throw e
             }
-            updateCached(folder) { s -> if (s.uid == uid) s.copy(flags = s.flags.copy(seen = seen)) else s }
+            val marked = uids.toSet()
+            updateCached(folder, uidValidity, { signIn.isCurrent }) { s ->
+                if (s.uid in marked) s.copy(flags = s.flags.copy(seen = seen)) else s
+            }
         }
-        changed(MailChange.Seen(folder, uid, seen, signIn))
+        uids.forEach { changed(MailChange.Seen(folder, it, seen, signIn)) }
     }
 
     override suspend fun move(folder: String, uid: Long, target: String, uidValidity: Long?, stillWanted: () -> Boolean) {
@@ -1227,9 +1252,20 @@ class MailRepository @Inject constructor(
         }
     }
 
-    private suspend fun updateCached(folder: String, transform: (MailSummary) -> MailSummary) = withContext(Dispatchers.IO) {
-        val page = cachedPage(folder) ?: return@withContext
-        cache.saveFolder(folder, page.copy(messages = page.messages.map(transform)))
+    /**
+     * [uidValidity], when given, is the version of [folder] the write named its mail under, which a
+     * cached page of another does not share; [stillWanted] as [removeCached]'s.
+     */
+    private suspend fun updateCached(
+        folder: String,
+        uidValidity: Long? = null,
+        stillWanted: () -> Boolean = { true },
+        transform: (MailSummary) -> MailSummary,
+    ) {
+        withContext(Dispatchers.IO) {
+            val page = cachedPage(folder)?.takeIf { uidValidity == null || it.uidValidity == uidValidity } ?: return@withContext false
+            cache.saveFolderIf(folder, page.copy(messages = page.messages.map(transform)), stillWanted)
+        }
     }
 
     /**
@@ -1247,6 +1283,9 @@ class MailRepository @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 50
+
+        /** The most UIDs one `UID STORE` names, which keeps its line well under a server's limit. */
+        const val SEEN_STORE_UIDS = 500
 
         /**
          * The newest mail a search adds to the index before it looks, of what came in since the

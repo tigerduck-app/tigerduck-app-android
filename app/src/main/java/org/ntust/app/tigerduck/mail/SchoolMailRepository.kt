@@ -139,7 +139,20 @@ interface SchoolMailRepository {
 
     suspend fun summary(folder: String, uid: Long): MailSummary?
     suspend fun body(folder: String, uid: Long): MailBody
+
+    /** [uid] alone, for the student signed in now, by [setSeen]'s batch with no UIDVALIDITY to check. */
     suspend fun setSeen(folder: String, uid: Long, seen: Boolean)
+
+    /**
+     * Marks [uids] of [folder] read or unread in one `UID STORE`, as the account of [signIn], the
+     * sign-in the caller read the mail under. The credentials it is sent with are read together
+     * with their sign-in ([MailAccount.snapshot]) and must be [signIn]'s, and [signIn] is asked
+     * again with the session held, right before the STORE: once another student has signed in,
+     * nothing is sent and [MailError.Abandoned] is thrown, since the folder and UIDs would name
+     * mail of theirs. [uidValidity] as on [move]: under another, nothing is sent and
+     * [MailError.FolderChanged] is thrown, and the folder's list is told to read it again.
+     */
+    suspend fun setSeen(signIn: SignIn, folder: String, uidValidity: Long?, uids: List<Long>, seen: Boolean)
 
     /**
      * [stillWanted] as on [loadPage], for the COPY and STORE the move sends: a move confirmed for

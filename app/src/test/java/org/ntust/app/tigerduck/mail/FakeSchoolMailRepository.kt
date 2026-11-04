@@ -375,14 +375,44 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         return bodies[uid] ?: throw MailError.Protocol("gone")
     }
 
+    /**
+     * The mail screen's mark-read, told under the sign-in read before it waits ([seenGate]), as the
+     * real repository reads it, and sent once let go: a test of a write that lands after another
+     * student signed in reads what the list makes of it.
+     */
     override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) {
         val signIn = signIn()
         seenGate?.await()
         seenError?.let { throw it }
-        foldersTouched += folder
-        seenCalls += Triple(folder, uid, seen)
-        update(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) }
-        _changes.emit(MailChange.Seen(folder, uid, seen, signIn))
+        record(SeenBatch(signIn, folder, null, listOf(uid), seen))
+    }
+
+    /** One batch [setSeen] sent, as the real repository's one STORE: under whose sign-in, in which folder, of which version. */
+    data class SeenBatch(val signIn: SignIn, val folder: String, val uidValidity: Long?, val uids: List<Long>, val seen: Boolean)
+
+    /** Every batch that was sent; one refused, for its sign-in or its folder's version, adds nothing. */
+    val seenBatches = mutableListOf<SeenBatch>()
+
+    /**
+     * As the real repository: [signIn] is asked once the write holds the connection ([seenGate]),
+     * and a sign-in that has ended sends nothing; nor does a folder of another UIDVALIDITY.
+     */
+    override suspend fun setSeen(signIn: SignIn, folder: String, uidValidity: Long?, uids: List<Long>, seen: Boolean) {
+        seenGate?.await()
+        seenError?.let { throw it }
+        if (!signIn.isCurrent) throw MailError.Abandoned()
+        refuseUnder(uidValidity)
+        record(SeenBatch(signIn, folder, uidValidity, uids, seen))
+    }
+
+    private suspend fun record(batch: SeenBatch) {
+        foldersTouched += batch.folder
+        seenBatches += batch
+        batch.uids.forEach { uid ->
+            seenCalls += Triple(batch.folder, uid, batch.seen)
+            update(batch.folder, uid) { it.copy(flags = it.flags.copy(seen = batch.seen)) }
+        }
+        batch.uids.forEach { uid -> _changes.emit(MailChange.Seen(batch.folder, uid, batch.seen, batch.signIn)) }
     }
 
     override suspend fun move(folder: String, uid: Long, target: String, uidValidity: Long?, stillWanted: () -> Boolean) {

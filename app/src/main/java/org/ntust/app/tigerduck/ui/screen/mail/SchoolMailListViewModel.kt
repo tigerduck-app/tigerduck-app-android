@@ -697,7 +697,8 @@ class SchoolMailListViewModel @Inject constructor(
      * over this one would otherwise change a row of theirs, which the feed knows not to.
      *
      * Not for a row whose delete or move is still out ([UiState.writing]): the mail is on its way
-     * out of the folder, and a STORE behind that write would find it gone.
+     * out of the folder, and a STORE behind that write would find it gone. As the account and under
+     * the UIDVALIDITY the row was read under ([SchoolMailRepository.setSeen]), or nothing is sent.
      */
     fun toggleRead(row: MailRow) {
         if (row.key in _state.value.writing) return
@@ -705,7 +706,7 @@ class SchoolMailListViewModel @Inject constructor(
         val signIn = account.currentSignIn
         viewModelScope.launch {
             try {
-                repository.setSeen(row.folder, row.uid, seen)
+                repository.setSeen(signIn, row.folder, row.uidValidity, listOf(row.uid), seen)
             } catch (e: MailError) {
                 // One swipe that didn't stick is not the page failing: the list on screen is
                 // exactly as good as it was a moment ago. Nor is it the next student's to see,
@@ -726,7 +727,7 @@ class SchoolMailListViewModel @Inject constructor(
             for (row in rows) {
                 if (!signIn.isCurrent) return@launch
                 try {
-                    repository.setSeen(row.folder, row.uid, true)
+                    repository.setSeen(signIn, row.folder, row.uidValidity, listOf(row.uid), seen = true)
                 } catch (e: MailError) {
                     if (!dropped(e, signIn)) actionFail(e, signIn)
                     return@launch
