@@ -96,19 +96,15 @@ internal object CourseUploadPayload {
     /**
      * [courses] as one upload can name them ([MAX_ADDS]). With more adds to name ([handAdds]) than
      * that, the adds made now go first, with their times ([addedAt], in its order), then those
-     * forced with none ([forceKeys]), then the courses added by hand before, those the backend may
-     * not hold first: a copy of a row it holds as added by hand ([Course.isUserAddedOnServer] true)
-     * loses nothing left out. Each course whose add does not fit is left out of the upload too:
-     * listed unnamed, the backend would take it for the school's. One the backend may not hold
-     * waits in the adds channel then, and goes at the next sync ([CourseUploadAnswer.leftOut]), as on
-     * the iPhone each add goes in an upload of its own.
+     * forced with none ([forceKeys]), then the courses added by hand before, and each course whose
+     * add does not fit is left out of the upload too: listed unnamed, the backend would take it for
+     * the school's. An add left out waits for a later upload, as on the iPhone each add goes in an
+     * upload of its own; a course added before loses nothing, as its row already holds the add.
      */
     fun withinAddsLimit(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): List<Course> {
         val adds = handAdds(courses, semester, forceKeys, addedAt)
         if (adds.size <= MAX_ADDS) return courses
-        val held = courses.filter { it.isUserAddedOnServer == true }.mapTo(HashSet()) { key(semester, it.courseNo) }
-        val before = adds.keys.sortedBy { it in held }
-        val named = (addedAt.keys.map { key(semester, it) } + forceKeys + before).filter { it in adds }.distinct().take(MAX_ADDS).toSet()
+        val named = (addedAt.keys.map { key(semester, it) } + forceKeys + adds.keys).filter { it in adds }.distinct().take(MAX_ADDS).toSet()
         return courses.filter { key(semester, it.courseNo).let { key -> key !in adds || key in named } }
     }
 

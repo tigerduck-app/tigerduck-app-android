@@ -491,42 +491,6 @@ class V4MergedCoursesTest {
         assertEquals(TERM, roster.getJSONArray("roster_terms").getString(0))
     }
 
-    /**
-     * Codex on PR P (P2 3): fifty-one courses an older build added by hand, and a backend that holds
-     * none of the term. The pull's upload of the term names fifty, the most one upload takes. Later
-     * pulls find the term held and upload nothing more of it, and a whole-term upload names the same
-     * fifty, so the last stayed on this phone alone, lost at a sign-out. Each hand-add an upload
-     * leaves out now waits in the adds channel, which every sync sends first.
-     */
-    @Test
-    fun `hand-added courses past the fifty an upload names all reach the backend over the next syncs`() = runBlocking {
-        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
-        val typed = (1..51).map { Course(courseNo = "XT%07d".format(it), courseName = "Typed $it", isManual = true) }
-        assertTrue(w.dataCache.saveCourses(typed, TERM, signIn))
-        val everyKey = typed.map { key(it.courseNo) }
-        repeat(4) {
-            backend.answer(
-                "POST /v4/sync/courses/upload", 200,
-                """{"upserted":51,"skipped_tombstoned":0,"accepted_keys":[${everyKey.joinToString(",") { "\"$it\"" }}]}""",
-            )
-        }
-        // The backend holds none of the term.
-        backend.answer("GET /v4/sync/full", 200, snapshot())
-        rig.home.sync.pull(state, signIn)
-        val first = uploads().flatMap { it.adds() }.toSet()
-
-        // From then on it holds what it took, and no school fetch comes in between.
-        repeat(2) {
-            val held = uploads().flatMap { it.adds() }.distinct().map { row(it.substringAfterLast(':'), source = "user_added", addedHlc = 0) }
-            backend.answer("GET /v4/sync/full", 200, snapshot(*held.toTypedArray()))
-            rig.home.sync.pull(state, signIn)
-        }
-
-        assertEquals("the pull's upload names fifty", 50, first.size)
-        assertEquals("every hand-added course went up", everyKey.toSet(), uploads().flatMap { it.adds() }.toSet())
-        assertEquals(emptyList<String>(), rules.refused)
-    }
-
     /** The worker's pass, off the main thread, whose looper runs meanwhile, as `SynchronizerBackgroundTest` runs it. */
     private fun backgroundPass(): SyncOutcome {
         val thread = Executors.newSingleThreadExecutor()

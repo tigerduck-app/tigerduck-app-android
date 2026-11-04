@@ -124,10 +124,8 @@ internal class CourseSyncRequests(
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl()
-        val sendable = CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt)
-        val sent = CourseUploadPayload.withinAddsLimit(sendable, semester, forceKeys, addedAt)
-        // Left out by the limit, and maybe on no row of the backend's yet: each waits in the adds channel.
-        val leftOut = (sendable - sent.toSet()).filter { it.isUserAddedOnServer != true }.map { it.courseNo }
+        val sent = CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt)
+            .let { CourseUploadPayload.withinAddsLimit(it, semester, forceKeys, addedAt) }
         // Every course left out: nothing the backend would change.
         if (sent.isEmpty() && courses.isNotEmpty()) return@withContext CourseUploadAnswer(emptyList(), emptyList())
         val bodies = upload(sent, semester, forceKeys, rosterTerms, addedAt)
@@ -164,7 +162,7 @@ internal class CourseSyncRequests(
                     if (!sends()) throw ResendHeldBack()
                     response = service.coursesUpload(header, again(serverClockUs, refused) ?: throw ResendHeldBack()).execute()
                 }
-                accepted = response.use(::answered).copy(leftOut = leftOut)
+                accepted = response.use(::answered)
                 landed = true
             }
         } catch (e: ResendHeldBack) {
@@ -325,15 +323,12 @@ internal class CourseSyncRequests(
  * the answer's `X-TigerSync-Clock`, null for an upload the ledger held back or an answer without one.
  * [skippedTombstoned] is how many of the courses sent it left out as tombstoned, made no row for:
  * null for none, and when the answer does not say or names no keys it took to tell which.
- * [leftOut] is the hand-added courses the upload could not name ([CourseUploadPayload.withinAddsLimit])
- * and so left out, which the backend may hold no row of: the adds channel keeps an add of each.
  */
 data class CourseUploadAnswer(
     val accepted: List<String>,
     val refusedAdds: List<String>,
     val serverClockUs: Long? = null,
     val skippedTombstoned: Int? = null,
-    val leftOut: List<String> = emptyList(),
 ) {
     val settled: List<String> get() = (accepted + refusedAdds).distinct()
 
