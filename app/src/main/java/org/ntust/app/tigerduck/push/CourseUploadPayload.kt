@@ -10,6 +10,7 @@
 
 package org.ntust.app.tigerduck.push
 
+import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.shared.Course
 
 internal object CourseUploadPayload {
@@ -78,14 +79,43 @@ internal object CourseUploadPayload {
 
     /**
      * The adds a `/v4` upload of [courses] must name, by key (X9): every course added by hand
-     * ([Course.isManual]), and every one the caller adds now ([addedAt], [forceKeys]), whoever
+     * ([isAddedByHand]), and every one the caller adds now ([addedAt], [forceKeys]), whoever
      * uploads them, a school roster included. `/v4` takes every other course of an upload for the
      * school's roster, and would turn a hand-added one into a school row. Each is stamped with the
-     * caller's [addedAt] entry, else 0, the oldest, which changes nothing the backend already holds.
+     * caller's [addedAt] entry, else 0, the oldest. Never a copy of a school row merged down from
+     * the server: named at 0, the row takes an add the student never made, which keeps every
+     * roster from dropping it, and a term whose courses are all named goes as no roster.
      */
     fun handAdds(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): Map<String, Long> =
-        courses.filter { it.isManual || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }
+        courses.filter { isAddedByHand(it) || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }
             .associate { key(semester, it.courseNo) to (addedAt[it.courseNo] ?: 0L) }
+
+    /**
+     * Whether [course] was added by hand, on this phone or another: added here, with no Moodle id
+     * ([TranscriptTerms.isAddedHere], as the iPhone tells it), or a copy merged down of a row the
+     * backend holds as added by hand ([Course.isUserAddedOnServer] true). A copy of a school row is
+     * manual here too, and is none; one no snapshot has told about goes in no upload ([sendable]).
+     */
+    fun isAddedByHand(course: Course): Boolean = TranscriptTerms.isAddedHere(course) || course.isUserAddedOnServer == true
+
+    /**
+     * Whether [course] is a copy merged down from the server ([Course.isManual], with a Moodle id)
+     * that no `/v4` snapshot has told what its row is ([Course.isUserAddedOnServer] null).
+     */
+    fun isUntoldCopy(course: Course): Boolean =
+        course.isManual && !course.moodleIdNumber.isNullOrEmpty() && course.isUserAddedOnServer == null
+
+    /**
+     * [courses] as a `/v4` upload of [semester] sends them: without a copy no snapshot has told about
+     * ([isUntoldCopy]), unless the caller adds it now ([addedAt], [forceKeys]), as Use Local does.
+     * Each way such a copy could go writes what the backend keeps: named, a school row takes an add
+     * that keeps every roster from dropping it; listed unnamed, a `user_added` row turns into a
+     * school row. Left out, nothing changes: an upload with no roster drops nothing, and a roster
+     * lists no such copy, since the school's fetch tells every copy it lists (`ClassTableCourseMerge
+     * .mergeFetched`). Until a pull tells the copy, uploads do not refresh its row.
+     */
+    fun sendable(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): List<Course> =
+        courses.filter { !isUntoldCopy(it) || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }
 
     /** The key the upload route derives for a course: "client:{semester}:{course_no}". */
     fun key(semester: String, courseNo: String): String = "client:$semester:$courseNo"

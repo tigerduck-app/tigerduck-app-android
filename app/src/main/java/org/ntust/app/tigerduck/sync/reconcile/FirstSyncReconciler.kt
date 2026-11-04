@@ -28,7 +28,8 @@ import javax.inject.Inject
  *   sends them.
  * - Course membership's adds go as they always went: queued, or named in the roster upload's
  *   `adds` with their time or 0 (X9). A hide is in neither, so each one this phone holds that no
- *   delete waits for is queued too, by its term; a bare one from before hides had terms is not.
+ *   delete waits for is queued too, by its term. A bare one from before hides had terms is pinned
+ *   to its terms first ([pinnedLegacyHides]); one no term here carries is not sent.
  *
  * Home's alone: the background's pass leaves a category never synced here to it (C2). On `/v3`
  * it does nothing, and the marks' first-sync upload stays (`AssignmentOverrideReconciler.isFirstUpload`).
@@ -93,8 +94,11 @@ class FirstSyncReconciler @Inject constructor(
     }
 
     private suspend fun queueHides(signIn: SignIn) {
-        // A hide is its term and course number (CourseTombstoneKeys.key); a bare one names no term.
-        for (hide in dataCache.loadDeletedCourseNos()) {
+        // A hide is its term and course number (CourseTombstoneKeys.key). A bare one, from before
+        // hides had terms, is pinned first to each term here whose courses carry it, by the rule the
+        // course list pins it by later in this pass, so it goes as that term's delete and the pull
+        // keeps it; one no term here carries stays bare, and is not sent.
+        for (hide in dataCache.pinnedLegacyHides(dataCache.loadEveryTermCourses().keys, signIn)) {
             if (':' !in hide) continue
             pendingCourseDeletes.queueAsOldest(hide.substringBefore(':'), hide.substringAfter(':'), signIn)
         }

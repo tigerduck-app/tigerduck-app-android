@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.util.Log
 import kotlinx.coroutines.CancellationException
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.home.CourseMembership
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,6 +68,14 @@ internal fun handOverCourseHold(
  * [handOverCourseHold], goes either way. Returns the terms it reset and
  * uploaded again, a failure's included, for the course ignores to follow
  * (`CourseIgnoreSync.pushLocal`).
+ *
+ * Each copy merged down from the server is first told what its row is from
+ * [checked], the snapshot the re-enable check compared
+ * ([CourseMembership.followingRows]): on `/v4` Use Local's adds are made now,
+ * so a copy of a school row named there would become a hand-add for real.
+ * One still not told goes as added by hand, an add made now
+ * (`PushCourseSyncBackend.uploadTerm`), as every copy does without a [checked]
+ * to tell them by; every upload but Use Local's leaves such a copy out.
  */
 internal suspend fun useLocalCourses(
     terms: List<Pair<String, List<Course>>>,
@@ -75,13 +85,22 @@ internal suspend fun useLocalCourses(
     portalCached: (semester: String) -> Boolean,
     latch: UseLocalLatch,
     host: UseLocalHost,
-    now: () -> Long,
+    checked: BackendSyncResult?,
     isCurrent: () -> Boolean,
+    now: () -> Long = System::currentTimeMillis,
 ): Set<String> {
     val reset = mutableSetOf<String>()
+    if (checked == null) {
+        Log.i("SyncReenable", "[reenable] keep-local courses: no snapshot to tell merged copies by, each goes as added by hand")
+    }
+    // As read, for the upload to tell a copy a write changed since (CourseSyncBackend.readFor).
+    terms.forEach { (semester, courses) -> backend.readFor(semester, courses) }
+    val told = if (checked == null) terms else terms.map { (semester, courses) ->
+        semester to CourseMembership.followingRows(courses, semester, checked.serverCourses.filter { it.semester == semester })
+    }
     try {
         try {
-            keepLocalCourses(terms, hiding, backend, customNames, portalCached, isCurrent, onReset = reset::add)
+            keepLocalCourses(told, hiding, backend, customNames, portalCached, isCurrent, onReset = reset::add)
         } catch (e: CancellationException) {
             throw e
         } catch (e: CourseSyncOffException) {

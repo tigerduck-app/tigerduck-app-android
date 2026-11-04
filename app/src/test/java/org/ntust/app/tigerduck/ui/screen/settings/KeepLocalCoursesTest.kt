@@ -358,8 +358,9 @@ class UseLocalCoursesTest {
         portalCached = { true },
         latch = UseLocalLatch(terms.map { it.first }, host),
         host = host,
-        now = { 42L },
+        checked = null,
         isCurrent = { current },
+        now = { 42L },
     )
 
     private class Failing : CourseSyncBackend {

@@ -5,10 +5,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
@@ -22,6 +24,10 @@ import org.ntust.app.tigerduck.util.testSignIn
  * [V3SyncWritesTest]'s.
  */
 class PushApiClientAnswerTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private val v3 = "http://127.0.0.1:9/v3"
     private val backend = RecordingBackend()
@@ -98,7 +104,7 @@ class PushApiClientAnswerTest {
         backend.answer("/v3/sync/courses", 200, """{"deleted":2,"reset_hlc":1792900000000000}""")
 
         val holiday = client.putHolidayOverrideAnswered(3, notify = true, signIn = signIn, madeAtMs = null)
-        val delete = client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = "hide")
+        val delete = client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null)
         val reset = client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = 1_790_000_000_000L)
 
         assertEquals(WriteAnswer(true, 1792900000000123L, emptySet(), mapOf(
@@ -129,7 +135,7 @@ class PushApiClientAnswerTest {
         assertEquals(WriteAnswer.NOT_SENT, client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseOverrideAnswered(moodleId, signIn, colorHex = "#FF0000"))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseIgnoreAnswered(moodleId, true, null, signIn, madeAtMs = null))
-        assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null))
         assertEquals(WriteAnswer.NOT_SENT, client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null))
         prefs.cloudSyncEnabled = false
         assertEquals(WriteAnswer.NOT_SENT, client.putHolidayOverrideAnswered(3, true, signIn, madeAtMs = null))

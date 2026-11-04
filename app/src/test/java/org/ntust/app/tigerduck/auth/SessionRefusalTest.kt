@@ -6,9 +6,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.syncApiClientAt
@@ -27,6 +29,10 @@ import java.net.ConnectException
  * sign-in, rather than failing until the access token runs out.
  */
 class SessionRefusalTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private var relogins = 0
 

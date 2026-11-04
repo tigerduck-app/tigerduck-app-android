@@ -27,7 +27,7 @@ import org.ntust.app.tigerduck.util.logSummary
  *
  * Deliberately narrower than Home's (C2): only the current term, no merge of rows this device
  * lacks (that is left to Home's sync), and no pinning of legacy bare tombstones to terms
- * (`RosterReconciler.migratedTombstones`), so an un-hide here can lift a bare entry for every
+ * (`pinnedLegacyHides`), so an un-hide here can lift a bare entry for every
  * term at once, as the code it replaced also did, and the cache prune ignores bare entries rather
  * than delete a retaken course on the strength of one.
  */
@@ -129,10 +129,11 @@ internal class CurrentTermCourses(
         val localCourses = dataCache.loadCourses(semester)
         val stored = dataCache.loadDeletedCourseNos()
         val waiting = pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)
+        val rows = result.serverCourses.filter { it.semester == semester }
         val membership = CourseMembership.reconcileTerm(
             semester = semester,
             localCourses = localCourses,
-            serverRows = result.serverCourses.filter { it.semester == semester },
+            serverRows = rows,
             tombstones = result.tombstones,
             hides = stored,
             keeps = { it in waiting || holds.keeps(SyncField.membership(SyncField.courseKey(semester, it))) },
@@ -149,6 +150,11 @@ internal class CurrentTermCourses(
             localCourses, pruned, outcome.left, outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides, signIn,
             membership.gone,
         )
+        // The copies merged down follow their rows, for the term's uploads' adds; the pull covers this term alone.
+        // One a write told since the sync began keeps that (compare-and-set).
+        dataCache.updateCoursesIfChanged(semester, signIn) { courses ->
+            CourseMembership.followingRows(courses, semester, rows, CourseMembership.heldIn(result, semester)) { courseSync.retoldSince(semester, it) }
+        }
     }
 
     private companion object {

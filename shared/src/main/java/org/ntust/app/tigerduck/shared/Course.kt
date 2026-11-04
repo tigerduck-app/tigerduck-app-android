@@ -75,6 +75,26 @@ data class Course(
      * field existed. Nullable for the same reason as [dimension].
      */
     val requireOption: String? = null,
+    /**
+     * For a copy merged down from the server ([isManual], with a Moodle id), what the last `/v4`
+     * snapshot that listed its row said of it: true when the backend holds the row as added by
+     * hand, on whichever device (`source = user_added`), false when it is a school row. Null while
+     * none has told this copy: one cached before this field existed, or merged by `/v3`. A copy the
+     * school's fetch lists is the school's, false; one a pull's full snapshot of its term holds
+     * nothing of is the student's own, true, and Use Local keeps what it tells each copy, a copy it
+     * adds now true. Meaningless for any other course: one added on
+     * this phone has no Moodle id, which tells it apart, and one fetched from the school is the
+     * school's.
+     *
+     * `/v4`'s upload names a copy in its adds when this is true and lists it as the school's when
+     * false. While it is null the copy goes in no upload but Use Local's (`CourseUploadPayload
+     * .sendable`): named, a school row would take an add that keeps every roster from dropping it;
+     * listed unnamed, a `user_added` row would turn into a school row.
+     *
+     * Nullable, so a cache written before this field existed reads null (Gson's Unsafe path), which
+     * is what it is: not told yet. Every reader takes null as such.
+     */
+    val isUserAddedOnServer: Boolean? = null,
 ) {
     /** Resolved name for display: user override if set, else the derived default. */
     val displayName: String

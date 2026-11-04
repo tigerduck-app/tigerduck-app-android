@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.push.CourseRef
+import org.ntust.app.tigerduck.push.CourseUploadPayload
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -63,6 +64,14 @@ internal interface CourseSyncBackend {
      * as read.
      */
     suspend fun currentChoices(semester: String, courseNo: String): LocalChoices?
+
+    /**
+     * Use Local read [courses], [semester]'s list as the phone held it, before it told each copy
+     * merged down by the check's rows (`useLocalCourses`): [uploadTerm] goes by the phone's own
+     * value of a copy whose provenance a write changed since (compare-and-set). A backend that keeps
+     * no copy of the phone's own (a test's) needs none.
+     */
+    fun readFor(semester: String, courses: List<Course>) = Unit
 }
 
 /** A course's own choices on the phone: its custom color, and its custom name by locale. */
@@ -117,15 +126,66 @@ internal class PushCourseSyncBackend(
     override suspend fun uploadTerm(courses: List<Course>, semester: String) {
         ensureSends()
         // On /v4 a course added by hand goes as an add made now, after the term's reset: as the
-        // oldest, as a roster names it, the reset would keep it out.
-        val addedAt = if (stampsOverrides) courses.filter { it.isManual }.associate { it.courseNo to api.stampMs() } else emptyMap()
+        // oldest, as a roster names it, the reset would keep it out. Not a copy of a school row
+        // merged down, which the upload lists as the school's. A copy still not told after Use
+        // Local told each by the check's rows (useLocalCourses) goes as one too: the snapshot has
+        // no row of it, and the student chose this phone's list; every other upload leaves it out.
+        // A copy whose provenance the phone changed since Use Local read it, a school fetch's commit
+        // mostly, goes as the phone holds it now (compare-and-set, Codex on round 6).
+        val sent = if (stampsOverrides) asHeldWhereChanged(courses, semester) else courses
+        val addedAt = if (!stampsOverrides) emptyMap() else {
+            sent.filter { CourseUploadPayload.isAddedByHand(it) || CourseUploadPayload.isUntoldCopy(it) }
+                .associate { it.courseNo to api.stampMs() }
+        }
+        if (stampsOverrides) keepTold(sent, semester, addedAt.keys)
         // Null: switched off between the check and the request.
-        api.uploadCoursesAnswered(courses, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
+        api.uploadCoursesAnswered(sent, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
+    }
+
+    // What each copy merged down said of its row when Use Local read its term ([readFor]), by term, then number.
+    private val readProvenance = java.util.concurrent.ConcurrentHashMap<String, Map<String, Boolean?>>()
+
+    override fun readFor(semester: String, courses: List<Course>) {
+        readProvenance[semester] = courses.associate { it.courseNo to it.isUserAddedOnServer }
+    }
+
+    // Whether [course], as the phone holds it, says what it said when Use Local read its term: true
+    // when Use Local read none of [semester] ([readFor]).
+    private fun unchangedSinceRead(course: Course, semester: String): Boolean {
+        val read = readProvenance[semester] ?: return true
+        return course.courseNo in read && read[course.courseNo] == course.isUserAddedOnServer
+    }
+
+    // [courses], each copy whose provenance a write changed since Use Local read it with the phone's value.
+    private suspend fun asHeldWhereChanged(courses: List<Course>, semester: String): List<Course> {
+        if (readProvenance[semester] == null) return courses
+        val held = dataCache.loadCourses(semester).associateBy { it.courseNo }
+        return courses.map { course ->
+            val now = held[course.courseNo]
+            if (now == null || unchangedSinceRead(now, semester)) course else course.copy(isUserAddedOnServer = now.isUserAddedOnServer)
+        }
+    }
+
+    // What Use Local told each copy merged down ([courses], as useLocalCourses told them), and each
+    // copy it adds now ([added]), added by hand, kept on the phone before the upload (Codex on
+    // round 5): the next upload, before any pull, goes by it, not by a stale value. Only over the
+    // value Use Local read: one a write changed since stands (compare-and-set, Codex on round 6).
+    private suspend fun keepTold(courses: List<Course>, semester: String, added: Set<String>) {
+        val told = courses.filter { it.isManual && !it.moodleIdNumber.isNullOrEmpty() }
+            .associate { it.courseNo to (it.courseNo in added || it.isUserAddedOnServer == true) }
+        if (told.isEmpty()) return
+        dataCache.updateCoursesIfChanged(semester, signIn) { current ->
+            current.map { course ->
+                val value = told[course.courseNo]?.takeIf { course.isManual && !course.moodleIdNumber.isNullOrEmpty() }
+                if (value == null || value == course.isUserAddedOnServer || !unchangedSinceRead(course, semester)) course
+                else course.copy(isUserAddedOnServer = value)
+            }
+        }
     }
 
     override suspend fun hideCourse(courseKey: String) {
         ensureSends()
-        api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null, kind = null)
+        api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null)
     }
 
     override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {

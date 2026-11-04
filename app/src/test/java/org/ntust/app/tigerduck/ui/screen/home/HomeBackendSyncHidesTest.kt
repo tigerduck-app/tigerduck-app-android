@@ -29,12 +29,18 @@ class HomeBackendSyncHidesTest {
 
     @Test
     fun `the sync writes the hides only as what it changed in them`() {
-        // The course list's step, the one that migrates them, and the commit it writes them through.
-        val text = source("sync/reconcile/RosterReconciler.kt") + source("ui/screen/home/HomeBackendSync.kt")
-        val migration = text.substringAfter("private suspend fun migratedTombstones(").substringBefore("\n    }\n")
+        // The course list's step, the first course sync before it, the legacy migration both pin the
+        // hides through (LegacyHides.kt), and the commit the course list writes them through.
+        val roster = source("sync/reconcile/RosterReconciler.kt")
+        val firstSync = source("sync/reconcile/FirstSyncReconciler.kt")
+        val legacy = source("sync/reconcile/LegacyHides.kt")
+        val text = roster + firstSync + legacy + source("ui/screen/home/HomeBackendSync.kt")
+        val migration = legacy.substringAfter("suspend fun DataCache.pinnedLegacyHides(").substringBefore("\n}\n")
 
-        assertTrue("the legacy migration pins the hides as they are when it writes", "dataCache.pinLegacyCourseHides(stored, rosters, signIn)" in migration)
+        assertTrue("the legacy migration pins the hides as they are when it writes", "pinLegacyCourseHides(stored, rosters, signIn)" in migration)
+        assertTrue("the course list pins through it", "dataCache.pinnedLegacyHides(semesters, signIn)" in roster)
+        assertTrue("so does the first course sync", "dataCache.pinnedLegacyHides(" in firstSync)
         assertFalse("nothing writes a whole older set back", "dataCache.saveDeletedCourseNos(tombstones)" in text)
-        assertFalse("not even the migration", "dataCache.saveDeletedCourseNos(migrated)" in text)
+        assertFalse("not even the migration", "saveDeletedCourseNos(migrated)" in text)
     }
 }

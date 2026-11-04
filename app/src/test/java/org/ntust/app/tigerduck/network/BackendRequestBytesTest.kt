@@ -34,8 +34,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 /**
  * Today's backend requests, for each way the API endpoint setting can be spelled: where each one
  * goes, the headers it is built with, and its body. Phase 3 moves how a base is resolved and how two
- * are compared (`ApiBase`), and on `/v3` none of this may change: these pass on the base it
- * started from and after every slice.
+ * are compared (`ApiBase`), and none of this changed with that, but where each goes since the move
+ * to `/v4` (T3.31): a base ending in `/v3` is spoken to at `/v4`, the same backend, with the same
+ * headers and bodies.
  *
  * The backend here answers as the first interceptor of the client each request goes through, so it
  * sees a request as its client built it: the headers a client's own interceptors add after that,
@@ -79,17 +80,20 @@ class BackendRequestBytesTest {
 
     @Test
     fun `the endpoint setting resolves to the same base in each spelling`() {
+        // The default ends in /v3, as every build's does, and moves with the rest.
         val default = BuildConfig.PUSH_BASE_URL.trimEnd('/').toHttpUrl().toString().trimEnd('/')
+            .let { if (it.endsWith("/v3")) it.dropLast(2) + "v4" else it }
         val cases = listOf(
             null to (default to false),
-            "https://api.example.test/v3" to ("https://api.example.test/v3" to true),
-            "https://API.Example.TEST:443/v3/" to ("https://api.example.test/v3" to true),
-            "https://api.example.test/prefix/v3" to ("https://api.example.test/prefix/v3" to true),
+            "https://api.example.test/v3" to ("https://api.example.test/v4" to true),
+            "https://API.Example.TEST:443/v3/" to ("https://api.example.test/v4" to true),
+            "https://api.example.test/prefix/v3" to ("https://api.example.test/prefix/v4" to true),
             "https://api.example.test/v4" to ("https://api.example.test/v4" to true),
             "https://api.example.test" to ("https://api.example.test" to true),
-            "https://api.example.test:8443/v3" to ("https://api.example.test:8443/v3" to true),
+            "https://api.example.test:8443/v3" to ("https://api.example.test:8443/v4" to true),
+            // Kept as given: it does not end in /v3 (ApiBase.of).
             "https://api.example.test/v3?x=1" to ("https://api.example.test/v3?x=1" to true),
-            "http://192.168.1.5:40000/v3" to ("http://192.168.1.5:40000/v3" to true),
+            "http://192.168.1.5:40000/v3" to ("http://192.168.1.5:40000/v4" to true),
             "https://v3" to ("https://v3" to true),
             // Plain HTTP to a routable host is refused, and the default is used instead.
             "http://api.example.test/v3" to (default to false),
@@ -180,14 +184,14 @@ class BackendRequestBytesTest {
     fun `a refresh goes to the backend a pair was stored with, in the spelling it was stored in`() = runTest {
         val sent = refreshOfStoredPair(issuedBy = "https://API.Example.TEST:443/v3/")
 
-        assertEquals(listOf("POST https://api.example.test/v3/auth/refresh"), sent)
+        assertEquals(listOf("POST https://api.example.test/v4/auth/refresh"), sent)
     }
 
     @Test
     fun `a refresh of a pair stored before its backend was recorded goes to the endpoint now`() = runTest {
         val sent = refreshOfStoredPair(issuedBy = null)
 
-        assertEquals(listOf("POST https://other.example.test/prefix/v3/auth/refresh"), sent)
+        assertEquals(listOf("POST https://other.example.test/prefix/v4/auth/refresh"), sent)
     }
 
     private suspend fun refreshOfStoredPair(issuedBy: String?): List<String> {
@@ -219,7 +223,7 @@ class BackendRequestBytesTest {
         assertEquals(DepartingDeviceUnregister.Outcome.DONE, unregister(owed, PushApiClient(backend.client, prefs, manager), manager, prefs).send())
 
         assertEquals(
-            listOf("POST https://api.example.test/prefix/v3/auth/refresh", "DELETE https://api.example.test/prefix/v3/devices/device-1"),
+            listOf("POST https://api.example.test/prefix/v4/auth/refresh", "DELETE https://api.example.test/prefix/v4/devices/device-1"),
             backend.sent.map { it.line },
         )
     }

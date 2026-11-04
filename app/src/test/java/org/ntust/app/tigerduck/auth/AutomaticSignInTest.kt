@@ -15,11 +15,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.AnonymousDeviceRequest
 import org.ntust.app.tigerduck.push.OwedUnregister
@@ -41,6 +43,10 @@ import org.ntust.app.tigerduck.util.JvmContext
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AutomaticSignInTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private lateinit var prefs: AppPreferences
     private lateinit var tokens: V3TokenStore

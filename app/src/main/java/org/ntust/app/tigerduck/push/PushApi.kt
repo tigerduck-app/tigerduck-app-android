@@ -102,14 +102,13 @@ internal interface PushApi {
         @Body empty: RequestBody,
     ): Call
 
-    /** `/v4`'s [removeCourse]: [hlc] always, and [kind], `hide` or `remove`, when the caller knows it. */
+    /** `/v4`'s [removeCourse], with [hlc] always and no kind: the backend decides from its row. */
     @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
     fun removeCourseStamped(
         @Header("Authorization") auth: String,
         @Path("courseKey", encoded = true) courseKey: String,
         @Body empty: RequestBody,
         @Query("hlc") hlc: Long,
-        @Query("kind") kind: String?,
     ): Call
 
     /** `/v4`'s [removeCourses], with the reset's [hlc]. */

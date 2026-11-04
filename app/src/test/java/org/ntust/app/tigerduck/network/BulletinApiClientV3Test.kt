@@ -11,10 +11,12 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.JvmContext
@@ -31,6 +33,10 @@ import java.util.concurrent.CopyOnWriteArrayList
  * that, is not in it.
  */
 class BulletinApiClientV3Test {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private class Sent(
         val line: String,

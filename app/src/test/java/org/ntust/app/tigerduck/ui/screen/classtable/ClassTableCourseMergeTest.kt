@@ -325,7 +325,7 @@ class ClassTableCourseMergeTest {
         String::class.java -> (if (second) "e-" else "a-") + field.name
         java.lang.Float.TYPE -> if (second) 2f else 1f
         java.lang.Integer.TYPE, Integer::class.java -> if (second) 2 else 1
-        java.lang.Boolean.TYPE -> second
+        java.lang.Boolean.TYPE, java.lang.Boolean::class.java -> second
         else -> throw AssertionError("Course.${field.name} is a ${field.type}, which this test has no values for: give it some, and name the field in editOnto's merge")
     }
 

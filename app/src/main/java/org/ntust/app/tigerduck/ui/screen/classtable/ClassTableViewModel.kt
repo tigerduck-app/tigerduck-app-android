@@ -1334,7 +1334,7 @@ class ClassTableViewModel @Inject constructor(
                     // Kept before the mark, which a course selection answer
                     // lifts only once no DELETE of the course is waiting; see
                     // DataCache.hideDeletedCourse.
-                    pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn, deletedCourse)
+                    pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn)
                     dataCache.hideDeletedCourse(courseNo, semester, deletedCourse, signIn)
                 } finally {
                     tombstoneEdits.saved(tombstoneEdit)
@@ -1353,7 +1353,7 @@ class ClassTableViewModel @Inject constructor(
             if (tombstoneEdit != null) {
                 pendingCourseDeletes.sendKept(semester, courseNo, signIn)
             } else {
-                pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn, deletedCourse)
+                pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)
             }
             runCatching { pushApiClient.uploadCourses(updated, semester, signIn) }
                 .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed: ${e.logSummary()}") }

@@ -4,8 +4,10 @@ import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.util.JvmContext
@@ -20,6 +22,10 @@ import org.ntust.app.tigerduck.util.testSignIn
  * resets. Course numbers and ids are made up.
  */
 class FullSyncSnapshotTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private val v3 = "http://127.0.0.1:9/v3"
     private val v4 = "http://127.0.0.1:9/v4"

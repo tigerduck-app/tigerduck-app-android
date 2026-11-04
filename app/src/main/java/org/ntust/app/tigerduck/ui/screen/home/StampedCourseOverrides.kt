@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
+import org.ntust.app.tigerduck.data.legacyPlacesOf
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SyncField
@@ -92,17 +93,25 @@ internal object StampedCourseOverrides {
     /**
      * The course numbers and locales whose name this phone keeps, from the [fields] it keeps: a
      * name's field by its course key names its number, and one by a Moodle id (an older build's
-     * change with no term) every number [courses], every term's, or [overrides] give that id: two
-     * terms' courses may share one, and the change may be either's, so it holds both, as holding
-     * one too many is safe and losing a waiting rename is not.
+     * change with no term) every number [overrides] give that id, and every place the send reads
+     * it as ([legacyPlacesOf] over [everyTerm], [current] and [catalogue]): each course of every term
+     * here with the id, else the term and number the id names. Two terms' courses may share one,
+     * and the change goes to one of them, so it holds both, as holding one too many is safe and
+     * losing a waiting rename is not.
      */
-    fun heldNames(fields: Set<String>, courses: List<Course>, overrides: List<CourseOverrideResult>): Set<Pair<String, String>> {
-        val byMoodleId = (overrides.mapNotNull { o -> o.courseNo?.let { o.moodleCourseId to it } } +
-            courses.mapNotNull { c -> c.moodleIdNumber?.let { it to c.courseNo } })
-            .groupBy({ it.first }, { it.second })
+    fun heldNames(
+        fields: Set<String>,
+        everyTerm: Map<String, List<Course>>,
+        overrides: List<CourseOverrideResult>,
+        current: String?,
+        catalogue: List<String>,
+    ): Set<Pair<String, String>> {
+        val bySnapshot = overrides.mapNotNull { o -> o.courseNo?.let { o.moodleCourseId to it } }.groupBy({ it.first }, { it.second })
         return fields.flatMapTo(HashSet()) { field ->
             val (course, locale) = SyncField.nameParts(field) ?: return@flatMapTo emptyList()
-            (SyncField.courseNoOf(course)?.let(::listOf) ?: byMoodleId[course].orEmpty()).map { it to locale }
+            val numbers = SyncField.courseNoOf(course)?.let(::listOf)
+                ?: (bySnapshot[course].orEmpty() + legacyPlacesOf(course, everyTerm, current, catalogue).map { it.courseNo })
+            numbers.map { it to locale }
         }
     }
 
@@ -155,13 +164,17 @@ internal class StampedMerges(
     private val term: String,
     private val holds: PullHolds,
     private val waiting: suspend () -> Set<String>,
-    private val everyCourse: suspend () -> List<Course>,
+    private val everyCourse: suspend () -> Map<String, List<Course>>,
+    // The current term and the catalogue's terms, which an older build's change by its Moodle id is read against.
+    private val legacyTerms: suspend () -> Pair<String?, List<String>>,
 ) {
     /** The names as [StampedCourseOverrides.names] merges them over [current], the courses read here too. */
     suspend fun names(current: Map<String, Map<String, String>>): Map<String, Map<String, String>>? {
-        val everyCourse = everyCourse()
-        val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), everyCourse, overrides)
-        val unsendable = everyCourse.groupBy { it.courseNo }.filterValues { all -> all.all { it.moodleIdNumber.isNullOrEmpty() } }.keys
+        val everyTerm = everyCourse()
+        val (currentTerm, catalogue) = legacyTerms()
+        val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), everyTerm, overrides, currentTerm, catalogue)
+        val unsendable = everyTerm.values.flatten().groupBy { it.courseNo }
+            .filterValues { all -> all.all { it.moodleIdNumber.isNullOrEmpty() } }.keys
         return StampedCourseOverrides.names(current, overrides, held, unsendable)
     }
 

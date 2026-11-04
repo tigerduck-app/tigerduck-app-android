@@ -169,6 +169,20 @@ class EndpointChangeTest {
         assertEquals(listOf("store $OTHER", "register"), events)
     }
 
+    @Test
+    fun `a setting changed by hand between v3 and v4 of one backend is no move, and signs nothing out`() {
+        // The app speaks /v4 to a setting ending in /v3: the same backend, the same session.
+        stored = OTHER
+        school = true
+        assertFalse(change().asks("https://other.example/v4"))
+
+        change().apply("https://other.example/v4")
+        // And back.
+        change().apply(OTHER)
+
+        assertEquals(listOf("store https://other.example/v4", "register", "store $OTHER", "register"), events)
+    }
+
     // What it lets go of
 
     /**
