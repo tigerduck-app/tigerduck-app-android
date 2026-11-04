@@ -69,12 +69,14 @@ class SchoolMailMarkAllReadTest {
     }
 
     @Test
-    fun `every unread mail shown is marked read, on the server and in the list, and no other`() {
+    fun `every unread mail shown is marked read in one batch, on the server and in the list, and no other`() {
         vm.markAllRead()
 
         assertEquals(listOf(4L, 3L, 1L), repo.seenCalls.map { it.second })
         assertTrue(repo.seenCalls.all { it.first == "INBOX" && it.third })
+        assertEquals(1, repo.seenBatches.size)
         assertTrue(vm.state.value.displayed.all { it.summary.flags.seen })
+        assertEquals(emptySet<String>(), vm.state.value.writing)
     }
 
     @Test
@@ -100,6 +102,46 @@ class SchoolMailMarkAllReadTest {
 
         assertEquals(emptyList<Long>(), repo.seenCalls.map { it.second })
         assertEquals(null, vm.state.value.actionError)
+    }
+
+    @Test
+    fun `a second press while one runs sends no second STORE`() {
+        val gate = CompletableDeferred<Unit>()
+        repo.seenGate = gate
+        vm.markAllRead()
+        vm.markAllRead()
+        repo.seenGate = null
+        gate.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(listOf(4L, 3L, 1L)), repo.seenBatches.map { it.uids })
+    }
+
+    @Test
+    fun `a mail its batch holds is not swiped meanwhile, so no STORE crosses it`() {
+        val gate = CompletableDeferred<Unit>()
+        repo.seenGate = gate
+        vm.markAllRead()
+        val held = vm.state.value.displayed.first { it.uid == 3L }
+        assertTrue(held.key in vm.state.value.writing)
+        vm.toggleRead(held)
+        repo.seenGate = null
+        gate.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(1, repo.seenBatches.size)
+        assertTrue(vm.state.value.displayed.first { it.uid == 3L }.summary.flags.seen)
+    }
+
+    @Test
+    fun `each batch carries the UIDVALIDITY its mail was read under, and a folder recreated since marks nothing`() {
+        repo.pageValidity = 2L
+        vm.markAllRead()
+
+        assertEquals(emptyList<FakeSchoolMailRepository.SeenBatch>(), repo.seenBatches)
+        assertTrue(vm.state.value.actionError is MailError.FolderChanged)
+        assertEquals(3, vm.state.value.displayed.count { !it.summary.flags.seen })
+        assertEquals(emptySet<String>(), vm.state.value.writing)
     }
 
     @Test

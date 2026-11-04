@@ -716,24 +716,18 @@ class SchoolMailListViewModel @Inject constructor(
         }
     }
 
-    /**
-     * The filter's Mark all as read: every unread row shown, one at a time through [toggleRead]'s
-     * write, and none once the sign-in it began under has ended. A refusal ends it, said once.
-     */
-    fun markAllRead() {
-        val signIn = account.currentSignIn
-        val rows = _state.value.let { st -> st.displayed.filter { !it.summary.flags.seen && it.key !in st.writing } }
-        viewModelScope.launch {
-            for (row in rows) {
-                if (!signIn.isCurrent) return@launch
-                try {
-                    repository.setSeen(signIn, row.folder, row.uidValidity, listOf(row.uid), seen = true)
-                } catch (e: MailError) {
-                    if (!dropped(e, signIn)) actionFail(e, signIn)
-                    return@launch
-                }
-            }
-        }
+    private val markingAll = MailMarkAllRead(viewModelScope, repository, ::hold) { e, signIn ->
+        if (!dropped(e, signIn)) actionFail(e, signIn)
+    }
+
+    /** The filter's Mark all as read, a batch of each folder at a time: see [MailMarkAllRead]. */
+    fun markAllRead() = markingAll.start(account.currentSignIn, _state.value)
+
+    /** Holds [keys] in [UiState.writing]; the answer lets them go, unless the account is forgotten meanwhile. */
+    private fun hold(keys: Set<String>): (Set<String>) -> Unit {
+        _state.update { it.copy(writing = it.writing + keys) }
+        val forgotten = accountsForgotten
+        return { done -> if (forgotten == accountsForgotten) _state.update { it.copy(writing = it.writing - done) } }
     }
 
     /**
