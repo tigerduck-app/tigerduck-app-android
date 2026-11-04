@@ -162,7 +162,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
     "kind": "long-file",
-    "count": 1304
+    "count": 1302
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/imap/AngusMailSession.kt",
@@ -1026,7 +1026,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
     "kind": "long-file",
-    "count": 470
+    "count": 463
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
@@ -1038,7 +1038,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
     "kind": "long-function",
     "name": "LibraryScreen(LibraryViewModel)",
-    "lines": 160
+    "lines": 153
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
