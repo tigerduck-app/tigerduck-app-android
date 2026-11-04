@@ -17,8 +17,12 @@ class SyncStampsTest {
 
     private val prefs = AppPreferences(context)
 
+    // What an older build kept of the server's last course reset, which nothing reads any more.
+    private val file = context.getSharedPreferences("tigerduck_prefs", 0)
+    private fun courseResetRead() = file.getString("lastSeenCoursesResetAt", null)
+
     private fun keep() {
-        prefs.school.lastSeenCoursesResetAt.set("2026-10-10T16:42:49+00:00", testSignIn())
+        file.edit().putString("lastSeenCoursesResetAt", "2026-10-10T16:42:49+00:00").commit()
         prefs.school.assignmentsUploadFingerprint.set("abc", testSignIn())
         prefs.school.assignmentsUploadedAtMs.set(42L, testSignIn())
         prefs.recordCoursesUpload("1151", "c1", 7L)
@@ -38,7 +42,7 @@ class SyncStampsTest {
 
         prefs.clearSyncStamps()
 
-        assertNull(prefs.school.lastSeenCoursesResetAt.get())
+        assertNull(courseResetRead())
         assertNull(prefs.school.assignmentsUploadFingerprint.get())
         assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
         assertCourseListsForgotten()
@@ -53,7 +57,7 @@ class SyncStampsTest {
         assertNull(prefs.school.assignmentsUploadFingerprint.get())
         assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
         assertCourseListsForgotten()
-        assertEquals("2026-10-10T16:42:49+00:00", prefs.school.lastSeenCoursesResetAt.get())
+        assertEquals("2026-10-10T16:42:49+00:00", courseResetRead())
     }
 
     @Test
@@ -70,17 +74,16 @@ class SyncStampsTest {
     }
 
     @Test
-    fun `the older build's sync stamp is read once, and sign-out forgets it too`() {
+    fun `the older build's sync stamp is forgotten, and sign-out forgets it too`() {
         val legacy = context.getSharedPreferences("tigerduck_sync", 0)
         legacy.edit().putLong("last_course_sync_at", 42L).commit()
 
-        assertEquals(42L, prefs.legacyLastCourseSyncAtMs)
         prefs.forgetLegacyLastCourseSyncAt()
-        assertEquals(0L, prefs.legacyLastCourseSyncAtMs)
+        assertEquals(0L, legacy.getLong("last_course_sync_at", 0L))
 
         legacy.edit().putLong("last_course_sync_at", 42L).commit()
         prefs.clearSyncStamps()
-        assertEquals(0L, prefs.legacyLastCourseSyncAtMs)
+        assertEquals(0L, legacy.getLong("last_course_sync_at", 0L))
     }
 
     @Test

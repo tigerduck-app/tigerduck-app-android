@@ -50,19 +50,6 @@ class SchoolKeys internal constructor(
         empty = false,
     )
 
-    /**
-     * The server's `courses_reset_at` as an older build's last full sync read
-     * it, to tell a new reset from one already applied. Nothing reads it any
-     * more: a reset's tombstones take the courses it cleared, field by field
-     * (LWW D10). Kept so a sign-out still clears what an older build stored
-     * ([AppPreferences.clearSyncStamps]).
-     */
-    val lastSeenCoursesResetAt = AccountKey<String?>(
-        read = { prefs.getString("lastSeenCoursesResetAt", null) },
-        write = { prefs.edit().putString("lastSeenCoursesResetAt", it).apply() },
-        empty = null,
-    )
-
     /** When the school session last signed in, epoch ms; `NtustSessionManager` dates its cookies by it. */
     val ssoLoginTimestamp = AccountKey(
         read = { prefs.getLong("ssoLoginTimestamp", 0L) },

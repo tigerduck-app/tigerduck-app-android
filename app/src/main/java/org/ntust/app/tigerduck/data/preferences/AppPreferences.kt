@@ -117,7 +117,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     // Where builds before the server-time course-reset check kept this
-    // phone's clock at its last full sync; see legacyLastCourseSyncAtMs.
+    // phone's clock at its last full sync; see forgetLegacyLastCourseSyncAt.
     private val legacySyncPrefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_sync", Context.MODE_PRIVATE)
     private val gson = Gson()
@@ -260,13 +260,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     val school = SchoolKeys(prefs) { _schoolDataSyncedAtMs.value = it }
 
     /**
-     * This phone's clock at an older build's last full sync, epoch ms, or 0: read by no rule since
-     * a reset's tombstones take the courses it cleared (LWW D10), and forgotten at a sign-out
-     * ([forgetLegacyLastCourseSyncAt]).
+     * Forgets this phone's clock at an older build's last full sync, which no rule reads since a
+     * reset's tombstones take the courses it cleared (LWW D10): at a sign-out and a full reset.
      */
-    val legacyLastCourseSyncAtMs: Long
-        get() = legacySyncPrefs.getLong("last_course_sync_at", 0L)
-
     fun forgetLegacyLastCourseSyncAt() {
         legacySyncPrefs.edit().remove("last_course_sync_at").apply()
     }
@@ -947,9 +943,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     /**
      * On sign-out, this stamp, the background worker's two below, [SchoolKeys.syncedCategories],
-     * [SchoolKeys.assignmentMarksSyncedOnce], [SchoolKeys.lastSeenCoursesResetAt] and the upload
-     * ledgers: what they record belonged to the account that left, and the next account's worker
-     * must not wait out the old one's hour before its first sync.
+     * [SchoolKeys.assignmentMarksSyncedOnce] and the upload ledgers: what they record belonged to
+     * the account that left, and the next account's worker must not wait out the old one's hour
+     * before its first sync. So does `lastSeenCoursesResetAt`, the server's `courses_reset_at` as
+     * an older build's last full sync read it, which nothing reads since a reset's tombstones take
+     * the courses it cleared (LWW D10).
      */
     fun clearSyncStamps() {
         prefs.edit()

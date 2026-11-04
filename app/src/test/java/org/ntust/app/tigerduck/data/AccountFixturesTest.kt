@@ -71,7 +71,8 @@ class AccountFixturesTest {
         prefs.school.backgroundOverridesSyncedAtMs.set(1_700_000_002_000L, testSignIn())
         prefs.school.classTableSelectedSemester.set("1141", testSignIn())
         prefs.school.emptyClassroomBuilding.set("TR", testSignIn())
-        prefs.school.lastSeenCoursesResetAt.set("2026-09-01T00:00:00Z", testSignIn())
+        // What an older build kept of the server's last course reset, which nothing reads any more.
+        context.getSharedPreferences("tigerduck_prefs", 0).edit().putString("lastSeenCoursesResetAt", "2026-09-01T00:00:00Z").commit()
         prefs.school.pendingConflictCategories.set(setOf("courses"), testSignIn())
         prefs.school.schoolDataSyncedAtMs.set(1_700_000_003_000L, testSignIn())
         prefs.school.ssoLoginTimestamp.set(1_700_000_004_000L, testSignIn())

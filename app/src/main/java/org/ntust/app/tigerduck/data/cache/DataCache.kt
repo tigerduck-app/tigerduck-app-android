@@ -1006,18 +1006,6 @@ class DataCache @Inject constructor(
     }
 
     /**
-     * [semester]'s courses a course selection answer brought back that the
-     * snapshot fetched at [fetchedAtMs] has to leave be: none fetched before
-     * it had listed them since; see [liftHandAddedHides].
-     */
-    suspend fun restoredCoursesIn(semester: String, fetchedAtMs: Long): Set<String> {
-        val prefix = CourseTombstoneKeys.key(semester, "")
-        return loadRestoredCourses()
-            .filter { (key, course) -> key.startsWith(prefix) && (course.listedAt == null || fetchedAtMs < course.listedAt) }
-            .keys.mapTo(mutableSetOf()) { it.removePrefix(prefix) }
-    }
-
-    /**
      * Notes the courses brought back in [semester] that [listed], the course
      * numbers of a snapshot fetched at [fetchedAtMs], holds, when it was
      * fetched after they came back: the upload that names them has landed,
@@ -1061,7 +1049,7 @@ class DataCache @Inject constructor(
         return loadFromUserData<List<String?>>(type, HAND_ADDED_HIDES_FILE).orEmpty().filterNotNullTo(mutableSetOf())
     }
 
-    /** The courses being brought back, by `<semester>:<courseNo>` key; see [restoredCoursesIn]. */
+    /** The courses being brought back, by `<semester>:<courseNo>` key; see [commitSyncHides]. */
     private suspend fun loadRestoredCourses(): Map<String, RestoredCourse> {
         val type = object : TypeToken<Map<String?, RestoredCourse?>>() {}.type
         return loadFromUserData<Map<String?, RestoredCourse?>>(type, RESTORED_COURSES_FILE).orEmpty()

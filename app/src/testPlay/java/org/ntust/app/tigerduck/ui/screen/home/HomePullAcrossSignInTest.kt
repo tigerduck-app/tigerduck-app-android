@@ -163,7 +163,7 @@ class HomePullAcrossSignInTest {
         val landed = mapOf(
             "marks synced once" to prefs.school.assignmentMarksSyncedOnce.get(),
             "categories synced" to prefs.school.syncedCategories.get(),
-            "course reset read" to prefs.school.lastSeenCoursesResetAt.get(),
+            "course reset read" to org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences("tigerduck_prefs", 0).getString("lastSeenCoursesResetAt", null),
             "watermark" to state.lastKnownRevision.value,
             "marks shown" to state.ignoredAssignmentIds.value,
             "ignores shown" to state.ignoredCourseKeys.value,

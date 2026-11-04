@@ -218,7 +218,7 @@ class BackgroundPullRequestsTest {
     @Test
     fun `a background sync leaves a course reset made on another device to Home`() {
         runBlocking { oneChangeInEachQueue() }
-        assertTrue(w.appPrefs.school.lastSeenCoursesResetAt.set("2026-01-01T00:00:00Z", signIn))
+        assertTrue(context.getSharedPreferences("tigerduck_prefs", 0).edit().putString("lastSeenCoursesResetAt", "2026-01-01T00:00:00Z").commit())
         backend.answer("GET /sync/full", 200, snapshot(rows = true, resetAt = "2026-02-01T00:00:00Z"))
         val from = backend.endpoints().size
 
@@ -226,7 +226,7 @@ class BackgroundPullRequestsTest {
 
         assertEquals(whatWaits() + listOf("GET /sync/full | Bearer access-1 | null | ") + SETTINGS_PULL, sentSince(from))
         // Not remembered, so Home's next sync applies it; the hand-added course and its add stay.
-        assertEquals("2026-01-01T00:00:00Z", w.appPrefs.school.lastSeenCoursesResetAt.get())
+        assertEquals("2026-01-01T00:00:00Z", context.getSharedPreferences("tigerduck_prefs", 0).getString("lastSeenCoursesResetAt", null))
         assertEquals(setOf(ADDED), runBlocking { rig.adds.waitingIn(term) })
         assertTrue(runBlocking { w.dataCache.loadCourses(term) }.any { it.courseNo == ADDED })
     }

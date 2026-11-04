@@ -38,7 +38,6 @@ class AccountKeyTest {
             Moved("backgroundOverridesSyncedAtMs", backgroundOverridesSyncedAtMs, 1_700_000_002_000L),
             Moved("classTableSelectedSemester", classTableSelectedSemester, "1141"),
             Moved("emptyClassroomBuilding", emptyClassroomBuilding, "TR"),
-            Moved("lastSeenCoursesResetAt", lastSeenCoursesResetAt, "2026-09-01T00:00:00Z"),
             Moved("pendingConflictCategories", pendingConflictCategories, setOf("courses")),
             Moved("schoolDataSyncedAtMs", schoolDataSyncedAtMs, 1_700_000_003_000L),
             Moved("ssoLoginTimestamp", ssoLoginTimestamp, 1_700_000_004_000L),
