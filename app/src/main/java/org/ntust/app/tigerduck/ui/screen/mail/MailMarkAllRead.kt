@@ -21,6 +21,9 @@ import org.ntust.app.tigerduck.shared.account.SignIn
  * the repository's feed as each batch lands; a refusal ends it, said once, and leaves the rows
  * still to go as they are, on the list as on the server.
  *
+ * A row whose delete or move is under way is that write's to decide, and left out: its question on
+ * the way from the server or up, or the write out. Held, its confirmed write would do nothing.
+ *
  * @param hold holds the keys it is given, and answers what lets them go again.
  * @param failed what a refusal under the sign-in is told as, with the folder whose batch it ended,
  *   which the list reads again where the STORE may have marked some of its mail.
@@ -33,10 +36,12 @@ internal class MailMarkAllRead(
 ) {
     private var running: Job? = null
 
-    fun start(signIn: SignIn, state: SchoolMailListViewModel.UiState) {
+    /** [asked]: the row whose delete or move question is on its way from the server, if one is. */
+    fun start(signIn: SignIn, state: SchoolMailListViewModel.UiState, asked: String?) {
         if (running?.isActive == true) return
+        val deciding = state.writing + listOfNotNull(asked, state.pendingDelete?.row?.key, state.pendingMove?.row?.key)
         val batches = state.displayed
-            .filter { !it.summary.flags.seen && it.key !in state.writing && it.uidValidity != null }
+            .filter { !it.summary.flags.seen && it.key !in deciding && it.uidValidity != null }
             .groupBy { it.folder to it.uidValidity }
         if (batches.isEmpty()) return
         // The keys this press still holds, each let go once: one let go as its batch landed may be

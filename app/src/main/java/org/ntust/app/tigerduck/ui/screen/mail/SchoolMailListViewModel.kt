@@ -317,12 +317,13 @@ class SchoolMailListViewModel @Inject constructor(
     private var pageAskedWhileQuiet: MailRow? = null
 
     /**
-     * The question [delete] or [requestMove] is still finding out from the server: which of the
-     * two delete questions to ask, or which folders a mail can go to. One question at a time
-     * ([mayAsk]): a second swipe while this one is out would otherwise replace its question, and
-     * the first delete be dropped without a word.
+     * The question [delete] or [requestMove] is still finding out from the server, of the row
+     * [Asking.key] names: which of the two delete questions to ask, or which folders a mail can go
+     * to. One question at a time ([mayAsk]): a second swipe while this one is out would otherwise
+     * replace its question, and the first delete be dropped without a word.
      */
-    private var asking: Job? = null
+    private var asking: Asking? = null
+    private class Asking(val key: String, val job: Job)
 
     /**
      * Bumped by [forgetAccount], which empties [UiState.writing] with the rest of the state. A
@@ -400,7 +401,7 @@ class SchoolMailListViewModel @Inject constructor(
     private fun forgetAccount() {
         loadJob?.cancel()
         loadJob = null
-        asking?.cancel()
+        asking?.job?.cancel()
         asking = null
         accountsForgotten++
         prefetchJob?.cancel()
@@ -721,7 +722,7 @@ class SchoolMailListViewModel @Inject constructor(
     private val markingAll = MailMarkAllRead(viewModelScope, repository, ::hold, ::seenFailed)
 
     /** The filter's Mark all as read, a batch of each folder at a time: see [MailMarkAllRead]. */
-    fun markAllRead() = markingAll.start(account.currentSignIn, _state.value)
+    fun markAllRead() = markingAll.start(account.currentSignIn, _state.value, asking?.takeIf { it.job.isActive }?.key)
 
     /** Holds [keys] in [UiState.writing]; the answer lets them go, unless the account is forgotten meanwhile. */
     private fun hold(keys: Set<String>): (Set<String>) -> Unit {
@@ -743,7 +744,7 @@ class SchoolMailListViewModel @Inject constructor(
     fun delete(row: MailRow) {
         if (!mayAsk(row) || !knowsVersionOf(row)) return
         val signIn = account.currentSignIn
-        asking = viewModelScope.launch {
+        asking = Asking(row.key, viewModelScope.launch {
             try {
                 val permanently = repository.deletesPermanently(row.folder) { signIn.isCurrent }
                 if (!signIn.isCurrent) return@launch
@@ -754,7 +755,7 @@ class SchoolMailListViewModel @Inject constructor(
                 val error = MailErrors.classify(e)
                 if (!dropped(error, signIn)) actionFail(error, signIn)
             }
-        }
+        })
     }
 
     /** The answer to [UiState.pendingDelete]: either question, since both make the same [SchoolMailRepository.delete]. */
@@ -775,7 +776,7 @@ class SchoolMailListViewModel @Inject constructor(
     fun requestMove(row: MailRow) {
         if (!mayAsk(row) || !knowsVersionOf(row)) return
         val signIn = account.currentSignIn
-        asking = viewModelScope.launch {
+        asking = Asking(row.key, viewModelScope.launch {
             try {
                 val folders = repository.folders { signIn.isCurrent }
                 if (!signIn.isCurrent) return@launch
@@ -788,12 +789,10 @@ class SchoolMailListViewModel @Inject constructor(
                 val error = MailErrors.classify(e)
                 if (!dropped(error, signIn)) actionFail(error, signIn)
             }
-        }
+        })
     }
 
-    fun dismissMove() {
-        _state.update { it.copy(pendingMove = null) }
-    }
+    fun dismissMove() = _state.update { it.copy(pendingMove = null) }
 
     /**
      * Moves [UiState.pendingMove]'s mail to [target], the folder of one of its targets.
@@ -832,7 +831,7 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun mayAsk(row: MailRow): Boolean {
         val s = _state.value
-        return asking?.isActive != true && s.pendingDelete == null && s.pendingMove == null && row.key !in s.writing
+        return asking?.job?.isActive != true && s.pendingDelete == null && s.pendingMove == null && row.key !in s.writing
     }
 
     /**

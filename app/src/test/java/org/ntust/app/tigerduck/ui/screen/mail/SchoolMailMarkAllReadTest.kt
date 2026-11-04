@@ -163,6 +163,69 @@ class SchoolMailMarkAllReadTest {
     }
 
     @Test
+    fun `a delete waiting on its question is left out of the batch, and goes out once confirmed`() {
+        val question = CompletableDeferred<Unit>()
+        repo.trashGate = question
+        val batchOut = CompletableDeferred<Unit>()
+        repo.seenGate = batchOut
+        vm.delete(vm.state.value.displayed.first { it.uid == 3L })
+        main.dispatcher.scheduler.runCurrent()
+        vm.markAllRead()
+        main.dispatcher.scheduler.runCurrent()
+        // The question arrives while the batch's STORE is still out, and the student confirms it.
+        repo.trashGate = null
+        question.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        vm.confirmDelete(true)
+        main.dispatcher.scheduler.runCurrent()
+        repo.seenGate = null
+        batchOut.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("INBOX" to 3L), repo.deleted)
+        assertEquals(listOf(listOf(4L, 1L)), repo.seenBatches.map { it.uids })
+    }
+
+    @Test
+    fun `a move whose question is up is left out of the batch, and goes out once chosen`() {
+        val batchOut = CompletableDeferred<Unit>()
+        repo.seenGate = batchOut
+        vm.requestMove(vm.state.value.displayed.first { it.uid == 3L })
+        main.dispatcher.scheduler.runCurrent()
+        assertNotNull(vm.state.value.pendingMove)
+        vm.markAllRead()
+        main.dispatcher.scheduler.runCurrent()
+        val trash = repo.resolved.nameOf(SpecialFolder.TRASH)!!
+        vm.moveTo(trash)
+        main.dispatcher.scheduler.runCurrent()
+        repo.seenGate = null
+        batchOut.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(Triple("INBOX", 3L, trash)), repo.moved)
+        assertEquals(listOf(listOf(4L, 1L)), repo.seenBatches.map { it.uids })
+    }
+
+    @Test
+    fun `a delete of a mail its batch holds asks nothing, as one of a mail being moved does`() {
+        val batchOut = CompletableDeferred<Unit>()
+        repo.seenGate = batchOut
+        vm.markAllRead()
+        main.dispatcher.scheduler.runCurrent()
+        vm.delete(vm.state.value.displayed.first { it.uid == 3L })
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(0, repo.trashQuestionsSent)
+        assertEquals(null, vm.state.value.pendingDelete)
+        assertEquals(null, vm.state.value.actionError)
+        repo.seenGate = null
+        batchOut.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(emptyList<Pair<String, Long>>(), repo.deleted)
+        assertEquals(listOf(listOf(4L, 3L, 1L)), repo.seenBatches.map { it.uids })
+    }
+
+    @Test
     fun `a STORE refused partway has the list read the folder again, and show the server's flags`() {
         val loads = repo.loadsSent.size
         // The server marks 4 and 3 of the batch's 4, 3 and 1, then refuses.
