@@ -162,7 +162,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
     "kind": "long-file",
-    "count": 1486
+    "count": 1306
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/imap/AngusMailSession.kt",
@@ -1088,7 +1088,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
     "kind": "long-file",
-    "count": 1728
+    "count": 1723
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
