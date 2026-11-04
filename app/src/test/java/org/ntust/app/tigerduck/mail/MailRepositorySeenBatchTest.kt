@@ -110,7 +110,7 @@ class MailRepositorySeenBatchTest {
     }
 
     @Test
-    fun `a STORE refused once it was out tells the list to read the folder again, and guesses no mail read`() = runTest {
+    fun `a STORE refused once it was out reads each mail's flags back and tells the lists them, guessing none`() = runTest {
         val (account, repo) = setUp(backgroundScope)
         val uids = listOf(server.deliver("a"), server.deliver("b"), server.deliver("c"))
         account.signIn("b10000001", "pw")
@@ -124,11 +124,31 @@ class MailRepositorySeenBatchTest {
         runCurrent()
 
         assertTrue(sent.exceptionOrNull() is MailError.Protocol)
-        assertEquals(listOf(MailChange.Changed("INBOX", signIn)), changes)
+        assertEquals(uids.mapIndexed { i, uid -> MailChange.Seen("INBOX", uid, i < 2, signIn) }.toSet(), changes.toSet())
         // Read again, the folder shows what the server holds: the two the STORE reached, read.
         server.refuseSeenAfter = null
         val page = repo.loadPage("INBOX", null)
         assertEquals(uids.take(2).toSet(), page.messages.filter { it.flags.seen }.map { it.uid }.toSet())
+    }
+
+    @Test
+    fun `after a STORE refused partway, older mail paged from the phone shows the server's flags`() = runTest {
+        val (account, repo) = setUp(backgroundScope)
+        val uids = (1..60).map { server.deliver("m$it") }
+        account.signIn("b10000001", "pw")
+        repo.updateSearchIndex()
+        val newest = repo.loadPage("INBOX", null)
+        // Five of the older mail, of which the server marks the first two before it refuses.
+        val batch = uids.take(5)
+        server.refuseSeenAfter = 2
+        runCatching { repo.setSeen(account.signInNow, "INBOX", server.uidValidity, batch, seen = true) }
+        server.refuseSeenAfter = null
+        val fetched = server.pageFetches.size
+
+        val older = repo.loadPage("INBOX", newest.nextBeforeSeq)
+
+        assertEquals("the older page came from the phone", fetched, server.pageFetches.size)
+        assertEquals(batch.take(2).toSet(), older.messages.filter { it.flags.seen }.map { it.uid }.toSet())
     }
 
     @Test
