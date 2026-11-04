@@ -3315,6 +3315,69 @@ class NotificationSettingsSyncTest {
         assertFalse(device.prefs.hasUnconfirmedSyncEdit)
     }
 
+    /** One section's edit for [crossingSignIns]: the value set, the push asked for, and what the document holds of it. */
+    private class SectionEdit(
+        val section: String,
+        val set: Device.(sent: Boolean) -> Unit,
+        val mark: Device.() -> Unit,
+        val held: JsonObject.() -> String,
+    )
+
+    private val crossingSignIns = listOf(
+        SectionEdit(
+            "live_activity",
+            set = { prefs.classPreparingLeadTimeSec = if (it) 1_800 else 900 },
+            mark = { sync.markUnconfirmedAndPush() },
+            held = { get("class_preparing_lead_seconds").asString },
+        ),
+        SectionEdit(
+            "assignments",
+            set = { assignments.enabled = !it },
+            mark = { sync.markAssignmentUnconfirmedAndPush() },
+            held = { get("enabled").asString },
+        ),
+        SectionEdit(
+            "courses",
+            set = { classReminders.enabled = !it },
+            mark = { sync.markClassReminderUnconfirmedAndPush() },
+            held = { get("enabled").asString },
+        ),
+    )
+
+    /**
+     * Codex on PR P (round 3): the departing student's push is on the wire through a sign-out and
+     * the next student's sign-in, and the next student then makes an edit matching what it sent.
+     * Its landing cleared that section's unconfirmed flag, the next student's by then: the clear
+     * checked the restart count, which a sign-out does not move, or nothing at all, and never the
+     * sign-in it was queued for. The next student's push then sent nothing, and a pull could take
+     * the edit back. Each section's flag is cleared only under the sign-in its push was queued for.
+     */
+    @Test
+    fun `a departing student's push landing after the next sign-in leaves the next student's matching edit to go up`() = runTest {
+        for (edit in crossingSignIns) {
+            val device = Device(backgroundScope)
+            device.signIn("A")
+            val landing = CompletableDeferred<Unit>()
+            device.server("A").holdWrite = landing
+            edit.set(device, true)
+            edit.mark(device)
+            runQueue()
+            device.logOut()
+            // Signed out, the value goes back; the next student signs in with it as their record.
+            edit.set(device, false)
+            device.signIn("B")
+            // Their own edit, which matches what the first student's push sent.
+            edit.set(device, true)
+            edit.mark(device)
+
+            landing.complete(Unit)
+            runQueue()
+
+            val sent = device.server("B").writes.map { it.getAsJsonObject(edit.section)?.let(edit.held) }
+            assertEquals("${edit.section}: the next student's edit goes up", listOf(if (edit.section == "live_activity") "1800" else "false"), sent)
+        }
+    }
+
     @Test
     fun `signed in at the update with nothing pending, a first edit sends only itself`() = runTest {
         // Just updated to this build, and not pulled yet: the iPhone's

@@ -2308,10 +2308,10 @@ class NotificationSettingsSync internal constructor(
             // in flight: the server holds the older values, and that
             // edit's own push, queued behind this one, must still find the
             // flag set — or a process death before it runs would lose the
-            // edit with the flag already reading "confirmed"; and so does a restart
-            // since it read, as an edit made after it can match. Mirrors iOS's canClearPendingMarker.
+            // edit with the flag already reading "confirmed"; and so do a restart or a sign-out
+            // since it read, as an edit made after either can match. Mirrors iOS's canClearPendingMarker.
             if (liveActivitySucceeded && liveActivityPreferences.syncSnapshot() == sentLiveActivity) synchronized(recordLock) {
-                if (liveActivityRestarts == liveActivityRestartsAtBase) liveActivityPreferences.hasUnconfirmedSyncEdit = false
+                if (queuedGeneration == generation.get() && liveActivityRestarts == liveActivityRestartsAtBase) liveActivityPreferences.hasUnconfirmedSyncEdit = false
             }
         }
 
@@ -2337,7 +2337,7 @@ class NotificationSettingsSync internal constructor(
             val currentAssignments =
                 AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
             if (assignmentsSucceeded && currentAssignments == sentAssignments) synchronized(recordLock) {
-                if (assignmentRestarts == assignmentRestartsAtBase) assignmentStore.hasUnconfirmedEdit = false
+                if (queuedGeneration == generation.get() && assignmentRestarts == assignmentRestartsAtBase) assignmentStore.hasUnconfirmedEdit = false
             }
         }
 
@@ -2359,8 +2359,8 @@ class NotificationSettingsSync internal constructor(
                     lastSynced.courses = sentClassReminder.syncedSection().toString()
                 }
             }
-            if (classReminderSucceeded && classReminderValues() == sentClassReminder) {
-                classReminderStore.hasUnconfirmedEdit = false
+            if (classReminderSucceeded && classReminderValues() == sentClassReminder) synchronized(recordLock) {
+                if (queuedGeneration == generation.get()) classReminderStore.hasUnconfirmedEdit = false
             }
         }
 
