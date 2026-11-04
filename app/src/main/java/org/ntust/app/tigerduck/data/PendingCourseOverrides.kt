@@ -61,7 +61,7 @@ import javax.inject.Singleton
  * goes once both are on (LWW D12), and so is every one while the kind's
  * re-enable check waits for the user ([sends] false): the answer decides them
  * ([records] is `SyncPolicy.keeps`, [sends] `SyncPolicy.sends`). On a build
- * without TigerSync ([records] false) colours or names are this phone's own:
+ * without TigerSync ([records] false) colors or names are this phone's own:
  * a change goes nowhere and is not kept, but replaces one waiting for the
  * same key, as a mark does in [UnsentMarks]. Use Server drops them
  * ([adoptServer]); Use Local queues its own and sends them once the hold is
@@ -138,7 +138,7 @@ class PendingCourseOverrides internal constructor(
 
     // A change that landed waits for one being recorded under [mutex] before the lane hands over the
     // next, which it then reads after that change is kept: a batch's change that a newer one is
-    // replacing, as a reset's colour a pick made while the reset goes up, does not go up.
+    // replacing, as a reset's color a pick made while the reset goes up, does not go up.
     private val sendPath = CourseOverrideSends(
         dataCache, writer, sends, catalogue,
         waiting = { lane.entries() },

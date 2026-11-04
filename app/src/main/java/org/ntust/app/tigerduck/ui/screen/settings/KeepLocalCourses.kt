@@ -309,7 +309,7 @@ internal suspend fun keepLocalCourses(
             // The id the upload stored the row under, as the backend
             // derives it; see CourseUploadPayload.
             val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
-            // No colour rides the upload, a reset or none: every one goes as an override.
+            // No color rides the upload, a reset or none: every one goes as an override.
             val read = LocalChoices(course.customColorHex, names)
             sendStampedOverrides(semester, course.courseNo, moodleId, read, withNames = reset, backend, ::ensureCurrent)
         }

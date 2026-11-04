@@ -7,14 +7,14 @@ import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.StampedMerges
 
 /**
- * A pull's pass of a snapshot's course colours and names over the term it caches, which the
+ * A pull's pass of a snapshot's course colors and names over the term it caches, which the
  * synchronizer's colors and names step runs in the background (`OverridesReconciler`), and in
  * Home's pass too, over Home's term. An object of its own, so its tests run it over a real cache.
  */
 internal object BackgroundCourseOverrides {
 
     /**
-     * The pull's merges of the colours and names ([stamped], LWW D12) over [semester]'s cached
+     * The pull's merges of the colors and names ([stamped], LWW D12) over [semester]'s cached
      * courses, with the names stamped onto them in [locale]: the widgets read the cached courses,
      * not the names file.
      *

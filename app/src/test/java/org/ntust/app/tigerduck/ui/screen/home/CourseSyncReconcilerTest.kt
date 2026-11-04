@@ -420,7 +420,7 @@ class CourseSyncReconcilerTest {
         assertEquals(listOf("1122", "1132", "1141"), terms)
     }
 
-    // ---- colour overrides, as a pull applies them (StampedCourseOverrides.colors) ----
+    // ---- color overrides, as a pull applies them (StampedCourseOverrides.colors) ----
 
     /** [courses] of 1141 with [rows]' colors, but each field [kept] names, which this phone keeps. */
     private fun colors(courses: List<Course>, rows: List<CourseOverrideResult>, kept: Set<String> = emptySet()) =
@@ -480,7 +480,7 @@ class CourseSyncReconcilerTest {
         val a = Course(courseNo = "A", courseName = "A", moodleIdNumber = "1141A", customColorHex = "#FF0000")
         val b = Course(courseNo = "B", courseName = "B", moodleIdNumber = "1141B", customColorHex = "#00FF00")
         // Picked red for B on another device, while this phone's red for A waits to go up.
-        val rows = listOf(colour("A", "#0000FF", 1L), colour("B", "#FF0000", 2L))
+        val rows = listOf(colorRow("A", "#0000FF", 1L), colorRow("B", "#FF0000", 2L))
         val outcome = colors(listOf(a, b), rows, kept = setOf(colorField("A")))!!
         assertEquals("#FF0000", outcome.courses.single { it.courseNo == "A" }.customColorHex)
         val movedTo = outcome.courses.single { it.courseNo == "B" }.customColorHex
@@ -493,15 +493,15 @@ class CourseSyncReconcilerTest {
         val a = Course(courseNo = "A", courseName = "A", moodleIdNumber = "1141A", customColorHex = "#FF0000")
         val b = Course(courseNo = "B", courseName = "B", moodleIdNumber = "1141B", customColorHex = "#00FF00")
         // The server never had a colour for A; B's red there would move A off the red it has waiting.
-        val outcome = colors(listOf(a, b), listOf(colour("B", "#FF0000", null)), kept = setOf(colorField("A")))!!
+        val outcome = colors(listOf(a, b), listOf(colorRow("B", "#FF0000", null)), kept = setOf(colorField("A")))!!
         assertEquals("#FF0000", outcome.courses.single { it.courseNo == "A" }.customColorHex)
         val movedTo = outcome.courses.single { it.courseNo == "B" }.customColorHex
         assertTrue("B left red: $movedTo", movedTo != null && movedTo.uppercase() != "#FF0000")
         assertEquals(mapOf("B" to movedTo), outcome.moved)
     }
 
-    // 1141's course [no]'s row, its colour [hex] set by an edit stamped [hlc].
-    private fun colour(no: String, hex: String, hlc: Long?) =
+    // 1141's course [no]'s row, its color [hex] set by an edit stamped [hlc].
+    private fun colorRow(no: String, hex: String, hlc: Long?) =
         CourseOverrideResult("1141$no", no, hex, semester = "1141", courseKey = "client:1141:$no", colorHexHlc = hlc)
 
     @Test
@@ -510,7 +510,7 @@ class CourseSyncReconcilerTest {
         // row both stayed red on every Android phone (tigerduck-app-android#295).
         val outcome = colors(
             courses = listOf(local("A"), local("B"), local("C")),
-            rows = listOf(colour("B", "#FF6B6B", 2L), colour("A", "#FF6B6B", 1L)),
+            rows = listOf(colorRow("B", "#FF6B6B", 2L), colorRow("A", "#FF6B6B", 1L)),
         )!!
 
         val byNo = outcome.courses.associateBy { it.courseNo }
@@ -526,10 +526,10 @@ class CourseSyncReconcilerTest {
         val outcome = colors(
             courses = listOf(local("A"), local("B"), local("C"), local("D")),
             rows = listOf(
-                colour("A", "#FF6B6B", 800L),
-                colour("C", "#FF6B6B", null),
-                colour("D", "#4ECDC4", 900L),
-                colour("B", "#4ECDC4", 900L),
+                colorRow("A", "#FF6B6B", 800L),
+                colorRow("C", "#FF6B6B", null),
+                colorRow("D", "#4ECDC4", 900L),
+                colorRow("B", "#4ECDC4", 900L),
             ),
         )!!
 
@@ -542,7 +542,7 @@ class CourseSyncReconcilerTest {
 
     @Test
     fun `the same rows in any order settle the same way`() {
-        val rows = listOf(colour("A", "#FF6B6B", 1L), colour("B", "#FF6B6B", 2L), colour("C", "#FF6B6B", 3L))
+        val rows = listOf(colorRow("A", "#FF6B6B", 1L), colorRow("B", "#FF6B6B", 2L), colorRow("C", "#FF6B6B", 3L))
         val courses = listOf(local("A"), local("B"), local("C"))
 
         val forward = colors(courses, rows)!!
@@ -557,7 +557,7 @@ class CourseSyncReconcilerTest {
     fun `a course pinned here to a colour the server gives another course moves off it`() {
         val outcome = colors(
             courses = listOf(local("A"), Course(courseNo = "B", courseName = "B", customColorHex = "#FF6B6B")),
-            rows = listOf(colour("A", "#FF6B6B", 1L)),
+            rows = listOf(colorRow("A", "#FF6B6B", 1L)),
         )!!
 
         val byNo = outcome.courses.associateBy { it.courseNo }
@@ -571,7 +571,7 @@ class CourseSyncReconcilerTest {
             Course(courseNo = "A", courseName = "A", customColorHex = "#FF6B6B"),
             Course(courseNo = "B", courseName = "B", customColorHex = "#4ECDC4"),
         )
-        assertNull(colors(courses, listOf(colour("A", "#FF6B6B", null), colour("B", "#4ECDC4", null))))
+        assertNull(colors(courses, listOf(colorRow("A", "#FF6B6B", null), colorRow("B", "#4ECDC4", null))))
     }
 
     // ---- custom names, as a pull applies them (StampedCourseOverrides.names) ----
