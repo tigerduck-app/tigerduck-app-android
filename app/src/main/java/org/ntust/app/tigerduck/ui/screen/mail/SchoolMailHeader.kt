@@ -83,6 +83,10 @@ internal fun SchoolMailHeaderActions(
  * School Mail's ⋮, signed in, as iOS's: New mail notifications, the switch its notification page
  * holds, written through that page's own view model, then Settings, School Mail's settings page.
  * The switch is greyed out where that page greys it, after the server rejected the password.
+ *
+ * Signed in means School Mail's own sign-in ([SchoolMailListViewModel.signedIn]), which
+ * [SchoolMailScreen] draws the menu on, and not the school's. On Android School Mail is an account
+ * of its own: a school sign-out leaves it signed in and usable, and its menu with it.
  */
 @Composable
 internal fun schoolMailMenu(settings: SchoolMailSettingsViewModel): PageMenu =

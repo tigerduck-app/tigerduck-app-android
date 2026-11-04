@@ -216,7 +216,7 @@ fun SchoolMailScreen(
         }
     }
 
-    if (!signedIn) {
+    if (!signedIn) { // School Mail's own sign-in, not the school's: no menu here (see schoolMailMenu).
         PageScaffold(
             title = stringResource(R.string.feature_school_mail),
             headerPosition = PageHeaderPosition.InContent,
