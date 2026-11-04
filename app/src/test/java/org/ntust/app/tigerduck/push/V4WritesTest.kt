@@ -331,7 +331,7 @@ class V4WritesTest {
         client.uploadCoursesAnswered(listOf(school, held) + typed, "1151", signIn, rosterTerms = listOf("1151"))
 
         val body = JSONObject(backend.sent.single().body!!)
-        assertEquals("[\"1151\"]", body.getJSONArray("roster_terms").toString())
+        assertEquals("the roster stands: $body", "[\"1151\"]", body.optJSONArray("roster_terms")?.toString())
     }
 
     @Test
