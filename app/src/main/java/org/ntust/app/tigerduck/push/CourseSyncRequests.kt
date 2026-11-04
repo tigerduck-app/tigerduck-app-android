@@ -128,20 +128,16 @@ internal class CourseSyncRequests(
         val sent = CourseUploadPayload.withinAddsLimit(sendable, semester, forceKeys, addedAt)
         // Left out by the limit, and maybe on no row of the backend's yet: each waits in the adds channel.
         val leftOut = (sendable - sent.toSet()).filter { it.isUserAddedOnServer != true }.map { it.courseNo }
-        // Nor is the upload then the term's whole roster: such a course may be a school row there,
-        // which a roster without it would drop, the class gone from every device. The next whole
-        // upload carries the roster. A copy of a row held as added by hand, left out, no roster drops.
-        val sentRoster = if (leftOut.isEmpty()) rosterTerms else rosterTerms - semester
         // Every course left out: nothing the backend would change.
         if (sent.isEmpty() && courses.isNotEmpty()) return@withContext CourseUploadAnswer(emptyList(), emptyList())
-        val bodies = upload(sent, semester, forceKeys, sentRoster, addedAt)
+        val bodies = upload(sent, semester, forceKeys, rosterTerms, addedAt)
         // What the accepted list enrolled as the term's roster, for serverDropped.
-        val roster = if (semester in sentRoster) sent.map { it.courseNo } else null
+        val roster = if (semester in rosterTerms) sent.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
         var landed = false
         try {
             courseUploads(semester).sendIfDue(
-                fingerprint = courseUploadFingerprint(base, sent, semester, sentRoster),
+                fingerprint = courseUploadFingerprint(base, sent, semester, rosterTerms),
                 // The pair in one step, so a sign-out's clear cannot fall between
                 // the check and the record; see UploadLedger.sendIfDue.
                 record = { fingerprint, atMs ->

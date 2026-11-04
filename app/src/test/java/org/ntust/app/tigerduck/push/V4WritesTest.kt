@@ -5,7 +5,6 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -303,35 +302,6 @@ class V4WritesTest {
         val listed = body.getJSONArray("courses").let { c -> (0 until c.length()).map { c.getJSONObject(it).getString("course_no") } }
         assertEquals(typed.map { it.courseNo }, listed)
         assertEquals(50, body.getJSONArray("adds").length())
-    }
-
-    /**
-     * Codex on PR P (P2 4): a roster the cut leaves a course out of is no whole roster. A course
-     * typed by hand here may be a school row on the backend, and a roster without it would drop that
-     * row, the class gone from every other device. Such an upload claims no roster of the term; the
-     * next whole one does.
-     */
-    @Test
-    fun `a roster the fifty adds' cut leaves a course out of claims no roster of the term`() = runTest {
-        val typed = (1..55).map { Course(courseNo = "XB%07d".format(it), courseName = "Mine $it", isManual = true) }
-
-        client.uploadCoursesAnswered(listOf(school) + typed, "1151", signIn, rosterTerms = listOf("1151"))
-
-        val body = JSONObject(backend.sent.single().body!!)
-        assertEquals(50, body.getJSONArray("adds").length())
-        assertFalse("no roster: $body", body.has("roster_terms"))
-    }
-
-    /** A copy of a row the backend holds as added by hand, left out, is one no roster drops: the roster stands. */
-    @Test
-    fun `a roster whose cut leaves out only copies of rows held as added by hand still claims the term`() = runTest {
-        val held = Course(courseNo = "XE0000001", courseName = "Held", moodleIdNumber = "1151XE0000001", isManual = true, isUserAddedOnServer = true)
-        val typed = (1..50).map { Course(courseNo = "XB%07d".format(it), courseName = "Mine $it", isManual = true) }
-
-        client.uploadCoursesAnswered(listOf(school, held) + typed, "1151", signIn, rosterTerms = listOf("1151"))
-
-        val body = JSONObject(backend.sent.single().body!!)
-        assertEquals("[\"1151\"]", body.getJSONArray("roster_terms").toString())
     }
 
     @Test
