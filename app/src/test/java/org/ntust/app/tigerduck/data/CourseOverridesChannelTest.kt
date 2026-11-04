@@ -515,11 +515,13 @@ class CourseOverridesChannelTest {
     /**
      * Fix round 1: every course upload that lands tells the queue, not the course adds' alone. The
      * class table's timetable fetch uploads the term: the course it takes gets its parked rename
-     * sent, and the one it leaves out as tombstoned has its parked rename let go.
+     * sent, and the one it leaves out as tombstoned has its parked rename let go. Both are copies a
+     * pull told as the student's own, as an upload leaves out a copy no pull told about.
      */
     @Test
     fun `a parked rename goes after a timetable fetch's upload lands, and is let go when that upload left its course out`() = runTest {
-        cache.saveCourses(listOf(typed, other), term, signIn)
+        val told = listOf(typed, other).map { it.copy(isUserAddedOnServer = true) }
+        cache.saveCourses(told, term, signIn)
         lateinit var overrides: PendingCourseOverrides
         lateinit var outbox: Outbox
         val client = pushApiClientAt(setting, backend.client, prefs, uploadNews = CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }))
@@ -537,7 +539,7 @@ class CourseOverridesChannelTest {
 
         backend.sent.clear()
         backend.answer(upload, 200, """{"upserted":1,"skipped_tombstoned":1,"accepted_keys":["client:$term:${typed.courseNo}"]}""")
-        client.uploadCourses(listOf(typed, other), term, signIn)
+        client.uploadCourses(told, term, signIn)
         overrides.retry(signIn)
 
         assertEquals(listOf("$v4/sync/courses/upload", "$v4/sync/courses/client:$term:XA0000009/override"), backend.sent.map { it.url })
