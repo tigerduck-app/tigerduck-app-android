@@ -39,7 +39,6 @@ import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentEntry
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentLists
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -65,11 +64,10 @@ fun MoodleAssignmentsScreen(
     val clockVersion by rememberAppClockVersion()
     val rows = remember(entries, clockVersion) { MoodleAssignmentLists.rows(entries, AppClock.nowMillis()) }
 
-    PageScaffold(
+    MoodleListScaffold(
         title = stringResource(R.string.course_detail_assignments_label),
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(current?.let { MoodlePage.assignments(it.courseId) }) },
+        moodlePath = current?.let { MoodlePage.assignments(it.courseId) },
     ) { padding ->
         Box(
             Modifier

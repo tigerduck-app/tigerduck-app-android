@@ -60,7 +60,6 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.data.moodle.MoodleGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
-import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
@@ -77,11 +76,10 @@ fun MoodleGradesScreen(
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
     val current = store
-    PageScaffold(
+    MoodleListScaffold(
         title = stringResource(R.string.course_detail_moodle_grades_label),
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(current?.let { MoodlePage.gradeReport(it.courseId) }) },
+        moodlePath = current?.let { MoodlePage.gradeReport(it.courseId) },
     ) { padding ->
         Box(
             Modifier

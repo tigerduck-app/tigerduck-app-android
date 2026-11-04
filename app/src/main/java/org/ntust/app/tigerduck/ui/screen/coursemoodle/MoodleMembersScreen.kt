@@ -69,7 +69,6 @@ import org.ntust.app.tigerduck.data.moodle.name
 import org.ntust.app.tigerduck.data.moodle.studentId
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SearchFieldIcon
 import org.ntust.app.tigerduck.ui.component.searchClearIcon
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -90,11 +89,10 @@ fun MoodleMembersScreen(
     MoodleSignedOutEffect(viewModel, onBack)
     var query by rememberSaveable { mutableStateOf("") }
     val current = store
-    PageScaffold(
+    MoodleListScaffold(
         title = stringResource(R.string.course_detail_members_label),
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(current?.let { MoodlePage.participants(it.courseId) }) },
+        moodlePath = current?.let { MoodlePage.participants(it.courseId) },
     ) { padding ->
         Box(
             Modifier
