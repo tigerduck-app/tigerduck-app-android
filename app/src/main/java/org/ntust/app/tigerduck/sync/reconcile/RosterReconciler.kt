@@ -249,6 +249,10 @@ class RosterReconciler @Inject constructor(
             dataCache, run.courseSync, semester, read, run.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
             outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),
         )
+        // On /v4 the copies merged down before follow their rows, for the term's uploads' adds.
+        if (membership != null) {
+            dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rowsBySemester[semester].orEmpty()) }
+        }
         if (outcome.uploadLocal) uploadTerm(run, semester, outcome)
         return wrote
     }

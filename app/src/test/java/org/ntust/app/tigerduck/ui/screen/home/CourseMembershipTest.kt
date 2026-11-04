@@ -189,4 +189,28 @@ class CourseMembershipTest {
         assertEquals(setOf("A"), out.outcome.left)
         assertEquals(emptySet<String>(), out.hides)
     }
+
+    /**
+     * A copy merged down keeps what its row is, which its manual flag cannot tell: one of a row added
+     * by hand on some device is the uploads' to name, one of a school row is not. A copy this phone
+     * holds follows its row at each pull that lists it, both ways; one the snapshot does not list
+     * keeps what it has. A course added here, and one fetched from the school, follow no row.
+     */
+    @Test
+    fun `a copy merged down says whether its row was added by hand, and a copy held follows its row`() {
+        val out = reconcile(rows = listOf(row("A"), row("E", userAdded = true, addedHlc = 50)))
+        assertEquals(mapOf("A" to false, "E" to true), out.outcome.merged.associate { it.courseNo to it.isUserAddedOnServer })
+
+        val held = listOf(
+            mergedCopy("A").copy(isUserAddedOnServer = true), mergedCopy("E"), mergedCopy("G").copy(isUserAddedOnServer = true),
+            handAdded("H"), school("S"),
+        )
+        val rows = listOf(row("A"), row("E", userAdded = true), row("H", userAdded = true), row("S", userAdded = true))
+        val followed = CourseMembership.followingRows(held, term, rows)
+        assertEquals(
+            mapOf("A" to false, "E" to true, "G" to true, "H" to false, "S" to false),
+            followed.associate { it.courseNo to it.isUserAddedOnServer },
+        )
+        assertEquals("followed again, nothing changes", followed, CourseMembership.followingRows(followed, term, rows))
+    }
 }

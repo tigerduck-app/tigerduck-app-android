@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
@@ -39,9 +40,10 @@ import java.time.ZoneOffset
  * signed-in phone takes each term's courses from the snapshot before the school's roster answers,
  * and keeps each as a manual row. Such a copy is no course added by hand. Its delete goes with no
  * kind, so the backend decides from its row and hides a school course rather than take back a
- * hand-add it never had. Over the app's own clients, queues and synchronizer ([appSyncRig]), the
- * class table's delete driven through the calls it makes (`ClassTableWiringTest`). Made-up
- * accounts and course numbers.
+ * hand-add it never had; and a term's upload names it in its adds only when its row was added by
+ * hand, on whichever device. Over the app's own clients, queues and synchronizer ([appSyncRig]),
+ * the class table's delete and add driven through the calls it makes (`ClassTableWiringTest`).
+ * Made-up accounts and course numbers.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -149,6 +151,28 @@ class V4MergedCoursesTest {
         rig.pushApi.uploadCourses(updated, TERM, signIn)
     }
 
+    /** The class table's add of [course] by hand, through the calls `ClassTableViewModel.addCourse` makes. */
+    private suspend fun addOnTheClassTable(course: Course) {
+        val updated = w.dataCache.loadCourses(TERM) + course.copy(isManual = true)
+        backend.answer(
+            "POST /v4/sync/courses/upload", 200,
+            """{"upserted":1,"skipped_tombstoned":0,"accepted_keys":["${key(course.courseNo)}"],""" +
+                """"adds":[{"course_key":"${key(course.courseNo)}","applied":true,"hlc":${SERVER_HLC + 2_000}}]}""",
+        )
+        val addedAt = rig.home.deletes.stamp()
+        w.dataCache.addCourseBack(course.courseNo, TERM, signIn)
+        assertTrue(w.dataCache.saveCourses(updated, TERM, signIn))
+        rig.home.deletes.forget(TERM, course.courseNo, addedAt, signIn)
+        rig.home.adds.send(updated, TERM, course.courseNo, addedAt = addedAt, signIn = signIn)
+        w.dataCache.courseAddSent(course.courseNo, TERM)
+    }
+
+    private fun uploads(): List<JSONObject> = backend.received("POST /v4/sync/courses/upload").map { JSONObject(it.body) }
+
+    private fun JSONObject.courseNos(): List<String> = getJSONArray("courses").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_no") } }
+
+    private fun JSONObject.adds(): List<String> = optJSONArray("adds")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_key") } }.orEmpty()
+
     private fun deletes(): List<String> = backend.endpoints().filter { it.startsWith("DELETE /v4/sync/courses/") }
 
     @Test
@@ -160,6 +184,55 @@ class V4MergedCoursesTest {
         assertEquals(listOf("DELETE /v4/sync/courses/${key("XA0000001")}"), deletes())
         val query = backend.received("DELETE /v4/sync/courses/${key("XA0000001")}").single().query
         assertTrue("the delete goes stamped: $query", Regex("""^hlc=\d+$""").matches(query))
+        assertEquals(emptyList<String>(), rules.refused)
+    }
+
+    @Test
+    fun `the term's upload after a delete names no school course merged from the snapshot, and still names one added here`() =
+        runBlocking {
+            pullFresh(row("XA0000001"), row("XA0000002"), row("XA0000003"))
+            addOnTheClassTable(Course(courseNo = "XH0000009", courseName = "Added here"))
+
+            deleteOnTheClassTable("XA0000001")
+
+            val (added, afterDelete) = uploads()
+            assertEquals(listOf("XH0000009"), added.courseNos())
+            assertEquals(listOf(key("XH0000009")), added.adds())
+            assertEquals(listOf("XA0000002", "XA0000003", "XH0000009"), afterDelete.courseNos().sorted())
+            assertEquals(listOf(key("XH0000009")), afterDelete.adds())
+            assertEquals(emptyList<String>(), rules.refused)
+        }
+
+    @Test
+    fun `a course another device added by hand, merged from the snapshot, is still named in the term's upload`() = runBlocking {
+        pullFresh(row("XA0000001"), row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000))
+
+        deleteOnTheClassTable("XA0000001")
+
+        val upload = uploads().single()
+        assertEquals(listOf("XA0000002", "XE0000005"), upload.courseNos().sorted())
+        assertEquals(listOf(key("XE0000005")), upload.adds())
+    }
+
+    /**
+     * A phone updated from the released build holds copies it merged on `/v3`, which kept nothing
+     * of their rows. The first `/v4` pull that lists one tells it apart: the copy of a row another
+     * device added by hand is named in the term's upload, a school course's is not.
+     */
+    @Test
+    fun `a copy an older build merged of a row added by hand elsewhere is named once a pull lists it`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        val merged = { no: String -> Course(courseNo = no, courseName = "Course $no", moodleIdNumber = "$TERM$no", isManual = true) }
+        assertTrue(w.dataCache.saveCourses(listOf(merged("XA0000002"), merged("XE0000005")), TERM, signIn))
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002"), row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000)))
+        rig.home.sync.pull(state, signIn)
+        uploadTaken("XA0000002", "XE0000005")
+
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
+
+        val upload = uploads().last()
+        assertEquals(listOf("XA0000002", "XE0000005"), upload.courseNos().sorted())
+        assertEquals(listOf(key("XE0000005")), upload.adds())
         assertEquals(emptyList<String>(), rules.refused)
     }
 

@@ -129,10 +129,11 @@ internal class CurrentTermCourses(
         val localCourses = dataCache.loadCourses(semester)
         val stored = dataCache.loadDeletedCourseNos()
         val waiting = pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)
+        val rows = result.serverCourses.filter { it.semester == semester }
         val membership = CourseMembership.reconcileTerm(
             semester = semester,
             localCourses = localCourses,
-            serverRows = result.serverCourses.filter { it.semester == semester },
+            serverRows = rows,
             tombstones = result.tombstones,
             hides = stored,
             keeps = { it in waiting || holds.keeps(SyncField.membership(SyncField.courseKey(semester, it))) },
@@ -149,6 +150,8 @@ internal class CurrentTermCourses(
             localCourses, pruned, outcome.left, outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides, signIn,
             membership.gone,
         )
+        // The copies merged down follow their rows, for the term's uploads' adds.
+        dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rows) }
     }
 
     private companion object {

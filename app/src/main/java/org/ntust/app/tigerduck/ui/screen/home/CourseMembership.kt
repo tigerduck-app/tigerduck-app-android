@@ -31,6 +31,9 @@ import org.ntust.app.tigerduck.sync.SyncField
  * - **School data's own rules** stay as `/v3`'s: a misfiled row is no roster row, and a row a
  *   roster dropped leaves the term with no hide but a course added by hand
  *   ([CourseSyncReconciler.reconcileSemester]).
+ * - **A copy merged down keeps what its row is** ([Course.isUserAddedOnServer]): added by hand on
+ *   some device or the school's, which its manual flag cannot tell. A copy this phone holds
+ *   follows its row at each pull that lists it ([followingRows]).
  *
  * The `/v3` rules (`deleted_by_reset`, `deleted_by_this_device`, `courses_reset_at`, the server's
  * known numbers as the evidence of a delete) stay until the `/v3` rules go (Z2).
@@ -96,7 +99,7 @@ internal object CourseMembership {
         val hiddenNow = CourseTombstoneKeys.hiddenIn(semester, updated)
         val merged = rows.values
             .filter { it.courseNo !in local && it.courseNo !in hiddenNow && !keeps(it.courseNo) }
-            .map(CourseSyncReconciler::toCourse)
+            .map { row -> CourseSyncReconciler.toCourse(row).copy(isUserAddedOnServer = row.isUserAdded) }
         // Nothing uploaded for this term yet: what this phone has goes up, as on /v3, but what it hides.
         val toUpload = if (rows.isNotEmpty() || dropTimes.isNotEmpty()) emptyList() else {
             localCourses.filter { it.courseNo !in hiddenNow && it.courseNo !in gone && it.courseNo !in left }
@@ -112,5 +115,24 @@ internal object CourseMembership {
             handAddedNos = handAddedNos,
         )
         return TermOutcome(outcome, gone)
+    }
+
+    /**
+     * [courses], a term's list, with each copy merged down from the server ([Course.isManual], with
+     * a Moodle id) saying what [rows], the snapshot's of [semester], say of its row: whether it was
+     * added by hand on some device ([Course.isUserAddedOnServer]), for the term's uploads. A copy
+     * an older build merged kept none, and a row the school's roster lists since is the school's.
+     * A copy whose row the snapshot does not list keeps what it has, and so does every course
+     * added here or fetched from the school.
+     */
+    fun followingRows(courses: List<Course>, semester: String, rows: List<ServerCourse>): List<Course> {
+        val filed = rows.filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }
+        val listed = filed.mapTo(mutableSetOf()) { it.courseNo }
+        val byHand = filed.filter { it.isUserAdded }.mapTo(mutableSetOf()) { it.courseNo }
+        return courses.map { course ->
+            val merged = course.isManual && !TranscriptTerms.isAddedHere(course) && course.courseNo in listed
+            val userAdded = course.courseNo in byHand
+            if (!merged || course.isUserAddedOnServer == userAdded) course else course.copy(isUserAddedOnServer = userAdded)
+        }
     }
 }

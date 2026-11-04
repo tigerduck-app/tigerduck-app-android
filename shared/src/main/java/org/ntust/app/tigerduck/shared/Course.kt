@@ -75,6 +75,18 @@ data class Course(
      * field existed. Nullable for the same reason as [dimension].
      */
     val requireOption: String? = null,
+    /**
+     * True for a copy merged down from the server ([isManual], with a Moodle id) whose row the
+     * backend holds as added by hand, on whichever device (`source = user_added`), as the last
+     * `/v4` snapshot that listed the row said. `/v4`'s upload names such a course in its adds, or
+     * the backend would take it for a school row; it never names a copy of a school row. False
+     * for every other course: one added on this phone has no Moodle id, which tells it apart, and
+     * one fetched from the school is the school's.
+     *
+     * A primitive, so a cache written before this field existed reads false (Gson's Unsafe path)
+     * until a `/v4` pull lists the row.
+     */
+    val isUserAddedOnServer: Boolean = false,
 ) {
     /** Resolved name for display: user override if set, else the derived default. */
     val displayName: String

@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.push.CourseRef
+import org.ntust.app.tigerduck.push.CourseUploadPayload
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -117,8 +118,11 @@ internal class PushCourseSyncBackend(
     override suspend fun uploadTerm(courses: List<Course>, semester: String) {
         ensureSends()
         // On /v4 a course added by hand goes as an add made now, after the term's reset: as the
-        // oldest, as a roster names it, the reset would keep it out.
-        val addedAt = if (stampsOverrides) courses.filter { it.isManual }.associate { it.courseNo to api.stampMs() } else emptyMap()
+        // oldest, as a roster names it, the reset would keep it out. Not a copy of a school row
+        // merged down, which the upload lists as the school's.
+        val addedAt = if (!stampsOverrides) emptyMap() else {
+            courses.filter(CourseUploadPayload::isAddedByHand).associate { it.courseNo to api.stampMs() }
+        }
         // Null: switched off between the check and the request.
         api.uploadCoursesAnswered(courses, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
     }

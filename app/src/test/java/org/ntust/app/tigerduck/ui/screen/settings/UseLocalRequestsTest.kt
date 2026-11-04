@@ -223,6 +223,28 @@ class UseLocalRequestsTest {
         assertEquals("a name that went waits for nothing", emptyList<Any>(), onV4.cache.loadPendingCourseOverrides())
     }
 
+    /**
+     * The device check on PR V: a copy of a school row merged down from the server is manual here,
+     * and is no course added by hand. Use Local's upload names the course added here, as an add
+     * made now, and lists the copy as the school's, which the term's reset leaves no hide of.
+     */
+    @Test
+    fun `on v4 a term's upload names the course added here, and no copy of a school row merged down`() = runTest {
+        val onV4 = onV4()
+        val (courses, v4) = onV4.courses to onV4.backend
+        val merged = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", isManual = true)
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
+        onV4.holds("1151", listOf(merged, manual))
+
+        keepLocalCourses(terms = listOf("1151" to listOf(merged, manual)), hiding = emptySet(), backend = courses)
+
+        val upload = JSONObject(v4.sent.single { it.url.endsWith("/v4/sync/courses/upload") }.body!!)
+        val courseNos = upload.getJSONArray("courses").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_no") } }
+        assertEquals(listOf("CS1", "MY1"), courseNos)
+        val adds = upload.getJSONArray("adds").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_key") } }
+        assertEquals(listOf("client:1151:MY1"), adds)
+    }
+
     @Test
     fun `on v4 a name waits for the names conflict the student has yet to answer, and the colors still go`() = runTest {
         val onV4 = onV4 { prefs -> assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn)) }
