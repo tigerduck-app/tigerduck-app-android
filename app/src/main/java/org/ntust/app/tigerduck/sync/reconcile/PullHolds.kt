@@ -12,7 +12,9 @@ import org.ntust.app.tigerduck.sync.AckClock
  * The acknowledgments are read as each field is asked about: a write answered while the pull runs
  * holds its field from then on. The waiting edits are each step's own to read, in the step that
  * writes, under the lock its channel's own writes take, so an edit kept while the pull runs holds
- * its field too.
+ * its field too. A step reads them before it asks about the acknowledgments: a send that lands
+ * records its acknowledgment before its edit leaves the lane (`OutboxLane.settle`), so an edit
+ * that lands between the two reads is held by one or the other.
  */
 class PullHolds(val serverHlc: Long, private val ack: AckClock) {
 

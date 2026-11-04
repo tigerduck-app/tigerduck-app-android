@@ -171,7 +171,10 @@ internal class StampedMerges(
     suspend fun names(current: Map<String, Map<String, String>>): Map<String, Map<String, String>>? {
         val everyTerm = everyCourse()
         val (currentTerm, catalogue) = legacyTerms()
-        val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), everyTerm, overrides, currentTerm, catalogue)
+        // The waiting changes before the acknowledgments: a change that lands in between is
+        // acknowledged before it leaves the lane (OutboxLane.settle), so one or the other holds it.
+        val waitingNow = waiting()
+        val held = StampedCourseOverrides.heldNames(waitingNow + holds.fields(), everyTerm, overrides, currentTerm, catalogue)
         val unsendable = everyTerm.values.flatten().groupBy { it.courseNo }
             .filterValues { all -> all.all { it.moodleIdNumber.isNullOrEmpty() } }.keys
         return StampedCourseOverrides.names(current, overrides, held, unsendable)
@@ -179,6 +182,7 @@ internal class StampedMerges(
 
     /** [courses] with the colors as [StampedCourseOverrides.colors] has them. */
     suspend fun colors(courses: List<Course>): CourseSyncReconciler.ColorOutcome? {
+        // Read before the acknowledgments, which [PullHolds.keeps] reads as each color is asked; see [names].
         val held = waiting()
         return StampedCourseOverrides.colors(courses, term, overrides) { holds.keeps(it) || it in held }
     }
