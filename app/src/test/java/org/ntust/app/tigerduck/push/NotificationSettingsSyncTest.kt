@@ -938,6 +938,12 @@ class NotificationSettingsSyncTest {
          * holds the session once it returns is the one the PUT goes to.
          */
         var resolvingBearer: () -> Unit = {}
+
+        /**
+         * Runs once, the next time the sync reads the cloud sync switch, before it answers: for a
+         * push, right after it has read what it sends and its section's record.
+         */
+        var beforeNextGateRead: (() -> Unit)? = null
         val signIns = SignInSeries()
 
         /** The sign-in each request carried, in order. */
@@ -983,7 +989,10 @@ class NotificationSettingsSyncTest {
             classReminderStore = classReminders,
             lastSynced = lastSynced,
             lastSyncedSeed = seed,
-            cloudSyncEnabled = { cloudSync },
+            cloudSyncEnabled = {
+                beforeNextGateRead?.also { beforeNextGateRead = null }?.invoke()
+                cloudSync
+            },
             syncLiveActivity = { syncLiveActivity },
             syncAssignmentReminders = { syncAssignmentReminders },
             isLoggedIn = { signedInAs != null },
@@ -3181,6 +3190,65 @@ class NotificationSettingsSyncTest {
             AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10,
             device.assignments.offsets,
         )
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    // ── T0.8's two windows parked to phase 3 (Codex on PR #620) ──
+    //
+    // A push reads what it sends, its record and the section's restart count in one step, then
+    // its gates: a switch turned on between the two restarted the record, which the push's base
+    // predates. And a push that lands after a restart clears its section's flag only while the
+    // values still equal what it sent, which an edit made after the turn-on can match.
+
+    @Test
+    fun `a live_activity push whose switch comes on after it read its record sends no edit made while it was off`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+
+        // The queued push has read what it sends and its record when the switch comes on.
+        var turnedOnWith: Int? = null
+        device.beforeNextGateRead = {
+            device.switchLiveActivitySync(true)
+            runCurrent()
+            turnedOnWith = device.recorded("live_activity").get("class_preparing_lead_seconds").asInt
+        }
+        runQueue()
+
+        assertEquals("the turn-on, within the push, records the values it finds", 1_800, turnedOnWith)
+        assertTrue("nothing stale is sent: ${device.server("A").writes}", device.server("A").writes.none { it.getAsJsonObject("live_activity")?.get("class_preparing_lead_seconds")?.asInt == 1_800 })
+        assertEquals("the edit made while it was off gives way", 900L, device.prefs.classPreparingLeadTimeSec)
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
+    fun `an assignments push whose switch comes on after it read its record sends no edit made while it was off`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+
+        var turnedOnWith: Boolean? = null
+        device.beforeNextGateRead = {
+            device.switchAssignmentReminderSync(true)
+            runCurrent()
+            turnedOnWith = device.recorded("assignments").get("enabled").asBoolean
+        }
+        runQueue()
+
+        assertEquals("the turn-on, within the push, records the values it finds", false, turnedOnWith)
+        assertTrue("nothing stale is sent: ${device.server("A").writes}", device.server("A").writes.none { it.getAsJsonObject("assignments")?.get("enabled")?.asBoolean == false })
+        assertTrue("the edit made while it was off gives way", device.assignments.enabled)
         assertFalse(device.assignments.hasUnconfirmedEdit)
     }
 

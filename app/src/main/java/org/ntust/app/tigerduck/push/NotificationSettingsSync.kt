@@ -2264,9 +2264,9 @@ class NotificationSettingsSync internal constructor(
      * while it was on the wire then differs from that record, and its own
      * push sends it. A switch turned back on while it was on the wire
      * restarted the record ([restartRecord]), and the push leaves that newer
-     * record in place: it reads what it sends, the record it merges against
-     * and its section's restart count together, and records only if the count
-     * has not moved, both under [recordLock], so no restart lands between
+     * record in place: it reads what it sends, its record and its section's
+     * restart count together, goes on only while the count stands (read with
+     * its gates after), and records only if it has not moved, both under [recordLock], so no restart lands between
      * those reads or between the check and the write. Nor does a sign-out:
      * its bump and clears take the same lock, in every section, courses
      * included.
@@ -2291,7 +2291,7 @@ class NotificationSettingsSync internal constructor(
                 cloudSyncEnabled = cloudSyncEnabled(),
                 syncLiveActivity = syncLiveActivity(),
                 isLoggedIn = isLoggedIn(),
-                isCurrentGeneration = { queuedGeneration == generation.get() },
+                isCurrentGeneration = { queuedGeneration == generation.get() && synchronized(recordLock) { liveActivityRestarts } == liveActivityRestartsAtBase },
                 lastSynced = liveActivityBase,
             )
             if (liveActivitySucceeded) synchronized(recordLock) {
@@ -2326,7 +2326,7 @@ class NotificationSettingsSync internal constructor(
                 cloudSyncEnabled = cloudSyncEnabled(),
                 syncAssignmentReminders = syncAssignmentReminders(),
                 isLoggedIn = isLoggedIn(),
-                isCurrentGeneration = { queuedGeneration == generation.get() },
+                isCurrentGeneration = { queuedGeneration == generation.get() && synchronized(recordLock) { assignmentRestarts } == assignmentRestartsAtBase },
                 lastSynced = assignmentsBase,
             )
             if (assignmentsSucceeded) synchronized(recordLock) {
