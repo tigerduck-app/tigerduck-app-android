@@ -233,6 +233,10 @@ class PendingHolidayOverrides internal constructor(
         if (WriteAnswer.NOTIFY in applied) return
         val notify = answer.values[WriteAnswer.NOTIFY] as? Boolean ?: return
         val store = calendar ?: return
+        // Acknowledged before the choice goes and its edit time with it, which a pull reads as it
+        // waiting: one that runs on the Calendar's thread before the lane settles the send holds
+        // the winner by the acknowledgment.
+        lane.acknowledge(choice, answer.serverClockUs, signIn)
         withContext(main) {
             lane.edit(signIn) { waiting ->
                 if (choice !in waiting) return@edit waiting

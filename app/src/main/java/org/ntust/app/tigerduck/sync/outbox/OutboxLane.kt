@@ -146,6 +146,17 @@ class OutboxLane<E : Any>(
     suspend fun heldFields(): Set<String> = entries().mapTo(HashSet(), policy.field)
 
     /**
+     * Records that [entry]'s send under [signIn] landed, answered at the backend's clock
+     * [serverClockUs], as its field's acknowledgment. The lane does this as it stores a
+     * [SendResult.Sent], before the entry goes. A channel whose send lets the entry go itself, or
+     * clears what a pull reads as it waiting, records it first too, so a pull in between holds the
+     * field by one or the other. Recording it twice changes nothing.
+     */
+    fun acknowledge(entry: E, serverClockUs: Long?, signIn: SignIn) {
+        serverClockUs?.let { ack.acknowledged(policy.field(entry), it, signIn) }
+    }
+
+    /**
      * Sends what waits under [signIn], oldest first, each entry once, and an entry edited again
      * while its last edit was in flight after that edit's reply. Only the [fields] given, when
      * given. Parked entries stay. Returns once nothing it may send waits, at the first
@@ -249,7 +260,7 @@ class OutboxLane<E : Any>(
     private suspend fun settle(entry: E, result: SendResult, signIn: SignIn) {
         val field = policy.field(entry)
         // Before the entry goes, so a pull in between holds the field by one or the other.
-        if (result is SendResult.Sent) result.serverClockUs?.let { ack.acknowledged(field, it, signIn) }
+        if (result is SendResult.Sent) acknowledge(entry, result.serverClockUs, signIn)
         storeLock.withLock {
             val woken = flight?.takeIf { it.entry === entry }?.woken == true
             flight = null
