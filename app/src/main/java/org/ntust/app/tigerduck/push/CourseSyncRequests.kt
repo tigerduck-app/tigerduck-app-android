@@ -101,7 +101,8 @@ internal class CourseSyncRequests(
      * refused apart; see [CourseUploadAnswer].
      *
      * The upload carries no colors, and names every hand-added course in its adds, each stamped
-     * with its [addedAt] entry or as the oldest; see [CourseUploadPayload.handAdds] (X9). A copy
+     * with its [addedAt] entry or as the oldest; see [CourseUploadPayload.handAdds] (X9). Fifty at
+     * most: one it cannot name goes in a later upload ([CourseUploadPayload.withinAddsLimit]). A copy
      * merged down that no snapshot has told about goes only when added now
      * ([CourseUploadPayload.sendable]), and the ledger, the roster recorded and the listeners take
      * the courses that went; with every one left out, nothing is sent and the answer accepts none.
@@ -123,6 +124,7 @@ internal class CourseSyncRequests(
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl()
         val sent = CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt)
+            .let { CourseUploadPayload.withinAddsLimit(it, semester, forceKeys, addedAt) }
         // Every course left out: nothing the backend would change.
         if (sent.isEmpty() && courses.isNotEmpty()) return@withContext CourseUploadAnswer(emptyList(), emptyList())
         val bodies = upload(sent, semester, forceKeys, rosterTerms, addedAt)

@@ -264,6 +264,28 @@ class V4WritesTest {
         assertEquals((1_790_000_000_999L + 1) * 1_000, hlcOf(backend.sent.last()))
     }
 
+    /**
+     * `/v4` takes at most 50 `adds` an upload, and refuses a longer list with 422 (`docs/api-v4.md`,
+     * "Course upload"; the backend's `CourseUploadV4Request`). With more to name, an upload names
+     * the adds made now first, with their times, then the courses added before, and leaves out each
+     * hand-added course it cannot name: listed unnamed, the backend would take it for the school's.
+     */
+    @Test
+    fun `an upload names at most fifty adds, the one made now among them, and lists no hand-added course it leaves unnamed`() = runTest {
+        val before = (1..55).map { Course(courseNo = "XB%07d".format(it), courseName = "Mine $it", isManual = true) }
+
+        client.uploadCoursesAnswered(listOf(school) + before + addedNow, "1151", signIn, addedAt = mapOf("XA0000009" to madeAtMs))
+
+        val body = JSONObject(backend.sent.single().body!!)
+        val adds = body.getJSONArray("adds").let { a -> (0 until a.length()).map(a::getJSONObject) }
+        assertEquals(50, adds.size)
+        assertTrue("the add made now goes, with its time: $adds", adds.any { it.getString("course_key") == "client:1151:XA0000009" && it.getLong("hlc") == madeAtMs * 1_000 })
+        val named = adds.map { it.getString("course_key").substringAfterLast(':') }
+        val listed = body.getJSONArray("courses").let { c -> (0 until c.length()).map { c.getJSONObject(it).getString("course_no") } }
+        assertEquals(listOf(school.courseNo) + before.take(49).map { it.courseNo } + addedNow.courseNo, listed)
+        assertEquals("every hand-added course listed is named", listed - school.courseNo, named)
+    }
+
     @Test
     fun `a school roster names a hand-added course too, and a forced key, both as the oldest`() = runTest {
         client.uploadCoursesAnswered(listOf(school, addedBefore), "1151", signIn, forceKeys = listOf("client:1151:XA0000001"))

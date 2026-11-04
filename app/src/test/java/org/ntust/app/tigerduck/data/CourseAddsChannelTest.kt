@@ -452,6 +452,41 @@ class CourseAddsChannelTest {
         override fun forgetMemory() = Unit
     }
 
+    /** A course upload's answer that took [courses] of [term]. */
+    private fun accepted(courses: List<Course>) =
+        """{"upserted":${courses.size},"skipped_tombstoned":0,"accepted_keys":[${courses.joinToString(",") { "\"${key(it)}\"" }}]}"""
+
+    /** The course keys an upload named in its adds. */
+    private fun addsOf(sent: RecordingBackend.Sent): List<String> =
+        org.json.JSONObject(sent.body!!).getJSONArray("adds").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("course_key") } }
+
+    /**
+     * `/v4` takes at most 50 adds an upload, and refuses a longer list with 422 (`docs/api-v4.md`,
+     * "Course upload"). A term with more waiting sends fifty at a sync, in the order they were
+     * made, and the rest at the next: none is refused for the list's length, and none is lost.
+     */
+    @Test
+    fun `more adds than one upload takes go fifty at a sync, the rest at the next`() = runTest {
+        val courses = (1..51).map { Course(courseNo = "XC%07d".format(it), courseName = "Typed $it", isManual = true) }
+        cache.saveCourses(courses, term, signIn)
+        val adds = v4Adds()
+        // Made with course sync off, they wait.
+        prefs.syncCourses = false
+        courses.forEachIndexed { i, course -> adds.send(courses, term, course.courseNo, addedAt = NOW_MS + i, signIn = signIn) }
+        assertEquals(emptyList<RecordingBackend.Sent>(), backend.sent.toList())
+        prefs.syncCourses = true
+        backend.answer(upload, 200, accepted(courses.take(50)))
+        backend.answer(upload, 200, accepted(courses.drop(50)))
+
+        adds.drain(signIn)
+
+        assertEquals(courses.take(50).map { key(it) }, addsOf(backend.sent.single()))
+        assertEquals(listOf(courses.last().courseNo), cache.loadPendingCourseAdds()[term])
+        adds.drain(signIn)
+        assertEquals(listOf(key(courses.last())), addsOf(backend.sent[1]))
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+    }
+
     private companion object {
         // An older build last wrote the queue files then, before this build first ran.
         const val FILE_MS = 1_780_000_000_000L
