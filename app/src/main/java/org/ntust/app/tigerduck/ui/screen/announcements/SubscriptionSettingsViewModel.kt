@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -142,6 +143,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // A read the page started over past says nothing of the rules it shows now, the next
+                // student's maybe: one cut short still hands its failure on, as only a result is
+                // replaced by the cancellation.
+                ensureActive()
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
             probe.answersHandled.incrementAndGet()

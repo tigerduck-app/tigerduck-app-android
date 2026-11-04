@@ -70,19 +70,30 @@ class SubscriptionsFollowSignInTest {
         vm.showsTheNextStudents(listOf("Grants" to true))
     }
 
+    /**
+     * The departed student's read, which the sign-out cut short, fails once the next student's
+     * rules show. A coroutine cut short still hands a failure on to its own code, as only a result
+     * is replaced by the cancellation, so the page says nothing of it.
+     */
     @Test
     fun `a read of the departed student's that fails after the next sign-in is not the next student's failure`() {
         val vm = page.open(V4, "Scholarships")
         val read = page.backend.hold(V4_READ)
         page.onMain { vm.load() }
         read.awaitArrival()
-
         page.nextStudentSignsIn("Grants")
+        vm.showsTheNextStudents(listOf("Grants" to true))
+
         read.release(503 to """{"error":"internal_error","message":"down"}""")
 
-        vm.showsTheNextStudents(listOf("Grants" to true))
-        page.onMain { }
-        assertEquals(LoadState.Loaded, vm.state.value.loadState)
+        waitFor("the departed student's read is answered") { "< $V4_READ 503" in page.backend.events }
+        // Its answer reaches the page's thread a moment after, if at all.
+        val deadline = System.currentTimeMillis() + 1_000
+        while (System.currentTimeMillis() < deadline) {
+            assertEquals("the page shows the next student's rules as loaded", LoadState.Loaded, page.onMain { vm.state.value.loadState })
+            Thread.sleep(5)
+        }
+        assertEquals(listOf("Grants" to true), vm.shown())
     }
 
     /** Waits on the test's thread, the page's being held, until [condition] holds. */
