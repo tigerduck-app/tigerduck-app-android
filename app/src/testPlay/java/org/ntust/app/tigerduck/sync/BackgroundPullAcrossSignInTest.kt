@@ -132,7 +132,7 @@ class BackgroundPullAcrossSignInTest {
         val prefs = w.appPrefs
         val landed = mapOf(
             "marks synced once" to prefs.school.assignmentMarksSyncedOnce.get(),
-            "course reset read" to prefs.school.lastSeenCoursesResetAt.get(),
+            "course reset read" to org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences("tigerduck_prefs", 0).getString("lastSeenCoursesResetAt", null),
             "first pull" to rig.gate.hasPulled(w.sessions.school.signIns.current),
             "marks" to w.dataCache.loadIgnoredAssignments(),
             "ignored courses" to w.dataCache.loadIgnoredCourses(),

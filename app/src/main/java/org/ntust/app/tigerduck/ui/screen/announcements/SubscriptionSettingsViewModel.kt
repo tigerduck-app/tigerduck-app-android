@@ -9,9 +9,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.session.AccountSession
@@ -83,9 +85,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
     /**
      * The sign-in whose rules the page shows: the one its last load was read under, null until one
      * lands. An edit of them goes under it, and an answer lands only while it stands. The sign-out
-     * closes the page only once it is on top, so one kept on another tab's back stack shows the
-     * departed student's rules: none of them may go with the next student's session, and no
-     * answer to a save of theirs may touch the page, which may show the next student's by then.
+     * closes the page only once it is on top, so one kept on another tab's back stack would show the
+     * departed student's rules: the page starts over at each sign-out and sign-in it is told of
+     * ([AccountSession.changes]), and until it hears, none of them may go with the next student's
+     * session, and no answer to a save of theirs may touch the page.
      */
     private var shownFor: SignIn? = null
 
@@ -106,6 +109,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch { fetchTaxonomy() }
         viewModelScope.launch { listSaves.ledger.collect(::mirror) }
+        // Past the state it starts from: each sign-out and sign-in, which the page read nothing under.
+        viewModelScope.launch { session.changes.drop(1).collect { startOver() } }
         load()
     }
 
@@ -138,6 +143,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // A read the page started over past says nothing of the rules it shows now, the next
+                // student's maybe: one cut short still hands its failure on, as only a result is
+                // replaced by the cancellation.
+                ensureActive()
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
             probe.answersHandled.incrementAndGet()
@@ -178,11 +187,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
 
     /**
      * Shows the app's saves' ledger whenever it moves, while it is the ledger of the sign-in whose
-     * rules the page shows: an answer or a refusal, landed while the page was open or, for a page
-     * opened again, before.
+     * rules the page shows, and that sign-in stands: an answer or a refusal, landed while the page
+     * was open or, for a page opened again, before. One that landed just before a sign-out, which
+     * the page hears of after it, is the departed student's.
      */
     private fun mirror(ledger: SubscriptionListSaves.Ledger?) {
-        if (ledger == null || ledger.signIn !== shownFor) return
+        if (ledger == null || ledger.signIn !== shownFor || !ledger.signIn.isCurrent) return
         _state.update { it.copy(rules = ledger.rules, saveState = ledger.save) }
     }
 

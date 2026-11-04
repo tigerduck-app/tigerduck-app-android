@@ -60,7 +60,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "long-file",
-    "count": 1781
+    "count": 1769
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseRepository.kt",
@@ -85,7 +85,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt",
     "kind": "long-file",
-    "count": 1364
+    "count": 1362
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/CredentialManager.kt",

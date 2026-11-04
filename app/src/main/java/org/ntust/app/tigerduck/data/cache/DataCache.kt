@@ -162,13 +162,13 @@ class DataCache @Inject constructor(
     // --- Courses (semester-scoped) ---
 
     /**
-     * Save courses for a specific semester. Splits the list: remote-fetched courses go to
-     * `cacheDir/courses_<semester>.json` (evictable), manual courses go to
-     * `userDataDir/manual_courses_<semester>.json` (durable). Manual courses have no remote source:
-     * if the cache is evicted they can only be recovered from userDataDir.
+     * Save courses for a specific semester: remote-fetched ones to `cacheDir/courses_<semester>.json`
+     * (evictable), manual ones to `userDataDir/manual_courses_<semester>.json` (durable, as a manual
+     * course has no remote source). Each keeps what the term holds now of its server row: a whole
+     * list read before says nothing new of it ([CourseProvenance.asStored]).
      */
     suspend fun saveCourses(courses: List<Course>, semester: String, signIn: SignIn) =
-        coursesMutex.withLock { writeCourses(courses, semester, signIn, before = if (courseSyncs.isEmpty()) null else loadCourses(semester)) }
+        coursesMutex.withLock { CourseProvenance.keptOver(courses) { loadCourses(semester) }.let { (kept, stored) -> writeCourses(kept, semester, signIn, stored) } }
 
     /**
      * [semester]'s courses as [change] makes them of the list as it stands and of the course numbers
@@ -1006,18 +1006,6 @@ class DataCache @Inject constructor(
     }
 
     /**
-     * [semester]'s courses a course selection answer brought back that the
-     * snapshot fetched at [fetchedAtMs] has to leave be: none fetched before
-     * it had listed them since; see [liftHandAddedHides].
-     */
-    suspend fun restoredCoursesIn(semester: String, fetchedAtMs: Long): Set<String> {
-        val prefix = CourseTombstoneKeys.key(semester, "")
-        return loadRestoredCourses()
-            .filter { (key, course) -> key.startsWith(prefix) && (course.listedAt == null || fetchedAtMs < course.listedAt) }
-            .keys.mapTo(mutableSetOf()) { it.removePrefix(prefix) }
-    }
-
-    /**
      * Notes the courses brought back in [semester] that [listed], the course
      * numbers of a snapshot fetched at [fetchedAtMs], holds, when it was
      * fetched after they came back: the upload that names them has landed,
@@ -1061,7 +1049,7 @@ class DataCache @Inject constructor(
         return loadFromUserData<List<String?>>(type, HAND_ADDED_HIDES_FILE).orEmpty().filterNotNullTo(mutableSetOf())
     }
 
-    /** The courses being brought back, by `<semester>:<courseNo>` key; see [restoredCoursesIn]. */
+    /** The courses being brought back, by `<semester>:<courseNo>` key; see [commitSyncHides]. */
     private suspend fun loadRestoredCourses(): Map<String, RestoredCourse> {
         val type = object : TypeToken<Map<String?, RestoredCourse?>>() {}.type
         return loadFromUserData<Map<String?, RestoredCourse?>>(type, RESTORED_COURSES_FILE).orEmpty()

@@ -301,8 +301,8 @@ class UseLocalRequestsTest {
         onV4.holds("1151", courses)
         onV4.afterReset = {
             val fetched = listOf(Course(courseNo = "XU1", courseName = "School XU1", moodleIdNumber = "1151XU1"))
-            val merged = ClassTableCourseMerge.mergeFetched(fetched, onV4.cache.loadCourses("1151"), emptyMap(), "zh", emptySet())
-            assertTrue(onV4.cache.saveCourses(merged, "1151", signIn))
+            // Over the term as it stands, under the courses' lock, as `commitFetchedTerm` commits a fetch.
+            assertTrue(onV4.cache.updateCourses("1151", signIn) { current, hidden -> ClassTableCourseMerge.mergeFetched(fetched, current, emptyMap(), "zh", hidden) })
         }
 
         onV4.useLocal(courses, checkedRows(schoolRow = "CS1", byHandRow = "XE1"))

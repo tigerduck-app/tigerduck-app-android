@@ -1,7 +1,9 @@
 package org.ntust.app.tigerduck.sync
 
 import android.content.Context
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.util.JvmContext
@@ -82,14 +84,58 @@ class SyncClockTest {
     }
 
     @Test
-    fun `a refusal stamps again at the backend's time plus five seconds, and caps the next edit`() {
+    fun `a refusal stamps again one tick past the backend's clock, and keeps the last value issued`() {
         val clock = clock()
         now = T + MINUTE
         assertEquals(T + MINUTE + 1, clock.stampMs())
 
         // 409 clock_ahead, its answer carrying the backend's clock.
-        assertEquals(T + 5_000 + 1, clock.restampAfterClockAhead(us(T)))
-        assertEquals(T + 5_000 + 2, clock.stampMs())
+        assertEquals(T + 1, clock.restampAfterClockAhead(us(T)))
+        // The next edit stamps after the last value issued, until the cap passes it.
+        assertEquals(T + MINUTE + 2, clock.stampMs())
+        now += MINUTE
+        assertEquals(T + MINUTE + 5_000 + 1, clock.stampMs())
+    }
+
+    /**
+     * Agreed with the iOS lead and the owner (Telegram 1638, 1651): the restamp is the clock the 409
+     * carries plus one tick, a millisecond here, and the last value issued is never lowered for it,
+     * so a still wall clock cannot issue one stamp twice (`tigersync-clock`, "A device re-stamps an
+     * edit refused as ahead").
+     */
+    @Test
+    fun `two refusals with a still wall clock give two different, increasing stamps, each under the refusal's clock plus five seconds`() {
+        val clock = clock()
+        now = T + MINUTE
+        val offline = clock.stampMs()
+
+        // Two edits refused as ahead, each answered with the backend's clock, which has not moved.
+        val first = clock.restampAfterClockAhead(us(T) + 456)
+        val between = clock.stampMs()
+        val second = clock.restampAfterClockAhead(us(T) + 456)
+
+        assertTrue("two refusals, two stamps: $first, $second", second > first)
+        assertEquals("one tick past the refusal's clock", T + 1, first)
+        assertTrue("under the refusal's clock plus five seconds: $second", second < T + 5_000)
+        assertEquals("an edit between them stamps after the last value issued", offline + 1, between)
+        assertEquals("the last value issued is never lowered", offline + 1, SyncClockStore(file).load().lastIssuedMs)
+    }
+
+    /**
+     * Codex on PR P (round 2): the endpoint setting changes without the clock's lock, so a move can
+     * land between two of a restamp's reads of it. A restamp that checked its refusal against the
+     * first backend and then saved under the next one put the first backend's clock into the next
+     * one's stamps. Each of the clock's steps reads the endpoint once: here the restamp is the first
+     * backend's whole, and the next backend's first stamp follows the wall clock.
+     */
+    @Test
+    fun `an endpoint move during a restamp puts nothing of the first backend's into the next one's stamps`() {
+        var reads = 0
+        val clock = SyncClock(SyncClockStore(file), { now }, { if (reads++ == 0) FIRST else NEXT })
+
+        clock.restampAfterClockAhead(us(T + 60 * MINUTE), "$FIRST/sync/assignments/7/override".toHttpUrl())
+
+        assertEquals("the next backend's stamp follows the wall clock", T + 1, clock.stampMs())
     }
 
     @Test
@@ -168,6 +214,42 @@ class SyncClockTest {
         assertEquals(ahead + 2, clock.stampMs())
     }
 
+    /**
+     * PR B's parked window: the values heard from one backend and the stamps issued under it say
+     * nothing of another's, and a backend whose clock ran far ahead would hold every stamp up on the
+     * next. A move of the endpoint to another backend ([org.ntust.app.tigerduck.network.backend.ApiBase.backendKey])
+     * forgets them; a sign-out does not ([SyncClockAcrossSignOutTest]), nor does a move between the
+     * API versions of one backend.
+     */
+    @Test
+    fun `the endpoint moved to another backend forgets what the clock heard and issued`() {
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://one.example.test/v3" }
+        val clock = SyncClock(SyncClockStore(file), prefs)
+        val ahead = System.currentTimeMillis() + 60 * MINUTE
+        clock.heard(us(ahead))
+        clock.heardInSnapshot(us(ahead))
+        assertEquals(ahead + 1, clock.stampMs())
+        prefs.announcementApiBaseUrlOverride = "https://one.example.test/v4"
+        assertEquals("the same backend at another version keeps them", ahead + 2, clock.stampMs())
+
+        prefs.announcementApiBaseUrlOverride = "https://two.example.test/v4"
+        val before = System.currentTimeMillis()
+        val stamp = clock.stampMs()
+
+        assertTrue("stamped by the wall clock, uncapped: $stamp", stamp in before + 1..System.currentTimeMillis() + 1)
+        assertEquals(stamp, SyncClockStore(file).load().lastIssuedMs)
+        assertEquals("nothing heard of the new backend", null, SyncClockStore(file).load().heardUs)
+    }
+
+    @Test
+    fun `values a build before the backend's key kept are the endpoint's backend's`() {
+        val ahead = System.currentTimeMillis() + 60 * MINUTE
+        file.edit().putLong("lastIssuedMs", ahead).putLong("lastSeenUs", us(ahead)).commit()
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://one.example.test/v4" }
+
+        assertEquals(ahead + 1, SyncClock(SyncClockStore(file), prefs).stampMs())
+    }
+
     @Test
     fun `a clock value outside any plausible time is not heard`() {
         val clock = clock()
@@ -201,5 +283,7 @@ class SyncClockTest {
         // 2027-01-15T08:00:00Z.
         const val T = 1_800_000_000_000L
         const val MINUTE = 60_000L
+        const val FIRST = "http://127.0.0.1:9/v4"
+        const val NEXT = "http://127.0.0.2:9/v4"
     }
 }

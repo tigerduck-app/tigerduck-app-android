@@ -132,7 +132,7 @@ class MembershipPullTest {
      */
     @Test
     fun `a course reset read on a pull wipes no hand-added course its tombstones do not take`() = runBlocking {
-        w.appPrefs.school.lastSeenCoursesResetAt.set("2026-09-01T00:00:00+00:00", signIn)
+        org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences("tigerduck_prefs", 0).edit().putString("lastSeenCoursesResetAt", "2026-09-01T00:00:00+00:00").commit()
         w.dataCache.saveCourses(listOf(Course(courseNo = "B", courseName = "Added B", isManual = true)), term, signIn)
         val snapshot = JSONObject()
             .put("current_revision", 3)

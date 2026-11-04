@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.push
 
 import okhttp3.Call
+import okhttp3.HttpUrl
 import okhttp3.Response
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -24,18 +25,21 @@ internal class WriteClock(private val clock: SyncClock?) {
     /** The stamp of an edit made now, in epoch ms. */
     fun stampMs(): Long = clock?.stampMs() ?: System.currentTimeMillis()
 
-    /** A stamp again, after a refusal as ahead whose answer carried [serverClockUs]. */
-    fun restampAfterClockAhead(serverClockUs: Long?): Long =
-        clock?.restampAfterClockAhead(serverClockUs) ?: System.currentTimeMillis()
+    /**
+     * A stamp again, after a refusal as ahead of [refused] whose answer carried [serverClockUs]; null
+     * when [refused] went to a backend the endpoint has moved off since ([SyncClock.restampAfterClockAhead]).
+     */
+    fun restampAfterClockAhead(serverClockUs: Long?, refused: HttpUrl): Long? =
+        if (clock == null) System.currentTimeMillis() else clock.restampAfterClockAhead(serverClockUs, refused)
 
-    /** A clock value an answer holds, which raises the last value seen (LWW D4). */
-    fun hear(clockUs: Long) {
-        clock?.heardInSnapshot(clockUs)
+    /** A clock value an answer to [from] holds, which raises the last value seen (LWW D4). */
+    fun hear(clockUs: Long, from: HttpUrl) {
+        clock?.heardInSnapshot(clockUs, from)
     }
 
-    /** The largest clock value [answer] holds; see [hear]. */
-    fun hear(answer: WriteAnswer) {
-        answer.clockValues().maxOrNull()?.let(::hear)
+    /** The largest clock value [answer] holds, to [from]; see [hear]. */
+    fun hear(answer: WriteAnswer, from: HttpUrl) {
+        answer.clockValues().maxOrNull()?.let { hear(it, from) }
     }
 }
 
@@ -47,8 +51,9 @@ internal class WriteClock(private val clock: SyncClock?) {
  * ahead of the backend's clock (409 `clock_ahead`) is stamped again from the refusal's clock and
  * sent once more if [mayResend] still holds, never without a stamp: the gate the first request
  * passed can have closed meanwhile (a hold, a switch), and the resend, past it, would overwrite
- * what the user is yet to choose. Then nothing more goes and the result is null. A second refusal
- * is the answer [handle] reads, as any other.
+ * what the user is yet to choose. Then nothing more goes and the result is null. So it is for a
+ * refusal from a backend the endpoint has moved off while the request was out: its clock says
+ * nothing of the next backend. A second refusal is the answer [handle] reads, as any other.
  */
 internal fun <T : Any> sendStamped(
     madeAtMs: Long?,
@@ -60,11 +65,13 @@ internal fun <T : Any> sendStamped(
     val first = call(clockOf(madeAtMs ?: clock.stampMs())).execute()
     if (!isClockAhead(first)) return first.use(handle)
     val serverClockUs = serverClockOf(first)
+    val refused = first.request.url
     first.close()
     if (!mayResend()) return null
-    return call(clockOf(clock.restampAfterClockAhead(serverClockUs))).execute().use(handle)
+    val restamp = clock.restampAfterClockAhead(serverClockUs, refused) ?: return null
+    return call(clockOf(restamp)).execute().use(handle)
 }
 
 /** [response]'s answer ([answerOf]), every clock value in it heard. */
 internal fun WriteClock.answer(response: Response, what: String, field: String? = null): WriteAnswer =
-    answerOf(response, what, field).also { hear(it) }
+    answerOf(response, what, field).also { hear(it, response.request.url) }

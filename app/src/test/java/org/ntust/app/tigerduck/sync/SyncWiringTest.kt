@@ -750,7 +750,7 @@ class SyncWiringTest {
     fun `Home and the background sync commit a fetch against the drop list as it stands, and the sync uploads what was committed`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "fetchData",
-            "courses = commitFetchedTerm(",
+            "commitFetchedTerm(",
             "waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) }",
         )
         assertCalls(
@@ -790,6 +790,24 @@ class SyncWiringTest {
         assertTrue("TermCourseSync no longer commits against its answer", "term.onlyGains, answer, signIn," in body)
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
         assertTrue("TermCourseSync no longer wires the adds lock", "uploading = { block -> pendingCourseAdds.uploading(block) }" in sync)
+    }
+
+    /**
+     * V's parked race (round 7): Home's school fetch committed its term without the lock a full
+     * sync's upload of a term the snapshot holds nothing of reads and sends under
+     * (`RosterReconciler`, `PendingCourseAdds.uploading`), so it could land between that upload's
+     * read and its request, and the upload went as read: a copy the fetch made the school's, named
+     * as an add at 0. Home commits under the lock now, as the background sync and the class table
+     * commit theirs, so the commit comes before the upload's read or after its request.
+     * `V4MergedCoursesTest` holds the upload's side of the lock.
+     */
+    @Test
+    fun `Home's fetch commits its term under the lock a sync's upload of the term goes under`() {
+        val body = body("ui/screen/home/HomeViewModel.kt", "fetchData")
+        val lock = body.indexOf("courses = pendingCourseAdds.uploading {")
+        val commit = body.indexOf("commitFetchedTerm(")
+        assertTrue("Home's fetch no longer commits its term under the adds lock", lock >= 0 && lock < commit)
+        assertTrue("Home's fetch no longer commits inside the lock", insideBlock(body, "pendingCourseAdds.uploading {", body.indexOf("HomeCourseMerge.mergeRemote(")))
     }
 
     /**

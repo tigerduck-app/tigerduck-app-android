@@ -291,12 +291,48 @@ class V4MergedCoursesTest {
         assertEquals(emptyList<String>(), rules.refused)
     }
 
-    /** A school fetch's commit of [semester], which lists [courseNo]: the copy is the school's. */
+    /**
+     * A school fetch's commit of [semester], which lists [courseNo]: the copy is the school's. Over
+     * the term as it stands, under the courses' lock, as `commitFetchedTerm` commits a fetch.
+     */
     private suspend fun schoolFetchLists(courseNo: String, semester: String = TERM) {
         val fetched = listOf(Course(courseNo = courseNo, courseName = "School $courseNo", moodleIdNumber = "$semester$courseNo"))
         assertTrue(
-            w.dataCache.saveCourses(ClassTableCourseMerge.mergeFetched(fetched, w.dataCache.loadCourses(semester), emptyMap(), "zh", emptySet()), semester, signIn),
+            w.dataCache.updateCourses(semester, signIn) { current, hidden -> ClassTableCourseMerge.mergeFetched(fetched, current, emptyMap(), "zh", hidden) },
         )
+    }
+
+    /**
+     * V's parked race (Codex on round 7): a whole list saved from a read made before a school fetch
+     * told a copy it is the school's, as the colors' reset saves one, lands during a later sync. It
+     * says nothing new of the copy's row, so it puts back nothing the fetch told: the sync's pull
+     * tells the copy from its snapshot, and no upload names a school course, an add the student
+     * never made, which no roster would ever drop.
+     */
+    @Test
+    fun `a whole list saved from a read before a school fetch, landing during a later pull, puts back no word of its row`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000002"), olderCopy("XU0000007")), TERM, signIn))
+        // A pull whose snapshot holds nothing of XU0000007 tells it it was added by hand.
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002")))
+        rig.home.sync.pull(state, signIn)
+        assertEquals(true, provenance(TERM)["XU0000007"])
+        // The colors' reset reads the term, and its save comes late.
+        val read = w.dataCache.loadCourses(TERM)
+        // The school's fetch lists the course, which its roster upload sends as a school row.
+        schoolFetchLists("XU0000007")
+        assertEquals(false, provenance(TERM)["XU0000007"])
+
+        // The next pull's snapshot lists it as the school's; the late save lands while it is out.
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002"), row("XU0000007")))
+        afterSnapshot.set { runBlocking { assertTrue(w.dataCache.saveCourses(read.map { it.copy(customColorHex = "#ABCDEF") }, TERM, signIn)) } }
+        rig.home.sync.pull(state, signIn)
+
+        assertEquals(mapOf("XA0000002" to false, "XU0000007" to false), provenance(TERM))
+        uploadTaken("XA0000002", "XU0000007")
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
+        assertEquals(listOf("XA0000002", "XU0000007"), uploads().last().courseNos().sorted())
+        assertEquals(emptyList<String>(), uploads().last().adds())
     }
 
     /**
@@ -425,7 +461,7 @@ class V4MergedCoursesTest {
         val cached = listOf(olderCopy("XA0000002"), olderCopy("XE0000005"))
         assertTrue(w.dataCache.saveCourses(cached, TERM, signIn))
         val fetched = listOf(Course(courseNo = "XA0000002", courseName = "School XA0000002", moodleIdNumber = "${TERM}XA0000002"))
-        assertTrue(w.dataCache.saveCourses(ClassTableCourseMerge.mergeFetched(fetched, cached, emptyMap(), "zh", emptySet()), TERM, signIn))
+        assertTrue(w.dataCache.updateCourses(TERM, signIn) { current, hidden -> ClassTableCourseMerge.mergeFetched(fetched, current, emptyMap(), "zh", hidden) })
         uploadTaken("XA0000002")
 
         rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
