@@ -268,7 +268,7 @@ class SettingsViewModel @Inject constructor(
         latch: UseLocalLatch?,
     ) {
         if (keepLocal) {
-            val resetTerms = if (latch != null) sendLocalCourses(signIn, latch) else emptySet()
+            val resetTerms = if (latch != null) sendLocalCourses(signIn, latch, conflict.checked) else emptySet()
             // Through the outbox, queued whole at a version reserved before the colors and names
             // are read, so an edit made from here on is the newer. The outbox holds them while
             // their category is pending and sends them once resolveReenableConflict has lifted the
@@ -405,8 +405,8 @@ class SettingsViewModel @Inject constructor(
         override fun askAgain() = markCategoryReenabled("courses")
     }
 
-    /** Use Local for courses, every term this phone knows — see [useLocalCourses]. Returns the terms it reset. */
-    private suspend fun sendLocalCourses(signIn: SignIn, latch: UseLocalLatch): Set<String> {
+    /** Use Local for courses, every term this phone knows, by the snapshot [checked] — see [useLocalCourses]. Returns the terms it reset. */
+    private suspend fun sendLocalCourses(signIn: SignIn, latch: UseLocalLatch, checked: BackendSyncResult?): Set<String> {
         // The terms latched on the tap; the catalogue may have moved since.
         val semesters = latch.semesters
         val portalCached = semesters.filterTo(mutableSetOf()) { dataCache.hasPortalCourses(it) }
@@ -423,7 +423,7 @@ class SettingsViewModel @Inject constructor(
             portalCached = { it in portalCached },
             latch = latch,
             host = useLocalHost(signIn),
-            now = System::currentTimeMillis,
+            checked = checked,
             isCurrent = { signIn.isCurrent },
         )
     }

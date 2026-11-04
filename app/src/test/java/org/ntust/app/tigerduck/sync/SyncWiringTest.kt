@@ -562,6 +562,16 @@ class SyncWiringTest {
         assertTrue("resolve no longer queues what Use Local sends at the reserved version", queued > reserved && "version, signIn,\n" in body)
     }
 
+    /**
+     * Codex on round 3 (P2): Use Local tells each copy merged down what its row is from the rows the
+     * re-enable check compared, before it decides its adds.
+     */
+    @Test
+    fun `Use Local for courses is handed the snapshot the re-enable check compared`() {
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "resolve", "sendLocalCourses(signIn, latch, conflict.checked)")
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "sendLocalCourses", "checked = checked,")
+    }
+
     /** A name Use Local queues on v4 behind the names hold must not replace a rename made while it ran. */
     @Test
     fun `Use Local for courses reserves the names' version before reading them, and hands it to its backend`() {

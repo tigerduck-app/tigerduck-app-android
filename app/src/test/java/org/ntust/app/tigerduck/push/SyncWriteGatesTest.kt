@@ -71,7 +71,7 @@ class SyncWriteGatesTest {
             )
             check("assignment upload", cloud && prefs.syncAssignments, sent { client.uploadAssignments(homework, signIn) })
             check("course upload", cloud && prefs.syncCourses, sent { client.uploadCourses(course, "1151", signIn) })
-            check("course delete", cloud && prefs.syncCourses, sent { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null) })
+            check("course delete", cloud && prefs.syncCourses, sent { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) })
             check("term reset", cloud && prefs.syncCourses, sent { client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) })
             row++
         }

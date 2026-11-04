@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.TombstoneKind
@@ -31,6 +32,9 @@ import org.ntust.app.tigerduck.sync.SyncField
  * - **School data's own rules** stay as `/v3`'s: a misfiled row is no roster row, and a row a
  *   roster dropped leaves the term with no hide but a course added by hand
  *   ([CourseSyncReconciler.reconcileSemester]).
+ * - **A copy merged down keeps what its row is** ([Course.isUserAddedOnServer]): added by hand on
+ *   some device or the school's, which its manual flag cannot tell. A copy this phone holds
+ *   follows its row at each pull that lists it ([followingRows]).
  *
  * The `/v3` rules (`deleted_by_reset`, `deleted_by_this_device`, `courses_reset_at`, the server's
  * known numbers as the evidence of a delete) stay until the `/v3` rules go (Z2).
@@ -96,7 +100,7 @@ internal object CourseMembership {
         val hiddenNow = CourseTombstoneKeys.hiddenIn(semester, updated)
         val merged = rows.values
             .filter { it.courseNo !in local && it.courseNo !in hiddenNow && !keeps(it.courseNo) }
-            .map(CourseSyncReconciler::toCourse)
+            .map { row -> CourseSyncReconciler.toCourse(row).copy(isUserAddedOnServer = row.isUserAdded) }
         // Nothing uploaded for this term yet: what this phone has goes up, as on /v3, but what it hides.
         val toUpload = if (rows.isNotEmpty() || dropTimes.isNotEmpty()) emptyList() else {
             localCourses.filter { it.courseNo !in hiddenNow && it.courseNo !in gone && it.courseNo !in left }
@@ -112,5 +116,47 @@ internal object CourseMembership {
             handAddedNos = handAddedNos,
         )
         return TermOutcome(outcome, gone)
+    }
+
+    /**
+     * [courses], a term's list, with each copy merged down from the server ([Course.isManual], with
+     * a Moodle id) saying what [rows], the snapshot's of [semester], say of its row: whether it was
+     * added by hand on some device ([Course.isUserAddedOnServer]), for the term's uploads. A copy
+     * no snapshot has told (null, as an older build left it) is told now, school row or not; a row
+     * the school's roster lists since is the school's. A copy whose row the snapshot does not list
+     * keeps what it has, and so does every course added here or fetched from the school.
+     *
+     * [held], given by a pull that covers the term ([heldIn]): every course number the full
+     * snapshot holds a row or a tombstone of. A copy no snapshot has told, of a number it holds
+     * nothing of, is told it was added by hand: the backend has nothing of it, and the school's
+     * fetch has not listed it, which would have made it the school's. It then goes up as the
+     * student's own add, at 0, which against no row makes a `user_added` one (Codex on round 5).
+     */
+    fun followingRows(courses: List<Course>, semester: String, rows: List<ServerCourse>, held: Set<String>? = null): List<Course> {
+        val filed = rows.filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }
+        val listed = filed.mapTo(mutableSetOf()) { it.courseNo }
+        val byHand = filed.filter { it.isUserAdded }.mapTo(mutableSetOf()) { it.courseNo }
+        return courses.map { course ->
+            val copy = course.isManual && !TranscriptTerms.isAddedHere(course)
+            val told = when {
+                !copy -> null
+                course.courseNo in listed -> course.courseNo in byHand
+                held != null && course.isUserAddedOnServer == null && course.courseNo !in held -> true
+                else -> null
+            }
+            if (told == null || course.isUserAddedOnServer == told) course else course.copy(isUserAddedOnServer = told)
+        }
+    }
+
+    /**
+     * What a full `/v4` [snapshot] holds of [semester], for [followingRows]: the course number of
+     * every row and tombstone of the term, the misfiled rows' included, as each holds its key. Null
+     * when a reset covers the term (`term_resets`, `courses_reset_hlc`): an add at 0 loses to it,
+     * so a number the snapshot holds nothing of tells nothing.
+     */
+    fun heldIn(snapshot: BackendSyncResult, semester: String): Set<String>? {
+        if (snapshot.termResets?.containsKey(semester) == true || snapshot.coursesResetHlc != null) return null
+        val tombstones = snapshot.tombstones.filter { it.semester == semester }.mapNotNull { it.courseNo ?: SyncField.courseNoOf(it.courseKey) }
+        return (snapshot.serverCourses.filter { it.semester == semester }.map { it.courseNo } + tombstones).toSet()
     }
 }

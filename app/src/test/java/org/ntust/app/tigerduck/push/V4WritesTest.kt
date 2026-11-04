@@ -22,7 +22,7 @@ import java.util.Date
 
 /**
  * Each sync write as `/v4` takes it (`docs/api-v4.md` on tigerduck-backend `main`, and the routes
- * it names): always stamped, a course by its key, a delete with its kind, an upload with its
+ * it names): always stamped, a course by its key, a delete with no kind, an upload with its
  * hand-adds and no colors, and no protocol header. The request bodies and the answers are the
  * fixtures in `sync/v4/`, written by hand from the contract. A write refused as ahead of the
  * backend's clock is stamped again from the refusal's clock and sent once (Review Focus 3).
@@ -73,8 +73,9 @@ class V4WritesTest {
         client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000", madeAtMs = madeAtMs)
         client.patchCourseOverrideAnswered(key, signIn, customName = "Algo", locale = "en", madeAtMs = madeAtMs)
         client.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = 7, signIn = signIn, madeAtMs = madeAtMs)
-        client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = madeAtMs, kind = "hide")
-        client.deleteCourseAnswered("client:1151:MY1", signIn, hiddenAt = madeAtMs, kind = null)
+        // A school course and one added by hand alike: the backend decides from its row.
+        client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = madeAtMs)
+        client.deleteCourseAnswered("client:1151:MY1", signIn, hiddenAt = madeAtMs)
         client.deleteAllCoursesAnswered("1151 x/y", signIn, resetAtMs = madeAtMs)
         client.deleteAllCoursesAnswered(null, signIn, resetAtMs = madeAtMs)
 
@@ -86,7 +87,7 @@ class V4WritesTest {
                 listOf("PATCH", "http://127.0.0.1:9$overridePath", listOf(bearer), fixture("write-course-color.json")),
                 listOf("PATCH", "http://127.0.0.1:9$overridePath", listOf(bearer), fixture("write-course-name.json")),
                 listOf("PATCH", "http://127.0.0.1:9$overridePath", listOf(bearer), fixture("write-course-ignore.json")),
-                listOf("DELETE", "$v4/sync/courses/client:1151:CS1?hlc=1790000000123000&kind=hide", listOf(bearer), null),
+                listOf("DELETE", "$v4/sync/courses/client:1151:CS1?hlc=1790000000123000", listOf(bearer), null),
                 listOf("DELETE", "$v4/sync/courses/client:1151:MY1?hlc=1790000000123000", listOf(bearer), null),
                 listOf("DELETE", "$v4/sync/courses?semester=1151+x%2Fy&hlc=1790000000123000", listOf(bearer), null),
                 listOf("DELETE", "$v4/sync/courses?hlc=1790000000123000", listOf(bearer), null),
@@ -101,7 +102,7 @@ class V4WritesTest {
         client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null)
         client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000")
         client.patchCourseIgnoreAnswered(key, ignore = null, moodleCourseId = 7, signIn = signIn, madeAtMs = null)
-        client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null)
+        client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null)
         client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null)
 
         // The wall clock stood still: the clock's stamps still only grow, a tick at a time.
@@ -115,7 +116,7 @@ class V4WritesTest {
         "/v4/sync/assignments/7/override" to { c -> c.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = nowMs) },
         overridePath to { c -> c.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000") },
         overridePath to { c -> c.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = null, signIn = signIn, madeAtMs = null) },
-        "/v4/sync/courses/client:1151:CS1" to { c -> c.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = "hide") },
+        "/v4/sync/courses/client:1151:CS1" to { c -> c.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) },
         "/v4/sync/courses" to { c -> c.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) },
     )
 
@@ -191,7 +192,7 @@ class V4WritesTest {
             val (resets, resetting) = switchedOffMidRequest("/v4/sync/courses", off)
             val (uploads, uploading) = switchedOffMidRequest("/v4/sync/courses/upload", off)
 
-            val delete = deleting.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = "hide")
+            val delete = deleting.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null)
             val reset = resetting.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null)
             val upload = runCatching { uploading.uploadCoursesAnswered(listOf(addedNow), "1151", signIn, addedAt = mapOf("XA0000009" to nowMs)) }
 
@@ -213,7 +214,7 @@ class V4WritesTest {
         val holiday = client.putHolidayOverrideAnswered(3, notify = true, signIn = signIn, madeAtMs = madeAtMs)
         val mark = client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = madeAtMs)
         val override = client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000", madeAtMs = madeAtMs)
-        val delete = client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = madeAtMs, kind = "hide")
+        val delete = client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = madeAtMs)
         val reset = client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = madeAtMs)
 
         assertEquals(setOf("notify"), holiday.applied)
@@ -340,7 +341,7 @@ class V4WritesTest {
             runCatching { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null) },
             runCatching { client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000") },
             runCatching { client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAtMs = null) },
-            runCatching { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null) },
+            runCatching { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) },
             runCatching { client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) },
             runCatching { client.uploadCoursesAnswered(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151", signIn) },
         ).map { it.exceptionOrNull() }

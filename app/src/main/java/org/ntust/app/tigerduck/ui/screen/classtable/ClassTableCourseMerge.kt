@@ -23,7 +23,9 @@ object ClassTableCourseMerge {
      * Carried across from the cached copy of the same course: the colour pick
      * and the `isManual` flag. A course the user added by hand that the
      * school now also lists must not lose its flag, or deleting it later
-     * would take the wrong path.
+     * would take the wrong path. Not what a copy merged down said of its
+     * server row ([Course.isUserAddedOnServer]): the school lists it now, so
+     * it is the school's, false, though no `/v4` pull has told the copy yet.
      *
      * Carried across from [names]: the rename, resolved for [locale]. Done
      * here rather than by a later pass so a language switch mid-refresh
@@ -62,6 +64,7 @@ object ClassTableCourseMerge {
                 customCourseName = CourseNameOverrides.overrideFor(names, course.courseNo, locale),
                 moodleIdNumber = if (addedHere) prior?.moodleIdNumber else course.moodleIdNumber,
                 moodleNumericCourseId = if (addedHere) prior?.moodleNumericCourseId else course.moodleNumericCourseId,
+                isUserAddedOnServer = if (prior?.isManual == true && !addedHere) false else course.isUserAddedOnServer,
             )
         }
         val fetchedNos = restored.mapTo(mutableSetOf()) { it.courseNo }
@@ -128,6 +131,7 @@ object ClassTableCourseMerge {
             dimension = field { it.dimension },
             allYear = field { it.allYear },
             requireOption = field { it.requireOption },
+            isUserAddedOnServer = field { it.isUserAddedOnServer },
         )
     }
 
@@ -144,8 +148,9 @@ object ClassTableCourseMerge {
      * [stored] with what the school says now, from [fresh], a lookup of the
      * same course: name, instructor, credits, rooms, times, headcount,
      * dimension and term span. What the user did to it stays — the colour, the
-     * rename, the manual flag — and so does its identity: the course number
-     * and the Moodle ids, which the overrides and the Moodle link are keyed by.
+     * rename, the manual flag — and so does its identity: the course number,
+     * the Moodle ids, which the overrides and the Moodle link are keyed by, and
+     * what its server row is ([Course.isUserAddedOnServer]).
      */
     fun refreshed(stored: Course, fresh: Course): Course = fresh.copy(
         courseNo = stored.courseNo,
@@ -154,6 +159,7 @@ object ClassTableCourseMerge {
         customColorHex = stored.customColorHex,
         isManual = stored.isManual,
         customCourseName = stored.customCourseName,
+        isUserAddedOnServer = stored.isUserAddedOnServer,
     )
 
     /**

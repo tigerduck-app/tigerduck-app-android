@@ -92,7 +92,7 @@ class PushApiClientAnswerTest {
         assertEquals(WriteAnswer.NOT_SENT, client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000"))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAtMs = null))
-        assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null))
         assertEquals(WriteAnswer.NOT_SENT, client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null))
         prefs.cloudSyncEnabled = false
         assertEquals(WriteAnswer.NOT_SENT, client.putHolidayOverrideAnswered(3, true, signIn, madeAtMs = null))

@@ -50,7 +50,7 @@ class CourseMembershipStampTest {
 
     @Test
     fun `a queued hide goes with its time, in microseconds, and no protocol header`() = runTest {
-        api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT, kind = null)
+        api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT)
 
         val sent = backend.received(DELETE).single()
         assertEquals("hlc=$HLC", sent.query)
@@ -61,7 +61,7 @@ class CourseMembershipStampTest {
     fun `a hide refused with another 409 fails and is not sent again`() = runTest {
         backend.answer(DELETE, 409, """{"error":"conflict","message":"made up"}""")
 
-        assertTrue(runCatching { api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT, kind = null) }.isFailure)
+        assertTrue(runCatching { api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT) }.isFailure)
 
         assertEquals(1, backend.received(DELETE).size)
     }

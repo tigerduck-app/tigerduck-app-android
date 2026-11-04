@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.TombstoneKind
@@ -188,5 +189,54 @@ class CourseMembershipTest {
 
         assertEquals(setOf("A"), out.outcome.left)
         assertEquals(emptySet<String>(), out.hides)
+    }
+
+    /**
+     * A copy merged down keeps what its row is, which its manual flag cannot tell: one of a row added
+     * by hand on some device is the uploads' to name, one of a school row is not. A copy this phone
+     * holds follows its row at each pull that lists it, both ways, and one no snapshot has told about
+     * (null, as an older build left it) is told now, a school row's included; one the snapshot does
+     * not list keeps what it has. A course added here, and one fetched from the school, follow no row.
+     */
+    @Test
+    fun `a copy merged down says whether its row was added by hand, and a copy held follows its row`() {
+        val out = reconcile(rows = listOf(row("A"), row("E", userAdded = true, addedHlc = 50)))
+        assertEquals(mapOf("A" to false, "E" to true), out.outcome.merged.associate { it.courseNo to it.isUserAddedOnServer })
+
+        val held = listOf(
+            mergedCopy("A").copy(isUserAddedOnServer = true), mergedCopy("B"), mergedCopy("E"),
+            mergedCopy("G").copy(isUserAddedOnServer = true), mergedCopy("U"), handAdded("H"), school("S"),
+        )
+        val rows = listOf(row("A"), row("B"), row("E", userAdded = true), row("H", userAdded = true), row("S", userAdded = true))
+        val followed = CourseMembership.followingRows(held, term, rows)
+        assertEquals(
+            mapOf("A" to false, "B" to false, "E" to true, "G" to true, "U" to null, "H" to null, "S" to null),
+            followed.associate { it.courseNo to it.isUserAddedOnServer },
+        )
+        assertEquals("followed again, nothing changes", followed, CourseMembership.followingRows(followed, term, rows))
+    }
+
+    /**
+     * Codex on round 5 (P2 #2): a pull that covers the term tells a copy no snapshot has told about,
+     * of a number its full snapshot holds neither a row nor a tombstone of, that it was added by
+     * hand. One whose number it holds a tombstone of tells nothing, nor does a term a reset covers,
+     * where an add at 0 would lose; a copy told already keeps what it was told.
+     */
+    @Test
+    fun `a pull covering the term tells a copy it holds nothing of that it was added by hand`() {
+        val held = listOf(mergedCopy("U"), mergedCopy("T"), mergedCopy("F").copy(isUserAddedOnServer = false), handAdded("H"))
+        val snapshot = { termResets: Map<String, Long>? ->
+            BackendSyncResult(
+                ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = setOf("A"),
+                serverCourses = listOf(row("A")), currentRevision = 1, tombstones = listOf(tombstone("T", TombstoneKind.HIDE, 100)),
+                termResets = termResets,
+            )
+        }
+
+        val covered = CourseMembership.followingRows(held, term, listOf(row("A")), CourseMembership.heldIn(snapshot(null), term))
+        assertEquals(mapOf("U" to true, "T" to null, "F" to false, "H" to null), covered.associate { it.courseNo to it.isUserAddedOnServer })
+
+        assertEquals(null, CourseMembership.heldIn(snapshot(mapOf(term to 50L)), term))
+        assertEquals("not covered, nothing told", held, CourseMembership.followingRows(held, term, listOf(row("A"))))
     }
 }

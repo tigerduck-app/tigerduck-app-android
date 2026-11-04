@@ -13,16 +13,15 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.logSummary
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * [CourseDeleter] with the backend's answer, and the delete's [kind], `/v4`'s `hide` or `remove`,
- * when it is known; see [org.ntust.app.tigerduck.push.PushApiClient.deleteCourseAnswered].
+ * [CourseDeleter] with the backend's answer; see
+ * [org.ntust.app.tigerduck.push.PushApiClient.deleteCourseAnswered].
  */
 internal fun interface AnsweredCourseDeleter {
-    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long, kind: String?): WriteAnswer
+    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long): WriteAnswer
 }
 
 /**
@@ -185,9 +184,10 @@ internal class CourseAddSends(
 }
 
 /**
- * The course deletes' sends: one DELETE per hold of the send lock ([one]), with the delete's kind
- * when this process was told it ([told]). [waiting] reads the queue's deletes, and [underQueueLock]
- * runs a step under the queue's own lock, which every keep, send and forget of a delete takes.
+ * The course deletes' sends: one DELETE per hold of the send lock ([one]), with no kind, so the
+ * backend decides from its row, as the iPhone's does: a school course is hidden, one added by hand
+ * removed. [waiting] reads the queue's deletes, and [underQueueLock] runs a step under the queue's
+ * own lock, which every keep, send and forget of a delete takes.
  */
 internal class CourseDeleteSends(
     private val dataCache: DataCache,
@@ -196,29 +196,9 @@ internal class CourseDeleteSends(
     private val waiting: suspend () -> List<CourseDelete>,
     private val underQueueLock: suspend (suspend () -> Unit) -> Unit,
 ) {
-    // Each waiting delete's kind, by its field, with the moment it was told for, as the class table
-    // told it when it kept the delete. In memory: a delete read after a restart goes with none, and
-    // the backend decides from its row (X3).
-    private val kinds = ConcurrentHashMap<String, Pair<Long, String>>()
-
     // Whether the send under the lock may still make its one request: a removal kept while it was
     // in flight goes at its own turn of the lock, as before, not on the back of this one.
     private val oneRequest = AtomicBoolean(false)
-
-    /**
-     * [field]'s delete, asked at [queuedAt], is of a course of [kind], null when its row is not
-     * known: the newest ask is the one that goes, so a kind told for an older one does not outlive
-     * it. Told under the lane's lock, as the delete's moment is kept ([CourseDeletesStore]).
-     */
-    fun told(field: String, queuedAt: Long, kind: String?) {
-        if (kind == null) kinds.remove(field) else kinds[field] = queuedAt to kind
-    }
-
-    /** The kind told for [delete]'s own moment, none for another's. */
-    fun kindFor(delete: CourseDelete): String? = kinds[delete.field]?.takeIf { (at, _) -> at == delete.queuedAt }?.second
-
-    /** Forgets every kind: at a sign-out. */
-    fun forget() = kinds.clear()
 
     /** Runs [drain], the lane's send of one delete, letting it make one request at most. */
     suspend fun one(drain: suspend () -> Unit) {
@@ -242,7 +222,7 @@ internal class CourseDeleteSends(
             // applies it only when later than the course's last add, hide and reset: a hide queued
             // offline loses to an add made since on another device, and a retry after a lost reply
             // changes nothing (#591).
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, delete.kind)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -271,18 +251,7 @@ internal class CourseDeleteSends(
         }
     }
 
-    companion object {
-        private const val TAG = "PendingCourseDeletes"
-
-        /**
-         * A delete's kind on `/v4` (X3): `remove` for [course] added by hand ([Course.isManual]),
-         * which takes back the add and leaves the course to the school's roster, else `hide`; none
-         * when the row is not known, and the backend decides from its own.
-         */
-        fun kindOf(course: Course?): String? = when {
-            course == null -> null
-            course.isManual -> "remove"
-            else -> "hide"
-        }
+    private companion object {
+        const val TAG = "PendingCourseDeletes"
     }
 }

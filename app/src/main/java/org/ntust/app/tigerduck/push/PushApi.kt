@@ -91,7 +91,6 @@ internal interface PushApi {
         @Path("courseKey", encoded = true) courseKey: String,
         @Body empty: RequestBody,
         @Query("hlc") hlc: Long,
-        @Query("kind") kind: String?,
     ): Call
 
     /** [semester] form-encoded already (`URLEncoder`), or null for every term; [hlc] the reset's. */

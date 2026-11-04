@@ -101,8 +101,11 @@ internal class CourseSyncRequests(
      * refused apart; see [CourseUploadAnswer].
      *
      * The upload carries no colors, and names every hand-added course in its adds, each stamped
-     * with its [addedAt] entry or as the oldest; see [CourseUploadPayload.handAdds] (X9). One
-     * refused as ahead goes once more, its timed adds stamped again from the refusal's clock,
+     * with its [addedAt] entry or as the oldest; see [CourseUploadPayload.handAdds] (X9). A copy
+     * merged down that no snapshot has told about goes only when added now
+     * ([CourseUploadPayload.sendable]), and the ledger, the roster recorded and the listeners take
+     * the courses that went; with every one left out, nothing is sent and the answer accepts none.
+     * One refused as ahead goes once more, its timed adds stamped again from the refusal's clock,
      * never without them, if course sync is still on: switched off meanwhile, nothing went and
      * the answer is null.
      */
@@ -119,14 +122,17 @@ internal class CourseSyncRequests(
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl()
-        val bodies = upload(courses, semester, forceKeys, rosterTerms, addedAt)
+        val sent = CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt)
+        // Every course left out: nothing the backend would change.
+        if (sent.isEmpty() && courses.isNotEmpty()) return@withContext CourseUploadAnswer(emptyList(), emptyList())
+        val bodies = upload(sent, semester, forceKeys, rosterTerms, addedAt)
         // What the accepted list enrolled as the term's roster, for serverDropped.
-        val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
+        val roster = if (semester in rosterTerms) sent.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
         var landed = false
         try {
             courseUploads(semester).sendIfDue(
-                fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
+                fingerprint = courseUploadFingerprint(base, sent, semester, rosterTerms),
                 // The pair in one step, so a sign-out's clear cannot fall between
                 // the check and the record; see UploadLedger.sendIfDue.
                 record = { fingerprint, atMs ->
@@ -157,7 +163,7 @@ internal class CourseSyncRequests(
         } catch (e: ResendHeldBack) {
             return@withContext null
         }
-        if (landed) tell(semester, courses, accepted, signIn)
+        if (landed) tell(semester, sent, accepted, signIn)
         accepted
     }
 
@@ -245,10 +251,11 @@ internal class CourseSyncRequests(
      * Deletes the course row [courseKey] names. [signIn] pins the request to
      * that sign-in, as [uploadCoursesAnswered] does: a delete queued as one account and sent after a sign-out and
      * another sign-in goes without a token, not with the next account's,
-     * which could take that account's own course off. [kind] is `hide` or `remove`, when the
-     * caller knows it.
+     * which could take that account's own course off. With no kind: the backend decides from its
+     * row, a hide of a school course and the removal of one added by hand, as the iPhone's
+     * `deleteCourse` sends it.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: String?): WriteAnswer =
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
             val service = api.at(baseUrl())
@@ -258,7 +265,7 @@ internal class CourseSyncRequests(
             // since on another device, and a retry after a lost reply changes nothing. One refused as
             // ahead of the backend's clock goes again stamped from the refusal's clock, past the gate
             // the first request passed, read again: course sync can have gone off meanwhile.
-            sendStamped(hiddenAt, clock, ::sends, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc, kind) }) {
+            sendStamped(hiddenAt, clock, ::sends, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc) }) {
                 clock.answer(it, "deleteCourse", WriteAnswer.MEMBERSHIP)
             } ?: WriteAnswer.NOT_SENT
         }

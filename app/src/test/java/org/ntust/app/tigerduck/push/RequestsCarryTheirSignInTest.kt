@@ -77,7 +77,7 @@ class RequestsCarryTheirSignInTest {
         "course ignore" to { signIn -> push.patchCourseIgnoreAnswered(COURSE, ignore = true, moodleCourseId = null, signIn, madeAtMs = null) },
         "assignments" to { signIn -> push.uploadAssignments(emptyList(), signIn) },
         "courses" to { signIn -> push.uploadCourses(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151", signIn) },
-        "course delete" to { signIn -> push.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = null) },
+        "course delete" to { signIn -> push.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) },
         "term reset" to { signIn -> push.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) },
         "revision" to { signIn -> sync.fetchRevision(signIn) },
         "changes" to { signIn -> sync.fetchChanges(1, signIn) },
