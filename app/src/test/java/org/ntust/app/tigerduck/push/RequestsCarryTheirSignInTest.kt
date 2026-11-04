@@ -6,7 +6,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
@@ -16,7 +15,6 @@ import org.ntust.app.tigerduck.auth.retryingAfterRelogin
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.BulletinApiClient
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
@@ -30,11 +28,7 @@ import org.ntust.app.tigerduck.util.JvmContext
  */
 class RequestsCarryTheirSignInTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private lateinit var tokens: V3TokenStore
     private lateinit var manager: AuthTokenManager
     private lateinit var push: PushApiClient
@@ -68,7 +62,7 @@ class RequestsCarryTheirSignInTest {
         tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
     }
 
-    private fun rule() = SubscriptionRule(id = 1, name = "rule")
+    private fun rule() = SubscriptionRule(id = 1, name = "rule", clientId = "00000000-0000-4000-8000-000000000001")
 
     /** Every request that takes a session, each built under the sign-in it is given. */
     private fun requests(): Map<String, suspend (SignIn) -> Unit> = mapOf(
@@ -77,23 +71,21 @@ class RequestsCarryTheirSignInTest {
         },
         "device preferences" to { signIn -> push.updateDevicePreferences("device-1", signIn, locale = "en") },
         "credentials" to { signIn -> push.updateCredentials("moodle", signIn) },
-        "holiday" to { signIn -> push.putHolidayOverride(3, notify = true, signIn) },
-        "mark" to { signIn -> push.patchAssignmentOverride(7, "ignored", signIn) },
-        "course override" to { signIn -> push.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000") },
-        "course ignore" to { signIn -> push.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, signIn) },
+        "holiday" to { signIn -> push.putHolidayOverrideAnswered(3, notify = true, signIn, madeAtMs = null) },
+        "mark" to { signIn -> push.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null) },
+        "course override" to { signIn -> push.patchCourseOverrideAnswered(COURSE, signIn, colorHex = "#FF0000") },
+        "course ignore" to { signIn -> push.patchCourseIgnoreAnswered(COURSE, ignore = true, moodleCourseId = null, signIn, madeAtMs = null) },
         "assignments" to { signIn -> push.uploadAssignments(emptyList(), signIn) },
         "courses" to { signIn -> push.uploadCourses(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151", signIn) },
-        "course delete" to { signIn -> push.deleteCourse("client:1151:CS1", signIn) },
-        "term reset" to { signIn -> push.deleteAllCourses("1151", signIn) },
+        "course delete" to { signIn -> push.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) },
+        "term reset" to { signIn -> push.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) },
         "revision" to { signIn -> sync.fetchRevision(signIn) },
         "changes" to { signIn -> sync.fetchChanges(1, signIn) },
         "full sync" to { signIn -> sync.fetchFullSync(signIn) },
         "settings read" to { signIn -> documents.read<JsonObject>("notification", signIn) },
         "settings write" to { signIn -> documents.write("notification", JsonObject(), null, signIn) },
         "subscriptions" to { signIn -> bulletins.fetchSubscriptions(signIn) },
-        "subscription create" to { signIn -> bulletins.createSubscription(rule(), signIn) },
-        "subscription update" to { signIn -> bulletins.updateSubscription(1, rule(), signIn) },
-        "subscription delete" to { signIn -> bulletins.deleteSubscription(1, signIn) },
+        "subscriptions save" to { signIn -> bulletins.saveSubscriptions(listOf(rule()), signIn) },
     )
 
     @Test
@@ -196,5 +188,6 @@ class RequestsCarryTheirSignInTest {
 
     private companion object {
         const val FULL_SYNC = "GET /sync/full"
+        val COURSE = CourseRef(courseKey = "client:1151:CS1")
     }
 }

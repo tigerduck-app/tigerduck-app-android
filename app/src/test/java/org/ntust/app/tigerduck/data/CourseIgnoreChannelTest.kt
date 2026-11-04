@@ -14,7 +14,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
@@ -22,13 +21,9 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
-import org.ntust.app.tigerduck.network.ApiVersionInterceptor
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
-import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.ServerCourse
@@ -42,40 +37,28 @@ import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
-import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
 
 /**
- * The course ignores' queue ([CourseIgnoreSync]) as the app builds it, over the real backend client
- * and real files, against a backend that records what reaches it. On Robolectric, for the reminders
- * a change re-arms.
+ * The course ignores' queue ([CourseIgnoreSync]) as the app builds it, over the real backend
+ * client and real files, against a backend that records what reaches it. On Robolectric, for the
+ * reminders a change re-arms.
  *
- * What it sends on `/v3` is pinned request by request, as the build before the outbox sent it: the
- * method, the address, every header the client builds, the body and its type, for a tap, a waiting
- * change with its time or with none, a resend after a `clock_ahead` and the numeric Moodle id's
- * fill-in, and what an outage, a refusal, an older backend's answer and the switches leave waiting.
- *
- * On `/v4` (every build's since the move) a change goes by its course's key, stamped as it was made, one
- * an older build wrote with no time goes with its old-entry time (Review Focus 1), the reply's
- * clock is the field's acknowledgment, and a reply that says the backend kept a later setting puts
- * it on this phone unless a newer change waits or this phone's setting is no longer the one
- * answered (LWW D12). The queue half is the outbox's course ignores channel.
+ * A change goes by its course's key, stamped as it was made, one an older build wrote with no time
+ * goes with its old-entry time (Review Focus 1), the reply's clock is the field's acknowledgment,
+ * and a reply that says the backend kept a later setting puts it on this phone unless a newer
+ * change waits or this phone's setting is no longer the one answered (LWW D12). The queue half is
+ * the outbox's course ignores channel.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class CourseIgnoreChannelTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val v3 = "http://127.0.0.1:9/v3"
     private val context: Context = RuntimeEnvironment.getApplication()
     private val prefs = AppPreferences(context)
-    private val v3Backend = RecordingBackend(ahead = listOf(ApiVersionInterceptor { v3 }))
     private val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
     private val series = SignInSeries()
     private val signIn get() = series.current
@@ -84,7 +67,6 @@ class CourseIgnoreChannelTest {
     private val madeAtMs = 1_790_000_000_123L
     private val bearer = "Authorization" to "Bearer access"
     private val json = "application/json; charset=utf-8"
-    private val stored = """{"ignore_assignments":true}"""
 
     @Before
     fun openGate() {
@@ -95,18 +77,7 @@ class CourseIgnoreChannelTest {
 
     @After fun closeGate() = ApiVersionGate.resetForTesting()
 
-    private val v3Client: PushApiClient by lazy { pushApiClientAt(v3, v3Backend.client, prefs) }
-
-    /** The queue as the app builds it, over the client at `/v3`: one per process. */
-    private fun v3Ignores() = CourseIgnoreSync(cache, v3Client, prefs, AssignmentNotificationScheduler(context))
-
     private fun RecordingBackend.Sent.shape() = listOf(method, url, headers, contentType, body)
-
-    private fun v3Shapes() = v3Backend.sent.map { it.shape() }
-
-    private fun patch(moodleId: String, body: String) = listOf("PATCH", "$v3/sync/courses/$moodleId/override", listOf(bearer), json, body)
-
-    private fun pathOf(courseNo: String) = "/v3/sync/courses/$term$courseNo/override"
 
     private fun change(courseNo: String, ignore: Boolean = true, changedAtMs: Long = 1_000L, madeAtMs: Long? = this.madeAtMs, moodleCourseId: Int? = null) =
         PendingCourseIgnore(term, courseNo, "$term$courseNo", moodleCourseId, ignore, changedAtMs, madeAtMs = madeAtMs)
@@ -114,131 +85,6 @@ class CourseIgnoreChannelTest {
     private suspend fun queue(vararg rows: PendingCourseIgnore) = assertTrue(cache.savePendingCourseIgnores(rows.toList(), signIn))
 
     private suspend fun waiting() = cache.loadPendingCourseIgnores()
-
-    @Test
-    fun `on v3 a tap goes at once as a PATCH of the setting, stamped with the wall clock as it was made`() = runTest {
-        v3Backend.answer(pathOf("AAA"), 200, stored)
-        val before = System.currentTimeMillis()
-        v3Ignores().setIgnored(term, "AAA", "${term}AAA", 7, ignore = true, signIn = signIn)
-        val after = System.currentTimeMillis()
-
-        val sent = v3Backend.sent.single()
-        assertEquals(listOf("PATCH", "$v3/sync/courses/1141AAA/override", listOf(bearer), json), sent.shape().take(4))
-        val stamp = Regex(""""hlc":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
-        assertTrue("stamped ${sent.body}", stamp != null && stamp in before * 1_000..after * 1_000)
-        assertEquals("""{"ignore_assignments":true,"moodle_course_id":7,"hlc":$stamp}""", sent.body)
-        assertEquals(setOf("$term:AAA"), cache.loadIgnoredCourses())
-        assertEquals(emptyList<PendingCourseIgnore>(), waiting())
-    }
-
-    @Test
-    fun `on v3 waiting changes go oldest first, each with its time or with none`() = runTest {
-        // In the file the newer comes first; an older build's row has no time.
-        queue(change("BBB", ignore = false, changedAtMs = 2_000L), change("AAA", changedAtMs = 1_000L, madeAtMs = null, moodleCourseId = 9))
-        v3Backend.answer(pathOf("BBB"), 200, """{"ignore_assignments":false}""")
-        v3Backend.answer(pathOf("AAA"), 200, stored)
-
-        v3Ignores().retryPending(signIn)
-
-        assertEquals(
-            listOf(
-                patch("1141AAA", """{"ignore_assignments":true,"moodle_course_id":9}"""),
-                patch("1141BBB", """{"ignore_assignments":false,"hlc":1790000000123000}"""),
-            ),
-            v3Shapes(),
-        )
-        assertEquals(emptyList<PendingCourseIgnore>(), waiting())
-    }
-
-    @Test
-    fun `on v3 an answer without the setting, from an older backend, is counted as a refusal`() = runTest {
-        queue(change("AAA"))
-
-        v3Ignores().retryPending(signIn)
-
-        assertEquals(listOf(patch("1141AAA", """{"ignore_assignments":true,"hlc":1790000000123000}""")), v3Shapes())
-        assertEquals(listOf(1), waiting().map { it.attempts })
-    }
-
-    @Test
-    fun `on v3 a change refused as ahead goes once more without its time`() = runTest {
-        queue(change("AAA"))
-        v3Backend.answer(pathOf("AAA"), 409, """{"detail":"clock_ahead"}""")
-        v3Backend.answer(pathOf("AAA"), 200, stored)
-
-        v3Ignores().retryPending(signIn)
-
-        assertEquals(
-            listOf(
-                patch("1141AAA", """{"ignore_assignments":true,"hlc":1790000000123000}"""),
-                patch("1141AAA", """{"ignore_assignments":true}"""),
-            ),
-            v3Shapes(),
-        )
-        assertEquals(emptyList<PendingCourseIgnore>(), waiting())
-    }
-
-    @Test
-    fun `on v3 a change the server fails waits uncounted`() = runTest {
-        queue(change("AAA"))
-        v3Backend.answer(pathOf("AAA"), 503, """{"detail":"unavailable"}""")
-
-        v3Ignores().retryPending(signIn)
-
-        assertEquals(1, v3Backend.sent.size)
-        assertEquals(listOf(0), waiting().map { it.attempts })
-    }
-
-    @Test
-    fun `on v3 a change refused five times is parked, and goes once more in the next process only`() = runTest {
-        queue(change("AAA"))
-        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 3) { v3Backend.answer(pathOf("AAA"), 404, """{"detail":"course_not_found"}""") }
-        val ignores = v3Ignores()
-
-        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 2) { ignores.retryPending(signIn) }
-        assertEquals(CourseIgnoreSync.MAX_ATTEMPTS, v3Backend.sent.size)
-        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
-
-        val next = v3Ignores()
-        repeat(2) { next.retryPending(signIn) }
-        assertEquals(CourseIgnoreSync.MAX_ATTEMPTS + 1, v3Backend.sent.size)
-        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
-    }
-
-    @Test
-    fun `on v3 a snapshot's ignored course without the numeric Moodle id gets it from this phone, unstamped`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = "AAA", courseName = "A", moodleIdNumber = "${term}AAA", moodleNumericCourseId = 41)), term, signIn)
-        val snapshot = BackendSyncResult(
-            ignoredIds = emptySet(),
-            completedIds = emptySet(),
-            courseOverrides = listOf(
-                CourseOverrideResult(
-                    moodleCourseId = "${term}AAA", courseNo = "AAA", colorHex = null, semester = term,
-                    ignoreAssignments = true, ignoreAssignmentsUpdatedAt = "2026-10-13T00:00:00Z",
-                ),
-            ),
-            serverCourseNos = setOf("AAA"),
-            serverCourses = listOf(ServerCourse(courseNo = "AAA", courseName = "A", semester = term)),
-            currentRevision = 0,
-            fetchedAtMs = 5_000L,
-        )
-
-        v3Ignores().applySnapshot(snapshot, signIn)
-
-        assertEquals(listOf(patch("1141AAA", """{"moodle_course_id":41}""")), v3Shapes())
-        assertEquals(setOf("$term:AAA"), cache.loadIgnoredCourses())
-        assertEquals(emptyList<PendingCourseIgnore>(), waiting())
-    }
-
-    @Test
-    fun `on v3 nothing goes while course sync is off, and the change waits`() = runTest {
-        prefs.syncCourses = false
-
-        v3Ignores().setIgnored(term, "AAA", "${term}AAA", null, ignore = true, signIn = signIn)
-
-        assertEquals(emptyList<RecordingBackend.Sent>(), v3Backend.sent.toList())
-        assertEquals(listOf("$term:AAA" to true), waiting().map { it.key to it.ignore })
-    }
 
     /**
      * Greptile r1: a change the lane read, then held behind the numeric Moodle id's fill-in, asks
@@ -481,21 +327,6 @@ class CourseIgnoreChannelTest {
         assertEquals("refused once", listOf(1), waiting().map { it.attempts })
     }
 
-    /** A landed course upload gives a parked ignore no try: it follows its own rule, once per process. */
-    @Test
-    fun `on v3 a landed course upload leaves a parked change parked`() = runTest {
-        queue(change("AAA").copy(attempts = CourseIgnoreSync.MAX_ATTEMPTS))
-        val ignores = v3Ignores()
-        ignores.retryPending(signIn)
-        assertEquals(1, v3Backend.sent.size)
-
-        Outbox(setOf(ignores.channel)).courseUploadLanded(signIn)
-        ignores.retryPending(signIn)
-
-        assertEquals(1, v3Backend.sent.size)
-        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
-    }
-
     // --- /v4 ---
 
     private val v4 = "http://127.0.0.1:9/v4"
@@ -503,7 +334,7 @@ class CourseIgnoreChannelTest {
 
     /** The wall clock the sync clock and the old-entry time read; a test moves it. */
     private var nowMs = 1_790_000_500_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { BackendApi.V4 }, { nowMs })
+    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { nowMs })
     private val ack = AckClock()
     private val oldEntryTime = OldEntryTime(context.getSharedPreferences("tigerduck_outbox", 0), Dispatchers.Unconfined) { nowMs }
     private val queueFile = File(context.filesDir, "TigerDuckData/pending_course_ignores.json")
@@ -785,5 +616,34 @@ class CourseIgnoreChannelTest {
         const val FILE_MS = 1_780_000_000_000L
         const val FIRST_RUN_MS = 1_785_000_000_000L
         const val CLOCK_US = 1_790_000_000_500_000L
+    }
+
+    // --- Rules either version keeps, which their /v3 cases pinned, on /v4 ---
+
+    @Test
+    fun `on v4 a change the server fails waits uncounted`() = runTest {
+        queue(change("AAA"))
+        v4Backend.answer(v4PathOf("AAA"), 503, """{"detail":"unavailable"}""")
+
+        v4Ignores().retryPending(signIn)
+
+        assertEquals(1, v4Backend.sent.size)
+        assertEquals(listOf(0), waiting().map { it.attempts })
+    }
+
+    @Test
+    fun `on v4 a change refused five times is parked, and goes once more in the next process only`() = runTest {
+        queue(change("AAA"))
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 3) { v4Backend.answer(v4PathOf("AAA"), 404, """{"error":"course_not_found","message":"made up"}""") }
+        val ignores = v4Ignores()
+
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 2) { ignores.retryPending(signIn) }
+        assertEquals(CourseIgnoreSync.MAX_ATTEMPTS, v4Backend.sent.size)
+        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
+
+        val next = v4Ignores()
+        repeat(2) { next.retryPending(signIn) }
+        assertEquals(CourseIgnoreSync.MAX_ATTEMPTS + 1, v4Backend.sent.size)
+        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
     }
 }

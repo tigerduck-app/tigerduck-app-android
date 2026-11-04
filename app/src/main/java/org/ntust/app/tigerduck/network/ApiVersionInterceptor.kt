@@ -33,9 +33,9 @@ class ApiVersionInterceptor internal constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
-        // Only a 410 can retire the app, so only a 410's body is read for its code: the change
-        // feed's on /v3, whose pruned revision asks for a full sync (SyncApiClient.fetchChanges),
-        // says nothing about the app's version. Peeked, so the caller still reads the whole body.
+        // Only a 410 can retire the app, so only a 410's body is read for its code, and only a
+        // code that retires it latches (BackendError.retiresApp). Peeked, so the caller still
+        // reads the whole body.
         if (response.code == 410 && isOurBackend(chain.request().url.toString())) {
             ApiVersionGate.note(BackendError.of(response))
         }

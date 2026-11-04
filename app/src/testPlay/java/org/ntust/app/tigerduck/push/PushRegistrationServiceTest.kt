@@ -29,7 +29,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -40,7 +39,6 @@ import org.ntust.app.tigerduck.data.preferences.PendingUnregisterPrefs
 import org.ntust.app.tigerduck.data.preferences.clearAllButOwedUnregister
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.robolectric.RobolectricTestRunner
@@ -63,10 +61,6 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class PushRegistrationServiceTest {
-
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
 
     private lateinit var context: Application
     private lateinit var prefs: AppPreferences
@@ -417,7 +411,7 @@ class PushRegistrationServiceTest {
         baseUrl = resolveAnnouncementEndpoint(prefs).url.trimEnd('/'),
     )
 
-    private fun deleteEndpoint() = "DELETE /v3/devices/" + PushIdentity(prefs, context).uuid()
+    private fun deleteEndpoint() = "DELETE /v4/devices/" + PushIdentity(prefs, context).uuid()
 
     private fun deletes() = backend.received(deleteEndpoint())
 

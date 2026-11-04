@@ -28,9 +28,9 @@ class MarksReconciler @Inject constructor(
     pushApiClient: PushApiClient,
 ) : Reconciler {
 
-    private val markStep = AssignmentMarkStep.over(
-        prefs, dataCache, unsentMarks, pushApiClient::patchAssignmentOverride,
-    )
+    private val markStep = AssignmentMarkStep.over(prefs, dataCache, unsentMarks) { id, status, signIn ->
+        pushApiClient.patchAssignmentOverrideAnswered(id, status, signIn, madeAtMs = null)
+    }
 
     private val backgroundStep = BackgroundMarkStep.over(prefs, dataCache, unsentMarks)
 

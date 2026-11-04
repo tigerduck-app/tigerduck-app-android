@@ -11,7 +11,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -20,8 +19,6 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RecordingBackend
@@ -37,40 +34,21 @@ import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
- * What Use Local for courses sends on `/v3`, request by request, through [PushCourseSyncBackend]
- * as Settings builds it: a term's reset, its upload with the custom colors riding it, the deletes
- * of its hidden courses, and its names through the course outbox. Phase 3 gives Use Local a `/v4`
- * form beside this one; on `/v3` none of it may change.
+ * What Use Local for courses sends, request by request, through [PushCourseSyncBackend] as Settings
+ * builds it: a term's reset, its upload with its hand-adds and no colors, the deletes of its hidden
+ * courses, and each color and name as its course's stamped override, a name the names conflict
+ * holds through the course outbox.
  */
 class UseLocalRequestsTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val v3 = "http://127.0.0.1:9/v3"
     private val context = JvmContext()
-    private val backend = RecordingBackend()
     private val prefs = AppPreferences(context)
-    private val api = pushApiClientAt(v3, backend.client, prefs)
     private val signIn = testSignIn()
-    private val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
-    private val overrides = PendingCourseOverrides(cache, api, prefs)
 
     @Before
     fun syncs() {
         // TigerSync is off for good on F-Droid, where Use Local is never asked.
         assumeTrue(prefs.cloudSyncEnabled)
-    }
-
-    /** Each request as its method, address and body, a stamp taken from the wall clock read as `<now>`. */
-    private fun sent(): List<Triple<String, String, Map<String, Any?>?>> = backend.sent.map { request ->
-        val body = request.body?.takeIf { it.isNotEmpty() }?.let { text ->
-            val json = JSONObject(text)
-            if (json.has("hlc") && request.url.endsWith("/override")) json.put("hlc", "<now>")
-            json.asMap()
-        }
-        Triple(request.method, request.url, body)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -85,59 +63,6 @@ class UseLocalRequestsTest {
     /** Where Use Local's term resets go, as the app's: no school upload waits in these. */
     private fun termResets(cache: DataCache, api: PushApiClient) = TermResets(PendingCourseAdds(cache, api), SchoolUploads.atOnce(cache))
 
-    @Test
-    fun `a term is reset, uploaded with its colors, its hidden courses deleted and its names queued, in that order`() = runTest {
-        val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
-        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#00FF00")
-        val hidden = Course(courseNo = "CS2", courseName = "CS2")
-
-        keepLocalCourses(
-            terms = listOf("1151" to listOf(colored, manual, hidden)),
-            hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache, termResets(cache, api)),
-            customNames = mapOf("CS1" to mapOf("zh" to "微積分", "en" to "Calc"), "CS2" to mapOf("en" to "Gone")),
-        )
-
-        val upload = JSONObject(backend.sent[1].body!!)
-        assertEquals(
-            listOf(
-                Triple("DELETE", "$v3/sync/courses?semester=1151", null),
-                // Its body field by field below.
-                Triple("POST", "$v3/sync/courses/upload", upload.asMap()),
-                Triple("DELETE", "$v3/sync/courses/client:1151:CS2", null),
-                Triple("PATCH", "$v3/sync/courses/1151CS1/override", mapOf("custom_name" to "Calc", "locale" to "en", "hlc" to "<now>")),
-                Triple("PATCH", "$v3/sync/courses/1151CS1/override", mapOf("custom_name" to "微積分", "locale" to "zh", "hlc" to "<now>")),
-            ),
-            sent(),
-        )
-        assertEquals(listOf("CS1", "MY1", "CS2"), (0 until upload.getJSONArray("courses").length()).map { upload.getJSONArray("courses").getJSONObject(it).getString("course_no") })
-        assertEquals(
-            """[{"course_key":"client:1151:CS1","color_hex":"#FF0000"},{"course_key":"client:1151:MY1","color_hex":"#00FF00"}]""",
-            upload.getJSONArray("course_overrides").toString(),
-        )
-        assertTrue("no adds, no protocol", !upload.has("adds") && backend.sent[1].headers.none { it.first == "X-TigerSync-Protocol" })
-    }
-
-    @Test
-    fun `a term whose portal courses are not cached is not reset, and its names are not sent`() = runTest {
-        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
-
-        keepLocalCourses(
-            terms = listOf("1151" to listOf(manual)),
-            hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache, termResets(cache, api)),
-            customNames = mapOf("MY1" to mapOf("en" to "Mine")),
-            portalCached = { false },
-        )
-
-        assertEquals(
-            listOf("POST", "DELETE"),
-            backend.sent.map { it.method },
-        )
-        assertEquals("$v3/sync/courses/client:1151:CS2", backend.sent[1].url)
-    }
-
-    /** A phone whose clock runs behind a backend it has heard: the stamps it gives are past its wall clock. */
     /** Use Local's backend on `/v4`, what it sends, its course outbox and the cache that keeps it. */
     private class OnV4(
         val courses: PushCourseSyncBackend,
@@ -156,23 +81,23 @@ class UseLocalRequestsTest {
     }
 
     /** Built as Settings builds it, with the outbox version reserved before the names are read. */
-    private suspend fun onV4(setUp: (AppPreferences) -> Unit = {}): OnV4 {
+    private suspend fun onV4(base: String = "http://127.0.0.1:9/v4", setUp: (AppPreferences) -> Unit = {}): OnV4 {
         var built: OnV4? = null
         val v4 = RecordingBackend(
             ahead = listOf(
                 Interceptor { chain ->
                     chain.proceed(chain.request()).also {
                         val request = chain.request()
-                        if (request.method == "DELETE" && request.url.encodedPath == "/v4/sync/courses") runBlocking { built?.afterReset?.invoke() }
+                        if (request.method == "DELETE" && request.url.encodedPath.endsWith("/sync/courses")) runBlocking { built?.afterReset?.invoke() }
                     }
                 },
             ),
         )
         val v4Context = JvmContext()
         val v4Prefs = AppPreferences(v4Context).also(setUp)
-        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { WALL_MS })
+        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { WALL_MS })
         clock.heardInSnapshot(BACKEND_US)
-        val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
+        val v4Api = pushApiClientAt(base, v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
         return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache, termResets(cache, v4Api)), v4, cache, outbox).also { built = it }
@@ -181,6 +106,27 @@ class UseLocalRequestsTest {
     private fun hlcOf(sent: RecordingBackend.Sent): Long? =
         sent.body?.takeIf { it.isNotEmpty() }?.let { JSONObject(it).optLong("hlc").takeIf { hlc -> hlc > 0 } }
             ?: Regex("[?&]hlc=(\\d+)").find(sent.url)?.groupValues?.get(1)?.toLong()
+
+    @Test
+    fun `a term whose portal courses are not cached is not reset, and its names are not sent`() = runTest {
+        val onV4 = onV4()
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
+        onV4.holds("1151", listOf(manual), mapOf("MY1" to mapOf("en" to "Mine")))
+
+        keepLocalCourses(
+            terms = listOf("1151" to listOf(manual)),
+            hiding = setOf("1151:CS2"),
+            backend = onV4.courses,
+            customNames = mapOf("MY1" to mapOf("en" to "Mine")),
+            portalCached = { false },
+        )
+
+        assertEquals(
+            listOf("POST", "DELETE"),
+            onV4.backend.sent.map { it.method },
+        )
+        assertEquals("http://127.0.0.1:9/v4/sync/courses/client:1151:CS2", onV4.backend.sent[1].url.substringBefore('?'))
+    }
 
     @Test
     fun `each color override's stamp is later than the reset's`() = runTest {
@@ -224,6 +170,36 @@ class UseLocalRequestsTest {
             v4.sent.drop(3).map { sent -> JSONObject(sent.body!!).asMap() - "hlc" },
         )
         assertEquals("a name that went waits for nothing", emptyList<Any>(), onV4.cache.loadPendingCourseOverrides())
+    }
+
+    /**
+     * A base that names no API version takes `/v4`'s rules as it takes its requests: each color goes
+     * as its course's stamped override, and the hand-added course as an add stamped after the reset,
+     * so neither is lost to the reset. Under `/v3`'s rules no color went, and the add went as the oldest.
+     */
+    @Test
+    fun `on a base that names no version Use Local stamps each color override and its hand-adds`() = runTest {
+        val onV4 = onV4(base = "http://127.0.0.1:9")
+        val (courses, sent) = onV4.courses to onV4.backend
+        val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#00FF00")
+        onV4.holds("1151", listOf(colored, manual))
+
+        keepLocalCourses(terms = listOf("1151" to listOf(colored, manual)), hiding = emptySet(), backend = courses, customNames = emptyMap())
+
+        assertEquals(
+            listOf(
+                "DELETE http://127.0.0.1:9/sync/courses?semester=1151",
+                "POST http://127.0.0.1:9/sync/courses/upload",
+                "PATCH http://127.0.0.1:9/sync/courses/client:1151:CS1/override",
+                "PATCH http://127.0.0.1:9/sync/courses/client:1151:MY1/override",
+            ),
+            sent.sent.map { "${it.method} ${it.url.substringBefore("&hlc").substringBefore("?hlc")}" },
+        )
+        val reset = hlcOf(sent.sent[0])!!
+        val add = JSONObject(sent.sent[1].body!!).getJSONArray("adds").getJSONObject(0)
+        assertEquals("client:1151:MY1", add.getString("course_key"))
+        assertTrue("the add is stamped after the reset", add.getLong("hlc") > reset)
     }
 
     /**
@@ -440,7 +416,7 @@ class UseLocalRequestsTest {
         val manager = AuthTokenManager(tokens, v4.client, v4Prefs, "device-1")
         val current = manager.session.signIns.current
         assertTrue(v4Prefs.school.pendingConflictCategories.set(setOf("course_names"), current))
-        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { WALL_MS })
+        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { WALL_MS })
         val api = PushApiClient(v4.client, v4Prefs, manager, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, api, v4Prefs)

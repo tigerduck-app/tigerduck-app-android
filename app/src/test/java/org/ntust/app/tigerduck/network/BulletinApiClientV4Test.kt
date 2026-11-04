@@ -12,15 +12,12 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -35,10 +32,6 @@ import java.util.concurrent.CopyOnWriteArrayList
  * client built it: `Accept`, which the client's own interceptor adds after that, is not in it.
  */
 class BulletinApiClientV4Test {
-
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
 
     private class Sent(val line: String, val headers: List<Pair<String, String>>, val contentType: String?, val body: String?)
 
@@ -87,12 +80,6 @@ class BulletinApiClientV4Test {
     )
 
     @Test
-    fun `the API a base speaks decides how the rules are saved`() {
-        assertEquals(BackendApi.V4, clientAt(V4).first.subscriptionsApi())
-        assertEquals(BackendApi.V3, clientAt(V3).first.subscriptionsApi())
-    }
-
-    @Test
     fun `the rules are read with each one's client_id`() = runTest {
         val (client, manager) = clientAt(V4)
         replies += 200 to fixture("subscriptions.json")
@@ -108,14 +95,6 @@ class BulletinApiClientV4Test {
             ),
             read,
         )
-    }
-
-    @Test
-    fun `a v3 read has no client_id`() = runTest {
-        val (client, manager) = clientAt(V3)
-        replies += 200 to """{"items":[{"id":3,"name":"Lectures","orgs":[],"tags":[],"mode":"AND","enabled":true,"revision":1}]}"""
-
-        assertEquals(null, client.fetchSubscriptions(manager.session.signIns.current).items.single().clientId)
     }
 
     @Test
@@ -159,16 +138,6 @@ class BulletinApiClientV4Test {
     }
 
     @Test
-    fun `nothing is put to a base that saves one rule at a time`() = runTest {
-        val (client, manager) = clientAt(V3)
-
-        val failure = runCatching { client.saveSubscriptions(rules, manager.session.signIns.current) }.exceptionOrNull()
-
-        assertTrue("got $failure", failure is BulletinApiException)
-        assertEquals(emptyList<String>(), sent.map { it.line })
-    }
-
-    @Test
     fun `a rule without a client_id is never put`() = runTest {
         val (client, manager) = clientAt(V4)
 
@@ -194,7 +163,6 @@ class BulletinApiClientV4Test {
     }
 
     private companion object {
-        const val V3 = "http://127.0.0.1:9/v3"
         const val V4 = "http://127.0.0.1:9/v4"
     }
 }

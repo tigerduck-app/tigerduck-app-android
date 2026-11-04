@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import org.json.JSONObject
 
-// What protocol 2's snapshot, the one /v4 serves, adds to what the app reads of /v3's: the
+// What protocol 2's snapshot, the one /v4 serves, adds to what the app read of /v3's: the
 // TigerSync clock value of the edit behind every value a device sets, the kind of each course
 // tombstone, and the resets (tigersync-last-writer-wins D9 to D11). The clock values are whole
 // microseconds since the epoch, as the backend sends them.

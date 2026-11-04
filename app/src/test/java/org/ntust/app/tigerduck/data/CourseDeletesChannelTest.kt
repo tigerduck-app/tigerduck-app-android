@@ -15,13 +15,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
@@ -43,19 +40,12 @@ import java.io.File
  * The course deletes as an outbox channel ([PendingCourseDeletes]), over real files and the real
  * backend client, against a backend that records what reaches it.
  *
- * On `/v3` every request is pinned byte for byte as the queue sent it before it was a channel: its
- * method, address, headers and body, and what each answer leaves queued. On `/v4` a delete goes
- * with the moment it was asked and no kind, one made with course sync off is kept, and one the
- * backend refused, the course being added since elsewhere, lifts this phone's hide unless the
- * course was deleted again.
+ * A delete goes with the moment it was asked and no kind, one made with course sync off is kept,
+ * and one the backend refused, the course being added since elsewhere, lifts this phone's hide
+ * unless the course was deleted again.
  */
 class CourseDeletesChannelTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val v3 = "http://127.0.0.1:9/v3"
     private val context = JvmContext()
     private val prefs = AppPreferences(context)
     private val backend = RecordingBackend()
@@ -74,18 +64,13 @@ class CourseDeletesChannelTest {
         assumeTrue(prefs.cloudSyncEnabled)
     }
 
-    private fun v3Deletes(): PendingCourseDeletes {
-        val client = pushApiClientAt(v3, backend.client, prefs)
-        return PendingCourseDeletes(cache, PendingCourseAdds(cache, client), client)
-    }
-
     private fun RecordingBackend.Sent.shape() = listOf(method, url, headers, contentType, body)
 
     private val v4 = "http://127.0.0.1:9/v4"
 
     /** The wall clock, which a test moves. */
     private var nowMs = 1_790_000_000_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)), { BackendApi.V4 }, { nowMs })
+    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)), { nowMs })
     private val ack = AckClock()
 
     /** The deletes and the adds as Hilt builds them, on `/v4`. */
@@ -104,73 +89,6 @@ class CourseDeletesChannelTest {
     private suspend fun queued() = cache.loadPendingCourseDeletes()
 
     /**
-     * Each delete goes with the moment it was asked, and a retry goes on past one that fails: the
-     * failed one waits for the next sync, the rest go.
-     */
-    @Test
-    fun `on v3 a delete goes with its moment, and a retry goes on past one that fails`() = runTest {
-        val deletes = v3Deletes()
-        backend.answer("/v3/sync/courses/client:$term:$typed", 500, "{}")
-        deletes.send(term, typed, 1_790_000_000_123L, signIn)
-        deletes.keep(term, other, 1_790_000_000_456L, signIn)
-        backend.answer("/v3/sync/courses/client:$term:$typed", 500, "{}")
-
-        deletes.retry(signIn)
-
-        assertEquals(
-            listOf(
-                listOf("DELETE", "$v3/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
-                listOf("DELETE", "$v3/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
-                listOf("DELETE", "$v3/sync/courses/client:$term:$other?hlc=1790000000456000", listOf(bearer), null, ""),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
-    }
-
-    /** Refused as ahead of the backend's clock, a delete goes once more without its moment. */
-    @Test
-    fun `on v3 a delete refused as ahead goes again unstamped`() = runTest {
-        backend.answer("/v3/sync/courses/client:$term:$typed", 409, """{"detail":"clock_ahead"}""")
-
-        v3Deletes().send(term, typed, 1_790_000_000_123L, signIn)
-
-        assertEquals(
-            listOf(
-                listOf("DELETE", "$v3/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
-                listOf("DELETE", "$v3/sync/courses/client:$term:$typed", listOf(bearer), null, ""),
-            ),
-            backend.sent.map { it.shape() },
-        )
-        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
-    }
-
-    /** Nothing goes while course sync is off, and the delete is let go: the re-enable check answers for it. */
-    @Test
-    fun `on v3 a delete made with course sync off sends nothing and is let go`() = runTest {
-        prefs.syncCourses = false
-
-        v3Deletes().send(term, typed, 1_790_000_000_123L, signIn)
-
-        assertEquals(emptyList<RecordingBackend.Sent>(), backend.sent.toList())
-        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
-    }
-
-    /** A refusal the backend gives, as one that names no course, waits for the next sync, as a failure does. */
-    @Test
-    fun `on v3 a refused delete is kept and sent again at the next retry`() = runTest {
-        val deletes = v3Deletes()
-        backend.answer("/v3/sync/courses/client:$term:$typed", 404, """{"detail":"Course not found"}""")
-        deletes.send(term, typed, 1_790_000_000_123L, signIn)
-        assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
-
-        deletes.retry(signIn)
-
-        assertEquals(2, backend.sent.size)
-        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
-    }
-
-    /**
      * Runs the test dispatcher until [done]. A launched coroutine's file reads and writes run on
      * the IO dispatcher and resume into the test dispatcher on their own time, which
      * `runCurrent()` alone does not wait for; each [done] is itself a real read.
@@ -182,18 +100,6 @@ class CourseDeletesChannelTest {
             yield()
         }
         throw AssertionError("the queue did not settle")
-    }
-
-    /** `/v3`'s answer is not read: a delete the backend did not apply leaves this phone's hide as it is. */
-    @Test
-    fun `on v3 a delete the backend did not apply leaves this phone's hide as it is`() = runTest {
-        cache.saveDeletedCourseNos(CourseTombstoneKeys.hide(typed, term, emptySet()), signIn)
-        backend.answer("/v3/sync/courses/client:$term:$typed", 200, """{"deleted":0,"applied":false,"hlc":1790000000999000}""")
-
-        v3Deletes().send(term, typed, 1_790_000_000_123L, signIn)
-
-        assertTrue(CourseTombstoneKeys.isHidden(typed, term, cache.loadDeletedCourseNos()))
-        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
     }
 
     /** A delete is never given up on for its refusals: every sync sends it again, as before it was a channel. */
@@ -562,16 +468,11 @@ class CourseDeletesChannelTest {
     }
 
     /**
-     * A delete's moment is the sync clock's ([PendingCourseDeletes.stamp]): the wall clock on
-     * `/v3`, as before, and on `/v4` never past the backend's time plus five seconds as last heard.
+     * A delete's moment is the sync clock's ([PendingCourseDeletes.stamp]): never past the
+     * backend's time plus five seconds as last heard.
      */
     @Test
     fun `a delete is stamped by the sync clock, capped by the backend on v4`() = runTest {
-        val v3Clock = SyncClock(SyncClockStore(context.getSharedPreferences("v3-clock", Context.MODE_PRIVATE)), { BackendApi.V3 }, { nowMs })
-        val client = pushApiClientAt(v3, backend.client, prefs)
-        val onV3 = PendingCourseDeletes(cache, PendingCourseAdds(cache, client), client, v3Clock)
-        assertEquals(nowMs, onV3.stamp())
-
         // A phone a minute ahead of the backend it has just heard.
         val serverMs = nowMs
         nowMs += 60_000
@@ -586,19 +487,55 @@ class CourseDeletesChannelTest {
     fun `the outbox drains the course adds before the course deletes`() = runTest {
         val typedCourse = Course(courseNo = typed, courseName = "Typed", isManual = true)
         cache.saveCourses(listOf(typedCourse), term, signIn)
-        val client = pushApiClientAt(v3, backend.client, prefs)
+        val client = pushApiClientAt(v4, backend.client, prefs)
         val adds = PendingCourseAdds(cache, client)
         val deletes = PendingCourseDeletes(cache, adds, client)
         deletes.keep(term, other, 5L, signIn)
-        backend.answer("/v3/sync/courses/upload", 500, "{}")
+        backend.answer("/v4/sync/courses/upload", 500, "{}")
         adds.send(listOf(typedCourse), term, typed, addedAt = 4L, signIn = signIn)
         backend.sent.clear()
 
         Outbox(setOf(deletes, adds)).drain(signIn)
 
         assertEquals(
-            listOf("POST $v3/sync/courses/upload", "DELETE $v3/sync/courses/client:$term:$other?hlc=5000"),
+            listOf("POST $v4/sync/courses/upload", "DELETE $v4/sync/courses/client:$term:$other?hlc=5000"),
             backend.sent.map { "${it.method} ${it.url}" },
         )
+    }
+
+    // --- Rules either version keeps, which their /v3 cases pinned, on /v4 ---
+
+    @Test
+    fun `on v4 a delete goes with its moment, and a retry goes on past one that fails`() = runTest {
+        val (deletes, _) = v4Deletes()
+        backend.answer("/v4/sync/courses/client:$term:$typed", 500, "{}")
+        deletes.send(term, typed, 1_790_000_000_123L, signIn)
+        deletes.keep(term, other, 1_790_000_000_456L, signIn)
+        backend.answer("/v4/sync/courses/client:$term:$typed", 500, "{}")
+
+        deletes.retry(signIn)
+
+        assertEquals(
+            listOf(
+                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$other?hlc=1790000000456000", listOf(bearer), null, ""),
+            ),
+            backend.sent.map { it.shape() },
+        )
+        assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
+    }
+
+    @Test
+    fun `on v4 a refused delete is kept and sent again at the next retry`() = runTest {
+        val (deletes, _) = v4Deletes()
+        backend.answer("/v4/sync/courses/client:$term:$typed", 404, """{"detail":"Course not found"}""")
+        deletes.send(term, typed, 1_790_000_000_123L, signIn)
+        assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
+
+        deletes.retry(signIn)
+
+        assertEquals(2, backend.sent.size)
+        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
     }
 }

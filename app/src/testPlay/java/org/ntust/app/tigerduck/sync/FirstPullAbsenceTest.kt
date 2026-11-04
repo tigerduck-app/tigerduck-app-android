@@ -18,7 +18,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
@@ -27,7 +26,6 @@ import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
@@ -52,10 +50,6 @@ import org.robolectric.annotation.Config
 @Config(application = Application::class)
 class FirstPullAbsenceTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val context = RuntimeEnvironment.getApplication()
     private val backend = ScriptedBackend()
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -79,11 +73,12 @@ class FirstPullAbsenceTest {
         pendingOverrides = mutableSetOf(),
     )
 
-    private fun setUp(api: String) {
+    /** Over a backend at [api], `v4`, or null for a base that names no version, which takes `/v4`'s rules too. */
+    private fun setUp(api: String?) {
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = backend.client)
-        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/$api"
+        w.appPrefs.announcementApiBaseUrlOverride = if (api == null) "http://127.0.0.1:9" else "http://127.0.0.1:9/$api"
         prefix = if (api == "v4") "/v4" else ""
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
@@ -125,7 +120,7 @@ class FirstPullAbsenceTest {
         appScope.cancel()
     }
 
-    // The scripted backend's endpoints name the version segment but /v3's.
+    // The version segment the requests' paths begin with, as the scripted backend names them.
     private var prefix = ""
 
     private fun row(no: String) = JSONObject()
@@ -145,7 +140,8 @@ class FirstPullAbsenceTest {
             .put("course_overrides", JSONArray())
             .put("courses", JSONArray().put(row(OLD)))
             .put("course_tombstones", JSONArray().apply { tombstones.forEach { put(tombstone(it)) } })
-        if (prefix == "/v4") snapshot.put("server_hlc", 1_793_000_000_000_000L).put("term_resets", JSONObject())
+        // /v4's snapshot, which every base serves.
+        snapshot.put("server_hlc", 1_793_000_000_000_000L).put("term_resets", JSONObject())
         backend.answer("GET $prefix/sync/full", 200, snapshot.toString())
     }
 
@@ -181,26 +177,26 @@ class FirstPullAbsenceTest {
     }
 
     /**
-     * The coordinator's ruling (fix round 3): on `/v3` nothing waits for the first pull, so a
-     * fetched course goes up as its fetch commits it, as on dev, and the backend lists it by the
-     * time a pull reads the term. Whether the background's fetch or the class table's.
+     * A base that names no version takes `/v4`'s rules: a fetched course's upload waits for the first
+     * pull, which takes no absence for a delete, so the course stays. Whether the background's fetch
+     * or the class table's.
      */
     @Test
-    fun `on v3 the background's fetched course goes up at once, before any pull`() = runBlocking {
-        setUp("v3")
-        backgroundFetch()
+    fun `on a base that names no version the background's fetched course its upload waits for stays`() = runBlocking {
+        setUp(null)
+        pullOver(::backgroundFetch)
 
-        assertEquals("nothing waits", 0, gate.waiting)
-        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
     }
 
     @Test
-    fun `on v3 the class table's fetched course goes up at once, before any pull`() = runBlocking {
-        setUp("v3")
-        classTableFetch()
+    fun `on a base that names no version the class table's fetched course its upload waits for stays`() = runBlocking {
+        setUp(null)
+        pullOver(::classTableFetch)
 
-        assertEquals("nothing waits", 0, gate.waiting)
-        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
+        assertEquals("hidden", emptySet<String>(), hidden())
+        assertEquals(setOf(OLD, NEW), shown())
     }
 
     /** `/v4` takes no absence for a delete: membership follows the tombstones (LWW D10). */

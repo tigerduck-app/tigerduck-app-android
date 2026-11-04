@@ -4,7 +4,6 @@ import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.network.backend.BackendApi
 
 /**
  * The clock across a process death. A write `apply()` queued is lost when the process dies before
@@ -21,7 +20,7 @@ class SyncClockDurabilityTest {
     /** A launch: the preferences as the disk has them, and the clock over them. */
     private inner class Launch {
         val prefs = DyingPreferences(disk)
-        val clock = SyncClock(SyncClockStore(prefs), { BackendApi.V4 }, { now })
+        val clock = SyncClock(SyncClockStore(prefs), { now })
     }
 
     @Test

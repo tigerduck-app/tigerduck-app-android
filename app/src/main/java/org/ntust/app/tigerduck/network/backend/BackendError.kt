@@ -23,15 +23,14 @@ data class BackendError(val status: Int, val code: String?) {
 
     /**
      * The change feed no longer keeps the changes after the revision it was asked for, and only
-     * a full sync catches up: a 410 on `/v3`, a 409 on `/v4`, which keeps every 410 for "update".
+     * a full sync catches up: a 409, as `/v4` keeps every 410 for "update".
      */
-    val isRevisionExpired: Boolean get() = (status == 409 || status == 410) && code == SYNC_REVISION_EXPIRED
+    val isRevisionExpired: Boolean get() = status == 409 && code == SYNC_REVISION_EXPIRED
 
     /**
      * The backend retires this app, as iOS's `APIVersionGate.retires`: a 410 that says the API or
-     * the app version is retired, or one that names no code at all, such as `/v3`'s prose or a page
-     * cut short, which every 410 the backend sends today but the feed's is. Never the feed's
-     * expired revision, nor a code this build does not know.
+     * the app version is retired, or one that names no code at all, such as prose or a page cut
+     * short. Never a code this build does not know.
      */
     val retiresApp: Boolean get() = status == 410 && (code == null || code in RETIRING)
 

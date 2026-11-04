@@ -3,11 +3,9 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.FIRST
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.SECOND
-import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.V3
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.V4
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewModel.LoadState
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewModel.SaveState
@@ -20,10 +18,6 @@ import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewM
  * find the page reading the next student's rules instead.
  */
 class SubscriptionsAcrossSignOutTest {
-
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
 
     @get:Rule val page = SubscriptionPage()
 
@@ -48,7 +42,7 @@ class SubscriptionsAcrossSignOutTest {
      */
     private fun SubscriptionSettingsViewModel.showsTheNextStudents(
         rules: List<Pair<String?, Boolean>>,
-        read: String = V3_READ,
+        read: String = V4_READ,
     ) {
         page.eventually("the page shows the second student's rules") {
             state.value.loadState == LoadState.Loaded && shown() == rules
@@ -66,85 +60,14 @@ class SubscriptionsAcrossSignOutTest {
         before: Triple<List<SubscriptionRule>, LoadState, SaveState>,
         read: String,
     ) {
-        // The page's own answers on `/v3`; on `/v4`, its read's and the app's saves' one.
-        if (read == V3_READ) page.awaitAnswers(this, 2) else page.awaitSaves(1)
+        // The app's saves' answer to it.
+        page.awaitSaves(1)
         assertEquals("the answer left the page alone", before, seen())
         assertEquals(emptyList<String>(), sentAsSecond())
 
         page.onMain { toggleEnabled(0) }
 
         showsTheNextStudents(listOf("Grants" to true), read)
-    }
-
-    @Test
-    fun `on v3 a rule created across a sign-out leaves the page alone`() {
-        val vm = page.open(V3, "Scholarships")
-        val post = page.backend.hold("POST /v3/bulletin-subscriptions")
-        page.onMain { vm.upsertRule(SubscriptionRule(name = "Lectures"), replacingIndex = null) }
-        post.awaitArrival()
-        val before = vm.seen()
-
-        page.nextStudentSignsIn("Grants")
-        post.release()
-
-        vm.leftAloneThenStartsOver(before, V3_READ)
-    }
-
-    @Test
-    fun `on v3 a toggle's echo across a sign-out leaves the page alone`() {
-        val vm = page.open(V3, "Scholarships")
-        val patch = page.backend.hold("PATCH /v3/bulletin-subscriptions/1")
-        page.onMain { vm.toggleEnabled(0) }
-        patch.awaitArrival()
-        val before = vm.seen()
-
-        page.nextStudentSignsIn("Grants")
-        patch.release()
-
-        vm.leftAloneThenStartsOver(before, V3_READ)
-    }
-
-    @Test
-    fun `on v3 a refused delete across a sign-out puts nothing back`() {
-        val vm = page.open(V3, "Scholarships", "Lectures")
-        val delete = page.backend.hold("DELETE /v3/bulletin-subscriptions/1")
-        page.onMain { vm.deleteRule(0) }
-        delete.awaitArrival()
-        val before = vm.seen()
-
-        page.nextStudentSignsIn("Grants")
-        delete.release(503 to "{}")
-
-        vm.leftAloneThenStartsOver(before, V3_READ)
-    }
-
-    @Test
-    fun `on v3 rules read across a sign-out never show`() {
-        val read = page.backend.hold(V3_READ)
-        val vm = page.open(V3, "Scholarships", shown = false)
-        read.awaitArrival()
-
-        page.nextStudentSignsIn("Grants")
-        read.release()
-
-        vm.showsTheNextStudents(listOf("Grants" to true))
-    }
-
-    @Test
-    fun `on v3 an edit of the rules a sign-out left on the page sends nothing`() {
-        val vm = page.open(V3, "Scholarships", "Lectures")
-        page.nextStudentSignsIn("Grants")
-
-        val left = page.onMain {
-            vm.toggleEnabled(0)
-            vm.deleteRule(1)
-            vm.upsertRule(SubscriptionRule(name = "Lectures"), replacingIndex = null)
-            vm.shown()
-        }
-
-        assertEquals("the first student's rules leave the page at the first edit", emptyList<Pair<String?, Boolean>>(), left)
-        vm.showsTheNextStudents(listOf("Grants" to true))
-        assertEquals(listOf(V3_READ), page.backend.routes().drop(1).distinct())
     }
 
     @Test
@@ -303,7 +226,6 @@ class SubscriptionsAcrossSignOutTest {
     }
 
     private companion object {
-        const val V3_READ = "GET /v3/bulletin-subscriptions"
         const val V4_READ = "GET /v4/bulletin-subscriptions"
         const val V4_SAVE = "PUT /v4/bulletin-subscriptions"
     }

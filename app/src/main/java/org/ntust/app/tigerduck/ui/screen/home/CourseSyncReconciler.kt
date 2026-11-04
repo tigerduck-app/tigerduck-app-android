@@ -428,20 +428,13 @@ object CourseSyncReconciler {
     )
 
     /**
-     * This term's tombstone course numbers, from the full-sync payload.
-     *
-     * A reset tombstone does not bind the device that wrote it — the same
-     * rule the backend applies to that device's next upload, which
-     * releases the tombstones for the keys it names. Between the reset's
-     * DELETE and that upload the server has an empty term and a tombstone
-     * per course, and a sync landing in the gap must not read them as
-     * "hide everything here": the refetch filters by the tombstone store,
-     * so it would then upload nothing and never release them. A single
-     * delete binds its author like everyone else.
+     * This term's tombstone course numbers, from the full-sync payload. Every one counts: the
+     * snapshot no longer says which a reset of this device's wrote, by which `/v3` let such a reset
+     * leave the term's courses unhidden until this device's next upload released its tombstones.
      */
     fun tombstoneNosFor(semester: String, tombstones: List<CourseTombstone>): Set<String> =
         tombstones
-            .filter { it.semester == semester && !(it.deletedByReset && it.deletedByThisDevice) }
+            .filter { it.semester == semester }
             .mapNotNull { it.courseNo }
             .toSet()
 

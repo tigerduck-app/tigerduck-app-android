@@ -8,18 +8,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
+import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
+import java.util.Date
 
 /**
  * Each sync write as `/v4` takes it (`docs/api-v4.md` on tigerduck-backend `main`, and the routes
@@ -30,10 +29,6 @@ import org.ntust.app.tigerduck.util.testSignIn
  */
 class V4WritesTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val v4 = "http://127.0.0.1:9/v4"
     private val context = JvmContext()
     private val backend = RecordingBackend()
@@ -42,13 +37,13 @@ class V4WritesTest {
     /** The wall clock, which a test moves; every stamp the clock gives is plausible. */
     private var nowMs = 1_790_000_000_000L
     private val clockFile = context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)
-    private val clock = SyncClock(SyncClockStore(clockFile), { BackendApi.V4 }, { nowMs })
+    private val clock = SyncClock(SyncClockStore(clockFile), { nowMs })
     private val client = pushApiClientAt(v4, backend.client, prefs, clock)
     private val signIn = testSignIn()
 
     private val madeAtMs = 1_790_000_000_123L
     private val bearer = "Authorization" to "Bearer access"
-    private val key = CourseRef(moodleId = "1151CS1", courseKey = "client:1151:CS1")
+    private val key = CourseRef(courseKey = "client:1151:CS1")
     private val overridePath = "/v4/sync/courses/client:1151:CS1/override"
 
     @Before
@@ -132,7 +127,7 @@ class V4WritesTest {
         nowMs += 60_000
         for ((path, write) in eachKind) {
             val backend = RecordingBackend()
-            val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", Context.MODE_PRIVATE)), { BackendApi.V4 }, { nowMs })
+            val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", Context.MODE_PRIVATE)), { nowMs })
             val client = pushApiClientAt(v4, backend.client, AppPreferences(JvmContext()), clock)
             backend.answer(path, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${serverMs * 1_000}"))
 
@@ -186,7 +181,7 @@ class V4WritesTest {
             ),
         )
         backend.answer(path, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}"))
-        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", Context.MODE_PRIVATE)), { BackendApi.V4 }, { nowMs })
+        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", Context.MODE_PRIVATE)), { nowMs })
         return backend to pushApiClientAt(v4, backend.client, prefs, clock)
     }
 
@@ -300,36 +295,70 @@ class V4WritesTest {
 
     @Test
     fun `a course with no key cannot be named on v4, and nothing goes`() = runTest {
-        val noKey = CourseRef(moodleId = "1151CS1", courseKey = null)
+        val noKey = CourseRef(courseKey = null)
 
         val override = runCatching { client.patchCourseOverrideAnswered(noKey, signIn, colorHex = "#FF0000") }.exceptionOrNull()
         val ignore = runCatching { client.patchCourseIgnoreAnswered(noKey, true, null, signIn, madeAtMs = null) }.exceptionOrNull()
-        // The Boolean form, which names a course by its Moodle id alone, waits for the outbox to name it.
-        val plain = runCatching { client.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000") }.exceptionOrNull()
 
         assertTrue("got $override", override is CourseKeyUnknownException)
         assertTrue("got $ignore", ignore is CourseKeyUnknownException)
-        assertTrue("got $plain", plain is CourseKeyUnknownException)
         assertEquals(emptyList<Any>(), backend.sent)
     }
 
     @Test
-    fun `on v3 the same client neither stamps a write at its send nor hears an answer`() = runTest {
-        val v3 = RecordingBackend()
-        val v3Prefs = AppPreferences(JvmContext())
-        val v3Clock = SyncClock(SyncClockStore(clockFile), v3Prefs)
-        val v3Client = pushApiClientAt("http://127.0.0.1:9/v3", v3.client, v3Prefs, v3Clock)
-        v3.answer("/v3/sync/assignments/7/override", 200, syncFixture("v4/answer-mark.json"))
-
-        v3Client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null)
-        v3Client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = madeAtMs)
-        v3Client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null)
+    fun `an assignment upload carries the list as the backend stores it`() = runTest {
+        client.uploadAssignments(listOf(Assignment("7", "CS1", "Algorithms", "HW1", Date(0))), signIn)
 
         assertEquals(
-            listOf("""{"local_status":"ignored"}""", "", ""),
-            v3.sent.map { it.body },
+            listOf(
+                listOf(
+                    "POST", "$v4/sync/assignments/upload", listOf(bearer),
+                    mapOf(
+                        "assignments" to listOf(
+                            mapOf(
+                                "moodle_assignment_id" to 7, "course_no" to "CS1", "course_name" to "Algorithms", "title" to "HW1",
+                                "due_at" to "1970-01-01T00:00:00Z", "is_submitted" to false,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            backend.sent.map { listOf(it.method, it.url, it.headers, json(it.body)?.mapValues { (_, v) -> plain(v) }) },
         )
-        assertEquals(listOf("http://127.0.0.1:9/v3/sync/courses?semester=1151", "http://127.0.0.1:9/v3/sync/courses/client:1151:CS1"), v3.sent.drop(1).map { it.url })
-        assertEquals("nothing heard or issued", emptyMap<String, Any?>(), clockFile.all)
+        assertEquals("application/json; charset=utf-8", backend.sent.single().contentType)
+    }
+
+    @Test
+    fun `a refused write says what failed and its status, and keeps the backend's code`() = runTest {
+        val refused = """{"error":"course_not_found","message":"No course has this key."}"""
+        listOf(
+            "/v4/sync/holiday-overrides/3", "/v4/sync/assignments/7/override", overridePath, overridePath,
+            "/v4/sync/courses/client:1151:CS1", "/v4/sync/courses", "/v4/sync/courses/upload",
+        ).forEach { backend.answer(it, 404, refused) }
+
+        val failures = listOf(
+            runCatching { client.putHolidayOverrideAnswered(3, true, signIn, madeAtMs = null) },
+            runCatching { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null) },
+            runCatching { client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000") },
+            runCatching { client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAtMs = null) },
+            runCatching { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) },
+            runCatching { client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) },
+            runCatching { client.uploadCoursesAnswered(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151", signIn) },
+        ).map { it.exceptionOrNull() }
+
+        assertEquals(
+            listOf(
+                "holiday override", "patchAssignmentOverride", "patchCourseOverride", "patchCourseIgnore", "deleteCourse",
+                "deleteAllCourses", "uploadCourses",
+            ).map { "$it failed: HTTP 404" },
+            failures.map { it?.message },
+        )
+        assertEquals(List(7) { BackendError(404, "course_not_found") }, failures.map { it?.backendError() })
+    }
+
+    private fun plain(value: Any?): Any? = when (value) {
+        is org.json.JSONArray -> (0 until value.length()).map { plain(value.get(it)) }
+        is JSONObject -> value.asMap().mapValues { (_, v) -> plain(v) }
+        else -> value
     }
 }

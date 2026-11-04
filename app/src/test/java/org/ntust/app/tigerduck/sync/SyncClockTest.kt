@@ -2,12 +2,8 @@ package org.ntust.app.tigerduck.sync
 
 import android.content.Context
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -20,17 +16,12 @@ import kotlin.concurrent.thread
  */
 class SyncClockTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val context = JvmContext()
     private val file = context.getSharedPreferences("tigerduck_sync_clock", Context.MODE_PRIVATE)
     private var now = T
-    private var api = BackendApi.V4
 
     /** The clock as a launch makes it, over the file the last launch left. */
-    private fun clock() = SyncClock(SyncClockStore(file), { api }, { now })
+    private fun clock() = SyncClock(SyncClockStore(file), { now })
 
     private fun us(ms: Long) = ms * 1_000
 
@@ -166,30 +157,15 @@ class SyncClockTest {
     }
 
     @Test
-    fun `on v3 a stamp is the wall clock, and nothing is recorded`() {
-        val clock = clock()
-        clock.heard(us(T + 5 * MINUTE))
-        val before = SyncClockStore(file).load()
-        api = BackendApi.V3
-
-        assertEquals(listOf(T, T), listOf(clock.stampMs(), clock.stampMs()))
-        assertEquals(before, SyncClockStore(file).load())
-        assertEquals(0L, before.lastIssuedMs)
-    }
-
-    @Test
-    fun `the API is the one the endpoint setting names, read at each stamp`() {
+    fun `the app's clock stamps by the rule, whatever API the endpoint setting names`() {
         val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://api.example.test/v3" }
         val clock = SyncClock(SyncClockStore(file), prefs)
         val ahead = System.currentTimeMillis() + 60 * MINUTE
         clock.heardInSnapshot(us(ahead))
 
-        val sent = System.currentTimeMillis()
-        val v3 = clock.stampMs()
-        assertTrue("$v3 is the wall clock", v3 in sent..System.currentTimeMillis())
-
-        prefs.announcementApiBaseUrlOverride = "https://api.example.test/v4"
         assertEquals(ahead + 1, clock.stampMs())
+        prefs.announcementApiBaseUrlOverride = "https://api.example.test/v4"
+        assertEquals(ahead + 2, clock.stampMs())
     }
 
     @Test
@@ -204,14 +180,6 @@ class SyncClockTest {
         assertEquals(SyncClockState(), SyncClockStore(file).load())
         assertEquals(T + 1, clock.stampMs())
         assertEquals(T + 2, clock.restampAfterClockAhead(Long.MAX_VALUE))
-    }
-
-    @Test
-    fun `an implausible clock value is not kept on v3 either`() {
-        api = BackendApi.V3
-        clock().heard(Long.MAX_VALUE)
-
-        assertEquals(SyncClockState(), SyncClockStore(file).load())
     }
 
     @Test

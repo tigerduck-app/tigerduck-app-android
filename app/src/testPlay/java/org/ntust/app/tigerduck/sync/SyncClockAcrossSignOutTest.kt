@@ -18,7 +18,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.auth.session.SignOutReason
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.ui.FullReset
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -53,7 +52,7 @@ class SyncClockAcrossSignOutTest {
         edit().clear().putString("ntust_student_id", "B00015999").putString("ntust_password", "made-up-password").commit()
     }
 
-    private fun clock() = SyncClock(SyncClockStore(context), { BackendApi.V4 }, { T })
+    private fun clock() = SyncClock(SyncClockStore(context), { T })
 
     /** The clock's file as a stamp and a header left it: its values, before [leave] and after it. */
     private fun keptAcross(leave: suspend () -> Unit): Pair<Map<String, *>, Map<String, *>> = runBlocking {

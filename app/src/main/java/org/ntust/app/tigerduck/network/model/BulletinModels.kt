@@ -141,12 +141,3 @@ internal data class SubscriptionListRule(
     val mode: String,
     val enabled: Boolean,
 )
-
-// v3: POST/PATCH /bulletin-subscriptions — request body for a single rule.
-internal data class SubscriptionRuleRequest(
-    val name: String? = null,
-    val orgs: List<String> = emptyList(),
-    val tags: List<String> = emptyList(),
-    val mode: String = "AND",
-    val enabled: Boolean = true,
-)

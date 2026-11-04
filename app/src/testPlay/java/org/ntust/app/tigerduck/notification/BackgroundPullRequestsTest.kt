@@ -5,6 +5,9 @@ import android.content.Context
 import android.os.Looper
 import androidx.work.ListenableWorker
 import androidx.work.testing.WorkManagerTestInitHelper
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,47 +21,47 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.V4WriteRules
+import org.ntust.app.tigerduck.sync.appBackendClient
+import org.ntust.app.tigerduck.sync.appSyncRig
+import org.ntust.app.tigerduck.sync.oldEntryTimeAt
 import org.ntust.app.tigerduck.ui.screen.home.HomeSyncRig
-import org.ntust.app.tigerduck.ui.screen.home.homeSyncRig
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
-import java.util.concurrent.Callable
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
  * The requests the background worker's sync with the backend sends, in order, as they reach the
  * backend: what waits in each queue, the snapshot, then what the worker's narrower pass asks for
  * (C2): the current term only, no marks of a first sync, no course reset, and the settings pull.
- * Pinned so moving the pass into the synchronizer sends the same bytes on `/v3`. Made-up
- * accounts and course numbers; times in a body, which the queues take from the clock, read as
- * `<time>`. The courses and the assignments are left not due, so the run asks the school nothing.
+ * Pinned so moving the pass into the synchronizer sends the same bytes. Over the clients and queues
+ * as the app builds them, behind `/v4`'s rules for a write ([V4WriteRules]), a setting the released
+ * build left naming `/v3`. Made-up accounts and course numbers; times in a body, which the queues
+ * take from the clock, read as `<time>`. The courses and the assignments are left not due, so the
+ * run asks the school nothing.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class BackgroundPullRequestsTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val context = RuntimeEnvironment.getApplication()
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
+    private val rules = V4WriteRules()
     private val appJob = SupervisorJob()
     private val appScope = CoroutineScope(appJob + Dispatchers.IO)
     private val idleScope = CoroutineScope(Job().apply { cancel() })
@@ -73,12 +76,17 @@ class BackgroundPullRequestsTest {
     fun setUp() {
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
-        w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = backend.client)
-        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
+        val prefs = AppPreferences(context)
+        // The setting as the released build left it.
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
         // Never the real backend, even past the scripted one.
-        assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
-        rig = homeSyncRig(context, w, backend.client, idleScope)
-        settings = settingsSyncAt(context, w, backend.client, idleScope)
+        assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
+        // As the app builds its clients and queues, under /v4's rules for a write.
+        val clock = SyncClock(SyncClockStore(context), prefs)
+        val client = appBackendClient(prefs, clock, backend.client, rules)
+        w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client)
+        rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS)).home
+        settings = settingsSyncAt(context, w, client, idleScope)
         runBlocking {
             assertTrue(w.auth.login(STUDENT, "made-up-password"))
             w.credentials.v3Tokens.save("access-1", "refresh-1", Long.MAX_VALUE)
@@ -159,7 +167,7 @@ class BackgroundPullRequestsTest {
         // A mark this phone holds, which an empty server takes as this phone's first sync of them.
         w.dataCache.saveIgnoredAssignments(setOf("7"), signIn)
 
-        backend.answer("PATCH /sync/courses/${moodleId()}/override", 500)
+        backend.answer("PATCH /sync/courses/client:$term:$COURSE/override", 500)
         rig.ignores.setIgnored(term, COURSE, moodleId(), null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
@@ -175,13 +183,12 @@ class BackgroundPullRequestsTest {
 
     /** What waits, in the order the retries run: ignores, marks, adds, deletes, overrides, holidays. */
     private fun whatWaits() = listOf(
-        """PATCH /sync/courses/${moodleId()}/override | Bearer access-1 | null | {"ignore_assignments":true,"hlc":<time>}""",
+        """PATCH /sync/courses/client:$term:$COURSE/override | Bearer access-1 | null | {"ignore_assignments":true,"hlc":<time>}""",
         """PATCH /sync/assignments/8/override | Bearer access-1 | null | {"local_status":"locally_completed","hlc":<time>}""",
-        "POST /sync/courses/upload | Bearer access-1 | 2 | " +
-            """{"courses":[${addRow()}],"course_overrides":[],"force_keys":["client:$term:$ADDED"],""" +
-            """"adds":[{"course_key":"client:$term:$ADDED","hlc":1000}]}""",
+        "POST /sync/courses/upload | Bearer access-1 | null | " +
+            """{"courses":[${addRow()}],"adds":[{"course_key":"client:$term:$ADDED","hlc":1000}]}""",
         "DELETE /sync/courses/client:$term:$GONE | Bearer access-1 | null | ",
-        """PATCH /sync/courses/${moodleId()}/override | Bearer access-1 | null | {"color_hex":"#ABCDEF","hlc":<time>}""",
+        """PATCH /sync/courses/client:$term:$COURSE/override | Bearer access-1 | null | {"color_hex":"#ABCDEF","hlc":<time>}""",
         """PUT /sync/holiday-overrides/$HOLIDAY | Bearer access-1 | null | {"notify":false,"hlc":<time>}""",
     )
 
@@ -232,8 +239,10 @@ class BackgroundPullRequestsTest {
         assertEquals(
             whatWaits() + listOf(
                 "GET /sync/full | Bearer access-1 | null | ",
+                // The hand-added course named as an add, stamped as the oldest, as this upload adds
+                // nothing itself (X9); no color rides it.
                 "POST /sync/courses/upload | Bearer access-1 | null | " +
-                    """{"courses":[$keptRow,${addRow()}],"course_overrides":[{"course_key":"client:$term:$COURSE","color_hex":"#123456"}]}""",
+                    """{"courses":[$keptRow,${addRow()}],"adds":[{"course_key":"client:$term:$ADDED","hlc":0}]}""",
             ) + SETTINGS_PULL,
             sentSince(from),
         )
@@ -264,7 +273,7 @@ class BackgroundPullRequestsTest {
         assertEquals(ListenableWorker.Result.success(), runWorker())
 
         assertEquals(
-            listOf("GET /sync/full | Bearer access-1 | null | ", MOVED_COLOR.replace("{id}", moodleId())) + SETTINGS_PULL,
+            listOf("GET /sync/full | Bearer access-1 | null | ", MOVED_COLOR.replace("{key}", "client:$term:$COURSE")) + SETTINGS_PULL,
             sentSince(from),
         )
     }
@@ -273,9 +282,12 @@ class BackgroundPullRequestsTest {
         const val OTHER = "CS1002"
 
         /** The color the course that moved takes, as the class table's pick gives it one. */
-        const val MOVED_COLOR = """PATCH /sync/courses/{id}/override | Bearer access-1 | null | {"color_hex":"#DDA0DD","hlc":<time>}"""
+        const val MOVED_COLOR = """PATCH /sync/courses/{key}/override | Bearer access-1 | null | {"color_hex":"#DDA0DD","hlc":<time>}"""
 
         const val STUDENT = "B00015999"
+
+        /** When this build first ran, which an entry an older build kept with no time is given (X1). */
+        const val FIRST_RUN_MS = 1_760_000_000_000L
         const val OTHER_TERM = "1132"
         const val COURSE = "CS1001"
         const val ADDED = "AD1001"

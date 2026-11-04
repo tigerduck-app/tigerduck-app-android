@@ -20,7 +20,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
@@ -30,7 +29,6 @@ import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.UnsentMarks
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.Course
@@ -53,12 +51,8 @@ import org.robolectric.annotation.Config
 @Config(application = Application::class)
 class HomePullAcrossSignInTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
     private val context = RuntimeEnvironment.getApplication()
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private val appJob = SupervisorJob()
     private val appScope = CoroutineScope(appJob + Dispatchers.IO)
     private val idleScope = CoroutineScope(Job().apply { cancel() })

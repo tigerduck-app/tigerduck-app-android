@@ -136,7 +136,7 @@ class BackendErrorTest {
         assertFalse(BackendError(409, "settings_conflict").isClockAhead)
 
         assertTrue(BackendError(409, "sync_revision_expired").isRevisionExpired)
-        assertTrue(BackendError(410, "sync_revision_expired").isRevisionExpired)
+        assertFalse("a 410 is for updating the app", BackendError(410, "sync_revision_expired").isRevisionExpired)
         assertFalse(BackendError(409, "clock_ahead").isRevisionExpired)
         assertFalse(BackendError(409, null).isRevisionExpired)
         assertFalse(BackendError(500, "sync_revision_expired").isRevisionExpired)

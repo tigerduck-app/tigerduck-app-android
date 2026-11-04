@@ -16,13 +16,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
@@ -30,15 +28,11 @@ import org.ntust.app.tigerduck.util.testSignIn
 /**
  * The change feed a revision poll reads ([SyncApiClient.fetchChanges]),
  * tigerduck-app-android#120: one page after the asked revision, or null once
- * the server no longer keeps those changes.
+ * the server no longer keeps those changes (a 409 `sync_revision_expired`).
  */
 class SyncChangesFeedTest {
 
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
-
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private lateinit var client: SyncApiClient
 
     @Before
@@ -73,13 +67,6 @@ class SyncChangesFeedTest {
     }
 
     @Test
-    fun `changes the server no longer keeps read as none`() = runTest {
-        backend.answer(FEED, 410, """{"error":"sync_revision_expired","full_sync_required":true}""")
-
-        assertNull(client.fetchChanges(sinceRevision = 5, testSignIn()))
-    }
-
-    @Test
     fun `another refusal says which`() = runTest {
         backend.answer(FEED, 503)
 
@@ -98,7 +85,7 @@ class SyncChangesFeedTest {
 
     /**
      * `/v4` answers a pruned revision with a 409, keeping every 410 for "update the app"
-     * (`docs/api-v4.md`, "GET /sync"); the app makes a full sync as it does for `/v3`'s 410.
+     * (`docs/api-v4.md`, "GET /sync"); the app makes a full sync.
      */
     @Test
     fun `the v4 feed's 409 sync_revision_expired is changes it no longer keeps`() = runTest {
@@ -109,7 +96,7 @@ class SyncChangesFeedTest {
     }
 
     @Test
-    fun `another v4 409 or a 410 on v4 says as before`() = runTest {
+    fun `another v4 409 or a 410 on v4 is a failure with its status`() = runTest {
         val v4 = RecordingBackend().apply {
             answer("/v4/sync", 409, syncFixture("v4/error-clock-ahead.json"))
             answer("/v4/sync", 409, """{"detail":"sync_revision_expired_soon"}""")
@@ -119,11 +106,13 @@ class SyncChangesFeedTest {
 
         val clockAhead = runCatching { client.fetchChanges(sinceRevision = 5, testSignIn()) }.exceptionOrNull()
         val unknown = runCatching { client.fetchChanges(sinceRevision = 5, testSignIn()) }.exceptionOrNull()
+        val retired = runCatching { client.fetchChanges(sinceRevision = 5, testSignIn()) }.exceptionOrNull()
 
         assertEquals(409, (clockAhead as? PushApiException)?.statusCode)
         assertEquals(409, (unknown as? PushApiException)?.statusCode)
-        // Any 410 is changes no longer kept, as on /v3; the update latch reads it apart.
-        assertNull(client.fetchChanges(sinceRevision = 5, testSignIn()))
+        // The poll takes a failed read for a full sync as it takes a pruned revision; the update
+        // latch reads a 410 apart.
+        assertEquals(410, (retired as? PushApiException)?.statusCode)
     }
 
     /**

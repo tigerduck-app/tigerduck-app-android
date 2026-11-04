@@ -11,7 +11,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarApi
 import org.ntust.app.tigerduck.auth.AuthApi
-import org.ntust.app.tigerduck.network.model.SubscriptionRuleRequest
 import org.ntust.app.tigerduck.push.AnonymousDeviceRequest
 import org.ntust.app.tigerduck.push.DeviceRegisterRequest
 import org.ntust.app.tigerduck.push.HolidayOverrideRequest
@@ -27,7 +26,7 @@ import org.ntust.app.tigerduck.push.SyncApi
  */
 class BackendRequestsTest {
 
-    private val base = "https://api.tigerduck.test/v3"
+    private val base = "https://api.tigerduck.test/v4"
     private val auth = "Bearer access-1"
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
@@ -72,8 +71,8 @@ class BackendRequestsTest {
             api.removeDevice(auth, "device-1", EmptyBody),
         )
         assertSameRequest(
-            Request.Builder().url("$base/sync/courses/client:114-1:CS1001").delete().header("Authorization", auth).build(),
-            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, null),
+            Request.Builder().url("$base/sync/courses/client:114-1:CS1001?hlc=7").delete().header("Authorization", auth).build(),
+            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7),
         )
     }
 
@@ -83,13 +82,13 @@ class BackendRequestsTest {
         val semester = "114-1 summer"
         assertSameRequest(
             Request.Builder()
-                .url("$base/sync/courses?semester=${java.net.URLEncoder.encode(semester, "UTF-8")}")
+                .url("$base/sync/courses?semester=${java.net.URLEncoder.encode(semester, "UTF-8")}&hlc=7")
                 .delete().header("Authorization", auth).build(),
-            api.removeCourses(auth, java.net.URLEncoder.encode(semester, "UTF-8"), EmptyBody),
+            api.removeCourses(auth, java.net.URLEncoder.encode(semester, "UTF-8"), EmptyBody, 7),
         )
         assertSameRequest(
-            Request.Builder().url("$base/sync/courses").delete().header("Authorization", auth).build(),
-            api.removeCourses(auth, null, EmptyBody),
+            Request.Builder().url("$base/sync/courses?hlc=7").delete().header("Authorization", auth).build(),
+            api.removeCourses(auth, null, EmptyBody, 7),
         )
     }
 
@@ -152,11 +151,6 @@ class BackendRequestsTest {
                     .build(),
             ).get().build(),
             api.bulletins(30, null, "true"),
-        )
-        val rule = SubscriptionRuleRequest(name = "Scholarships", orgs = listOf("Office"))
-        assertSameRequest(
-            Request.Builder().url("$base/bulletin-subscriptions/3").patch(json(rule)).header("Authorization", auth).build(),
-            api.subscription(auth, 3, rule),
         )
     }
 

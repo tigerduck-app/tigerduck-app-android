@@ -19,13 +19,9 @@ import java.util.concurrent.TimeUnit
 /**
  * The backend's bulletin subscription routes, answered in place of it by the first interceptor of
  * the client: each student's rules on this device, told apart by the token a request carries, kept
- * as `server/routes/bulletins_v3.py` on tigerduck-backend `main` keeps them. On `/v3` the per-rule
- * POST, PATCH and DELETE; on `/v4` the list's GET and its PUT, which keeps a rule by its
- * `client_id` (`docs/api-v4.md`, "Subscriptions"), and no per-rule route.
- *
- * Lenient where these tests need no refusal: the real `/v3` PATCH also asks for a `base_revision`,
- * which the app has never sent. A test refuses a request itself with [refuseNext] or a [Held]
- * one's release.
+ * as `server/routes/bulletins_v3.py` on tigerduck-backend `main` keeps them: on `/v4` the list's GET
+ * and its PUT, which keeps a rule by its `client_id` (`docs/api-v4.md`, "Subscriptions"), and no
+ * per-rule route. A test refuses a request itself with [refuseNext] or a [Held] one's release.
  */
 class SubscriptionBackend {
     class Sent(val method: String, val path: String, val authorization: String?, val body: String?) {
@@ -99,7 +95,7 @@ class SubscriptionBackend {
         refusals.getOrPut(route) { ConcurrentLinkedQueue() }.add(code to body)
     }
 
-    /** Every request but the taxonomy's, in order: `GET /v3/bulletin-subscriptions`. */
+    /** Every request but the taxonomy's, in order: `GET /v4/bulletin-subscriptions`. */
     fun routes(): List<String> = sent.map { it.toString() }.filterNot { it.endsWith("/bulletins/taxonomy") }
 
     fun sent(route: String): List<Sent> = sent.filter { it.toString() == route }
@@ -146,24 +142,7 @@ class SubscriptionBackend {
         when {
             request.method == "GET" -> 200 to JSONObject().put("items", JSONArray(mine.map { it.json(v4) })).toString()
             v4 && request.method == "PUT" && id == null -> putList(mine, JSONObject(requireNotNull(body)))
-            v4 -> 405 to """{"error":"method_not_allowed","message":"Method Not Allowed"}"""
-            request.method == "POST" -> {
-                val row = Row(nextId++, "00000000-0000-4000-8000-%012d".format(nextClientId++), JSONObject(requireNotNull(body)), 1)
-                mine += row
-                200 to row.json(v4 = false).toString()
-            }
-            request.method == "PATCH" -> {
-                val row = mine.firstOrNull { it.id == id } ?: return NOT_FOUND
-                val patch = JSONObject(requireNotNull(body))
-                patch.keys().forEach { row.rule.put(it, patch.get(it)) }
-                row.revision++
-                200 to row.json(v4 = false).toString()
-            }
-            request.method == "DELETE" -> {
-                if (!mine.removeIf { it.id == id }) return NOT_FOUND
-                204 to ""
-            }
-            else -> 405 to """{"detail":"Method Not Allowed"}"""
+            else -> 405 to """{"error":"method_not_allowed","message":"Method Not Allowed"}"""
         }
     }
 
@@ -202,6 +181,5 @@ class SubscriptionBackend {
     private companion object {
         val TAXONOMY = 200 to
             """{"orgs":[{"id":"office","label":"Office"}],"tags":[{"id":"scholarship","label":"Scholarship"}],"default_tags":["scholarship"]}"""
-        val NOT_FOUND = 404 to """{"detail":"subscription not found"}"""
     }
 }

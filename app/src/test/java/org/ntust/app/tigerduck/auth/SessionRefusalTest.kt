@@ -6,11 +6,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
-import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.syncApiClientAt
@@ -29,10 +27,6 @@ import java.net.ConnectException
  * sign-in, rather than failing until the access token runs out.
  */
 class SessionRefusalTest {
-
-    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
-    @get:Rule
-    val speaksV3 = SpeaksV3()
 
     private var relogins = 0
 
@@ -84,28 +78,26 @@ class SessionRefusalTest {
         assertEquals(0, relogins)
     }
 
-    /** What the snapshot's fetch throws for [status] and [body], at an endpoint ending in [version]. */
-    private suspend fun snapshotFailure(version: String, status: Int, body: String): Throwable {
-        val backend = RecordingBackend().apply { answer("/$version/sync/full", status, body) }
-        val sync = syncApiClientAt("http://127.0.0.1:9/$version", backend.client)
+    /** What the snapshot's fetch throws for [status] and [body]. */
+    private suspend fun snapshotFailure(status: Int, body: String): Throwable {
+        val backend = RecordingBackend().apply { answer("/v4/sync/full", status, body) }
+        val sync = syncApiClientAt("http://127.0.0.1:9/v4", backend.client)
         return runCatching { sync.fetchFullSync(testSignIn()) }.exceptionOrNull()!!
     }
 
     @Test
-    fun `a snapshot refused with a 401 reads as refused, whichever version's body says why`() = runTest {
+    fun `a snapshot refused with a 401 reads as refused, whatever its body says why`() = runTest {
         val refusals = listOf(
-            "v3" to """{"detail":"session_revoked"}""",
-            "v3" to """{"detail":"invalid_access_token"}""",
-            "v3" to "",
-            "v4" to syncFixture("v4/error-session-user-mismatch.json"),
-            "v4" to """{"error":"session_revoked","message":"The session has ended; sign in again."}""",
-            "v4" to "",
+            syncFixture("v4/error-session-user-mismatch.json"),
+            """{"error":"session_revoked","message":"The session has ended; sign in again."}""",
+            """{"detail":"invalid_access_token"}""",
+            "",
         )
-        for ((version, body) in refusals) {
-            assertTrue("$version $body", snapshotFailure(version, 401, body).isSessionRefused())
+        for (body in refusals) {
+            assertTrue(body, snapshotFailure(401, body).isSessionRefused())
         }
-        assertFalse(snapshotFailure("v3", 403, """{"detail":"session_revoked"}""").isSessionRefused())
-        assertFalse(snapshotFailure("v4", 503, """{"error":"moodle_unreachable","message":"Moodle did not answer."}""").isSessionRefused())
+        assertFalse(snapshotFailure(403, """{"error":"session_revoked","message":"refused"}""").isSessionRefused())
+        assertFalse(snapshotFailure(503, """{"error":"moodle_unreachable","message":"Moodle did not answer."}""").isSessionRefused())
     }
 
     /** A debug build's simulated backend 401 still takes the relogin path, as a real one does. */

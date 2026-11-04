@@ -4,7 +4,6 @@ import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 import org.ntust.app.tigerduck.network.SyncClockInterceptor
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.sync.isPlausibleClockUs
@@ -14,8 +13,7 @@ import java.io.IOException
  * What the backend answered a sync write, for the outbox to settle the edit by (LWW D12): whether
  * it went at all ([sent]), the backend's clock as the reply's `X-TigerSync-Clock` carried it
  * ([serverClockUs]), which fields the backend took ([applied]), and the values the reply names
- * ([values]), whatever version answered: on `/v3` what it sends today, on `/v4` the contract's
- * shape (`docs/api-v4.md`).
+ * ([values]), in the contract's shape (`docs/api-v4.md`).
  *
  * [applied] holds the reply's own list where it gives one (a course's override); where it gives a
  * single verdict, the field the write sets ([LOCAL_STATUS], [NOTIFY], [MEMBERSHIP], [RESET]) when
@@ -90,35 +88,20 @@ internal fun answerOf(response: Response, what: String, field: String? = null): 
 }
 
 /**
- * [block], an answered write, its refusal thrown as the `Boolean` forms always threw it: a
- * [PushApiException] with the same message, and its status where [keepsStatus] (the holiday PUT
- * and the term reset never kept one). The queues tell refusals from outages by that type, and a
- * [BackendException] is an [IOException], which they read as no answer at all.
+ * A course as a request names it: its key, `client:{semester}:{course_no}`, which the caller may
+ * not know. [moodleId] is the course's Moodle id where the caller has it, which no request names a
+ * course by since `/v3`'s path went; the queues' senders for tests still read it.
  */
-internal inline fun <T> refusedAsBefore(keepsStatus: Boolean = true, block: () -> T): T =
-    try {
-        block()
-    } catch (e: BackendException) {
-        throw PushApiException(e.message.orEmpty(), e.error.status.takeIf { keepsStatus })
-    }
-
-/**
- * A course as a request names it: its Moodle id on `/v3`, which names no term, and its key,
- * `client:{semester}:{course_no}`, on `/v4`. Either can be unknown to the caller.
- */
-data class CourseRef(val moodleId: String?, val courseKey: String?) {
+data class CourseRef(val moodleId: String? = null, val courseKey: String?) {
     /**
-     * The course as [api] names it in a path, sent raw as `/v4`'s key may hold a `/`; for [what],
-     * a [CourseKeyUnknownException] when the caller does not know that name.
+     * The course as a path names it, sent raw as the key may hold a `/`; for [what], a
+     * [CourseKeyUnknownException] when the caller does not know its key.
      */
-    internal fun named(api: BackendApi, what: String): String = when (api) {
-        BackendApi.V3 -> moodleId ?: throw CourseKeyUnknownException("$what names no Moodle id")
-        BackendApi.V4 -> courseKey ?: throw CourseKeyUnknownException("$what names no course key")
-    }
+    internal fun named(what: String): String = courseKey ?: throw CourseKeyUnknownException("$what names no course key")
 }
 
 /**
- * A course write that cannot name its course the way the API it speaks needs, as iOS's
+ * A course write that cannot name its course by its key, as iOS's
  * `CourseKeyUnknownError`: nothing was sent. An [IOException], so a queue that takes it for no
  * answer keeps the edit, uncounted, until the course can be named.
  */

@@ -47,8 +47,8 @@ internal fun uploadFingerprint(backend: String, json: String): String =
     MessageDigest.getInstance("SHA-256").digest("$backend\n$json".toByteArray()).joinToString("") { "%02x".format(it) }
 
 /**
- * A term's course list as a fingerprint: the body [PushApiClient.uploadCourses] sends for it to
- * [backend], without force keys (a list with any goes whatever the ledger holds), the courses in
+ * A term's course list as a fingerprint: its [CourseUploadPayload.ledgerBody] for [backend], without
+ * adds (a list with an add asked of it goes whatever the ledger holds), the courses in
  * course-number order, so the roster as the class table holds it and as a sync holds it, the
  * same courses in another order, are one list. The term is the ledger's key, not part of this.
  *
@@ -66,7 +66,7 @@ internal fun courseUploadFingerprint(
     uploadFingerprint(
         backend,
         fingerprintGson.toJson(
-            CourseUploadPayload.build(courses.sortedBy { it.courseNo }, semester, rosterTerms = rosterTerms.sorted()),
+            CourseUploadPayload.ledgerBody(courses.sortedBy { it.courseNo }, semester, rosterTerms.sorted()),
         ),
     )
 

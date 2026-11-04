@@ -13,7 +13,6 @@ import org.json.JSONObject
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.EmptyBody
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.shared.Course
@@ -73,9 +72,10 @@ internal class CourseSyncRequests(
      *
      * A term's list the backend already accepted goes again only once it
      * changes, or six hours on ([UploadLedger]), as assignments do; one with
-     * [forceKeys] goes whatever the ledger holds, and so does one sent with
-     * [resend], for a term the server has emptied since. Each upload defers
-     * the server's own Moodle sync by two hours.
+     * [forceKeys], the keys of the courses the caller adds now, goes whatever
+     * the ledger holds, and so does one sent with [resend], for a term the
+     * server has emptied since. Each upload defers the server's own Moodle
+     * sync by two hours.
      *
      * Returns the course numbers the server actually accepted, or null when
      * nothing was sent (sync off). A 200 is not acceptance: the server skips
@@ -86,30 +86,28 @@ internal class CourseSyncRequests(
      * them lately, and said so then.
      *
      * [signIn] pins the request, and the ledger's record, to that sign-in, as
-     * `patchAssignmentOverride`'s is.
+     * `patchAssignmentOverrideAnswered`'s is.
      *
      * [rosterTerms] names the terms the list is the school's whole roster
      * of; see [CourseUpload.of], which decides it. A roster the backend asks
      * for (`roster_requests`) goes with [resend], past the ledger.
      *
      * [addedAt], by course number, the time of each add [courses] carries (a
-     * `PendingCourseDeletes.stamp`): sent under protocol 2 as `adds`, which the
-     * backend applies only when later than the course's last add, hide and
-     * reset (tigerduck-app#910). Under protocol 2 every other course of the
-     * upload is taken for the school's roster, so such an upload holds the
-     * added courses alone. A course whose add the backend answered, applied or
-     * not, counts as accepted: the backend has settled it. One it refuses as
-     * ahead of its clock goes again unstamped, counting from when it arrives.
-     * The answer tells the timed adds the backend refused apart; see [CourseUploadAnswer].
+     * `PendingCourseDeletes.stamp`), which the backend applies only when later
+     * than the course's last add, hide and reset (tigerduck-app#910). Every
+     * other course of the upload is taken for the school's roster. A course
+     * whose add the backend answered, applied or not, counts as accepted: the
+     * backend has settled it. The answer tells the timed adds the backend
+     * refused apart; see [CourseUploadAnswer].
      *
-     * On `/v4` the upload carries no colors and no [forceKeys], and names every hand-added
-     * course in its adds, each stamped with its [addedAt] entry or as the oldest; see
-     * [CourseUploadPayload.handAdds] (X9). A copy merged down that no snapshot has told about goes
-     * only when added now ([CourseUploadPayload.sendable]), and the ledger, the roster recorded and
-     * the listeners take the courses that went; with every one left out, nothing is sent and the
-     * answer accepts none. One refused as ahead goes once more, its timed adds
-     * stamped again from the refusal's clock, never without them, if course sync is still on:
-     * switched off meanwhile, nothing went and the answer is null.
+     * The upload carries no colors, and names every hand-added course in its adds, each stamped
+     * with its [addedAt] entry or as the oldest; see [CourseUploadPayload.handAdds] (X9). A copy
+     * merged down that no snapshot has told about goes only when added now
+     * ([CourseUploadPayload.sendable]), and the ledger, the roster recorded and the listeners take
+     * the courses that went; with every one left out, nothing is sent and the answer accepts none.
+     * One refused as ahead goes once more, its timed adds stamped again from the refusal's clock,
+     * never without them, if course sync is still on: switched off meanwhile, nothing went and
+     * the answer is null.
      */
     suspend fun uploadCoursesAnswered(
         courses: List<Course>,
@@ -124,14 +122,10 @@ internal class CourseSyncRequests(
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl()
-        val api = BackendApi.of(base)
-        val sent = if (api == BackendApi.V4) CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt) else courses
+        val sent = CourseUploadPayload.sendable(courses, semester, forceKeys, addedAt)
         // Every course left out: nothing the backend would change.
         if (sent.isEmpty() && courses.isNotEmpty()) return@withContext CourseUploadAnswer(emptyList(), emptyList())
-        val bodies = when (api) {
-            BackendApi.V3 -> v3Upload(sent, semester, forceKeys, rosterTerms, addedAt)
-            BackendApi.V4 -> v4Upload(sent, semester, forceKeys, rosterTerms, addedAt)
-        }
+        val bodies = upload(sent, semester, forceKeys, rosterTerms, addedAt)
         // What the accepted list enrolled as the term's roster, for serverDropped.
         val roster = if (semester in rosterTerms) sent.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
@@ -153,17 +147,17 @@ internal class CourseSyncRequests(
                 // Through uploadCall, with its deadline for the whole call.
                 val service = uploads.at(base)
                 val header = authHeader(signIn)
-                var response = service.coursesUpload(header, bodies.first, bodies.protocol).execute()
+                var response = service.coursesUpload(header, bodies.first).execute()
                 val again = bodies.again
                 if (again != null && isClockAhead(response)) {
                     val serverClockUs = serverClockOf(response)
                     response.close()
-                    // On /v4, past the gate the first request passed, read again: course sync can have
-                    // gone off meanwhile. Nothing then went, and the ledger records nothing.
-                    if (api == BackendApi.V4 && !sends()) throw ResendHeldBack()
-                    response = service.coursesUpload(header, again(serverClockUs), null).execute()
+                    // Past the gate the first request passed, read again: course sync can have gone
+                    // off meanwhile. Nothing then went, and the ledger records nothing.
+                    if (!sends()) throw ResendHeldBack()
+                    response = service.coursesUpload(header, again(serverClockUs)).execute()
                 }
-                accepted = response.use { answered(it, api) }
+                accepted = response.use(::answered)
                 landed = true
             }
         } catch (e: ResendHeldBack) {
@@ -187,59 +181,42 @@ internal class CourseSyncRequests(
         }
     }
 
-    // Whether the course list's writes go: the gate each checks first, and on /v4 again before a resend.
+    // Whether the course list's writes go: the gate each checks first, and again before a resend.
     private fun sends(): Boolean = policies.current.uploadsCourses
 
     // An upload refused as ahead whose resend the gate stopped: not sent.
     private class ResendHeldBack : Exception()
 
-    /** An upload's body, the protocol it says it speaks, and the body it goes again with once refused as ahead. */
-    private class UploadBodies(val first: RequestBody, val protocol: String?, val again: ((serverClockUs: Long?) -> RequestBody)?)
+    /** An upload's body, and the body it goes again with once refused as ahead. */
+    private class UploadBodies(val first: RequestBody, val again: ((serverClockUs: Long?) -> RequestBody)?)
 
-    // /v3's: the courses with their custom colors and force keys. With timed adds it goes under
-    // protocol 2, and once refused as ahead of the backend's clock, again without them.
-    private fun v3Upload(
-        courses: List<Course>, semester: String, forceKeys: List<String>, rosterTerms: List<String>, addedAt: Map<String, Long>,
-    ): UploadBodies {
-        val payload = CourseUploadPayload.build(courses, semester, forceKeys, rosterTerms)
-        val body = gson.toJson(payload).toRequestBody(jsonType)
-        if (addedAt.isEmpty()) return UploadBodies(body, protocol = null, again = null)
-        val adds = addedAt.map { (courseNo, at) ->
-            // The key an add forces past a tombstone (PendingCourseAdds.forceKey).
-            mapOf("course_key" to CourseUploadPayload.key(semester, courseNo), "hlc" to clockOf(at))
-        }
-        return UploadBodies(gson.toJson(payload + ("adds" to adds)).toRequestBody(jsonType), PROTOCOL_STAMPED) { body }
-    }
-
-    // /v4's: the courses and their hand-adds. Once refused as ahead, each add stamped later than
-    // the clock now allows goes again at that, and the oldest stay the oldest.
-    private fun v4Upload(
+    // The courses and their hand-adds. Once refused as ahead, each add stamped later than the clock
+    // now allows goes again at that, and the oldest stay the oldest.
+    private fun upload(
         courses: List<Course>, semester: String, forceKeys: List<String>, rosterTerms: List<String>, addedAt: Map<String, Long>,
     ): UploadBodies {
         val adds = CourseUploadPayload.handAdds(courses, semester, forceKeys, addedAt)
-        fun body(stamps: Map<String, Long>) = gson.toJson(CourseUploadPayload.buildV4(courses, semester, rosterTerms, stamps)).toRequestBody(jsonType)
+        fun body(stamps: Map<String, Long>) = gson.toJson(CourseUploadPayload.build(courses, semester, rosterTerms, stamps)).toRequestBody(jsonType)
         val again = { serverClockUs: Long? ->
             val restamp = clock.restampAfterClockAhead(serverClockUs)
             body(adds.mapValues { (_, atMs) -> minOf(atMs, restamp) })
         }
-        return UploadBodies(body(adds), protocol = null, again = again.takeIf { adds.values.any { it > 0 } })
+        return UploadBodies(body(adds), again = again.takeIf { adds.values.any { it > 0 } })
     }
 
-    // The courses an upload's answer took, and the timed adds it refused; on /v4, its stamps heard.
-    private fun answered(response: Response, api: BackendApi): CourseUploadAnswer {
+    // The courses an upload's answer took, and the timed adds it refused, its stamps heard.
+    private fun answered(response: Response): CourseUploadAnswer {
         if (!response.isSuccessful) {
-            val what = "uploadCourses failed: HTTP ${response.code}"
-            // /v4's refusal keeps the backend's code, as every answered write's does (answerOf), so
-            // the course adds can tell a second clock_ahead from a refusal; /v3's is as it was.
-            if (api == BackendApi.V4) throw BackendException(BackendError.of(response), what)
-            throw PushApiException(what, response.code)
+            // The refusal keeps the backend's code, as every answered write's does (answerOf), so the
+            // course adds can tell a second clock_ahead from a refusal.
+            throw BackendException(BackendError.of(response), "uploadCourses failed: HTTP ${response.code}")
         }
         // A 2xx with an unreadable body (a captive portal, a proxy) is
         // still an upload that landed; it just cannot say what was accepted.
         val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
         val keys = json?.optJSONArray("accepted_keys")
         val answers = json?.optJSONArray("adds")?.let { (0 until it.length()).mapNotNull(it::optJSONObject) }.orEmpty()
-        if (api == BackendApi.V4) answers.mapNotNull { nullableLong(it, "hlc") }.maxOrNull()?.let(clock::hear)
+        answers.mapNotNull { nullableLong(it, "hlc") }.maxOrNull()?.let(clock::hear)
         // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
         fun no(key: String) = key.substringAfterLast(':')
         val listed = keys?.let { (0 until it.length()).map { i -> it.getString(i) } }.orEmpty() +
@@ -274,29 +251,22 @@ internal class CourseSyncRequests(
      * Deletes the course row [courseKey] names. [signIn] pins the request to
      * that sign-in, as [uploadCoursesAnswered] does: a delete queued as one account and sent after a sign-out and
      * another sign-in goes without a token, not with the next account's,
-     * which could take that account's own course off. With no kind, on either version: the
-     * backend decides from its row, a hide of a school course and the removal of one added by
-     * hand, as the iPhone's `deleteCourse` sends it.
+     * which could take that account's own course off. With no kind: the backend decides from its
+     * row, a hide of a school course and the removal of one added by hand, as the iPhone's
+     * `deleteCourse` sends it.
      */
     suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
-            val base = baseUrl()
-            val service = api.at(base)
+            val service = api.at(baseUrl())
             val header = authHeader(signIn)
             // With the hide's time, which the backend applies only when later than the course's last
             // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
-            // since on another device, and a retry after a lost reply changes nothing. On /v3 one
-            // refused as ahead of the backend's clock goes again without it, counting from when it
-            // arrives; on /v4, where it always goes, stamped again from the refusal's clock.
-            when (val version = BackendApi.of(base)) {
-                BackendApi.V3 -> executeStamped(hiddenAt, { true }, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc) }) {
-                    clock.answer(it, version, "deleteCourse", WriteAnswer.MEMBERSHIP)
-                }
-                // The resend past the gate the first request passed, read again: course sync can have gone off meanwhile.
-                BackendApi.V4 -> executeStampedV4(hiddenAt, clock, ::sends, { hlc -> service.removeCourseStamped(header, courseKey, EmptyBody, hlc) }) {
-                    clock.answer(it, version, "deleteCourse", WriteAnswer.MEMBERSHIP)
-                }
+            // since on another device, and a retry after a lost reply changes nothing. One refused as
+            // ahead of the backend's clock goes again stamped from the refusal's clock, past the gate
+            // the first request passed, read again: course sync can have gone off meanwhile.
+            sendStamped(hiddenAt, clock, ::sends, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc) }) {
+                clock.answer(it, "deleteCourse", WriteAnswer.MEMBERSHIP)
             } ?: WriteAnswer.NOT_SENT
         }
 
@@ -308,27 +278,22 @@ internal class CourseSyncRequests(
      * wipe every term's local overlay — an unscoped reset still stamps it and
      * still means "wipe everything". Reset is offered per term because the
      * timetable is now per term; see `DELETE /sync/courses` in the backend's
-     * `routes/sync/courses.py`. On `/v4` it carries [resetAtMs], the time it
-     * was asked, or with none the clock's stamp at its send, and is stamped
-     * again once refused as ahead; `/v3` takes none.
+     * `routes/sync/courses.py`. It carries [resetAtMs], the time it was
+     * asked, or with none the clock's stamp at its send, and is stamped again
+     * once refused as ahead.
      */
     suspend fun deleteAllCourses(semester: String?, signIn: SignIn, resetAtMs: Long?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
-            val base = baseUrl()
-            val version = BackendApi.of(base)
-            val service = api.at(base)
+            val service = api.at(baseUrl())
             val header = authHeader(signIn)
             val term = semester?.let { java.net.URLEncoder.encode(it, "UTF-8") }
             val reset: suspend () -> WriteAnswer = {
-                when (version) {
-                    BackendApi.V3 -> service.removeCourses(header, term, EmptyBody).execute().use {
-                        clock.answer(it, version, "deleteAllCourses", WriteAnswer.RESET)
-                    }
-                    BackendApi.V4 -> executeStampedV4(resetAtMs, clock, ::sends, { hlc -> service.removeCoursesStamped(header, term, EmptyBody, hlc) }) {
-                        clock.answer(it, version, "deleteAllCourses", WriteAnswer.RESET)
+                (
+                    sendStamped(resetAtMs, clock, ::sends, { hlc -> service.removeCourses(header, term, EmptyBody, hlc) }) {
+                        clock.answer(it, "deleteAllCourses", WriteAnswer.RESET)
                     } ?: WriteAnswer.NOT_SENT
-                }
+                )
                     // The upload after the reset, usually the list sent before it,
                     // releases the reset's tombstones: it has to go.
                     .also { prefs.forgetCourseUploads(semester) }
@@ -340,9 +305,6 @@ internal class CourseSyncRequests(
         }
 
     private companion object {
-        // The header value of an upload whose adds carry their time.
-        const val PROTOCOL_STAMPED = "2"
-
         // How many of the courses sent an upload's answer left out as tombstoned.
         const val SKIPPED = "skipped_tombstoned"
 
