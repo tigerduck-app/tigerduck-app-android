@@ -1,8 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import org.ntust.app.tigerduck.mail.MailError
+import org.ntust.app.tigerduck.mail.SearchOutcome
+import org.ntust.app.tigerduck.mail.imap.FolderSelection
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailRow
+import java.time.Instant
 
 /**
  * What [readFolderPages] got: the pages of the folders that answered, the folders that did not
@@ -63,3 +66,31 @@ internal fun mergeOlderPage(rows: List<MailRow>, folder: String, page: MailPage)
 
 internal fun cursorsOf(pages: List<Pair<String, MailPage>>): Map<String, Int> =
     pages.mapNotNull { (folder, page) -> page.nextBeforeSeq?.let { folder to it } }.toMap()
+
+/** A failure after which a search stops asking the server for the folders still to go. */
+internal fun endsServerSearch(error: MailError): Boolean =
+    error is MailError.AuthFailed || error is MailError.Network || error is MailError.Certificate
+
+internal fun rowsOf(selection: FolderSelection, pages: List<Pair<String, MailPage>>): List<MailRow> =
+    ordered(selection, pages.flatMap { (folder, page) -> page.messages.map { MailRow(folder, it, page.uidValidity) } })
+
+/**
+ * A merged view is ordered by date, because the folders' UID spaces say nothing about each
+ * other. A single folder is left exactly as the server returned it, so nothing about the
+ * existing lists changes just because All mail exists.
+ */
+internal fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
+    if (selection is FolderSelection.AllMail) rows.sortedWith(NewestFirst) else rows
+
+/** The date the card itself shows, then folder and UID so the merge order is stable. */
+internal val NewestFirst: Comparator<MailRow> =
+    compareByDescending<MailRow> { it.summary.sentAt ?: it.summary.receivedAt ?: Instant.MIN }
+        .thenBy { it.folder }
+        .thenByDescending { it.uid }
+
+/** The UIDVALIDITY the outcome's matches were read under, or null where nothing said. */
+internal val SearchOutcome.version: Long?
+    get() = when (this) {
+        is SearchOutcome.Server -> uidValidity
+        is SearchOutcome.LoadedOnly -> uidValidity
+    }

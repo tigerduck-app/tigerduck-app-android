@@ -53,7 +53,6 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -73,11 +72,11 @@ fun MoodleMaterialsScreen(
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
     val files = store?.let { rememberMoodleFileOpener(it, browserPreference) }
-    PageScaffold(
+    MoodleListScaffold(
         title = stringResource(R.string.course_detail_files_label),
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(store?.let { MoodlePage.course(it.courseId) }, willOpenPage = { files?.forgetPendingOpen() }) },
+        moodlePath = store?.let { MoodlePage.course(it.courseId) },
+        willOpenPage = { files?.forgetPendingOpen() },
     ) { padding ->
         Box(
             Modifier

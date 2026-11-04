@@ -46,8 +46,10 @@ import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.signInNow
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.testApplicationScope
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -93,6 +95,10 @@ class SchoolMailComposeButtonTest {
             override val password: String? = null
         }
         val accountViewModel = MailAccountViewModel(account, schoolMailSite(), noNtustAccount, mailSignOutPlans(account))
+        val settings = SchoolMailSettingsViewModel(
+            state, RecordingScheduler(), ExactAlarmAccess { false }, account,
+            SystemPermissions(RuntimeEnvironment.getApplication()),
+        )
         composeRule.setContent {
             TigerDuckAppTheme(darkTheme = false) {
                 SchoolMailScreen(
@@ -103,6 +109,7 @@ class SchoolMailComposeButtonTest {
                     onOpenGuide = {},
                     viewModel = list,
                     accountViewModel = accountViewModel,
+                    settingsViewModel = settings,
                 )
             }
         }

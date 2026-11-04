@@ -99,7 +99,6 @@ import kotlin.math.roundToInt
 @Composable
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
-    onOpenSubscriptions: () -> Unit,
     // The backend keeps bulletin subscriptions only for an account, so their settings need one.
     signedIn: Boolean,
     viewModel: AnnouncementsViewModel = hiltViewModel(),
@@ -174,15 +173,14 @@ fun AnnouncementsScreen(
             )
         },
         actions = {
-            AnnouncementsHeaderActions(
+            AnnouncementsFilter(
                 unreadOnly = state.unreadOnly,
                 hasUnread = state.hasUnread,
-                signedIn = signedIn,
                 onMarkAllRead = viewModel::markAllRead,
                 onUnreadOnlyChange = viewModel::setUnreadOnly,
-                onOpenSubscriptions = onOpenSubscriptions,
             )
         },
+        menu = announcementsMenu(signedIn),
     ) { padding ->
         // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
         // re-subcomposes its content lambda whenever incoming constraints change

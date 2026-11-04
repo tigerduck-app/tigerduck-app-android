@@ -42,7 +42,6 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.sync.MailClock
 import org.ntust.app.tigerduck.shared.account.SignIn
-import java.time.Instant
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 
@@ -280,13 +279,6 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private var unfetchedMatches: Map<String, UnfetchedMatches> = emptyMap()
 
-    /** The UIDVALIDITY the outcome's matches were read under, or null where nothing said. */
-    private val SearchOutcome.version: Long?
-        get() = when (this) {
-            is SearchOutcome.Server -> uidValidity
-            is SearchOutcome.LoadedOnly -> uidValidity
-        }
-
     /** A folder's matches still to fetch, and the UIDVALIDITY they were found under ([SearchOutcome.Server.uidValidity]). */
     private data class UnfetchedMatches(val uidValidity: Long?, val uids: List<Long>)
 
@@ -325,12 +317,13 @@ class SchoolMailListViewModel @Inject constructor(
     private var pageAskedWhileQuiet: MailRow? = null
 
     /**
-     * The question [delete] or [requestMove] is still finding out from the server: which of the
-     * two delete questions to ask, or which folders a mail can go to. One question at a time
-     * ([mayAsk]): a second swipe while this one is out would otherwise replace its question, and
-     * the first delete be dropped without a word.
+     * The question [delete] or [requestMove] is still finding out from the server, of the row
+     * [Asking.key] names: which of the two delete questions to ask, or which folders a mail can go
+     * to. One question at a time ([mayAsk]): a second swipe while this one is out would otherwise
+     * replace its question, and the first delete be dropped without a word.
      */
-    private var asking: Job? = null
+    private var asking: Asking? = null
+    private class Asking(val key: String, val job: Job)
 
     /**
      * Bumped by [forgetAccount], which empties [UiState.writing] with the rest of the state. A
@@ -408,7 +401,7 @@ class SchoolMailListViewModel @Inject constructor(
     private fun forgetAccount() {
         loadJob?.cancel()
         loadJob = null
-        asking?.cancel()
+        asking?.job?.cancel()
         asking = null
         accountsForgotten++
         prefetchJob?.cancel()
@@ -698,7 +691,8 @@ class SchoolMailListViewModel @Inject constructor(
      * over this one would otherwise change a row of theirs, which the feed knows not to.
      *
      * Not for a row whose delete or move is still out ([UiState.writing]): the mail is on its way
-     * out of the folder, and a STORE behind that write would find it gone.
+     * out of the folder, and a STORE behind that write would find it gone. As the account and under
+     * the UIDVALIDITY the row was read under ([SchoolMailRepository.setSeen]), or nothing is sent.
      */
     fun toggleRead(row: MailRow) {
         if (row.key in _state.value.writing) return
@@ -706,14 +700,35 @@ class SchoolMailListViewModel @Inject constructor(
         val signIn = account.currentSignIn
         viewModelScope.launch {
             try {
-                repository.setSeen(row.folder, row.uid, seen)
+                repository.setSeen(signIn, row.folder, row.uidValidity, listOf(row.uid), seen)
             } catch (e: MailError) {
-                // One swipe that didn't stick is not the page failing: the list on screen is
-                // exactly as good as it was a moment ago. Nor is it the next student's to see,
-                // once one has signed in over this one ([dropped]).
-                if (!dropped(e, signIn)) actionFail(e, signIn)
+                seenFailed(e, signIn, listOf(row.folder))
             }
         }
+    }
+
+    /**
+     * A mark-read of [folders] that failed, said once but never to the next student ([dropped]). A STORE
+     * refused or cut off once out may have marked some of it, so the folders on screen are read again.
+     */
+    private fun seenFailed(e: MailError, signIn: SignIn, folders: Collection<String>) {
+        if (dropped(e, signIn)) return
+        actionFail(e, signIn)
+        if (e is MailError.AuthFailed || e is MailError.Certificate || e is MailError.FolderChanged) return
+        folders.forEach { staleFolders[it] = changeSeq }
+        loadIfNeeded()
+    }
+
+    private val markingAll = MailMarkAllRead(viewModelScope, repository, ::hold, ::seenFailed)
+
+    /** The filter's Mark all as read, a batch of each folder at a time: see [MailMarkAllRead]. */
+    fun markAllRead() = markingAll.start(account.currentSignIn, _state.value, asking?.takeIf { it.job.isActive }?.key)
+
+    /** Holds [keys] in [UiState.writing]; the answer lets them go, unless the account is forgotten meanwhile. */
+    private fun hold(keys: Set<String>): (Set<String>) -> Unit {
+        _state.update { it.copy(writing = it.writing + keys) }
+        val forgotten = accountsForgotten
+        return { done -> if (forgotten == accountsForgotten) _state.update { it.copy(writing = it.writing - done) } }
     }
 
     /**
@@ -729,7 +744,7 @@ class SchoolMailListViewModel @Inject constructor(
     fun delete(row: MailRow) {
         if (!mayAsk(row) || !knowsVersionOf(row)) return
         val signIn = account.currentSignIn
-        asking = viewModelScope.launch {
+        asking = Asking(row.key, viewModelScope.launch {
             try {
                 val permanently = repository.deletesPermanently(row.folder) { signIn.isCurrent }
                 if (!signIn.isCurrent) return@launch
@@ -740,7 +755,7 @@ class SchoolMailListViewModel @Inject constructor(
                 val error = MailErrors.classify(e)
                 if (!dropped(error, signIn)) actionFail(error, signIn)
             }
-        }
+        })
     }
 
     /** The answer to [UiState.pendingDelete]: either question, since both make the same [SchoolMailRepository.delete]. */
@@ -761,7 +776,7 @@ class SchoolMailListViewModel @Inject constructor(
     fun requestMove(row: MailRow) {
         if (!mayAsk(row) || !knowsVersionOf(row)) return
         val signIn = account.currentSignIn
-        asking = viewModelScope.launch {
+        asking = Asking(row.key, viewModelScope.launch {
             try {
                 val folders = repository.folders { signIn.isCurrent }
                 if (!signIn.isCurrent) return@launch
@@ -774,12 +789,10 @@ class SchoolMailListViewModel @Inject constructor(
                 val error = MailErrors.classify(e)
                 if (!dropped(error, signIn)) actionFail(error, signIn)
             }
-        }
+        })
     }
 
-    fun dismissMove() {
-        _state.update { it.copy(pendingMove = null) }
-    }
+    fun dismissMove() = _state.update { it.copy(pendingMove = null) }
 
     /**
      * Moves [UiState.pendingMove]'s mail to [target], the folder of one of its targets.
@@ -818,7 +831,7 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun mayAsk(row: MailRow): Boolean {
         val s = _state.value
-        return asking?.isActive != true && s.pendingDelete == null && s.pendingMove == null && row.key !in s.writing
+        return asking?.job?.isActive != true && s.pendingDelete == null && s.pendingMove == null && row.key !in s.writing
     }
 
     /**
@@ -1185,7 +1198,7 @@ class SchoolMailListViewModel @Inject constructor(
                         mergeOlderPage(rows, folder, pageWith(folder, page, arrived.drop(windows.getValue(folder))))
                     }
                     st.copy(
-                        messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NEWEST_FIRST) else merged.sortedByDescending { it.uid },
+                        messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NewestFirst) else merged.sortedByDescending { it.uid },
                         cursors = st.cursors - pages.map { it.first }.toSet() + cursorsOf(pages),
                     )
                 }
@@ -1645,17 +1658,6 @@ class SchoolMailListViewModel @Inject constructor(
         )
     }
 
-    private fun rowsOf(selection: FolderSelection, pages: List<Pair<String, MailPage>>): List<MailRow> =
-        ordered(selection, pages.flatMap { (folder, page) -> page.messages.map { MailRow(folder, it, page.uidValidity) } })
-
-    /**
-     * A merged view is ordered by date, because the folders' UID spaces say nothing about each
-     * other. A single folder is left exactly as the server returned it, so nothing about the
-     * existing lists changes just because All mail exists.
-     */
-    private fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
-        if (selection is FolderSelection.AllMail) rows.sortedWith(NEWEST_FIRST) else rows
-
     /**
      * A load failed: the page itself has nothing to show, so [LoadState.Failed] is the truth. A
      * rejected password reaches the account for [signIn], the one the request started under, in
@@ -1683,10 +1685,6 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun searchFail(error: MailError, signIn: SignIn) =
         if (error is MailError.Certificate) fail(error, signIn) else actionFail(error, signIn)
-
-    /** A failure after which a search stops asking the server for the folders still to go. */
-    private fun endsServerSearch(error: MailError): Boolean =
-        error is MailError.AuthFailed || error is MailError.Network || error is MailError.Certificate
 
     fun dismissActionError() = _state.update { it.copy(actionError = null) }
 
@@ -1720,11 +1718,5 @@ class SchoolMailListViewModel @Inject constructor(
 
         /** Newest arrivals whose body one poll will warm. The same bound [MailChecker] uses. */
         internal const val BODY_PREFETCH_LIMIT = 5
-
-        /** The date the card itself shows, then folder and UID so the merge order is stable. */
-        private val NEWEST_FIRST =
-            compareByDescending<MailRow> { it.summary.sentAt ?: it.summary.receivedAt ?: Instant.MIN }
-                .thenBy { it.folder }
-                .thenByDescending { it.uid }
     }
 }

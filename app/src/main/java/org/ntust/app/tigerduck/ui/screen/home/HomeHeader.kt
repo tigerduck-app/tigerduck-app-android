@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
+import org.ntust.app.tigerduck.ui.component.PageMenu
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PageScope
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -29,9 +30,9 @@ internal fun HomeEditActions(onAdd: () -> Unit, onDone: () -> Unit) {
 }
 
 /**
- * Home's page: the greeting for a title, the sync dot after it, and Add and Done in the dot's place
- * while the sections are arranged. Plain values in, so the page and its test both go through this
- * wiring and not a copy of it.
+ * Home's page: the greeting for a title, the sync dot and [menu] after it, and Add and Done in their
+ * place while the sections are arranged. Plain values in, so the page and its test both go through
+ * this wiring and not a copy of it.
  */
 @Composable
 internal fun HomeShell(
@@ -42,6 +43,7 @@ internal fun HomeShell(
     onAdd: () -> Unit,
     onDone: () -> Unit,
     snackbarHost: @Composable () -> Unit,
+    menu: PageMenu? = null,
     content: @Composable PageScope.(PaddingValues) -> Unit,
 ) {
     PageScaffold(
@@ -57,6 +59,7 @@ internal fun HomeShell(
             }
         },
         actions = { if (isEditing) HomeEditActions(onAdd = onAdd, onDone = onDone) },
+        menu = menu.takeIf { !isEditing },
         snackbarHost = snackbarHost,
         content = content,
     )

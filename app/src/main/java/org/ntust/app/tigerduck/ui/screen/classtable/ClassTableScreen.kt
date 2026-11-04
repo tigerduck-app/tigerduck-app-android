@@ -328,6 +328,7 @@ fun ClassTableScreen(
                         renamingPerson = shownPerson
                     },
                     onDelete = { close(); deletingPerson = shownPerson },
+                    close = close,
                 )
             } else {
                 OwnClassTableMenuItems(
@@ -344,13 +345,12 @@ fun ClassTableScreen(
                         }
                     },
                     onImport = { close(); onRequestImport() },
-                    // Only exportable while the grid below is
-                    // drawn; anything else would export a header
-                    // over nothing. Also off while one is in
-                    // flight.
+                    // Only exportable while the grid below is drawn; anything else would
+                    // export a header over nothing. Also off while one is in flight.
                     exportEnabled = hasGrid && !exporting,
                     onExport = { close(); exporting = true },
                     onReset = { close(); showResetConfirm = true },
+                    close = close,
                 )
             }
         },

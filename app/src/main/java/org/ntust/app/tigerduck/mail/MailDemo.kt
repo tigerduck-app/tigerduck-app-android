@@ -7,12 +7,15 @@ import com.google.gson.JsonParser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.mail.compose.OutgoingMail
+import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import java.time.Instant
 import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -154,4 +157,25 @@ class AssetsMailDemoGate @Inject constructor(
             ?: ConfigurationCompat.getLocales(context.resources.configuration)[0]
         return if (locale?.language == "zh") "zh" else "en"
     }
+}
+
+/** The demo mailbox's folders: each special folder under its own name, and no others. */
+internal val DEMO_FOLDERS = ResolvedFolders(SpecialFolder.entries.associateWith { it.decodedName }, emptyList())
+
+/** Turns what the compose screen is about to save or send into a [DemoMail] under [uid] -- entirely
+ *  in memory; never touches the network or the real cache. */
+internal fun outgoingDemoMail(mail: OutgoingMail, draft: Boolean, uid: Long): DemoMail {
+    val now = Instant.now()
+    val attachments = mail.attachments.mapIndexed { i, a ->
+        MailAttachment(partId = "${i + 2}", fileName = a.fileName, contentType = a.contentType, sizeBytes = a.sizeBytes, contentId = null)
+    }
+    val summary = MailSummary(
+        uid = uid, from = mail.from, replyTo = emptyList(), to = mail.to, cc = mail.cc,
+        subject = mail.subject, sentAt = now, receivedAt = now,
+        flags = MailFlags.NONE.copy(seen = true, draft = draft),
+        sizeBytes = mail.body.length.toLong(), hasAttachments = attachments.isNotEmpty(),
+        messageId = "<demo-out-$uid@${MailServerConfig.DOMAIN}>", inReplyTo = mail.inReplyTo, references = mail.references,
+    )
+    val body = MailBody(html = null, plain = mail.body, attachments = attachments, inlineImages = emptyMap())
+    return DemoMail(summary, body, if (draft) SpecialFolder.DRAFTS else SpecialFolder.SENT)
 }
