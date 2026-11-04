@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
@@ -285,6 +286,29 @@ class UseLocalRequestsTest {
             mapOf("CS1" to false, "XE1" to true, "XU1" to true, "MY1" to null),
             onV4.cache.loadCourses("1151").associate { it.courseNo to it.isUserAddedOnServer },
         )
+    }
+
+    /**
+     * Codex on round 6 (P2): a school fetch that commits a copy as the school's while Use Local
+     * runs keeps its word. Use Local's write of what it told the copy applies only over the value it
+     * read (compare-and-set), and its upload takes the copy as the phone holds it then, so it does
+     * not name a course the school lists as an add the student never made.
+     */
+    @Test
+    fun `on v4 a school fetch that tells a copy while Use Local runs keeps its word`() = runTest {
+        val onV4 = onV4()
+        val courses = listOf(olderCopy("XU1"), Course(courseNo = "MY1", courseName = "Mine", isManual = true))
+        onV4.holds("1151", courses)
+        onV4.afterReset = {
+            val fetched = listOf(Course(courseNo = "XU1", courseName = "School XU1", moodleIdNumber = "1151XU1"))
+            val merged = ClassTableCourseMerge.mergeFetched(fetched, onV4.cache.loadCourses("1151"), emptyMap(), "zh", emptySet())
+            assertTrue(onV4.cache.saveCourses(merged, "1151", signIn))
+        }
+
+        onV4.useLocal(courses, checkedRows(schoolRow = "CS1", byHandRow = "XE1"))
+
+        assertEquals(listOf("client:1151:MY1"), addsOf(onV4.backend))
+        assertEquals(mapOf("XU1" to false, "MY1" to null), onV4.cache.loadCourses("1151").associate { it.courseNo to it.isUserAddedOnServer })
     }
 
     /** A copy merged down as an older build kept it: manual, with a Moodle id, and nothing of its row. */

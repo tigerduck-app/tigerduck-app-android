@@ -93,6 +93,8 @@ internal suspend fun useLocalCourses(
     if (checked == null) {
         Log.i("SyncReenable", "[reenable] keep-local courses: no snapshot to tell merged copies by, each goes as added by hand")
     }
+    // As read, for the upload to tell a copy a write changed since (CourseSyncBackend.readFor).
+    terms.forEach { (semester, courses) -> backend.readFor(semester, courses) }
     val told = if (checked == null) terms else terms.map { (semester, courses) ->
         semester to CourseMembership.followingRows(courses, semester, checked.serverCourses.filter { it.semester == semester })
     }

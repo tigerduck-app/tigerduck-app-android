@@ -168,7 +168,7 @@ class DataCache @Inject constructor(
      * if the cache is evicted they can only be recovered from userDataDir.
      */
     suspend fun saveCourses(courses: List<Course>, semester: String, signIn: SignIn) =
-        coursesMutex.withLock { writeCourses(courses, semester, signIn) }
+        coursesMutex.withLock { writeCourses(courses, semester, signIn, before = if (courseSyncs.isEmpty()) null else loadCourses(semester)) }
 
     /**
      * [semester]'s courses as [change] makes them of the list as it stands and of the course numbers
@@ -181,7 +181,7 @@ class DataCache @Inject constructor(
     suspend fun updateCourses(semester: String, signIn: SignIn, change: suspend (List<Course>, Set<String>) -> List<Course>) =
         coursesMutex.withLock {
             val hidden = CourseTombstoneKeys.hiddenIn(semester, loadDeletedCourseNos())
-            writeCourses(change(loadCourses(semester), hidden), semester, signIn)
+            loadCourses(semester).let { current -> writeCourses(change(current, hidden), semester, signIn, current) }
         }
 
     /**
@@ -195,7 +195,7 @@ class DataCache @Inject constructor(
         coursesMutex.withLock {
             val current = loadCourses(semester)
             val updated = change(current)
-            if (updated == current || !writeCourses(updated, semester, signIn)) return@withLock null
+            if (updated == current || !writeCourses(updated, semester, signIn, current)) return@withLock null
             updated
         }
 
@@ -213,13 +213,15 @@ class DataCache @Inject constructor(
         coursesMutex.withLock { loadCourses(semester) to committedRosters[semester] }
 
     // Both files or, with [signIn] ended, neither that counts: the wipe that follows takes what landed.
-    private suspend fun writeCourses(courses: List<Course>, semester: String, signIn: SignIn): Boolean {
+    // A copy whose provenance it changed from [before], the list as stood, is noted for every sync under way.
+    private suspend fun writeCourses(courses: List<Course>, semester: String, signIn: SignIn, before: List<Course>? = null): Boolean {
         absorbLegacyCourseCache()
         val (manual, remote) = courses.partition { it.isManual }
         val written = save(remote, coursesFilename(semester), signIn) &&
             saveToUserData(manual, manualCoursesFilename(semester), signIn)
         if (!written) return false
         _coursesVersion.update { it + 1 }
+        if (before != null) courseSyncs.forEach { it.retold += CourseProvenance.retold(semester, before, courses) }
         onCoursesSaved?.invoke()
         return true
     }
@@ -839,17 +841,19 @@ class DataCache @Inject constructor(
         @Volatile
         private var supersededUpTo = Long.MIN_VALUE
 
-        internal fun noteAddBack(key: String, order: Long) {
-            noted.merge(key, order, ::maxOf)
-        }
+        // The copies whose provenance a write changed since it began, by key (CourseProvenance.retold).
+        internal val retold: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+        /** Whether a write since it began changed what [semester]'s [courseNo] says of its row: a pull's step leaves it as written. */
+        fun retoldSince(semester: String, courseNo: String): Boolean = CourseTombstoneKeys.key(semester, courseNo) in retold
+
+        internal fun noteAddBack(key: String, order: Long) { noted.merge(key, order, ::maxOf) }
 
         /** The courses added back since it began whose adds no course reset elsewhere took. */
         internal fun addedBack(): Set<String> = noted.filterValues { it > supersededUpTo }.keys
 
         /** Call it right before the fetch: an add back made from here on is newer than the snapshot. */
-        fun fetching() {
-            fetchedAfter = addsBackSoFar()
-        }
+        fun fetching() { fetchedAfter = addsBackSoFar() }
 
         /**
          * Its snapshot reads a course reset made on another device, which takes the hand-added
@@ -858,9 +862,7 @@ class DataCache @Inject constructor(
          * its upload would put the course back on every device. One made since is newer than the
          * reset, and stays.
          */
-        fun supersedeAddsBack() {
-            supersededUpTo = fetchedAfter
-        }
+        fun supersedeAddsBack() { supersededUpTo = fetchedAfter }
     }
 
     // The syncs under way, in this process only: none outlives it.
@@ -885,9 +887,7 @@ class DataCache @Inject constructor(
         addsUnderWay.forEach { (key, underWay) -> sync.noteAddBack(key, underWay.second) }
     }
 
-    fun endCourseSync(sync: CourseSync) {
-        courseSyncs -= sync
-    }
+    fun endCourseSync(sync: CourseSync) { courseSyncs -= sync }
 
     /**
      * Lifts [semester]'s hide of [courseNo], which the class table's add puts back in the term,

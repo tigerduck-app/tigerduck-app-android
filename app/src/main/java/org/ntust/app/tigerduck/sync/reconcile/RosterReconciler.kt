@@ -249,15 +249,23 @@ class RosterReconciler @Inject constructor(
             dataCache, run.courseSync, semester, read, run.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
             outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),
         )
-        // On /v4 the copies merged down before follow their rows, for the term's uploads' adds, this
-        // pull's own upload of a term the server holds nothing of included. The pull covers the term.
-        val sending = if (membership == null) outcome else {
+        // On /v4 the copies merged down before follow their rows, for the term's uploads' adds; the
+        // pull covers the term. One a write told since the sync began keeps that (compare-and-set).
+        if (membership != null) {
             val rows = rowsBySemester[semester].orEmpty()
             val held = CourseMembership.heldIn(result, semester)
-            dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rows, held) }
-            outcome.copy(toUpload = CourseMembership.followingRows(outcome.toUpload, semester, rows, held))
+            dataCache.updateCoursesIfChanged(semester, signIn) { courses ->
+                CourseMembership.followingRows(courses, semester, rows, held) { run.courseSync.retoldSince(semester, it) }
+            }
         }
-        if (sending.uploadLocal) uploadTerm(run, semester, sending)
+        if (!outcome.uploadLocal) return wrote
+        if (membership == null) uploadTerm(run, semester, outcome) else pendingCourseAdds.uploading {
+            // As the term is committed, read under the lock a school fetch commits and uploads under:
+            // a copy it made the school's since the pull read the term goes as that (Codex on round 6).
+            val stored = dataCache.loadCourses(semester).associateBy { it.courseNo }
+            val toUpload = outcome.toUpload.mapNotNull { stored[it.courseNo] }
+            if (toUpload.isNotEmpty()) uploadTerm(run, semester, outcome.copy(toUpload = toUpload))
+        }
         return wrote
     }
 
