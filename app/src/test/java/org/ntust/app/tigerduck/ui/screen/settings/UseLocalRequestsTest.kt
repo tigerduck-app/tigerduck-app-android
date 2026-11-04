@@ -281,30 +281,61 @@ class UseLocalRequestsTest {
     @Test
     fun `on v4 Use Local tells each copy no snapshot has told about by the rows the re-enable check compared`() = runTest {
         val onV4 = onV4()
-        val older = { no: String -> Course(courseNo = no, courseName = no, moodleIdNumber = "1151$no", isManual = true) }
-        val courses = listOf(older("CS1"), older("XE1"), older("XU1"), Course(courseNo = "MY1", courseName = "Mine", isManual = true))
+        val courses = listOf(olderCopy("CS1"), olderCopy("XE1"), olderCopy("XU1"), Course(courseNo = "MY1", courseName = "Mine", isManual = true))
         onV4.holds("1151", courses)
-        val checked = BackendSyncResult(
-            ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = setOf("CS1", "XE1"),
-            serverCourses = listOf(
-                ServerCourse(courseNo = "CS1", courseName = "CS1", semester = "1151", moodleId = "1151CS1", source = "ntust_portal"),
-                ServerCourse(courseNo = "XE1", courseName = "XE1", semester = "1151", moodleId = "1151XE1", source = "user_added"),
-            ),
-            currentRevision = 1,
+
+        onV4.useLocal(courses, checkedRows(schoolRow = "CS1", byHandRow = "XE1"))
+
+        assertEquals(listOf("client:1151:MY1", "client:1151:XE1", "client:1151:XU1"), addsOf(onV4.backend).sorted())
+    }
+
+    /**
+     * Codex on round 5 (P2 #1): what Use Local tells each copy by the check's rows stays on the phone
+     * with its upload, and so does a copy it adds now, as added by hand. A copy a stale `false` held,
+     * which the check shows as added by hand, would otherwise go unnamed in the next upload before a
+     * pull, and the backend would make its row a school row.
+     */
+    @Test
+    fun `on v4 Use Local keeps on the phone what it told each copy, and a copy it adds now as added by hand`() = runTest {
+        val onV4 = onV4()
+        val stale = olderCopy("XE1").copy(isUserAddedOnServer = false)
+        val courses = listOf(olderCopy("CS1"), stale, olderCopy("XU1"), Course(courseNo = "MY1", courseName = "Mine", isManual = true))
+        onV4.holds("1151", courses)
+
+        onV4.useLocal(courses, checkedRows(schoolRow = "CS1", byHandRow = "XE1"))
+
+        assertEquals(listOf("client:1151:MY1", "client:1151:XE1", "client:1151:XU1"), addsOf(onV4.backend).sorted())
+        assertEquals(
+            mapOf("CS1" to false, "XE1" to true, "XU1" to true, "MY1" to null),
+            onV4.cache.loadCourses("1151").associate { it.courseNo to it.isUserAddedOnServer },
         )
+    }
+
+    /** A copy merged down as an older build kept it: manual, with a Moodle id, and nothing of its row. */
+    private fun olderCopy(no: String) = Course(courseNo = no, courseName = no, moodleIdNumber = "1151$no", isManual = true)
+
+    /** The snapshot the re-enable check compared: 1151's school row [schoolRow] and hand-added row [byHandRow]. */
+    private fun checkedRows(schoolRow: String, byHandRow: String) = BackendSyncResult(
+        ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = setOf(schoolRow, byHandRow),
+        serverCourses = listOf(
+            ServerCourse(courseNo = schoolRow, courseName = schoolRow, semester = "1151", moodleId = "1151$schoolRow", source = "ntust_portal"),
+            ServerCourse(courseNo = byHandRow, courseName = byHandRow, semester = "1151", moodleId = "1151$byHandRow", source = "user_added"),
+        ),
+        currentRevision = 1,
+    )
+
+    /** Use Local over [courses] in 1151, answered with [checked], as Settings runs it. */
+    private suspend fun OnV4.useLocal(courses: List<Course>, checked: BackendSyncResult) {
         val host = object : UseLocalHost {
             override fun beginReset(semester: String) = true
             override fun endReset(semester: String) = Unit
             override suspend fun stampReset(semester: String, atMs: Long) = Unit
             override fun askAgain() = Unit
         }
-
         useLocalCourses(
-            terms = listOf("1151" to courses), hiding = emptySet(), backend = onV4.courses, customNames = emptyMap(),
+            terms = listOf("1151" to courses), hiding = emptySet(), backend = this.courses, customNames = emptyMap(),
             portalCached = { true }, latch = UseLocalLatch(listOf("1151"), host), host = host, checked = checked, isCurrent = { true },
         )
-
-        assertEquals(listOf("client:1151:MY1", "client:1151:XE1", "client:1151:XU1"), addsOf(onV4.backend).sorted())
     }
 
     @Test

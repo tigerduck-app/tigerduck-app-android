@@ -241,7 +241,60 @@ class V4MergedCoursesTest {
     }
 
     /** A copy merged down as an older build kept it: manual, with a Moodle id, and nothing of its row. */
-    private fun olderCopy(no: String) = Course(courseNo = no, courseName = "Course $no", moodleIdNumber = "$TERM$no", isManual = true)
+    private fun olderCopy(no: String, term: String = TERM) = Course(courseNo = no, courseName = "Course $no", moodleIdNumber = "$term$no", isManual = true)
+
+    /** What each of [term]'s courses on the phone says of its row. */
+    private suspend fun provenance(term: String) = w.dataCache.loadCourses(term).associate { it.courseNo to it.isUserAddedOnServer }
+
+    /** The course uploads of [term]. */
+    private fun uploadsOf(term: String) = uploads().filter { it.getJSONArray("courses").getJSONObject(0).getString("semester") == term }
+
+    /**
+     * Codex on round 5 (P2 #2): a full snapshot that holds neither a row nor a tombstone of a copy no
+     * pull has told about, in a term the pull covers, tells the copy it is the student's own: the
+     * backend holds nothing of it, and the school's fetch has not listed it, which would have made it
+     * the school's. It then goes up named, an add at 0 that creates its `user_added` row, in the
+     * pull's own upload of a term the server holds nothing of too. Home's pull covers every term.
+     */
+    @Test
+    fun `a copy the snapshot holds nothing of goes up as added by hand after Home's pull`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        w.appPrefs.semesterCatalogTerms = listOf(TERM, PAST)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000002"), olderCopy("XU0000007")), TERM, signIn))
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XU0000008", PAST)), PAST, signIn))
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002")))
+
+        rig.home.sync.pull(state, signIn)
+
+        assertEquals(mapOf("XA0000002" to false, "XU0000007" to true), provenance(TERM))
+        assertEquals(mapOf("XU0000008" to true), provenance(PAST))
+        val past = uploadsOf(PAST).single()
+        assertEquals(listOf("XU0000008"), past.courseNos())
+        assertEquals(listOf("client:$PAST:XU0000008"), past.adds())
+
+        uploadTaken("XA0000002", "XU0000007")
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
+
+        val term = uploadsOf(TERM).single()
+        assertEquals(listOf("XA0000002", "XU0000007"), term.courseNos().sorted())
+        assertEquals(listOf(key("XU0000007")), term.adds())
+        assertEquals(emptyList<String>(), rules.refused)
+    }
+
+    /** The background's pull covers its own term alone: another term's untold copy stays untold. */
+    @Test
+    fun `a background pull tells a copy the snapshot holds nothing of in its own term alone`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        w.appPrefs.semesterCatalogTerms = listOf(TERM, PAST)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XA0000002"), olderCopy("XU0000007")), TERM, signIn))
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XU0000008", PAST)), PAST, signIn))
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XA0000002")))
+
+        assertEquals(SyncOutcome.SYNCED, backgroundPass())
+
+        assertEquals(mapOf("XA0000002" to false, "XU0000007" to true), provenance(TERM))
+        assertEquals(mapOf<String, Boolean?>("XU0000008" to null), provenance(PAST))
+    }
 
     @Test
     fun `a copy an older build merged of a row added by hand elsewhere is named once Home's pull lists it`() =
@@ -349,6 +402,7 @@ class V4MergedCoursesTest {
         const val STUDENT = "B00015999"
         const val STORED = "http://127.0.0.1:9/v3"
         const val TERM = "1151"
+        const val PAST = "1141"
         const val SERVER_HLC = 1_793_000_000_000_000L
         val IN_TERM: LocalDateTime = LocalDateTime.of(2026, 10, 15, 10, 0)
         const val FIRST_RUN_MS = 1_760_000_000_000L

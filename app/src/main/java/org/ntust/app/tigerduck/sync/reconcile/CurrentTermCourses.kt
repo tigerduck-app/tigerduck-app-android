@@ -150,8 +150,8 @@ internal class CurrentTermCourses(
             localCourses, pruned, outcome.left, outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides, signIn,
             membership.gone,
         )
-        // The copies merged down follow their rows, for the term's uploads' adds.
-        dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rows) }
+        // The copies merged down follow their rows, for the term's uploads' adds; the pull covers this term alone.
+        dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rows, CourseMembership.heldIn(result, semester)) }
     }
 
     private companion object {

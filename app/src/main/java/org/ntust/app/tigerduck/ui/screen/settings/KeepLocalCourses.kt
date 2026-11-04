@@ -126,8 +126,24 @@ internal class PushCourseSyncBackend(
             courses.filter { CourseUploadPayload.isAddedByHand(it) || CourseUploadPayload.isUntoldCopy(it) }
                 .associate { it.courseNo to api.stampMs() }
         }
+        if (stampsOverrides) keepTold(courses, semester, addedAt.keys)
         // Null: switched off between the check and the request.
         api.uploadCoursesAnswered(courses, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
+    }
+
+    // What Use Local told each copy merged down ([courses], as useLocalCourses told them), and each
+    // copy it adds now ([added]), added by hand, kept on the phone before the upload (Codex on
+    // round 5): the next upload, before any pull, goes by it, not by a stale value.
+    private suspend fun keepTold(courses: List<Course>, semester: String, added: Set<String>) {
+        val told = courses.filter { it.isManual && !it.moodleIdNumber.isNullOrEmpty() }
+            .associate { it.courseNo to (it.courseNo in added || it.isUserAddedOnServer == true) }
+        if (told.isEmpty()) return
+        dataCache.updateCoursesIfChanged(semester, signIn) { current ->
+            current.map { course ->
+                val value = told[course.courseNo]?.takeIf { course.isManual && !course.moodleIdNumber.isNullOrEmpty() }
+                if (value == null || value == course.isUserAddedOnServer) course else course.copy(isUserAddedOnServer = value)
+            }
+        }
     }
 
     override suspend fun hideCourse(courseKey: String) {

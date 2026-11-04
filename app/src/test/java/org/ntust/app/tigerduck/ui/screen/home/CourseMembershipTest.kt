@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.TombstoneKind
@@ -213,5 +214,29 @@ class CourseMembershipTest {
             followed.associate { it.courseNo to it.isUserAddedOnServer },
         )
         assertEquals("followed again, nothing changes", followed, CourseMembership.followingRows(followed, term, rows))
+    }
+
+    /**
+     * Codex on round 5 (P2 #2): a pull that covers the term tells a copy no snapshot has told about,
+     * of a number its full snapshot holds neither a row nor a tombstone of, that it was added by
+     * hand. One whose number it holds a tombstone of tells nothing, nor does a term a reset covers,
+     * where an add at 0 would lose; a copy told already keeps what it was told.
+     */
+    @Test
+    fun `a pull covering the term tells a copy it holds nothing of that it was added by hand`() {
+        val held = listOf(mergedCopy("U"), mergedCopy("T"), mergedCopy("F").copy(isUserAddedOnServer = false), handAdded("H"))
+        val snapshot = { termResets: Map<String, Long>? ->
+            BackendSyncResult(
+                ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = setOf("A"),
+                serverCourses = listOf(row("A")), currentRevision = 1, tombstones = listOf(tombstone("T", TombstoneKind.HIDE, 100)),
+                termResets = termResets,
+            )
+        }
+
+        val covered = CourseMembership.followingRows(held, term, listOf(row("A")), CourseMembership.heldIn(snapshot(null), term))
+        assertEquals(mapOf("U" to true, "T" to null, "F" to false, "H" to null), covered.associate { it.courseNo to it.isUserAddedOnServer })
+
+        assertEquals(null, CourseMembership.heldIn(snapshot(mapOf(term to 50L)), term))
+        assertEquals("not covered, nothing told", held, CourseMembership.followingRows(held, term, listOf(row("A"))))
     }
 }

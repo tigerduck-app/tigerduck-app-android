@@ -80,7 +80,9 @@ data class Course(
      * snapshot that listed its row said of it: true when the backend holds the row as added by
      * hand, on whichever device (`source = user_added`), false when it is a school row. Null while
      * none has told this copy: one cached before this field existed, or merged by `/v3`. A copy the
-     * school's fetch lists is the school's, false. Meaningless for any other course: one added on
+     * school's fetch lists is the school's, false; one a pull's full snapshot of its term holds
+     * nothing of is the student's own, true, and Use Local keeps what it tells each copy, a copy it
+     * adds now true. Meaningless for any other course: one added on
      * this phone has no Moodle id, which tells it apart, and one fetched from the school is the
      * school's.
      *

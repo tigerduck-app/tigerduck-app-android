@@ -249,11 +249,15 @@ class RosterReconciler @Inject constructor(
             dataCache, run.courseSync, semester, read, run.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
             outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),
         )
-        // On /v4 the copies merged down before follow their rows, for the term's uploads' adds.
-        if (membership != null) {
-            dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rowsBySemester[semester].orEmpty()) }
+        // On /v4 the copies merged down before follow their rows, for the term's uploads' adds, this
+        // pull's own upload of a term the server holds nothing of included. The pull covers the term.
+        val sending = if (membership == null) outcome else {
+            val rows = rowsBySemester[semester].orEmpty()
+            val held = CourseMembership.heldIn(result, semester)
+            dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rows, held) }
+            outcome.copy(toUpload = CourseMembership.followingRows(outcome.toUpload, semester, rows, held))
         }
-        if (outcome.uploadLocal) uploadTerm(run, semester, outcome)
+        if (sending.uploadLocal) uploadTerm(run, semester, sending)
         return wrote
     }
 
