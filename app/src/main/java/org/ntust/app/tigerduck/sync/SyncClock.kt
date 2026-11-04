@@ -88,11 +88,21 @@ class SyncClock internal constructor(
      * refused as ahead"; iOS resends one microsecond past it). The last value issued is never lowered
      * for it, and each restamp follows the one before, so a still wall clock never issues one value
      * twice (Telegram 1638, 1651). An answer with no plausible clock is stamped as an edit made now.
+     *
+     * Nor does it fall below the last value seen: the refusal's clock is the backend's wall clock,
+     * which took an earlier edit stamped up to five seconds past it, and every write's answer gives
+     * back the stamp the backend kept, which this clock hears ([heardInSnapshot]). A restamp at or
+     * below that stamp would lose to it (last writer wins: ties and older lose), and the student's
+     * newer value would revert (Codex on PR P); so would one below another device's edit this phone
+     * has seen. A value seen was at most the backend's time plus five seconds when it was stored, so
+     * the restamp stays within the refusal's clock plus five seconds, but by a millisecond at the
+     * edge, when the backend refuses it once more, and the channels send it at the next sync.
      */
     fun restampAfterClockAhead(serverClockUs: Long?): Long = synchronized(lock) {
         val refusedAt = serverClockUs?.takeIf(::isPlausibleClockUs) ?: return@synchronized stampMs()
         heard(refusedAt)
-        val stamp = maxOf(Math.floorDiv(refusedAt, 1_000L), lastRestampMs) + 1
+        // In whole ms, strictly past each value in µs: the refusal's clock, and the last value seen.
+        val stamp = maxOf(Math.floorDiv(refusedAt, 1_000L), lastRestampMs, Math.floorDiv(state().lastSeenUs, 1_000L)) + 1
         lastRestampMs = stamp
         val state = state()
         // Below the last value issued, as it is for an edit stamped ahead, it leaves that alone.

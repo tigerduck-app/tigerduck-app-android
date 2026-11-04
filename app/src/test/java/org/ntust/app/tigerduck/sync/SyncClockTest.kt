@@ -120,6 +120,33 @@ class SyncClockTest {
         assertEquals("the last value issued is never lowered", offline + 1, SyncClockStore(file).load().lastIssuedMs)
     }
 
+    /**
+     * Codex on PR P (P2 1): the backend's 409 clock is its wall clock, and it took an earlier edit
+     * of this device's stamped up to five seconds past it, which its answer gave back and the clock
+     * heard (`WriteClock.answer`). A restamp one tick past the refusal's clock fell below that stamp
+     * and lost to it (last writer wins: ties and older lose), so the student's newer value reverted.
+     * It stays above it, and within the refusal's clock plus five seconds, after a relaunch too.
+     */
+    @Test
+    fun `a restamp stays above this device's own earlier edit the backend took`() {
+        val clock = clock()
+        clock.heard(us(T))
+        now = T + 3_999
+        assertEquals("under the cap, so the backend takes it", T + 4_000, clock.stampMs())
+        // The edit's answer gives back the stamp it kept.
+        clock.heardInSnapshot(us(T + 4_000))
+        // The wall clock jumps, and the next edit, far ahead, is refused at the backend's T + 1 s.
+        now = T + 10 * MINUTE
+        clock.stampMs()
+
+        val restamp = clock.restampAfterClockAhead(us(T + 1_000))
+        val afterRelaunch = clock().restampAfterClockAhead(us(T + 1_000))
+
+        assertTrue("above the edit the backend took: $restamp", restamp > T + 4_000)
+        assertTrue("within the refusal's clock plus five seconds: $restamp", restamp <= T + 1_000 + 5_000)
+        assertTrue("after a relaunch, above it still: $afterRelaunch", afterRelaunch in T + 4_001..T + 1_000 + 5_000)
+    }
+
     @Test
     fun `a refusal with no clock in its answer stamps after the last one issued`() {
         val clock = clock()
