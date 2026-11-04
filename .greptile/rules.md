@@ -120,7 +120,7 @@ data points.
 ## Course-override endpoint ID format — course_key, not moodle_id
 
 - Every request that PATCHes `/sync/courses/{id}/override` names the course
-  by its course key, `client:{semester}:{course_no}`: the colours and names
+  by its course key, `client:{semester}:{course_no}`: the colors and names
   through `PendingCourseOverrides` (`CourseOverrideSends` builds the key from
   the change's own term and number, or, for a row an older build kept with no
   term, from where its Moodle id leads, `legacyPlaceOf`), Use Local's stamped
@@ -131,7 +131,7 @@ data points.
   course key as the path segment, and do **not** suggest
   `Course.moodleIdNumber` or `"{semester}{courseNo}"` in its place. A change
   whose key cannot be built sends nothing (`CourseRef.named` throws
-  `CourseKeyUnknownException`) and stays queued: a colour or name parks until
+  `CourseKeyUnknownException`) and stays queued: a color or name parks until
   a course upload lands, an ignore waits for the next sync. Do not flag that
   as a lost edit.
     - **Why:** `/v4` renamed the route to `courses/{course_key}/override`
