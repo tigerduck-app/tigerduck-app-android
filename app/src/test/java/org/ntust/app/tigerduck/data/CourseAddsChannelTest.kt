@@ -119,24 +119,20 @@ class CourseAddsChannelTest {
         throw AssertionError("the queue did not settle")
     }
 
-    /** An add asked again keeps the later moment, the newer add's; one asked again with none has none. */
+    /** An add asked again keeps the later moment, the newer add's. */
     @Test
-    fun `on v3 an add asked again keeps the later moment, and one asked with none has none`() = runTest {
+    fun `an add asked again keeps the later moment`() = runTest {
         cache.saveCourses(listOf(typed), term, signIn)
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> throw java.io.IOException("offline") })
 
         adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L, signIn = signIn)
         adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn)
         assertEquals(mapOf(term to mapOf(typed.courseNo to 6_000L)), cache.loadPendingCourseAddTimes())
-
-        adds.send(listOf(typed), term, typed.courseNo, signIn = signIn)
-        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
-        assertEquals(mapOf(term to listOf(typed.courseNo)), cache.loadPendingCourseAdds())
     }
 
     /** An add is never given up on for its refusals: every sync sends it again, as before it was a channel. */
     @Test
-    fun `on v3 an add refused time after time still goes at every sync`() = runTest {
+    fun `an add refused time after time still goes at every sync`() = runTest {
         cache.saveCourses(listOf(typed), term, signIn)
         var refusals = 0
         val adds = PendingCourseAdds(cache, { courses, _, _, _, _ ->
@@ -145,7 +141,7 @@ class CourseAddsChannelTest {
         })
         adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn)
 
-        repeat(6) { adds.retry(signIn) }
+        repeat(6) { adds.drain(signIn) }
 
         assertEquals(7, refusals)
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -156,7 +152,7 @@ class CourseAddsChannelTest {
      * of the send lock, after a DELETE that was waiting for the lock before it, as it always went.
      */
     @Test
-    fun `on v3 a re-add made while its first upload is out goes at its own turn of the send lock`() = runTest {
+    fun `a re-add made while its first upload is out goes at its own turn of the send lock`() = runTest {
         cache.saveCourses(listOf(typed), term, signIn)
         val events = mutableListOf<String>()
         val out = CompletableDeferred<Unit>()
@@ -245,12 +241,12 @@ class CourseAddsChannelTest {
         val adds = v4Adds()
         backend.answer(upload, 500, "{}")
 
-        adds.retry(signIn)
+        adds.drain(signIn)
         assertEquals(mapOf("1141" to mapOf("CS1001" to 1_700_000_000_000L, "CS1002" to FILE_MS)), cache.loadPendingCourseAddTimes())
 
         nowMs += 60_000
         backend.answer(upload, 200, """{"accepted_keys":["client:1141:CS1001","client:1141:CS1002"]}""")
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         val body = """{"courses":[${row(one, "1141")},${row(two, "1141")}],""" +
             """"adds":[{"course_key":"client:1141:CS1001","hlc":1700000000000000},{"course_key":"client:1141:CS1002","hlc":${FILE_MS * 1_000}}]}"""
@@ -276,7 +272,7 @@ class CourseAddsChannelTest {
 
         prefs.syncCourses = true
         backend.answer(upload, 200, """{"accepted_keys":["${key(typed)}"]}""")
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         assertEquals(
             listOf(
@@ -356,7 +352,7 @@ class CourseAddsChannelTest {
         val before = listOf("pending_course_adds.json", "pending_course_add_times.json").map { File(folder, it).readText() }
 
         val ended = series.end()
-        adds.retry(ended)
+        adds.drain(ended)
         adds.send(listOf(one, two), "1141", "CS1009", addedAt = 2L, signIn = ended)
         adds.queueAsOldest("1141", "CS1010", ended)
         adds.listed(listOf(org.ntust.app.tigerduck.push.ServerCourse(courseNo = "CS1001", courseName = "One", semester = "1141")), ended)
@@ -410,7 +406,7 @@ class CourseAddsChannelTest {
         assertEquals(mapOf(term to mapOf(typed.courseNo to 1_790_000_000_123L, untyped.courseNo to 0L)), cache.loadPendingCourseAddTimes())
 
         backend.sent.clear()
-        adds.retry(signIn)
+        adds.drain(signIn)
         assertEquals(
             """{"courses":[${row(typed)},${row(untyped)}],"adds":[{"course_key":"${key(typed)}","hlc":1790000000123000},""" +
                 """{"course_key":"${key(untyped)}","hlc":0}]}""",

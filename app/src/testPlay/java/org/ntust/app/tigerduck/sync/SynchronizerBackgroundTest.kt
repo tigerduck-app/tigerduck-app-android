@@ -53,6 +53,7 @@ import java.util.Collections
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import org.ntust.app.tigerduck.push.WriteAnswer
 
 /**
  * The background mode of the one synchronizer over the real stores and clients: the worker's
@@ -107,7 +108,12 @@ class SynchronizerBackgroundTest {
         .put("courses", JSONArray())
         .put("course_overrides", JSONArray())
         .put("current_revision", 42)
+        .put("server_hlc", 1_793_000_000_000_000L)
         .toString()
+
+    /** Every category has synced on this phone before: the background takes the server's (C2, LWW D13). */
+    private fun syncedBefore() =
+        assertTrue(w.appPrefs.school.syncedCategories.set(SyncCategory.entries.mapTo(HashSet()) { it.stored }, signIn))
 
     /** The worker's run, off the main thread it posts to, with only the backend sync due. */
     private fun runWorker(): ListenableWorker.Result {
@@ -198,6 +204,7 @@ class SynchronizerBackgroundTest {
 
     @Test
     fun `a background pass takes the server's ignored courses with no screen to show them on`() = runBlocking {
+        syncedBefore()
         val term = w.courseService.currentSemesterCode()
         val snapshot = JSONObject(snapshot())
             .put("courses", JSONArray().put(JSONObject().put("course_no", "CS1001").put("course_name", "Kept").put("semester", term).put("moodle_id", "${term}CS1001")))
@@ -224,7 +231,7 @@ class SynchronizerBackgroundTest {
         context, w, backend.client, idleScope,
         ignores = CourseIgnoreSync(
             w.dataCache,
-            sender = { _, _, _, _, _ -> true },
+            writer = { _, ignore, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
             effects = { whileIgnoring() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,
@@ -247,6 +254,7 @@ class SynchronizerBackgroundTest {
 
     @Test
     fun `a color switch turned off while the background ignores step runs keeps the snapshot's color off this phone`() = runBlocking {
+        syncedBefore()
         val term = w.courseService.currentSemesterCode()
         w.dataCache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Kept", moodleIdNumber = "${term}CS1001")), term, signIn)
         val rig = rigTurning({ w.appPrefs.syncCourseColors = false })
@@ -260,6 +268,7 @@ class SynchronizerBackgroundTest {
 
     @Test
     fun `a course switch turned off while the background ignores step runs leaves the course list and its roster requests`() = runBlocking {
+        syncedBefore()
         val term = w.courseService.currentSemesterCode()
         val asked = mutableListOf<String>()
         val rig = rigTurning({ w.appPrefs.syncCourses = false }, asked)

@@ -146,6 +146,26 @@ class CourseMembershipTest {
         assertEquals(setOf(hide("C")), out.hides)
     }
 
+    /**
+     * A copy merged down follows a removal or a reset whatever its row was (V's question for Z2):
+     * this phone did not get it from the school, so no roster of its own lists it again. Read by
+     * its row's provenance instead, a copy of a school row would stay after a reset elsewhere, and
+     * the term's next upload would send it back as a school row, undoing the reset. A course this
+     * phone fetched from the school stays, for its roster to list again.
+     */
+    @Test
+    fun `a reset takes a copy merged down of a school row too, told or not, and leaves a course fetched here`() {
+        val schoolRowCopy = mergedCopy("A").copy(isUserAddedOnServer = false)
+        val untoldCopy = mergedCopy("B")
+        val out = reconcile(
+            local = listOf(schoolRowCopy, untoldCopy, school("C")),
+            tombstones = listOf(tombstone("A", TombstoneKind.RESET, 100), tombstone("B", TombstoneKind.RESET, 100), tombstone("C", TombstoneKind.RESET, 100)),
+        )
+
+        assertEquals(setOf("A", "B"), out.gone)
+        assertEquals(emptySet<String>(), out.hides)
+    }
+
     /** #689: an add waiting while a reset elsewhere tombstones the course keeps it until the backend answers. */
     @Test
     fun `an add waiting to go up keeps its course over a reset's tombstone`() {

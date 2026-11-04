@@ -26,7 +26,7 @@ class SynchronizerOrderTest {
     private val log: MutableList<String> = Collections.synchronizedList(mutableListOf())
     private val school = SignInSeries()
     private val policy = SyncPolicy(
-        cloudSync = true, flavorSyncs = true, switchedOn = SyncCategory.entries.toSet(), held = emptySet(), lastWriterWins = false,
+        cloudSync = true, flavorSyncs = true, switchedOn = SyncCategory.entries.toSet(), held = emptySet(),
     )
     private var result = BackendSyncResult(
         ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = emptySet(), currentRevision = 1,
@@ -108,7 +108,6 @@ class SynchronizerOrderTest {
         marks = step("marks", marks),
         ignores = step("ignores"),
         overrides = step("overrides", overrides),
-        reset = step("course reset"),
         holidays = step("holidays"),
         roster = step("course list and roster requests", roster),
         firstSync = step("first sync", took = false),
@@ -122,7 +121,7 @@ class SynchronizerOrderTest {
         assertEquals(
             listOf(
                 "may run", "course window opens", "retries", "deletes stamped", "fetching", "fetch", "adds listed", "policy read",
-                "first sync", "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
+                "first sync", "marks", "ignores", "overrides", "holidays", "course list and roster requests",
                 "categories taken", "watermark", "gate opens", "status", "after-steps", "course window closes",
             ),
             log.toList(),
@@ -139,7 +138,7 @@ class SynchronizerOrderTest {
             listOf(
                 "background may run", "background course window opens", "retries", "background deletes stamped",
                 "background fetching", "background fetch", "background adds listed", "background policy read",
-                "first sync", "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
+                "first sync", "marks", "ignores", "overrides", "holidays", "course list and roster requests",
                 "background categories taken", "background watermark", "background gate opens", "background status",
                 "background after-steps", "caller's after-steps", "background course window closes",
             ),

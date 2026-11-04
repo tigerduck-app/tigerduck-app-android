@@ -140,17 +140,16 @@ class FirstSyncTest {
         courseSync = DataCache.CourseSync(0L) { 0L },
         beforeFetch = 0L,
         syncedBefore = syncedBefore,
-        heldFields = outbox::heldFields,
     )
 
     private fun steps() = listOf(
         FirstSyncReconciler(w.dataCache, marks, ignores, overrides, deletes),
-        MarksReconciler(w.appPrefs, w.dataCache, marks, w.pushApi),
+        MarksReconciler(w.appPrefs, w.dataCache),
         IgnoresReconciler(ignores),
         OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs),
         RosterReconciler(
             w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
-            idleTermSync(w), idleScope, w.appPrefs, policies,
+            idleTermSync(w), idleScope, policies,
         ),
     )
 
@@ -224,13 +223,12 @@ class FirstSyncTest {
         assertEquals(listOf("#123456" to 0L), sent.map { it.getString("color_hex") to it.getLong("hlc") })
     }
 
-    /** On /v3, and in the background (C2), a first sync queues nothing: /v3 keeps its own first-sync upload. */
+    /** In the background (C2), a first sync queues nothing: it is Home's. */
     @Test
-    fun `the first sync queues nothing on v3 or in the background`() = runBlocking {
+    fun `the first sync queues nothing in the background`() = runBlocking {
         seed()
         val firstSync = FirstSyncReconciler(w.dataCache, marks, ignores, overrides, deletes)
 
-        firstSync.reconcile(pass(emptySnapshot().copy(serverHlc = null), syncedBefore = emptySet()))
         firstSync.reconcile(pass(emptySnapshot(), syncedBefore = emptySet(), mode = SyncMode.BACKGROUND))
 
         assertTrue(w.dataCache.loadUnsentMarks().isEmpty() && w.dataCache.loadPendingCourseIgnores().isEmpty())

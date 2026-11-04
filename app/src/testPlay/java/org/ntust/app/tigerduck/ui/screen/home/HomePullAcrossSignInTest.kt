@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.ntust.app.tigerduck.push.WriteAnswer
 
 /**
  * The same student signs out and back in while Home's full sync has its fetch out. The student ID
@@ -86,7 +87,7 @@ class HomePullAcrossSignInTest {
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
         val ignores = CourseIgnoreSync(
             w.dataCache,
-            sender = { _, _, _, _, _ -> true },
+            writer = { _, ignore, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
             effects = { ignoresChanged() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,

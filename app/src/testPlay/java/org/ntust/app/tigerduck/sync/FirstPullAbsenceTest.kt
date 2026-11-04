@@ -25,7 +25,6 @@ import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.RecordedSelection
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
@@ -41,8 +40,8 @@ import org.robolectric.annotation.Config
 /**
  * Codex on PR R, finding 1: in a fresh process, a school fetch commits a course the student just
  * enrolled in and its upload waits for the first pull, so the backend does not list it yet. That
- * pull must not take the absence for a delete made elsewhere (`/v3`'s rule for a school course
- * the term's rows leave out), or the course is hidden for good and its upload leaves it out too.
+ * pull must not take the absence for a delete made elsewhere, or the course is hidden for good
+ * and its upload leaves it out too.
  * The background's term fetch, and the class table's, as they ask for the upload; Home's pull over
  * the real stores. Made-up account and courses.
  */
@@ -73,13 +72,12 @@ class FirstPullAbsenceTest {
         pendingOverrides = mutableSetOf(),
     )
 
-    /** Over a backend at [api], `v4`, or null for a base that names no version, which takes `/v4`'s rules too. */
-    private fun setUp(api: String?) {
+    /** Over a backend at `/v4`. */
+    private fun setUp() {
         WorkManagerTestInitHelper.initializeTestWorkManager(context)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = backend.client)
-        w.appPrefs.announcementApiBaseUrlOverride = if (api == null) "http://127.0.0.1:9" else "http://127.0.0.1:9/$api"
-        prefix = if (api == "v4") "/v4" else ""
+        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4"
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
         runBlocking {
@@ -91,9 +89,7 @@ class FirstPullAbsenceTest {
         w.appPrefs.semesterCatalogTerms = listOf(term)
         // The process's gate, shut: no pull has landed yet.
         gate = FirstPullGate(w.sessions, idleScope)
-        uploads = SchoolUploads(gate, appScope, w.dataCache, {
-            BackendApi.of(resolveAnnouncementEndpoint(w.appPrefs).url.trimEnd('/'))
-        }) { assignments, s -> w.pushApi.uploadAssignments(assignments, s) }
+        uploads = SchoolUploads(gate, appScope, w.dataCache) { assignments, s -> w.pushApi.uploadAssignments(assignments, s) }
         termSync = TermCourseSync(
             w.dataCache,
             sources = object : TermCourseSync.Sources {
@@ -121,7 +117,7 @@ class FirstPullAbsenceTest {
     }
 
     // The version segment the requests' paths begin with, as the scripted backend names them.
-    private var prefix = ""
+    private val prefix = "/v4"
 
     private fun row(no: String) = JSONObject()
         .put("id", no.hashCode().toLong() and 0xFFFF).put("semester", term).put("course_key", "client:$term:$no").put("course_no", no)
@@ -176,23 +172,10 @@ class FirstPullAbsenceTest {
         List(courses.length()) { courses.getJSONObject(it).getString("course_no") }
     }
 
-    /**
-     * A base that names no version takes `/v4`'s rules: a fetched course's upload waits for the first
-     * pull, which takes no absence for a delete, so the course stays. Whether the background's fetch
-     * or the class table's.
-     */
+    /** The class table's fetch as the background's: its course stays through the first pull. */
     @Test
-    fun `on a base that names no version the background's fetched course its upload waits for stays`() = runBlocking {
-        setUp(null)
-        pullOver(::backgroundFetch)
-
-        assertEquals("hidden", emptySet<String>(), hidden())
-        assertEquals(setOf(OLD, NEW), shown())
-    }
-
-    @Test
-    fun `on a base that names no version the class table's fetched course its upload waits for stays`() = runBlocking {
-        setUp(null)
+    fun `on v4 the class table's fetched course its upload waits for stays`() = runBlocking {
+        setUp()
         pullOver(::classTableFetch)
 
         assertEquals("hidden", emptySet<String>(), hidden())
@@ -202,7 +185,7 @@ class FirstPullAbsenceTest {
     /** `/v4` takes no absence for a delete: membership follows the tombstones (LWW D10). */
     @Test
     fun `on v4 a fetched course its upload waits for stays too`() = runBlocking {
-        setUp("v4")
+        setUp()
         pullOver(::backgroundFetch)
 
         assertEquals("hidden", emptySet<String>(), hidden())
@@ -218,7 +201,7 @@ class FirstPullAbsenceTest {
      */
     @Test
     fun `on v4 a fetch a newer answer stopped from asking for its upload loses no course to the first pull`() = runBlocking {
-        setUp("v4")
+        setUp()
         val older = (w.dataCache.recordSelectionRoster(term, listOf(OLD, NEW), signIn) as RecordedSelection.Kept).answer
         val committed = listOf(OLD, NEW).map { Course(courseNo = it, courseName = "School $it", moodleIdNumber = "$term$it") }
         // The class table's commit, under its lock, its roster stored with the write.

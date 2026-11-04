@@ -19,6 +19,8 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiException
+import org.ntust.app.tigerduck.push.WriteAnswer
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import java.io.File
@@ -84,13 +86,13 @@ class PendingCourseOverridesTest {
         // none, and the hold is read once more after the header is made, right before the request.
         overrides = PendingCourseOverrides(
             cache,
-            { moodleId, colorHex, customName, locale, pinned, stillAllowed, madeAtMs ->
+            { change, _, pinned, stillAllowed ->
                 beforeHeader()
                 if (!pinned.isCurrent) throw NotSignedInException()
-                if (!stillAllowed()) return@PendingCourseOverrides false
-                patches += Patch(moodleId, colorHex, customName, locale, account = account)
-                stamps += madeAtMs
-                answer()
+                if (!stillAllowed()) return@PendingCourseOverrides WriteAnswer.NOT_SENT
+                patches += Patch(change.moodleId.orEmpty(), change.colorHex, change.customName, change.locale, account = account)
+                stamps += change.madeAtMs
+                tookIf(answer())
             },
             records = { records(it) },
             sends = { sends(it) },
@@ -106,26 +108,13 @@ class PendingCourseOverridesTest {
         answer = { true }
         overrides.send(physics, customName = "Phys", locale = "en", signIn = signIn)
         assertEquals("the row keeps the time it was made", stamps.first(), cache.loadPendingCourseOverrides().single().madeAtMs)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         // Calculus's color (T1) failed, physics's name (T2) landed, and the retry sent T1 again.
         assertEquals(listOf(calculus, physics, calculus), patches.map { it.moodleId })
         val (first, second, retried) = stamps
         assertTrue("T1 is kept: $stamps", first != null && first < second!!)
         assertEquals(first, retried)
-    }
-
-    @Test
-    fun `a row stored by the build before has no time, and goes out without one`() = runTest {
-        File(context.filesDir, "TigerDuckData/pending_course_overrides.json").writeText(
-            """[{"moodleId":"$calculus","colorHex":"#FF0000","changedAtMs":1000,"attempts":0,"seq":5}]""",
-        )
-        assertEquals(null, cache.loadPendingCourseOverrides().single().madeAtMs)
-
-        overrides.retry(signIn)
-
-        assertEquals(listOf<Long?>(null), stamps)
-        assertEquals(1, patches.size)
     }
 
     private fun refused(code: Int): suspend () -> Boolean = { throw PushApiException("patchCourseOverride failed: HTTP $code", code) }
@@ -152,7 +141,7 @@ class PendingCourseOverridesTest {
         assertEquals(listOf("#FF0000"), cache.loadPendingCourseOverrides().map { it.colorHex })
 
         answer = { true }
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(Patch(calculus, "#FF0000", null, null), patches.last())
         assertFalse(overrides.hasPending())
@@ -163,7 +152,7 @@ class PendingCourseOverridesTest {
     fun `a name whose PATCH fails on the server waits for the next sync, however often`() = runTest {
         answer = refused(500)
         overrides.send(calculus, customName = "Calc", locale = "en", signIn = signIn)
-        repeat(6) { overrides.retry(signIn) }
+        repeat(6) { overrides.drain(signIn) }
 
         assertEquals(7, patches.size)
         assertEquals(listOf("Calc"), cache.loadPendingCourseOverrides().map { it.customName })
@@ -187,7 +176,7 @@ class PendingCourseOverridesTest {
         // The older colour and the older name never go up.
         patches.clear()
         answer = { true }
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(
             setOf(
                 Patch(calculus, "#00FF00", null, null),
@@ -211,7 +200,7 @@ class PendingCourseOverridesTest {
             landed.await()
             true
         }
-        val retry = launch { overrides.retry(signIn) }
+        val retry = launch { overrides.drain(signIn) }
         sending.await()
         // Picked again while the red was on its way, and offline again by the time this one goes.
         answer = { throw IOException("offline") }
@@ -248,12 +237,12 @@ class PendingCourseOverridesTest {
         sends = { color -> !color }
         answer = { true }
         patches.clear()
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(listOf(Patch(calculus, null, "Calc", "en")), patches)
         assertEquals(listOf("#FF0000"), cache.loadPendingCourseOverrides().map { it.colorHex })
 
         sends = { true }
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(Patch(calculus, "#FF0000", null, null), patches.last())
         assertFalse(overrides.hasPending())
     }
@@ -271,7 +260,7 @@ class PendingCourseOverridesTest {
             beforeHeader = {}
             sends = { color -> !color }
         }
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(emptyList<Patch>(), patches)
         assertEquals(listOf("#FF0000"), cache.loadPendingCourseOverrides().map { it.colorHex })
@@ -297,7 +286,7 @@ class PendingCourseOverridesTest {
                 overrides.reserveVersion(),
                 signIn,
             )
-            overrides.retry(signIn)
+            overrides.drain(signIn)
         }
         sending.await()
         // Picked a colour for the second course meanwhile, offline again by the time it goes.
@@ -346,7 +335,7 @@ class PendingCourseOverridesTest {
 
         overrides.queue(listOf(PendingCourseOverrides.Change(calculus, colorHex = "#FF0000")), version, signIn)
         patches.clear()
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertFalse("the reset's older red is not queued over the pick that landed", overrides.hasPending())
         assertEquals(emptyList<Patch>(), patches)
@@ -363,7 +352,7 @@ class PendingCourseOverridesTest {
         now = 1L
         val restarted = PendingCourseOverrides(
             cache,
-            { _, _, _, _, _, _, _ -> throw IOException("offline") },
+            { _, _, _, _ -> throw IOException("offline") },
             records = { true },
             sends = { true },
             clock = { now++ },
@@ -384,7 +373,7 @@ class PendingCourseOverridesTest {
         overrides.adoptServer(listOf("course_colors", "assignments"), signIn)
 
         assertEquals(listOf("Calc"), cache.loadPendingCourseOverrides().map { it.customName })
-        assertFalse(PendingCourseOverride.colorKey(calculus) in overrides.held(0L))
+        assertFalse(SyncField.color(calculus) in overrides.heldFields())
     }
 
     /**
@@ -396,13 +385,13 @@ class PendingCourseOverridesTest {
     fun `a rename refused five times waits for the next course upload and is sent then`() = runTest {
         answer = refused(422)
         overrides.send(calculus, customName = "Calc", locale = "en", signIn = signIn)
-        repeat(6) { overrides.retry(signIn) }
+        repeat(6) { overrides.drain(signIn) }
         assertEquals("parked at the fifth refusal, and not sent again", 5, patches.size)
         assertTrue("kept, at this phone's value", overrides.hasPending())
 
         answer = { true }
         Outbox(setOf(overrides)).courseUploadLanded(signIn)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(Patch(calculus, null, "Calc", "en"), patches.drop(5).single())
         assertFalse(overrides.hasPending())
@@ -418,7 +407,7 @@ class PendingCourseOverridesTest {
 
         // Deleted on another device, and gone from here with the sync's prune.
         cache.saveCourses(emptyList(), term, testSignIn())
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertFalse(overrides.hasPending())
     }
 
@@ -444,7 +433,7 @@ class PendingCourseOverridesTest {
         val waiting = cache.loadPendingCourseOverrides()
 
         val ended = series.end()
-        overrides.retry(ended)
+        overrides.drain(ended)
         overrides.send(calculus, colorHex = "#00FF00", signIn = ended)
         overrides.queue(listOf(PendingCourseOverrides.Change(calculus, colorHex = "#0000FF")), overrides.reserveVersion(), ended)
         overrides.forget(listOf(calculus), signIn = ended)
@@ -466,26 +455,10 @@ class PendingCourseOverridesTest {
             beforeHeader = {}
             signOut()
         }
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(emptyList<Patch>(), patches.filter { it.account == 2 })
         assertFalse(overrides.hasPending())
-    }
-
-    @Test
-    fun `a snapshot fetched before an edit, or before its PATCH landed, must not take the edit back`() = runTest {
-        val colour = PendingCourseOverride.colorKey(calculus)
-        answer = { throw IOException("offline") }
-        val fetchedBefore = now
-        overrides.send(calculus, colorHex = "#FF0000", signIn = signIn)
-        assertTrue("held while it waits", colour in overrides.held(fetchedBefore))
-        assertTrue("held against a snapshot fetched after the edit too", colour in overrides.held(now))
-
-        answer = { true }
-        overrides.retry(signIn)
-        val landedAt = now
-        assertTrue("held against a snapshot fetched before it landed", colour in overrides.held(fetchedBefore))
-        assertFalse("but not against one fetched after", colour in overrides.held(landedAt))
     }
 
     @Test

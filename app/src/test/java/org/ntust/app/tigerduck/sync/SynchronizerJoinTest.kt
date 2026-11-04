@@ -41,7 +41,7 @@ class SynchronizerJoinTest {
     /** The fetches that throw, by their number from 1. */
     private val failing = Collections.synchronizedSet(mutableSetOf<Int>())
     private val policy = SyncPolicy(
-        cloudSync = true, flavorSyncs = true, switchedOn = SyncCategory.entries.toSet(), held = emptySet(), lastWriterWins = false,
+        cloudSync = true, flavorSyncs = true, switchedOn = SyncCategory.entries.toSet(), held = emptySet(),
     )
     private val result = BackendSyncResult(
         ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = emptySet(), currentRevision = 1,
@@ -82,7 +82,7 @@ class SynchronizerJoinTest {
 
     private val synchronizer = Synchronizer(
         drain = {}, foreground = Steps("foreground"), background = Steps("background"),
-        marks = none, ignores = none, overrides = none, reset = none, holidays = none, roster = none,
+        marks = none, ignores = none, overrides = none, holidays = none, roster = none,
     )
 
     /**

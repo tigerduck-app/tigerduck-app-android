@@ -74,10 +74,10 @@ internal class CourseAddSends(
      * [asked]'s adds still waiting, read with their moments in one step under the lane's lock they
      * change under (a timed add read without its moment would go unstamped), checked right before
      * the request: an add whose course has left this phone's cache or been deleted since is let
-     * go unsent. An add with its time goes under protocol 2, alone with the others timed: there
-     * every other course of the upload counts as the school's roster. One an older install kept
-     * has no time and goes as before. Returns what each add's send came to; those settled have
-     * left the queue, unless added again meanwhile.
+     * go unsent. The adds go in one upload with their moments, alone: every other course of an
+     * upload counts as the school's roster. Each has its moment, one an older install kept with
+     * none given its old-entry time as the lane read it (X1). Returns what each add's send came
+     * to; those settled have left the queue, unless added again meanwhile.
      */
     private suspend fun uploadAsked(asked: Request, signIn: SignIn): Map<CourseAdd, SendResult> {
         val semester = asked.semester
@@ -87,20 +87,16 @@ internal class CourseAddSends(
         val held = requested.filter { add ->
             cached.any { it.courseNo == add.courseNo } && !CourseTombstoneKeys.isHidden(add.courseNo, semester, deleted)
         }
-        val (timed, untimed) = held.partition { it.addedAtMs != null }
         val source = asked.courses ?: cached
-        val stamped = if (timed.isEmpty()) Taken() else {
-            upload(source.filter { course -> timed.any { it.courseNo == course.courseNo } }, semester, timed, signIn)
+        val taken = if (held.isEmpty()) Taken() else {
+            upload(source.filter { course -> held.any { it.courseNo == course.courseNo } }, semester, held, signIn)
         }
-        val unstamped = if (untimed.isEmpty()) Taken() else {
-            upload(asked.courses ?: cached.filter { course -> untimed.any { it.courseNo == course.courseNo } }, semester, untimed, signIn)
-        }
-        if (stamped.landed || unstamped.landed) asked.landed = true
-        noteRefused(stamped.refused, semester, signIn)
+        if (taken.landed) asked.landed = true
+        noteRefused(taken.refused, semester, signIn)
         val results = LinkedHashMap<CourseAdd, SendResult>()
         // Let go unsent: its course has left this phone, or is hidden.
         for (add in requested) if (add !in held) results[add] = SendResult.Sent(null)
-        for (taken in listOf(stamped, unstamped)) for (add in taken.adds) results[add] = taken.resultOf(add, outbox.keepsUnsent())
+        for (add in taken.adds) results[add] = taken.resultOf(add, outbox.keepsUnsent())
         val done = results.filterValues { it is SendResult.Sent }.keys
         // Acknowledged before the adds go, so a pull in between holds the course by one or the other.
         done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.ack.acknowledged(add.field, it, signIn) } }
@@ -114,12 +110,12 @@ internal class CourseAddSends(
      * A timed add the backend refused, a hide or reset elsewhere being newer: the server has ruled
      * on the course, so a snapshot's tombstone may hide it, as it never does a course this phone
      * typed and the server has not seen. Not one it applied: a snapshot taken before the add landed
-     * would then read its absence as a delete. On `/v4` the backend's answer stands only while no
-     * newer add of the course waits (LWW D12, a write response's winner).
+     * would then read its absence as a delete. The backend's answer stands only while no newer add
+     * of the course waits (LWW D12, a write response's winner).
      */
     private suspend fun noteRefused(refused: List<CourseAdd>, semester: String, signIn: SignIn) {
         if (refused.isEmpty()) return
-        val adds = if (outbox.lastWriterWins()) waiting() else emptyList()
+        val adds = waiting()
         val ruled = refused.filter { add -> adds.none { it.field == add.field && it != add } }.map { it.courseNo }
         if (ruled.isEmpty()) return
         dataCache.updateServerKnownNos(signIn) { known ->
@@ -129,7 +125,7 @@ internal class CourseAddSends(
 
     // One upload of [adds], each forced past a tombstone in the adds' order, and each timed one with
     // its moment, in the order the times file had them in the read the adds came from
-    // ([CourseAdd.momentAt]), as `/v3`'s body always listed them.
+    // ([CourseAdd.momentAt]), as the body always listed them.
     private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
         val addedAt = adds.filter { it.addedAtMs != null }.sortedBy { it.momentAt }.associate { it.courseNo to it.addedAtMs!! }
@@ -229,9 +225,9 @@ internal class CourseDeleteSends(
             Log.w(TAG, "course delete failed, kept for the next sync: ${e.logSummary()}")
             return afterSendFailure(e)
         }
-        // Nothing went, course sync being off: kept where edits wait for it (/v4), let go on /v3.
+        // Nothing went, course sync being off: kept until it is on, where edits wait for it.
         if (!answer.sent) return if (outbox.keepsUnsent()) SendResult.NotSent else SendResult.Sent(null)
-        if (answer.applied?.isEmpty() == true && outbox.lastWriterWins()) takeBackendsAdd(delete, signIn)
+        if (answer.applied?.isEmpty() == true) takeBackendsAdd(delete, signIn)
         // The delete sent, and only that one: a removal asked during the request kept its own,
         // newer stamp on disk and is sent again.
         return SendResult.Sent(answer.serverClockUs)

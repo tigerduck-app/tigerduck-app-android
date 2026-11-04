@@ -28,7 +28,6 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.Outbox
-import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
 import org.ntust.app.tigerduck.sync.reconcile.FirstSyncReconciler
 import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
@@ -133,7 +132,7 @@ internal fun appSyncRig(
     )
     outbox = Outbox(setOf(ignores.channel, marks, adds, deletes, overrides, holidays))
     val gate = FirstPullGate(w.sessions, idleScope)
-    val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache, marks, pushApi)
+    val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache)
     val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs)
     val synchronizer = Synchronizer(
         prefs = w.appPrefs,
@@ -153,16 +152,15 @@ internal fun appSyncRig(
         marks = marksReconciler,
         ignores = IgnoresReconciler(ignores),
         overrides = overridesReconciler,
-        reset = CourseResetReconciler(w.appPrefs, w.dataCache, adds, deletes, overrides),
         holidays = HolidaysReconciler(holidays, w.academicCalendar),
         roster = RosterReconciler(
             w.dataCache, w.auth, pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
-            idleTermSync(w), idleScope, w.appPrefs, policies,
+            idleTermSync(w), idleScope, policies,
         ),
         ack = ack,
         firstSync = FirstSyncReconciler(w.dataCache, marks, ignores, overrides, deletes),
     )
-    val sync = HomeBackendSync(synchronizer, w.auth, pushApi, w.notificationSettingsSync, marksReconciler, overridesReconciler)
+    val sync = HomeBackendSync(synchronizer, w.auth, pushApi, w.notificationSettingsSync)
     val home = HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, synchronizer, sync)
     return AppSyncRig(home, outbox, pushApi, syncApi)
 }

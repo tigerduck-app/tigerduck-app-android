@@ -34,7 +34,6 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
@@ -86,7 +85,6 @@ class SchoolUploadsTest {
 
     @Before
     fun setUp() {
-        // The gate holds school uploads at every base, as every base speaks /v4.
         prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4" }
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
@@ -98,16 +96,13 @@ class SchoolUploadsTest {
         api = PushApiClient(backend.client, prefs, auth)
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
         gate = FirstPullGate(events, appScope)
-        uploads = SchoolUploads(gate, appScope, cache, ::speaks) { assignments, signIn -> api.uploadAssignments(assignments, signIn) }
+        uploads = SchoolUploads(gate, appScope, cache) { assignments, signIn -> api.uploadAssignments(assignments, signIn) }
     }
 
     @After
     fun tearDown() {
         appScope.cancel()
     }
-
-    /** The API the base speaks as each upload decides, as the app reads it. */
-    private fun speaks() = BackendApi.of(resolveAnnouncementEndpoint(prefs).url.trimEnd('/'))
 
     /** The app's wiring of [TermCourseSync] but its sources: the upload, as the app's, after the first pull on /v4. */
     private fun termSync() = TermCourseSync(
@@ -168,34 +163,6 @@ class SchoolUploadsTest {
         cache.clearAllUserData()
         auth.session.open()
         tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
-    }
-
-    // --- A base that names no version, which takes /v4's rules ---
-
-    /** Each unversioned course upload's courses and `roster_terms`, in order. */
-    private fun unversionedTermUploads() = backend.received(UNVERSIONED_UPLOAD).map { request ->
-        val body = JSONObject(request.body)
-        val courses = body.getJSONArray("courses")
-        val terms = body.optJSONArray("roster_terms")
-        List(courses.length()) { courses.getJSONObject(it).getString("course_no") } to
-            terms?.let { List(it.length()) { i -> it.getString(i) } }
-    }
-
-    /**
-     * A base that names no version takes `/v4`'s rules as it takes its requests: a fetch's upload
-     * waits for the process's first pull there too, and goes after it.
-     */
-    @Test
-    fun `on a base that names no version a fetch's upload waits for the first pull, as on v4`() = runBlocking {
-        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9"
-        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
-        untilParked(1)
-        assertEquals("before the pull", emptyList<Any>(), unversionedTermUploads())
-
-        gate.notePull(signIn)
-
-        until("the term went up after the pull") { unversionedTermUploads().size == 1 }
-        assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM)), unversionedTermUploads())
     }
 
     @Test
@@ -605,7 +572,7 @@ class SchoolUploadsTest {
         val released = CompletableDeferred<Unit>()
         val resume = CompletableDeferred<Unit>()
         var calls = 0
-        val held = SchoolUploads(gate, appScope, cache, ::speaks) { assignments, _ ->
+        val held = SchoolUploads(gate, appScope, cache) { assignments, _ ->
             // The first send, the released one, pauses with what it read.
             if (synchronized(sent) { calls++ } == 0) {
                 released.complete(Unit)
@@ -691,7 +658,6 @@ class SchoolUploadsTest {
 
     private companion object {
         const val UPLOAD = "POST /v4/sync/courses/upload"
-        const val UNVERSIONED_UPLOAD = "POST /sync/courses/upload"
         const val OTHER = "1152"
         const val ASSIGNMENTS = "POST /v4/sync/assignments/upload"
         const val TERM = "1151"

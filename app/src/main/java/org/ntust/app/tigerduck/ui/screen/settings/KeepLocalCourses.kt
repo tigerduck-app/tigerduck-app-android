@@ -31,20 +31,13 @@ internal interface CourseSyncBackend {
     /** `DELETE /sync/courses/{course_key}`: one course hidden, on every device. */
     suspend fun hideCourse(courseKey: String)
 
-    /** `PATCH /sync/courses/{moodle_id}/override` with one locale's custom name, through the course outbox. */
-    suspend fun patchCustomName(moodleId: String, name: String, locale: String)
-
     /**
-     * Whether the backend settles every field by its stamp (`/v4`, last writer wins). A term's
-     * upload then carries no colors, and its reset clears every color and name stamped at or
-     * before it, so each goes as [patchStampedOverride], stamped after the reset.
-     */
-    val stampsOverrides: Boolean
-
-    /**
-     * `/v4`'s `PATCH /sync/courses/{course_key}/override` with a color, or one locale's name, of the
+     * `PATCH /sync/courses/{course_key}/override` with a color, or one locale's name, of the
      * course [courseNo] of [semester], stamped at its send: after every request Use Local sent
-     * before it. [moodleId] is the id the course outbox knows it by, for a name that must wait.
+     * before it. The backend settles every field by its stamp, so a term's upload carries no
+     * colors, and its reset clears every color and name stamped at or before it: each goes this
+     * way, after the reset. [moodleId] is the id the course outbox knows it by, for a name that
+     * must wait.
      */
     suspend fun patchStampedOverride(
         semester: String,
@@ -57,7 +50,7 @@ internal interface CourseSyncBackend {
 
     /**
      * The course [courseNo] of [semester] as the phone holds it now, read right before each
-     * `/v4` override goes: its color and its names may have changed while Use Local's earlier
+     * override goes: its color and its names may have changed while Use Local's earlier
      * requests were out, and a course removed or hidden meanwhile holds none. Null from a backend
      * that keeps no copy of the phone's own (a test's): the values Use Local read at its start
      * stand. A change landing after the read, while the request renews its session, still goes
@@ -87,9 +80,8 @@ internal class CourseSyncOffException : IllegalStateException("course sync is of
  * [CourseSyncBackend] over [PushApiClient], whose course requests return
  * quietly unsent with cloud or course sync off. Use Local's fail instead, so
  * it stops rather than follow a term reset with an upload that never went.
- * On `/v3` the names go through [PendingCourseOverrides], as every name PATCH
- * does. On `/v4` every request is stamped at its send, in the order Use Local
- * makes it, so each is later than the reset before it (D10, X5).
+ * Every request is stamped at its send, in the order Use Local makes it, so
+ * each is later than the reset before it (D10, X5).
  */
 internal class PushCourseSyncBackend(
     private val api: PushApiClient,
@@ -113,9 +105,6 @@ internal class PushCourseSyncBackend(
         if (!policies.current.uploadsCourses) throw CourseSyncOffException()
     }
 
-    override val stampsOverrides: Boolean
-        get() = policies.current.lastWriterWins
-
     override suspend fun resetTerm(semester: String) {
         ensureSends()
         // Under the adds' send lock, the term's school uploads waiting for the first pull let go
@@ -125,19 +114,17 @@ internal class PushCourseSyncBackend(
 
     override suspend fun uploadTerm(courses: List<Course>, semester: String) {
         ensureSends()
-        // On /v4 a course added by hand goes as an add made now, after the term's reset: as the
+        // A course added by hand goes as an add made now, after the term's reset: as the
         // oldest, as a roster names it, the reset would keep it out. Not a copy of a school row
         // merged down, which the upload lists as the school's. A copy still not told after Use
         // Local told each by the check's rows (useLocalCourses) goes as one too: the snapshot has
         // no row of it, and the student chose this phone's list; every other upload leaves it out.
         // A copy whose provenance the phone changed since Use Local read it, a school fetch's commit
         // mostly, goes as the phone holds it now (compare-and-set, Codex on round 6).
-        val sent = if (stampsOverrides) asHeldWhereChanged(courses, semester) else courses
-        val addedAt = if (!stampsOverrides) emptyMap() else {
-            sent.filter { CourseUploadPayload.isAddedByHand(it) || CourseUploadPayload.isUntoldCopy(it) }
-                .associate { it.courseNo to api.stampMs() }
-        }
-        if (stampsOverrides) keepTold(sent, semester, addedAt.keys)
+        val sent = asHeldWhereChanged(courses, semester)
+        val addedAt = sent.filter { CourseUploadPayload.isAddedByHand(it) || CourseUploadPayload.isUntoldCopy(it) }
+            .associate { it.courseNo to api.stampMs() }
+        keepTold(sent, semester, addedAt.keys)
         // Null: switched off between the check and the request.
         api.uploadCoursesAnswered(sent, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
     }
@@ -188,13 +175,6 @@ internal class PushCourseSyncBackend(
         api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null)
     }
 
-    override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {
-        ensureSends()
-        // Through the outbox: kept until it lands, and in place of an older
-        // name of the course still waiting, which would land over this one.
-        overrides.send(moodleId, customName = name, locale = locale, signIn = signIn)
-    }
-
     override suspend fun patchStampedOverride(
         semester: String,
         courseNo: String,
@@ -208,7 +188,7 @@ internal class PushCourseSyncBackend(
         // before the student chose which to keep. Read right before the request, after what
         // suspends. A color keeps its own rule.
         val allowed = { name == null || policies.current.sends(SyncCategory.COURSE_NAMES) }
-        val target = CourseRef(moodleId = null, courseKey = "client:$semester:$courseNo")
+        val target = CourseRef(courseKey = "client:$semester:$courseNo")
         val answer = try {
             api.patchCourseOverrideAnswered(target, signIn, colorHex, name, locale, allowed)
         } catch (e: BackendException) {
@@ -217,12 +197,12 @@ internal class PushCourseSyncBackend(
             if (e.error != BackendError(HTTP_NOT_FOUND, COURSE_NOT_FOUND)) throw e
             return
         }
-        // A name that did not go waits in the course outbox, as every name does on /v3: kept, held
+        // A name that did not go waits in the course outbox, as every name does: kept, held
         // while the names check is open, and sent once the student's answer lifts the hold. The
         // reset took the server's copy, and nothing else would put it back. Queued at the version
         // reserved before the name was read, so a rename made since stays the one waiting. With
         // the course's term and number, which a derived Moodle id names no cached course by, so
-        // the outbox goes by the course's key on /v4, and tells a course still here from one gone.
+        // the outbox goes by the course's key, and tells a course still here from one gone.
         if (name != null && !answer.sent) {
             // Course sync can have gone off while the request was made, which the outbox's own
             // rule for names does not read: stopped, as every other step.
@@ -276,7 +256,7 @@ internal class PushCourseSyncBackend(
  * `courses_reset_at`, which this phone's next sync then took for a reset made
  * elsewhere, dropping its hidden and hand-typed courses.
  *
- * On `/v4` ([CourseSyncBackend.stampsOverrides]) each request is stamped
+ * Each request is stamped
  * at its send, in this order, and the upload carries no colours: every custom
  * colour of a term Use Local uploads goes up after its deletes, beside its
  * names for a term reset, as an override of its own, so later than the reset
@@ -299,8 +279,6 @@ internal suspend fun keepLocalCourses(
     fun ensureCurrent() {
         if (!isCurrent()) throw CancellationException("signed out during Use Local")
     }
-    // Read once, so every term goes up in one shape.
-    val stamped = backend.stampsOverrides
     for ((semester, courses) in terms) {
         val hiddenNos = CourseTombstoneKeys.hiddenIn(semester, hiding)
         val cachedNos = courses.mapTo(mutableSetOf()) { it.courseNo }
@@ -322,32 +300,25 @@ internal suspend fun keepLocalCourses(
             backend.hideCourse("client:$semester:$courseNo")
         }
         // A reset takes the term's override rows, names included, with its
-        // course rows, so a reset term's names go up again; on /v3 colours
-        // ride the upload, names do not. After the deletes, so a name that
-        // fails to go up leaves no hidden course on the server.
+        // course rows, so a reset term's names go up again. After the
+        // deletes, so a name that fails to go up leaves no hidden course on
+        // the server.
         val kept = courses.filter { it.courseNo !in hiddenNos }.sortedBy { it.courseNo }
         for (course in kept) {
             val names = if (reset) customNames[course.courseNo].orEmpty().toSortedMap().filterValues { it.isNotEmpty() } else emptyMap()
             // The id the upload stored the row under, as the backend
             // derives it; see CourseUploadPayload.
             val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
-            if (stamped) {
-                // On /v4 no colour rides the upload, a reset or none: every one goes as an override.
-                val read = LocalChoices(course.customColorHex, names)
-                sendStampedOverrides(semester, course.courseNo, moodleId, read, withNames = reset, backend, ::ensureCurrent)
-                continue
-            }
-            for ((locale, name) in names) {
-                ensureCurrent()
-                backend.patchCustomName(moodleId, name, locale)
-            }
+            // No color rides the upload, a reset or none: every one goes as an override.
+            val read = LocalChoices(course.customColorHex, names)
+            sendStampedOverrides(semester, course.courseNo, moodleId, read, withNames = reset, backend, ::ensureCurrent)
         }
     }
 }
 
 /**
- * A course's color and, with [withNames] (a term reset), its names, as `/v4` takes them after its
- * term's upload, which carries no colors there: each an override of its own, stamped at its send,
+ * A course's color and, with [withNames] (a term reset), its names, after its term's upload,
+ * which carries no colors: each an override of its own, stamped at its send,
  * so later than the reset Use Local sent before it (D10; X5). Each goes as the phone holds it right
  * before its request ([CourseSyncBackend.currentChoices]), not as Use Local [read] it: changed
  * meanwhile, it goes as it is now, as the student's own send may have gone before the reset that

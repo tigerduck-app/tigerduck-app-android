@@ -22,7 +22,6 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.session.accountEventStream
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -51,8 +50,7 @@ class RefreshOrderTest {
         val context = JvmContext()
         DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
     }
-    // On /v4, the one API whose school uploads wait for the first pull.
-    private val uploads by lazy { SchoolUploads(gate, scope, cache, { BackendApi.V4 }) { _, _ -> } }
+    private val uploads by lazy { SchoolUploads(gate, scope, cache) { _, _ -> } }
 
     @After
     fun tearDown() {
@@ -225,7 +223,7 @@ class RefreshOrderTest {
             ignoredIds = emptySet(), completedIds = emptySet(), courseOverrides = emptyList(), serverCourseNos = emptySet(), currentRevision = 1,
         )
         val policy = SyncPolicy(
-            cloudSync = true, flavorSyncs = true, switchedOn = SyncCategory.entries.toSet(), held = emptySet(), lastWriterWins = false,
+            cloudSync = true, flavorSyncs = true, switchedOn = SyncCategory.entries.toSet(), held = emptySet(),
         )
         val steps = object : PassSteps {
             override suspend fun mayRun() = true
@@ -247,7 +245,7 @@ class RefreshOrderTest {
         }
         return Synchronizer(
             drain = {}, foreground = steps, background = steps,
-            marks = none, ignores = none, overrides = none, reset = none, holidays = none, roster = none,
+            marks = none, ignores = none, overrides = none, holidays = none, roster = none,
         )
     }
 }

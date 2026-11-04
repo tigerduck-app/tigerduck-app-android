@@ -43,8 +43,7 @@ internal class ClassTableTermReset(
         // DataCache.saveSemesterResetAt.
         dataCache.saveSemesterResetAt(semester, clock(), signIn)
         // The server has forgotten every number in this term, so a
-        // hand-typed course re-added later is unknown to it again — see
-        // CourseSyncReconciler.reconcileSemester.
+        // hand-typed course re-added later is unknown to it again.
         dataCache.updateServerKnownNos(signIn) { it - semester }
         // Custom names are keyed by course number only, as on iOS, so a
         // course retaken in another term loses its name there as well.

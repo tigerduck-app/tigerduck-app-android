@@ -256,7 +256,7 @@ class SettingsViewModel @Inject constructor(
             after = {
                 if (holdsCourseIgnores) courseIgnoreSync.retryPending(signIn)
                 // Use Local queued its colours and names behind their holds, lifted just above.
-                if (keepLocal && ("course_colors" in held || "course_names" in held)) pendingCourseOverrides.retry(signIn)
+                if (keepLocal && ("course_colors" in held || "course_names" in held)) pendingCourseOverrides.drain(signIn)
             },
         )
     }

@@ -86,22 +86,19 @@ class SchoolUploadsWiringTest {
     /** The full sync's own resend of a term goes in the pass, before its pull lands: never through the gate. */
     @Test
     fun `the full sync's resend of a term does not wait for the pull it is part of`() {
-        for (rel in listOf("sync/reconcile/RosterReconciler.kt", "sync/reconcile/CurrentTermCourses.kt")) {
+        // The background's course list uploads nothing: an empty term goes up from Home's pull (C2).
+        for (rel in listOf("sync/reconcile/RosterReconciler.kt")) {
             val source = source(rel)
             assertTrue("$rel no longer resends the term itself", "pushApiClient.uploadCourses(outcome.toUpload, semester," in source)
             assertTrue("$rel waits for the first pull", ".term(" !in source && "afterFirstPull" !in source)
         }
     }
 
-    /** The coordinator's ruling (fix round 3): the gate holds school uploads on /v4 alone, read as each upload decides. */
+    /** The gate holds every school upload, as every base speaks `/v4`; only the test default ([SchoolUploads.atOnce]) has none. */
     @Test
-    fun `the first-pull gate holds school uploads only on v4`() {
+    fun `the first-pull gate holds every school upload`() {
         val source = source("sync/SchoolUploads.kt")
-        assertHas(
-            "SchoolUploads", source,
-            "{ BackendApi.of(resolveAnnouncementEndpoint(prefs).url.trimEnd('/')) },",
-            "if (gate == null || api() != BackendApi.V4 || gate.hasPulled(signIn)) {",
-        )
+        assertHas("SchoolUploads", source, "if (gate == null || gate.hasPulled(signIn)) {")
     }
 
     /** `sync-order`, "A local edit SHALL be sent at once": a delete's upload waits for no pull. */

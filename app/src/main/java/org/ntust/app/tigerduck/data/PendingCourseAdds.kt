@@ -49,7 +49,7 @@ internal fun interface CourseUploader {
  * taken, by term: the outbox's course adds channel.
  *
  * An add went up once. A sync re-uploads a term's courses only when the
- * server has none for it (`CourseSyncReconciler.reconcileSemester`), so in a
+ * server has none for it (`CourseMembership.reconcileTerm`), so in a
  * term the server already had, a failed upload left the course on this phone
  * alone: never on another device, and lost at sign-out. Now the add waits on
  * disk, kept before the request so a process killed during it keeps it too,
@@ -64,8 +64,8 @@ internal fun interface CourseUploader {
  * The adds wait in an [OutboxLane] over the queue's own two files ([CourseAddsStore]), one per
  * course ([membershipField]). One send is a term's upload with the adds asked of it, under the
  * send lock ([removing]): a full sync's retry asks for every add of a term, the class table's add
- * for its own. An add is never given up on for its refusals, as before. On `/v4` an add an older
- * build kept with no moment goes with its old-entry time (X1), one made while course sync is off
+ * for its own. An add is never given up on for its refusals, as before. An add an older build
+ * kept with no moment goes with its old-entry time (X1), one made while course sync is off
  * is kept until it is on (LWW D12), and one the backend refused, a hide or reset elsewhere being
  * newer, is the backend's to settle unless the course was added again since.
  *
@@ -114,9 +114,8 @@ class PendingCourseAdds internal constructor(
             attempts = InMemoryAttempts(CourseAdd::field),
             stopsOnRetry = true,
             untimed = UntimedEntries(
-                // X1, on /v4 alone. On /v3 an add with no moment goes unstamped, as it always went,
-                // so it is given none: written back, it would go out with the add.
-                timeOf = { add -> add.addedAtMs ?: if (outbox.lastWriterWins()) null else GOES_UNSTAMPED },
+                // X1: an add with no moment is given its old-entry time, written back.
+                timeOf = { add -> add.addedAtMs },
                 withTime = { add, atMs -> add.copy(addedAtMs = atMs) },
                 oldEntryTimeMs = { outbox.oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.COURSE_ADDS)) ?: 0L },
             ),
@@ -132,9 +131,8 @@ class PendingCourseAdds internal constructor(
      * ([PendingCourseDeletes.stamp]): the backend applies it only when later
      * than the course's last add, hide and reset, so an add kept offline loses
      * to a hide or a reset made since on another device (#591). Kept until the
-     * backend accepts or settles it. On `/v3` let go as well when nothing was sent
-     * because course sync is off: the re-enable check answers for the courses
-     * when it comes back on.
+     * backend accepts or settles it, and kept while course sync is off, until it
+     * is on (LWW D12).
      */
     suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: Long? = null, signIn: SignIn) {
         val kept = lane.edit(signIn) { it.asked(CourseAdd(semester, courseNo, addedAt)) }
@@ -155,10 +153,8 @@ class PendingCourseAdds internal constructor(
      * Sends every add still waiting, with the course as this phone has it
      * now; each full sync starts with this, so the snapshot it fetches has
      * them. An add whose course this phone no longer holds is let go unsent.
+     * Each term's adds go in one upload, a term after the other, in the file's order.
      */
-    suspend fun retry(signIn: SignIn) = drain(signIn)
-
-    /** [retry]: each term's adds in one upload, a term after the other, in the file's order. */
     override suspend fun drain(signIn: SignIn) {
         for ((semester, adds) in lane.entries().groupBy { it.semester }) {
             if (!trySend(semester, adds.map { it.courseNo }, signIn)) return
@@ -281,9 +277,6 @@ class PendingCourseAdds internal constructor(
 
     companion object {
         private const val TAG = "PendingCourseAdds"
-
-        // Any time at all: on /v3, an add with none is not given one.
-        private const val GOES_UNSTAMPED = 0L
 
         /** The key an upload forces past a tombstone, as the class table's add sends it. */
         fun forceKey(semester: String, courseNo: String): String = "client:$semester:$courseNo"

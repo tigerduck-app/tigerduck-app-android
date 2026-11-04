@@ -16,7 +16,6 @@ import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
 import org.ntust.app.tigerduck.sync.reconcile.FirstSyncReconciler
 import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
@@ -62,7 +61,6 @@ class SyncPass(
     val beforeFetch: Long,
     /** The categories this account had synced on this phone before the pass (LWW D13), read with [policy]. */
     val syncedBefore: Set<SyncCategory> = emptySet(),
-    private val heldFields: suspend () -> Set<String> = { emptySet() },
     private val ack: AckClock = AckClock(),
 ) {
     /** Home's own state, which a pass in the foreground updates as it goes. */
@@ -71,14 +69,12 @@ class SyncPass(
     private var holds: PullHolds? = null
 
     /**
-     * What this phone keeps over the snapshot, field by field (LWW D12), or null for a snapshot
-     * without a `server_hlc`, as `/v3`'s, whose own rules apply. The outbox's held fields are read
-     * once, at the first step that asks, after the first sync's queued values (FirstSyncReconciler).
+     * What this phone keeps over the snapshot for its acknowledged writes, field by field (LWW
+     * D12), beside the edits waiting, which each step reads as it writes. A snapshot without a
+     * `server_hlc`, which `/v4` always sends, reads as the oldest: every write acknowledged in this
+     * process holds.
      */
-    suspend fun holds(): PullHolds? {
-        val serverHlc = result.serverHlc ?: return null
-        return holds ?: PullHolds(serverHlc, heldFields(), ack).also { holds = it }
-    }
+    fun holds(): PullHolds = holds ?: PullHolds(result.serverHlc ?: 0L, ack).also { holds = it }
 
     /**
      * Whether the marks step changed this phone's marks, set as it runs: the background worker
@@ -110,13 +106,10 @@ class Synchronizer internal constructor(
     private val marks: Reconciler,
     private val ignores: Reconciler,
     private val overrides: Reconciler,
-    private val reset: Reconciler,
     private val holidays: Reconciler,
     private val roster: Reconciler,
-    /** A category's first sync on `/v4` (LWW D13); none takes nothing. */
+    /** A category's first sync (LWW D13); none takes nothing. */
     private val firstSync: Reconciler = NO_FIRST_SYNC,
-    /** Every field the outbox holds an edit of ([Outbox.heldFields]), read once per pull. */
-    private val heldFields: suspend () -> Set<String> = { emptySet() },
     private val ack: AckClock = AckClock(),
 ) {
     @Inject constructor(
@@ -137,7 +130,6 @@ class Synchronizer internal constructor(
         marks: MarksReconciler,
         ignores: IgnoresReconciler,
         overrides: OverridesReconciler,
-        reset: CourseResetReconciler,
         holidays: HolidaysReconciler,
         roster: RosterReconciler,
         ack: AckClock = AckClock(),
@@ -152,10 +144,10 @@ class Synchronizer internal constructor(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, authService::attemptRelogin,
             pendingCourseAdds, firstPullGate,
         ),
-        marks, ignores, overrides, reset, holidays, roster, firstSync ?: NO_FIRST_SYNC, outbox::heldFields, ack,
+        marks, ignores, overrides, holidays, roster, firstSync ?: NO_FIRST_SYNC, ack,
     )
 
-    private val inOrder = Reconcilers.inOrder(firstSync, marks, ignores, overrides, reset, holidays, roster)
+    private val inOrder = Reconcilers.inOrder(firstSync, marks, ignores, overrides, holidays, roster)
 
     /**
      * Sends what waits to go up: the outbox's one drain, every channel in its pinned order,
@@ -313,12 +305,12 @@ class Synchronizer internal constructor(
             // What waits to go up goes first, so the snapshot has it.
             drain(signIn)
             // Every class-table delete asked before the fetch ranks below it, every later one
-            // above: a course reset the snapshot reads lets go of the first only; see CourseResetReconciler.
+            // above, as the deletes' clock has always moved here (PendingCourseDeletes.stamp).
             val beforeFetch = steps.stampDeletes()
             // Marks the course window's fetch, each attempt's: see PassSteps.fetch.
             val result = steps.fetch(signIn, courseSync)
             steps.listed(result, signIn)
-            val pass = SyncPass(result, signIn, mode, steps.policy(), state, courseSync, beforeFetch, steps.syncedBefore(), heldFields, ack)
+            val pass = SyncPass(result, signIn, mode, steps.policy(), state, courseSync, beforeFetch, steps.syncedBefore(), ack)
             val took = inOrder.associateWith { it.reconcile(pass) }
             steps.recordTaken(pass, taken(pass, took))
             steps.noteRevision(pass)

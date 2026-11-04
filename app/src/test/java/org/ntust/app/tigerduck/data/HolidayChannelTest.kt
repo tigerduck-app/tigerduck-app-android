@@ -117,53 +117,28 @@ class HolidayChannelTest {
         nowMs = now
     }
 
-    // --- With last writer wins off, through a sender of the test's: the queue's /v3 rules, until they go ---
+    // --- Through a writer of the test's: the lane's rules ---
 
     @Test
-    fun `on v3 a snapshot fetched while a sync's PUT is under way is not applied`() = runTest {
-        prefs.holidayNotifyOverrides = setOf(3)
-        prefs.holidayOverridesAwaitingUpload = setOf(3)
-        val out = CompletableDeferred<Unit>()
-        val release = CompletableDeferred<Unit>()
-        val holidays = PendingHolidayOverrides(
-            prefs,
-            HolidayOverrideSender { _, _, _, _ ->
-                out.complete(Unit)
-                release.await()
-                true
-            },
-            syncs = { true },
-        )
-
-        val retry = launch { holidays.retry(signIn) }
-        out.await()
-        assertNull("it may predate the PUT", holidays.merged(emptySet(), fetchedAtMs = Long.MAX_VALUE, local = setOf(3)))
-        release.complete(Unit)
-        retry.join()
-
-        assertEquals(emptySet<Int>(), holidays.merged(emptySet(), fetchedAtMs = Long.MAX_VALUE, local = setOf(3)))
-    }
-
-    @Test
-    fun `on v3 a sync sends no waiting choice while TigerSync is off`() = runTest {
+    fun `a sync sends no waiting choice while TigerSync is off`() = runTest {
         prefs.holidayNotifyOverrides = setOf(3)
         prefs.holidayOverridesAwaitingUpload = setOf(3)
         var syncs = false
         val sent = mutableListOf<Int>()
         val holidays = PendingHolidayOverrides(
             prefs,
-            HolidayOverrideSender { id, _, _, _ ->
+            HolidayOverrideWriter { id, _, _, _ ->
                 sent += id
-                true
+                TOOK
             },
             syncs = { syncs },
         )
 
-        holidays.retry(signIn)
+        holidays.drain(signIn)
         assertEquals(emptyList<Int>(), sent)
 
         syncs = true
-        holidays.retry(signIn)
+        holidays.drain(signIn)
         assertEquals(listOf(3), sent)
     }
 
@@ -173,19 +148,19 @@ class HolidayChannelTest {
      * second again after the second's own has.
      */
     @Test
-    fun `on v3 a second choice made while the first is out goes once though it fails`() = runTest {
+    fun `a second choice made while the first is out goes once though it fails`() = runTest {
         val sent = mutableListOf<Boolean>()
         val firstOut = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         var now = 2_000L
         val holidays = PendingHolidayOverrides(
             prefs,
-            HolidayOverrideSender { _, notify, _, _ ->
+            HolidayOverrideWriter { _, notify, _, _ ->
                 sent += notify
                 if (sent.size > 1) throw IOException("offline")
                 firstOut.complete(Unit)
                 release.await()
-                true
+                TOOK
             },
             syncs = { true },
             clock = { now },
@@ -211,19 +186,19 @@ class HolidayChannelTest {
      * the next student makes one: the next student's goes, once, under their own sign-in.
      */
     @Test
-    fun `on v3 a waiting sync of an ended sign-in does not keep the next student's choice from going`() = runTest {
+    fun `a waiting sync of an ended sign-in does not keep the next student's choice from going`() = runTest {
         val sent = mutableListOf<Pair<Int, SignIn>>()
         val firstOut = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         val holidays = PendingHolidayOverrides(
             prefs,
-            HolidayOverrideSender { id, _, sentAs, _ ->
+            HolidayOverrideWriter { id, _, sentAs, _ ->
                 sent += id to sentAs
                 if (sent.size == 1) {
                     firstOut.complete(Unit)
                     release.await()
                 }
-                true
+                TOOK
             },
             syncs = { true },
         )
@@ -231,7 +206,7 @@ class HolidayChannelTest {
 
         val a = launch { holidays.send(3, first) }
         firstOut.await()
-        val c = launch { holidays.retry(first) }
+        val c = launch { holidays.drain(first) }
         testScheduler.runCurrent()
         // Signed out: the choices cleared, and the next student signs in and makes one.
         series.end()
@@ -275,11 +250,11 @@ class HolidayChannelTest {
         v4Backend.answer("/v4/sync/holiday-overrides/5", 503, """{"error":"internal","message":"down"}""")
         val holidays = v4Holidays()
 
-        holidays.retry(signIn)
+        holidays.drain(signIn)
         // The time it went with is kept, so a later write cannot move it.
         assertEquals(mapOf(5 to firstRunMs), prefs.holidayOverrideEditTimes)
         nowMs += 60_000
-        holidays.retry(signIn)
+        holidays.drain(signIn)
 
         assertEquals(listOf(firstRunMs * 1_000, firstRunMs * 1_000), v4Backend.sent.map(::hlcOf))
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
@@ -294,7 +269,7 @@ class HolidayChannelTest {
         val holidays = v4Holidays()
 
         val ended = series.end()
-        holidays.retry(ended)
+        holidays.drain(ended)
         holidays.drain(ended)
         holidays.send(4, ended)
         assertEquals(setOf(SyncField.holiday(5)), holidays.heldFields())
@@ -310,13 +285,13 @@ class HolidayChannelTest {
         prefs.cloudSyncEnabled = false
         holidays.tap(3, notify = true)
         val madeAtMs = nowMs + 1
-        holidays.retry(signIn)
+        holidays.drain(signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
 
         prefs.cloudSyncEnabled = true
         nowMs += 60_000
-        holidays.retry(signIn)
+        holidays.drain(signIn)
 
         assertEquals(listOf("""{"notify":true,"hlc":${madeAtMs * 1_000}}"""), v4Backend.sent.map { it.body })
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
@@ -357,7 +332,6 @@ class HolidayChannelTest {
             },
             syncs = { true },
             stamp = { nowMs },
-            lastWriterWins = { true },
             ack = ack,
             scope = backgroundScope,
             calendar = calendar,
@@ -388,14 +362,14 @@ class HolidayChannelTest {
         val holidays = v4Holidays()
 
         holidays.tap(3, notify = true)
-        repeat(9) { holidays.retry(signIn) }
+        repeat(9) { holidays.drain(signIn) }
         assertEquals(10, v4Backend.sent.size)
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
 
         repeat(2) {
             v4Backend.answer(v4Path, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${(nowMs - 60_000) * 1_000}"))
         }
-        holidays.retry(signIn)
+        holidays.drain(signIn)
         assertEquals("stamped, then stamped again", 12, v4Backend.sent.size)
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
     }
@@ -444,7 +418,7 @@ class HolidayChannelTest {
     }
 
     @Test
-    fun `a choice made while an older one's time is read keeps its own time, and no snapshot applies meanwhile`() = runTest {
+    fun `a choice made while an older one's time is read keeps its own time, and a snapshot meanwhile keeps it`() = runTest {
         val disk = HeldDisk()
         val firstRunMs = nowMs - 200_000
         val times = OldEntryTime(context.getSharedPreferences("tigerduck_outbox_held", 0), disk) { nowMs }
@@ -459,15 +433,15 @@ class HolidayChannelTest {
             syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = times, calendar = calendar,
         )
 
-        val retry = launch { holidays.retry(signIn) }
+        val retry = launch { holidays.drain(signIn) }
         testScheduler.runCurrent()
         // Turned off while its old-entry time is read: kept at once, its request waiting.
         val tap = launch { holidays.tap(5, notify = false) }
         testScheduler.runCurrent()
         val tappedAt = prefs.holidayOverrideEditTimes.getValue(5)
-        assertNull(
-            "a snapshot fetched after the choice waits for its PUT",
-            holidays.merged(snapshot = setOf(5), fetchedAtMs = System.currentTimeMillis() + 60_000, local = emptySet()),
+        assertTrue(
+            "a snapshot fetched after the choice keeps it as this phone has it",
+            5 in holidays.keptOver(serverHlc = (System.currentTimeMillis() + 60_000) * 1_000),
         )
         disk.release()
         retry.join()
@@ -483,14 +457,9 @@ class HolidayChannelTest {
 
     @Test
     fun `a build without TigerSync keeps no holiday choice, and on v4 one with it keeps every choice`() {
-        for (cloudSync in listOf(false, true)) for (lww in listOf(false, true)) for (flavor in listOf(false, true)) {
-            val policy = SyncPolicy(cloudSync, flavor, switchedOn = emptySet(), held = emptySet(), lastWriterWins = lww)
-            val expected = when {
-                !flavor -> false
-                lww -> true
-                else -> cloudSync
-            }
-            assertEquals("cloudSync=$cloudSync lww=$lww flavor=$flavor", expected, policy.keepsHolidays)
+        for (cloudSync in listOf(false, true)) for (flavor in listOf(false, true)) {
+            val policy = SyncPolicy(cloudSync, flavor, switchedOn = emptySet(), held = emptySet())
+            assertEquals("cloudSync=$cloudSync flavor=$flavor", flavor, policy.keepsHolidays)
         }
     }
 
@@ -520,7 +489,6 @@ class HolidayChannelTest {
             },
             syncs = { false },
             keeps = { true },
-            lastWriterWins = { true },
             scope = backgroundScope,
             main = Dispatchers.Unconfined,
         )
@@ -545,7 +513,6 @@ class HolidayChannelTest {
                 WriteAnswer(sent = true, serverClockUs = 1_790_000_600_000_000L, applied = emptySet(), values = mapOf("notify" to true))
             },
             syncs = { true },
-            lastWriterWins = { true },
             ack = ack,
             scope = backgroundScope,
             calendar = calendar,

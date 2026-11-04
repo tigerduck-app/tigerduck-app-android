@@ -4,7 +4,7 @@
 // The full sync itself is the Synchronizer's (sync/Synchronizer.kt), each
 // category's step a reconciler in a pinned order (sync/reconcile/). What is
 // left here is Home's side of it: the state the sync updates, the 401 relogin,
-// and the answer to the conflict dialog.
+// and the answer to the conflict dialog, which stays until the hold goes (Q).
 
 package org.ntust.app.tigerduck.ui.screen.home
 
@@ -26,8 +26,6 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.Synchronizer
-import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
-import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 
@@ -51,8 +49,10 @@ class HomeSyncState(
     val conflicts: MutableStateFlow<List<AssignmentSyncConflict>>,
     /**
      * Ids with an override PATCH in flight. Mutated by HomeViewModel's toggle
-     * handlers on the main thread and read here; see the reconciler for why
-     * these are exempt from server state.
+     * handlers on the main thread and read by the mark step
+     * ([AssignmentMarkStep]): a tap shows at once, and is saved and kept to
+     * send in steps of its own after, so a pull's write in between must not
+     * take it back.
      */
     val pendingOverrides: MutableSet<String>,
 ) {
@@ -72,8 +72,6 @@ class HomeBackendSync @Inject constructor(
     private val authService: AuthService,
     private val pushApiClient: PushApiClient,
     private val notificationSettingsSync: NotificationSettingsSync,
-    private val marks: MarksReconciler,
-    private val overrides: OverridesReconciler,
 ) {
 
     /**
@@ -121,12 +119,15 @@ class HomeBackendSync @Inject constructor(
     }
 
     /**
-     * Answer to the conflict dialog. Keeping local re-asserts it upstream.
+     * Answer to the conflict dialog. Keeping local re-asserts it upstream; keeping the server's
+     * takes nothing more, as the next pull settles every mark by its stamp. No pull offers the
+     * dialog since the backend settles every mark so (S4); it stays until the hold goes (Q).
      *
      * [result] and [conflicts] are passed in rather than read from [state]
      * because the caller clears both synchronously to dismiss the dialog —
      * by the time this runs they are already gone from the live state.
      */
+    @Suppress("UNUSED_PARAMETER")
     suspend fun applyResolution(
         state: HomeSyncState,
         result: BackendSyncResult,
@@ -134,14 +135,10 @@ class HomeBackendSync @Inject constructor(
         keepLocal: Boolean,
         signIn: SignIn,
     ) {
-        if (keepLocal) {
-            for (c in conflicts) {
-                val mid = c.id.toIntOrNull() ?: continue
-                runCatching { pushApiClient.patchAssignmentOverrideAnswered(mid, c.localStatus, signIn, madeAtMs = null) }
-            }
-        } else {
-            marks.keepServer(state, result, signIn)
-            overrides.keepServer(state, result, signIn)
+        if (!keepLocal) return
+        for (c in conflicts) {
+            val mid = c.id.toIntOrNull() ?: continue
+            runCatching { pushApiClient.patchAssignmentOverrideAnswered(mid, c.localStatus, signIn, madeAtMs = null) }
         }
     }
 }
@@ -172,7 +169,7 @@ class HomeBackendSync @Inject constructor(
  * pruned for the older read: added back by hand, or brought back where the server is silent
  * (`DataCache.commitSyncHides`). Its hide not written, its row stays, as one whose hide was lifted.
  *
- * On `/v4` the courses [gone], taken back by a removal or a reset elsewhere ([CourseMembership]),
+ * The courses [gone], taken back by a removal or a reset elsewhere ([CourseMembership]),
  * leave the term with no hide, but one added back by hand since the sync began.
  *
  * A course the commit takes out of the term, hidden since here or on another device, or dropped,

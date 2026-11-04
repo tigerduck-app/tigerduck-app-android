@@ -9,7 +9,6 @@ import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.SemesterCatalog
@@ -49,12 +48,11 @@ class RosterReconciler @Inject constructor(
     private val pendingCourseOverrides: PendingCourseOverrides,
     private val termCourseSync: TermCourseSync,
     @param:ApplicationScope private val appScope: CoroutineScope,
-    prefs: AppPreferences,
     private val syncPolicies: SyncPolicies,
 ) : Reconciler {
 
     private val currentTerm = CurrentTermCourses(
-        prefs, dataCache, courseService, pushApiClient, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides,
+        dataCache, courseService, pushApiClient, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides,
     )
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
@@ -130,8 +128,8 @@ class RosterReconciler @Inject constructor(
         val selectionDropped: Map<String, List<String>>,
         val serverKnown: Map<String, List<String>>,
         var tombstones: Set<String>,
-        /** A `/v4` pull's holds (LWW D12): membership by its tombstones and resets ([CourseMembership]). */
-        val holds: PullHolds?,
+        /** The pull's holds (LWW D12): membership by its tombstones and resets ([CourseMembership]). */
+        val holds: PullHolds,
     ) {
         val updatedKnown = serverKnown.toMutableMap()
     }
@@ -147,9 +145,10 @@ class RosterReconciler @Inject constructor(
      * un-delete rule only asked "is this number anywhere on the server".
      *
      * Per term, in whichever direction has data: when the backend knows
-     * courses it is authoritative for deletions and we merge down; when it
-     * knows none for that term but this device does, we upload. Reading an
-     * empty term as "the server says you have no courses" would delete them.
+     * courses its rows and tombstones decide the term ([CourseMembership]);
+     * when it knows none for that term but this device does, we upload.
+     * Reading an empty term as "the server says you have no courses" would
+     * delete them.
      * Each term's commit leaves be what was put back in it since [courseSync]
      * began; see [commitReconciledTerm].
      */
@@ -158,7 +157,7 @@ class RosterReconciler @Inject constructor(
         takesCourseList: Boolean,
         courseSync: DataCache.CourseSync,
         signIn: SignIn,
-        holds: PullHolds?,
+        holds: PullHolds,
     ) {
         if (!takesCourseList) return
 
@@ -202,29 +201,11 @@ class RosterReconciler @Inject constructor(
         val signIn = run.signIn
         val rowsBySemester = run.rowsBySemester
         val localCourses = dataCache.loadCourses(semester)
-        // After the courses: see CourseSyncReconciler.withoutRestored. On /v4 a hide is the snapshot's to lift.
-        val restored = if (run.holds != null) emptySet() else dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
-        run.tombstones = CourseSyncReconciler.withoutRestored(semester, run.tombstones, restored)
+        // The hides as the pass read them: each the snapshot's to keep or lift (CourseMembership).
         val read = run.tombstones
         val tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones)
-        val membership = run.holds?.let { holds -> stampedTerm(run, semester, localCourses, holds) }
-        val outcome = membership?.outcome ?: CourseSyncReconciler.reconcileSemester(
-            semester = semester,
-            localCourses = localCourses,
-            serverRows = rowsBySemester[semester].orEmpty(),
-            tombstoneNos = tombstoneNos,
-            tombstones = run.tombstones,
-            serverKnownNos = run.serverKnown[semester].orEmpty().toSet(),
-            // Deletes the retry above could not land: the snapshot still lists them.
-            graceCourseNos = pendingCourseDeletes.waitingIn(semester),
-            // Adds the retry above could not land: the snapshot does not list them yet.
-            pendingAddNos = pendingCourseAdds.waitingIn(semester),
-            selectionDroppedNos = run.selectionDropped[semester].orEmpty().toSet(),
-            restoredNos = restored,
-            // A course it listed since a roster dropped it elsewhere stays: see SelectionAnswer.listsSince.
-            answer = dataCache.selectionAnswerIn(semester),
-            fetchedAtMs = result.fetchedAtMs,
-        )
+        val membership = stampedTerm(run, semester, localCourses, run.holds)
+        val outcome = membership.outcome
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
         dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)
         // A roster from here that listed one goes again, unchanged or not.
@@ -247,19 +228,17 @@ class RosterReconciler @Inject constructor(
         }
         val wrote = commitReconciledTerm(
             dataCache, run.courseSync, semester, read, run.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
-            outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),
+            outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership.gone,
         )
-        // On /v4 the copies merged down before follow their rows, for the term's uploads' adds; the
-        // pull covers the term. One a write told since the sync began keeps that (compare-and-set).
-        if (membership != null) {
-            val rows = rowsBySemester[semester].orEmpty()
-            val held = CourseMembership.heldIn(result, semester)
-            dataCache.updateCoursesIfChanged(semester, signIn) { courses ->
-                CourseMembership.followingRows(courses, semester, rows, held) { run.courseSync.retoldSince(semester, it) }
-            }
+        // The copies merged down before follow their rows, for the term's uploads' adds; the pull
+        // covers the term. One a write told since the sync began keeps that (compare-and-set).
+        val rows = rowsBySemester[semester].orEmpty()
+        val held = CourseMembership.heldIn(result, semester)
+        dataCache.updateCoursesIfChanged(semester, signIn) { courses ->
+            CourseMembership.followingRows(courses, semester, rows, held) { run.courseSync.retoldSince(semester, it) }
         }
         if (!outcome.uploadLocal) return wrote
-        if (membership == null) uploadTerm(run, semester, outcome) else pendingCourseAdds.uploading {
+        pendingCourseAdds.uploading {
             // As the term is committed, read under the lock a school fetch commits and uploads under:
             // a copy it made the school's since the pull read the term goes as that (Codex on round 6).
             val stored = dataCache.loadCourses(semester).associateBy { it.courseNo }
@@ -270,9 +249,9 @@ class RosterReconciler @Inject constructor(
     }
 
     /**
-     * [semester]'s membership on a `/v4` pull ([CourseMembership]): what this phone holds is a
-     * course whose add or delete waits, read here at the term's step as `/v3` reads them, or whose
-     * membership was acknowledged since the snapshot began ([holds]).
+     * [semester]'s membership on a pull ([CourseMembership]): what this phone holds is a course
+     * whose add or delete waits, read here at the term's step, or whose membership was
+     * acknowledged since the snapshot began ([holds]).
      */
     private suspend fun stampedTerm(run: CourseListRun, semester: String, localCourses: List<Course>, holds: PullHolds): CourseMembership.TermOutcome {
         val waiting = pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)
@@ -297,10 +276,8 @@ class RosterReconciler @Inject constructor(
     private suspend fun uploadTerm(run: CourseListRun, semester: String, outcome: CourseSyncReconciler.SemesterOutcome) {
         runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, run.signIn, resend = true) }
             .onSuccess { accepted ->
-                // The server has now seen these numbers: from here
-                // on their absence is a deletion, not a pending
-                // upload — see reconcileSemester. Only what it
-                // accepted: a tombstoned course it skipped is still
+                // The server has now seen these numbers. Only what
+                // it accepted: a tombstoned course it skipped is still
                 // unknown to it.
                 if (!accepted.isNullOrEmpty()) {
                     run.updatedKnown[semester] = (outcome.serverKnownNos + accepted).sorted()

@@ -73,9 +73,9 @@ object CourseIgnoreReconciler {
      * device synced courses. Its settings are sent again as before
      * ([toResend]), whether or not another term kept its rows: the device
      * that reset it may lack this device's setting, and has nothing to send.
-     * A course with no recorded id counts as unchanged. Tombstones cannot
-     * tell a re-add: its upload deletes the ones it names (`force_keys`).
-     * The same rule as iOS's `AppState.recreatedCourses`
+     * A course with no recorded id counts as unchanged. Tombstones could not
+     * tell a re-add: its upload released the ones it named. The same rule as
+     * iOS's `AppState.recreatedCourses`
      * (tigerduck-app/tigerduck-app#367, tigerduck-app-android#182).
      *
      * What it cannot tell: a term whose only course was deleted and added
@@ -136,12 +136,13 @@ object CourseIgnoreReconciler {
     }
 
     /**
-     * This device's set after a `/v4` pull, course by course (LWW D12): each course the snapshot's
+     * This device's set after a pull, course by course (LWW D12): each course the snapshot's
      * [overrides] ignore is ignored and every other is not, an absent setting included, but a course
      * this device [keeps] (its change waits, or its last acknowledged write may postdate the
      * snapshot) and one of [resetTerms] (this device's own reset under way, or made after the
-     * fetch), which stay as [local] has them. Replaces, on `/v4`, the settings lost and resent
-     * ([toResend]) and the courses re-added elsewhere ([recreated]).
+     * fetch), which stay as [local] has them. The snapshot's stamps say what the backend holds, so
+     * no setting is guessed lost and resent ([toResend]), nor a course re-added elsewhere
+     * ([recreated]): those read only the re-enable check's snapshot now.
      */
     fun stamped(
         local: Set<String>,

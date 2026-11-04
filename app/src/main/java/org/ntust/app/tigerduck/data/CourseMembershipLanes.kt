@@ -23,8 +23,8 @@ internal data class CourseAdd(val semester: String, val courseNo: String, val ad
 
     /**
      * Where the add's moment stood in the times file in the read that gave this add, the one
-     * read of both files under the lane's lock ([CourseAddsStore.load]): `/v3`'s body lists its
-     * adds in that order. Last when it has none or was not read so. Not part of the edit, so
+     * read of both files under the lane's lock ([CourseAddsStore.load]): the upload's timed adds
+     * go in that order. Last when it has none or was not read so. Not part of the edit, so
      * neither compared nor copied.
      */
     var momentAt: Int = Int.MAX_VALUE
@@ -81,7 +81,7 @@ internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<Cou
  * [entries]' moments as the times file keeps them, where [before] has them: each where it was
  * first kept and a new one after the rest of its term's, a term's where it first had one, as the
  * queue has always written that file. The file's order is not the adds file's (an add asked first
- * with no moment and later with one is behind the others in it), and `/v3`'s upload lists its
+ * with no moment and later with one is behind the others in it), and the upload lists its timed
  * adds in it.
  */
 private fun momentsInPlace(entries: List<CourseAdd>, before: Map<String, Map<String, Long>>): Map<String, Map<String, Long>> {
@@ -118,10 +118,10 @@ internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String,
 
 /**
  * What the course list's channels take from the outbox and the sync policy. Built with nothing,
- * as a test that builds a queue alone does, it is `/v3`'s queue as it was: no policy read, no last
- * writer wins, its acknowledgments its own, and sends run on where their caller resumes them.
+ * as a test that builds a queue alone does, it reads no policy and keeps what did not go, its
+ * acknowledgments are its own, and sends run on where their caller resumes them.
  *
- * - [policies] are read once per question; none is `/v3`'s.
+ * - [policies] are read once per question.
  * - [ack] is the outbox's [AckClock], [scope] the application's, where a send runs to its end.
  * - [oldEntryTime] gives an add an older build kept with no moment its old-entry time (X1).
  *
@@ -140,13 +140,9 @@ internal class MembershipOutbox(
 
     private fun policy(): SyncPolicy? = policies?.current
 
-    /** Whether the backend settles each field by its stamp, as `/v4` does. */
-    fun lastWriterWins(): Boolean = policy()?.lastWriterWins == true
-
     /**
-     * Whether a membership edit that did not go, course sync being off, is kept until it is on:
-     * under last writer wins (LWW D12, [SyncPolicy.keeps]). On `/v3` it is let go, as it always
-     * was: the re-enable check answers for the courses once sync is back on.
+     * Whether a membership edit that did not go, course sync being off, is kept until it is on
+     * (LWW D12, [SyncPolicy.keeps]): on every build with TigerSync, and with no policy to read.
      */
-    fun keepsUnsent(): Boolean = policy()?.let { it.lastWriterWins && it.keeps(SyncCategory.COURSES) } == true
+    fun keepsUnsent(): Boolean = policy()?.keeps(SyncCategory.COURSES) ?: true
 }

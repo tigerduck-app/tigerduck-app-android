@@ -8,11 +8,10 @@ import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseColorPick
 
 /**
- * A `/v4` pull's course colors and custom names, field by field (LWW D12): each takes the
- * snapshot's value, its absence included, but a field this phone keeps ([keeps], by its
- * [SyncField] name), whose own value stays. A color a hide or a reset took off the backend goes
- * here too, and a name cleared or absent goes. The `/v3` merges ([CourseSyncReconciler.applyColorOverrides],
- * [CourseSyncReconciler.mergeCustomNames]) stay until the `/v3` rules go (Z2).
+ * A pull's course colors and custom names, field by field (LWW D12): each takes the snapshot's
+ * value, its absence included, but a field this phone keeps ([keeps], by its [SyncField] name),
+ * whose own value stays. A color a hide or a reset took off the backend goes here too, and a name
+ * cleared or absent goes.
  *
  * A change an older build queued with no term names its course by its Moodle id
  * ([org.ntust.app.tigerduck.data.fieldOf]); its field is asked by that id too, so it holds the
@@ -27,7 +26,7 @@ internal object StampedCourseOverrides {
 
     /**
      * [courses], [term]'s, with the colors of [overrides] as D12 has them, and the courses moved
-     * off a color a later pick took, as [CourseSyncReconciler.applyColorOverrides] reports them; null
+     * off a color a later pick took ([CourseSyncReconciler.ColorOutcome]); null
      * when nothing changes. The snapshot's picks go oldest first by their stamp, a color this phone
      * keeps last, as the latest pick, so a course on its color moves off it here as it will
      * everywhere once the color lands.
@@ -150,10 +149,10 @@ internal fun colorPicksApplied(
 }
 
 /**
- * A `/v4` pull's two merges over [term]'s courses (LWW D12), as Home's pass and the background's
+ * A pull's two merges over [term]'s courses (LWW D12), as Home's pass and the background's
  * run them: what this phone keeps is what [holds] names, and what the course overrides' channel
- * holds as each merge runs ([waiting]), read again there, so a pick or a rename kept since the
- * pull read the outbox holds too. [everyCourse] reads every term's courses on this phone, in the
+ * holds as each merge runs ([waiting]), read there, so a pick or a rename kept while the pull
+ * runs holds too. [everyCourse] reads every term's courses on this phone, in the
  * step that writes the names, under the courses' lock and the names' (`BackgroundCourseOverrides.apply`),
  * so a course and its name saved before that step are both read by it: which course an older
  * build's change names by its Moodle id, in whatever term, and which course numbers no course here
@@ -172,7 +171,10 @@ internal class StampedMerges(
     suspend fun names(current: Map<String, Map<String, String>>): Map<String, Map<String, String>>? {
         val everyTerm = everyCourse()
         val (currentTerm, catalogue) = legacyTerms()
-        val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), everyTerm, overrides, currentTerm, catalogue)
+        // The waiting changes before the acknowledgments: a change that lands in between is
+        // acknowledged before it leaves the lane (OutboxLane.settle), so one or the other holds it.
+        val waitingNow = waiting()
+        val held = StampedCourseOverrides.heldNames(waitingNow + holds.fields(), everyTerm, overrides, currentTerm, catalogue)
         val unsendable = everyTerm.values.flatten().groupBy { it.courseNo }
             .filterValues { all -> all.all { it.moodleIdNumber.isNullOrEmpty() } }.keys
         return StampedCourseOverrides.names(current, overrides, held, unsendable)
@@ -180,6 +182,7 @@ internal class StampedMerges(
 
     /** [courses] with the colors as [StampedCourseOverrides.colors] has them. */
     suspend fun colors(courses: List<Course>): CourseSyncReconciler.ColorOutcome? {
+        // Read before the acknowledgments, which [PullHolds.keeps] reads as each color is asked; see [names].
         val held = waiting()
         return StampedCourseOverrides.colors(courses, term, overrides) { holds.keeps(it) || it in held }
     }

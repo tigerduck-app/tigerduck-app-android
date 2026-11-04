@@ -96,6 +96,7 @@ class HomePullAppliesTest {
             ),
         )
         .put("current_revision", 42)
+        .put("server_hlc", 1_793_000_000_000_000L)
         .toString()
 
     @Test
@@ -113,6 +114,8 @@ class HomePullAppliesTest {
     @Test
     fun `the server's color lands only while colors are switched on and not held`() = runBlocking {
         val signIn = w.sessions.school.signIns.current
+        // Applied over the current term's cached courses, which Home then shows.
+        w.dataCache.saveCourses(state.allCourses.value, w.dataCache.currentSemesterCode(), signIn)
         w.appPrefs.school.pendingConflictCategories.set(setOf("course_colors"), signIn)
         backend.answer("GET /sync/full", 200, snapshot())
         rig.sync.pull(state, signIn)
@@ -127,24 +130,6 @@ class HomePullAppliesTest {
         w.appPrefs.syncCourseColors = true
         backend.answer("GET /sync/full", 200, snapshot())
         rig.sync.pull(state, signIn)
-        assertEquals(listOf<String?>("#123456"), state.allCourses.value.map { it.customColorHex })
-    }
-
-    /** The conflict dialog's "keep the server's": the snapshot that was contested, marks and colors. */
-    @Test
-    fun `Use Server takes the contested snapshot's marks and colors`() = runBlocking {
-        val signIn = w.sessions.school.signIns.current
-        val contested = BackendSyncResult(
-            ignoredIds = setOf("7"),
-            completedIds = emptySet(),
-            courseOverrides = listOf(CourseOverrideResult(moodleCourseId = MOODLE_ID, courseNo = COURSE, colorHex = "#123456", semester = TERM)),
-            serverCourseNos = setOf(COURSE),
-            currentRevision = 42,
-        )
-
-        rig.sync.applyResolution(state, contested, emptyList(), keepLocal = false, signIn = signIn)
-
-        assertEquals(setOf("7"), state.ignoredAssignmentIds.value)
         assertEquals(listOf<String?>("#123456"), state.allCourses.value.map { it.customColorHex })
     }
 

@@ -108,7 +108,7 @@ class UnsentMarksChannelTest {
 
     private val untimed7 = """{"assignmentId":"7","status":"ignored","attempts":0,"lastRefusedAtMs":0}"""
 
-    // --- With last writer wins off, through a sender of the test's: the queue's /v3 rules, until they go ---
+    // --- Through a writer of the test's: the lane's rules ---
 
     /**
      * Two taps of one assignment, the second while the first is out, and the second refused: each
@@ -116,18 +116,18 @@ class UnsentMarksChannelTest {
      * tap began does not send the second again after the second's own has.
      */
     @Test
-    fun `on v3 a second tap made while the first is out goes once though it is refused`() = runTest {
+    fun `a second tap made while the first is out goes once though it is refused`() = runTest {
         val sent = mutableListOf<String>()
         val firstOut = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             cache,
-            MarkSender { _, status, _, _ ->
+            MarkWriter { _, status, _, _ ->
                 sent += status
                 if (sent.size > 1) throw PushApiException("HTTP 404", 404)
                 firstOut.complete(Unit)
                 release.await()
-                true
+                TOOK
             },
             records = { true },
             sends = { true },
@@ -161,7 +161,7 @@ class UnsentMarksChannelTest {
         val reply = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             cache,
-            MarkSender { assignmentId, _, _, _ ->
+            MarkWriter { assignmentId, _, _, _ ->
                 sent += assignmentId
                 if (assignmentId == 7 && !out.isCompleted) {
                     out.complete(Unit)
@@ -174,18 +174,18 @@ class UnsentMarksChannelTest {
             clock = { nowMs },
         )
         // The process's one more try is spent, with nothing parked.
-        marks.retry(signIn)
+        marks.drain(signIn)
         // Mark 7 has four refusals, the last long ago; mark 8 is parked, its wait over a moment from now.
         queue(
             UnsentMark("7", "ignored", attempts = UnsentMarks.MAX_ATTEMPTS - 1, lastRefusedAtMs = nowMs - 2 * wait, madeAtMs = madeAtMs),
             UnsentMark("8", "ignored", attempts = UnsentMarks.MAX_ATTEMPTS, lastRefusedAtMs = nowMs - wait + 1, madeAtMs = madeAtMs),
         )
-        val first = launch { marks.retry(signIn) }
+        val first = launch { marks.drain(signIn) }
         out.await()
 
         // A second sync a moment later requeues mark 8, and is cancelled.
         nowMs += 1
-        val second = launch { marks.retry(signIn) }
+        val second = launch { marks.drain(signIn) }
         withContext(Dispatchers.Default) {
             while (cache.loadUnsentMarks().first { it.assignmentId == "8" }.attempts == UnsentMarks.MAX_ATTEMPTS) delay(5)
         }
@@ -196,7 +196,7 @@ class UnsentMarksChannelTest {
 
         // Mark 7's fifth refusal parked it: the next sync, inside its wait, sends nothing of it.
         nowMs += 1
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7, 8), sent)
         assertEquals(List(2) { UnsentMarks.MAX_ATTEMPTS }, cache.loadUnsentMarks().map { it.attempts })
@@ -230,11 +230,11 @@ class UnsentMarksChannelTest {
         v4Backend.answer(v4MarkPath, 503, """{"error":"internal","message":"down"}""")
         val marks = v4Marks()
 
-        marks.retry(signIn)
+        marks.drain(signIn)
         // The time it went with is on disk, so a later rewrite cannot move it.
         assertEquals(fileMs, cache.loadUnsentMarks().single().madeAtMs)
         nowMs += 60_000
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(fileMs * 1_000, fileMs * 1_000), v4Backend.sent.map(::hlcOf))
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
@@ -246,44 +246,10 @@ class UnsentMarksChannelTest {
         val timed = """{"assignmentId":"8","status":"none","attempts":0,"lastRefusedAtMs":0,"madeAtMs":${nowMs - 400_000}}"""
         olderBuildWrote("[$untimed7,$timed]", fileMs = nowMs - 100_000, firstRunMs = firstRunMs)
 
-        v4Marks().retry(signIn)
+        v4Marks().drain(signIn)
 
         // Each with its own time where it has one, never the time it was sent.
         assertEquals(listOf(firstRunMs * 1_000, (nowMs - 400_000) * 1_000), v4Backend.sent.map(::hlcOf))
-    }
-
-    @Test
-    fun `a mark with no time left waiting past a v3 rewrite of its file goes on v4 with the first run's time`() = runTest {
-        val firstRunMs = nowMs - 200_000
-        olderBuildWrote("[$untimed7,${untimed7.replace("\"7\"", "\"8\"")}]", fileMs = nowMs - 300_000, firstRunMs = firstRunMs)
-        var onV4 = false
-        val stamps = mutableListOf<Pair<Int, Long?>>()
-        val marks = UnsentMarks(
-            dataCache = cache,
-            writer = MarkWriter { id, _, _, madeAtMs ->
-                stamps += id to madeAtMs
-                // 8 finds no network on v3.
-                if (id == 8 && !onV4) throw java.io.IOException("offline")
-                WriteAnswer(sent = true, serverClockUs = null, applied = null, values = emptyMap())
-            },
-            records = { true },
-            sends = { true },
-            lastWriterWins = { onV4 },
-            scope = backgroundScope,
-            oldEntryTime = oldEntryTime,
-        )
-        marks.retry(signIn)
-        // On v3 both went with no time, and 7's landing rewrote the file.
-        assertEquals(listOf(7 to null, 8 to null), stamps)
-        assertNull(cache.loadUnsentMarks().single().madeAtMs)
-
-        // The endpoint set to v4: the next read gives 8 a time, which it predates, and never its send time.
-        onV4 = true
-        nowMs += 60_000
-        marks.retry(signIn)
-
-        assertEquals(listOf(7 to null, 8 to null, 8 to firstRunMs), stamps)
-        assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
     }
 
     /** The gap between the sign-in's end and the wipe: the file is still there, and stays as it is. */
@@ -294,7 +260,7 @@ class UnsentMarksChannelTest {
         val marks = v4Marks()
 
         val ended = series.end()
-        marks.retry(ended)
+        marks.drain(ended)
         marks.drain(ended)
         marks.send("7", "none", ended)
         marks.send("8", "ignored", ended)
@@ -318,13 +284,13 @@ class UnsentMarksChannelTest {
         prefs.cloudSyncEnabled = false
         marks.send("8", "none", signIn)
         val eightAt = nowMs + 1
-        marks.retry(signIn)
+        marks.drain(signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(listOf("7" to sevenAt, "8" to eightAt), cache.loadUnsentMarks().map { it.assignmentId to it.madeAtMs })
 
         prefs.cloudSyncEnabled = true
         nowMs += 60_000
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf("$v4/sync/assignments/7/override", "$v4/sync/assignments/8/override"), v4Backend.sent.map { it.url })
         assertEquals("each with the time it was made", listOf(sevenAt * 1_000, eightAt * 1_000), v4Backend.sent.map(::hlcOf))
@@ -391,7 +357,6 @@ class UnsentMarksChannelTest {
             },
             records = { true },
             sends = { true },
-            lastWriterWins = { true },
             scope = backgroundScope,
         )
 
@@ -431,7 +396,7 @@ class UnsentMarksChannelTest {
             scope = backgroundScope,
         )
 
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7), sent)
         assertEquals(listOf("8"), cache.loadUnsentMarks().map { it.assignmentId })
@@ -464,7 +429,6 @@ class UnsentMarksChannelTest {
             },
             records = { true },
             sends = { true },
-            lastWriterWins = { true },
             scope = backgroundScope,
         )
 
@@ -507,7 +471,6 @@ class UnsentMarksChannelTest {
             },
             records = { true },
             sends = { true },
-            lastWriterWins = { true },
             scope = backgroundScope,
         )
 
@@ -549,7 +512,6 @@ class UnsentMarksChannelTest {
             },
             records = { true },
             sends = { true },
-            lastWriterWins = { true },
             scope = backgroundScope,
         )
 
@@ -581,7 +543,7 @@ class UnsentMarksChannelTest {
         assertEquals(0, cache.loadUnsentMarks().single().attempts)
 
         v4Backend.answer(v4MarkPath, 404, syncFixture("v4/error-not-found.json"))
-        marks.retry(signIn)
+        marks.drain(signIn)
         assertEquals(1, cache.loadUnsentMarks().single().attempts)
     }
 
@@ -618,7 +580,7 @@ class UnsentMarksChannelTest {
         assertEquals(listOf(Triple("8", "ignored", nowMs + 1), Triple("7", "ignored", 0L)), cache.loadUnsentMarks().map { Triple(it.assignmentId, it.status, it.madeAtMs) })
 
         prefs.syncAssignments = true
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf((nowMs + 1) * 1_000, 0L), v4Backend.sent.map(::hlcOf))
     }
@@ -646,7 +608,6 @@ class UnsentMarksChannelTest {
             },
             records = { true },
             sends = { true },
-            lastWriterWins = { true },
             ack = ack,
             scope = backgroundScope,
         )
@@ -665,7 +626,7 @@ class UnsentMarksChannelTest {
     fun `on v4 two waiting marks of one status and one time each go`() = runTest {
         queue(UnsentMark("7", "ignored", madeAtMs = madeAtMs), UnsentMark("8", "ignored", madeAtMs = madeAtMs), UnsentMark("9", "none"), UnsentMark("10", "none"))
 
-        v4Marks().retry(signIn)
+        v4Marks().drain(signIn)
 
         assertEquals(listOf("7", "8", "9", "10").map { "$v4/sync/assignments/$it/override" }, v4Backend.sent.map { it.url })
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
@@ -675,7 +636,7 @@ class UnsentMarksChannelTest {
     fun `on v4 a mark whose id names no assignment goes nowhere and is let go`() = runTest {
         queue(UnsentMark("x7", "ignored", madeAtMs = madeAtMs), UnsentMark("8", "ignored", madeAtMs = madeAtMs))
 
-        v4Marks().retry(signIn)
+        v4Marks().drain(signIn)
 
         assertEquals(listOf("$v4/sync/assignments/8/override"), v4Backend.sent.map { it.url })
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
@@ -687,7 +648,7 @@ class UnsentMarksChannelTest {
         queue(UnsentMark("7", "ignored", madeAtMs = madeAtMs))
         val marks = v4Marks()
 
-        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.retry(signIn) }
+        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.drain(signIn) }
 
         assertEquals(UnsentMarks.MAX_ATTEMPTS, v4Backend.sent.size)
         assertEquals(UnsentMarks.MAX_ATTEMPTS, cache.loadUnsentMarks().single().attempts)
@@ -699,7 +660,7 @@ class UnsentMarksChannelTest {
         queue(UnsentMark("7", "ignored", madeAtMs = madeAtMs))
         val marks = v4Marks()
 
-        repeat(3) { marks.retry(signIn) }
+        repeat(3) { marks.drain(signIn) }
 
         assertEquals(3, v4Backend.sent.size)
         val kept = cache.loadUnsentMarks().single()

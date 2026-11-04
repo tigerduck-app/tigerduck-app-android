@@ -120,6 +120,7 @@ class HomePullRequestsTest {
             ),
         )
         .put("current_revision", 42)
+        .put("server_hlc", 1_793_000_000_000_000L)
         .toString()
 
     @Test
@@ -131,7 +132,7 @@ class HomePullRequestsTest {
         w.dataCache.saveCourses(listOf(kept, added), TERM, signIn)
         // A term the server holds nothing of: the sync uploads it.
         w.dataCache.saveCourses(listOf(Course(courseNo = LOCAL, courseName = "Only here")), LOCAL_TERM, signIn)
-        // A mark this phone holds, which an empty server takes as this phone's first sync of them.
+        // A mark this phone holds, which the marks' first sync queues as the oldest (LWW D13).
         w.dataCache.saveIgnoredAssignments(setOf("7"), signIn)
 
         // One change waiting in each queue, its first send refused where it makes one.
@@ -153,6 +154,8 @@ class HomePullRequestsTest {
         rig.sync.pull(state, signIn)
 
         assertEquals(EXPECTED_PULL, sentSince(from))
+        // Queued, stamped 0, for the next drain to send.
+        assertEquals(listOf("7" to 0L), w.dataCache.loadUnsentMarks().map { it.assignmentId to it.madeAtMs })
     }
 
     private companion object {
@@ -185,9 +188,7 @@ class HomePullRequestsTest {
             """PUT /sync/holiday-overrides/3 | Bearer access-1 | null | {"notify":false,"hlc":<time>}""",
             // The snapshot.
             "GET /sync/full | Bearer access-1 | null | ",
-            // What it asks for: the marks of a first sync, stamped as they are sent, and the term the
-            // server holds nothing of.
-            """PATCH /sync/assignments/7/override | Bearer access-1 | null | {"local_status":"ignored","hlc":<time>}""",
+            // What it asks for: the term the server holds nothing of.
             """POST /sync/courses/upload | Bearer access-1 | null | {"courses":[$LOCAL_ROW]}""",
         )
     }

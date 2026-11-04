@@ -132,14 +132,14 @@ class CourseOverridesChannelTest {
         queue(name(calculus, "Calc", "en"))
         val overrides = v4Overrides()
 
-        repeat(2) { overrides.retry(signIn) }
+        repeat(2) { overrides.drain(signIn) }
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(listOf(max), waiting().map { it.attempts })
 
         // The course reaches this phone's current term, and an upload lands.
         cache.saveCourses(listOf(calculus), current, signIn)
         Outbox(setOf(overrides)).courseUploadLanded(signIn)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf("$v4/sync/courses/client:$current:MA1010002/override"), v4Backend.sent.map { it.url })
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -162,12 +162,12 @@ class CourseOverridesChannelTest {
         )
         repeat(2) { v4Backend.answer("/v4/sync/courses/client:$term:${typed.courseNo}/override", 404, """{"error":"course_not_found","message":"No such course."}""") }
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(listOf(derived to max), waiting().map { it.moodleId to it.attempts })
 
         cache.saveCourses(emptyList(), term, signIn)
         Outbox(setOf(overrides)).courseUploadLanded(signIn)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(2, v4Backend.sent.size)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -211,14 +211,14 @@ class CourseOverridesChannelTest {
     fun `a sign-out gives the next student's parked changes their own try in this process`() = runTest {
         val overrides = plainOverrides()
         val outbox = Outbox(setOf(overrides))
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         series.end()
         outbox.forgetAccount()
         cache.clearAllUserData()
         series.open()
         queue(color(calculus, "#FF0000").copy(attempts = max))
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(1, backend.sent.size)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -231,11 +231,11 @@ class CourseOverridesChannelTest {
         val ended = series.end()
         Outbox(setOf(overrides)).forgetAccount()
         cache.clearAllUserData()
-        overrides.retry(ended)
+        overrides.drain(ended)
         series.open()
         queue(color(calculus, "#FF0000").copy(attempts = max))
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(1, backend.sent.size)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -254,27 +254,27 @@ class CourseOverridesChannelTest {
         val reply = CompletableDeferred<Unit>()
         val overrides = PendingCourseOverrides(
             cache,
-            CourseOverrideSender { _, _, _, _, _, _, _ ->
+            CourseOverrideWriter { _, _, _, _ ->
                 if (++calls == 1) {
                     out.complete(Unit)
                     reply.await()
                     throw BackendException(BackendError(404, "course_not_found"), "patchCourseOverride failed: HTTP 404")
                 }
-                true
+                TOOK
             },
             records = { true },
             sends = { true },
         )
         val outbox = Outbox(setOf(overrides))
         // The process's one more try is spent, with nothing parked.
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         val pick = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
         out.await()
         outbox.courseUploadLanded(signIn)
         reply.complete(Unit)
         pick.join()
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(2, calls)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -285,14 +285,15 @@ class CourseOverridesChannelTest {
      * recorded in [sent] and answered 404 `course_not_found` unless [stored] says it lands.
      */
     private fun holding(held: String, out: CompletableDeferred<Unit>, reply: CompletableDeferred<Unit>, sent: MutableList<String>, stored: (String) -> Boolean) =
-        CourseOverrideSender { moodleId, _, _, _, _, _, _ ->
+        CourseOverrideWriter { change, _, _, _ ->
+            val moodleId = change.moodleId.orEmpty()
             sent += moodleId
             if (moodleId == held && !out.isCompleted) {
                 out.complete(Unit)
                 reply.await()
             }
             if (!stored(moodleId)) throw BackendException(BackendError(404, "course_not_found"), "patchCourseOverride failed: HTTP 404")
-            true
+            TOOK
         }
 
     /** Codex on Greptile r1: the wake is the lane's, which a caller cancelled before the 404 does not skip. */
@@ -305,7 +306,7 @@ class CourseOverridesChannelTest {
         val overrides = PendingCourseOverrides(cache, holding(calculus.moodleIdNumber!!, out, reply, sent) { sent.size > 1 }, records = { true }, sends = { true })
         val outbox = Outbox(setOf(overrides))
         // The process's one more try is spent, with nothing parked.
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         val pick = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
         out.await()
@@ -313,7 +314,7 @@ class CourseOverridesChannelTest {
         pick.cancel()
         reply.complete(Unit)
         pick.join()
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(List(2) { calculus.moodleIdNumber }, sent)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -331,7 +332,7 @@ class CourseOverridesChannelTest {
         val reply = CompletableDeferred<Unit>()
         val overrides = PendingCourseOverrides(cache, holding(calculus.moodleIdNumber!!, out, reply, sent) { false }, records = { true }, sends = { true })
         val outbox = Outbox(setOf(overrides))
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         val pick = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
         out.await()
@@ -339,7 +340,7 @@ class CourseOverridesChannelTest {
         outbox.courseUploadLanded(signIn)
         reply.complete(Unit)
         pick.join()
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf(calculus.moodleIdNumber), sent)
         assertEquals(listOf(max), waiting().map { it.attempts })
@@ -363,16 +364,16 @@ class CourseOverridesChannelTest {
         val outbox = Outbox(setOf(overrides))
         // The physics color parks at its 404 at the process's first retry, which spends the one more try.
         queue(color(physics, "#00FF00", semester = term))
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(listOf(max), waiting().map { it.attempts })
 
         queue(*waiting().toTypedArray(), color(calculus, "#FF0000", semester = term))
-        val sync = launch { overrides.retry(signIn) }
+        val sync = launch { overrides.drain(signIn) }
         out.await()
         outbox.courseUploadLanded(signIn)
         reply.complete(Unit)
         sync.join()
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf(physics.moodleIdNumber, calculus.moodleIdNumber, physics.moodleIdNumber), sent)
         assertEquals(listOf(max), waiting().map { it.attempts })
@@ -499,19 +500,6 @@ class CourseOverridesChannelTest {
         assertEquals(listOf(max), waiting().map { it.attempts })
     }
 
-    /** When a change was made or confirmed is its student's: the next student's snapshot holds none of it. */
-    @Test
-    fun `a change confirmed for the student before holds nothing against the next student's snapshot`() = runTest {
-        val overrides = plainOverrides()
-        overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn)
-        assertEquals(setOf(PendingCourseOverride.colorKey(calculus.moodleIdNumber!!)), overrides.held(0L))
-        series.end()
-        cache.clearAllUserData()
-        series.open()
-
-        assertEquals(emptySet<String>(), overrides.held(0L))
-    }
-
     /**
      * Fix round 1: every course upload that lands tells the queue, not the course adds' alone. The
      * class table's timetable fetch uploads the term: the course it takes gets its parked rename
@@ -534,13 +522,13 @@ class CourseOverridesChannelTest {
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
         overrides.send(other.moodleIdNumber!!, customName = "Theirs", locale = "en", semester = term, courseNo = other.courseNo, signIn = signIn)
         // The process's one more try is spent: both parked again.
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(listOf(max, max), waiting().map { it.attempts })
 
         backend.sent.clear()
         backend.answer(upload, 200, """{"upserted":1,"skipped_tombstoned":1,"accepted_keys":["client:$term:${typed.courseNo}"]}""")
         client.uploadCourses(told, term, signIn)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf("$v4/sync/courses/upload", "$v4/sync/courses/client:$term:XA0000009/override"), backend.sent.map { it.url })
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -600,12 +588,12 @@ class CourseOverridesChannelTest {
         val release = CompletableDeferred<Unit>()
         val overrides = PendingCourseOverrides(
             cache,
-            CourseOverrideSender { _, colorHex, _, _, _, _, _ ->
-                sentColors += colorHex
+            CourseOverrideWriter { change, _, _, _ ->
+                sentColors += change.colorHex
                 if (sentColors.size > 1) throw PushApiException("patchCourseOverride failed: HTTP 422", 422)
                 firstOut.complete(Unit)
                 release.await()
-                true
+                TOOK
             },
             records = { true },
             sends = { true },
@@ -638,12 +626,12 @@ class CourseOverridesChannelTest {
         var armed = false
         val overrides = PendingCourseOverrides(
             cache,
-            CourseOverrideSender { _, colorHex, _, _, _, _, _ ->
-                sentColors += colorHex
-                if (colorHex == "#FF0000") {
+            CourseOverrideWriter { change, _, _, _ ->
+                sentColors += change.colorHex
+                if (change.colorHex == "#FF0000") {
                     firstOut.complete(Unit)
                     release.await()
-                    return@CourseOverrideSender true
+                    return@CourseOverrideWriter TOOK
                 }
                 newerSent.countDown()
                 throw PushApiException("patchCourseOverride failed: HTTP 422", 422)
@@ -722,7 +710,7 @@ class CourseOverridesChannelTest {
         queue(placed(color(calculus, "#FF0000"), calculus), placed(name(calculus, "Calc", "en"), calculus))
         v4Backend.answer(v4PathOf(calculus), 200, syncFixture("v4/answer-course-override.json"), mapOf("X-TigerSync-Clock" to "$CLOCK_US"))
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(
             listOf(
@@ -749,7 +737,7 @@ class CourseOverridesChannelTest {
         cache.saveCourses(listOf(renumbered), current, signIn)
         queue(placed(color(calculus, "#FF0000"), calculus), name(calculus, "Calc", "en"), name(physics, "Phys", "en"))
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(
             listOf(
@@ -772,12 +760,12 @@ class CourseOverridesChannelTest {
 
         // Given its time at its first read under the sign-in, and written back, though nothing goes yet.
         prefs.syncCourseColors = false
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(listOf<Long?>(FILE_MS), cache.loadPendingCourseOverrides().map { it.madeAtMs })
         nowMs += 60_000
         prefs.syncCourseColors = true
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf(v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":${FILE_MS * 1_000}}""")), v4Shapes())
     }
@@ -788,12 +776,12 @@ class CourseOverridesChannelTest {
         val overrides = v4Overrides()
 
         overrides.send(calculus.moodleIdNumber!!, customName = "Calc", locale = "en", semester = term, courseNo = calculus.courseNo, signIn = signIn)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(listOf("Calc"), waiting().map { it.customName })
 
         prefs.syncCourseNames = true
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf("PATCH", "$v4/sync/courses/client:1151:MA1010002/override"), v4Backend.sent.single().shape().take(2))
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -806,7 +794,7 @@ class CourseOverridesChannelTest {
         queue(placed(color(calculus, "#FF0000"), calculus), placed(name(calculus, "Calc", "en"), calculus))
         repeat(2) { v4Backend.answer(v4PathOf(calculus), 200, lost) }
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(listOf("#00FF00", "#FF0000"), cache.loadCourses(term).map { it.customColorHex })
         assertEquals(mapOf(calculus.courseNo to mapOf("en" to "Algo")), cache.loadCourseCustomNames())
@@ -832,11 +820,11 @@ class CourseOverridesChannelTest {
                 }
                 WriteAnswer(sent = true, serverClockUs = null, applied = emptySet(), values = mapOf("color_hex" to "#00FF00", "custom_names" to mapOf("en" to "Algo")))
             },
-            records = { true }, sends = { true }, lastWriterWins = { true },
+            records = { true }, sends = { true },
         )
         queue(placed(color(calculus, "#FF0000"), calculus), placed(name(calculus, "Calc", "en"), calculus))
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf("#FF0000"), cache.loadCourses(term).map { it.customColorHex })
         assertEquals(mapOf(calculus.courseNo to mapOf("en" to "Calculus")), cache.loadCourseCustomNames())
@@ -856,7 +844,7 @@ class CourseOverridesChannelTest {
                 replied.complete(Unit)
                 WriteAnswer(sent = true, serverClockUs = null, applied = emptySet(), values = mapOf("color_hex" to "#00FF00"))
             },
-            records = { true }, sends = { true }, lastWriterWins = { true },
+            records = { true }, sends = { true },
         )
         queue(placed(color(calculus, "#FF0000"), calculus))
         val lockHeld = CompletableDeferred<Unit>()
@@ -870,7 +858,7 @@ class CourseOverridesChannelTest {
         }
         lockHeld.await()
 
-        val drain = launch(Dispatchers.Default) { overrides.retry(signIn) }
+        val drain = launch(Dispatchers.Default) { overrides.drain(signIn) }
         replied.await()
         // The reply's value now waits for the lock; blue is picked and queued meanwhile.
         withContext(Dispatchers.Default) { delay(300) }
@@ -887,7 +875,7 @@ class CourseOverridesChannelTest {
         queue(placed(color(calculus, "#FF0000"), calculus))
         repeat(2) { v4Backend.answer(v4PathOf(calculus), 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}")) }
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(2, v4Backend.sent.size)
         assertEquals(listOf(0), waiting().map { it.attempts })
@@ -904,7 +892,7 @@ class CourseOverridesChannelTest {
         val overrides = v4Overrides()
 
         val ended = series.end()
-        overrides.retry(ended)
+        overrides.drain(ended)
         overrides.requeueParked(ended)
         overrides.send(calculus.moodleIdNumber!!, colorHex = "#00FF00", semester = term, courseNo = calculus.courseNo, signIn = ended)
         overrides.queue(listOf(PendingCourseOverrides.Change(physics.moodleIdNumber!!, colorHex = "#0000FF")), overrides.reserveVersion(), ended)
@@ -931,15 +919,15 @@ class CourseOverridesChannelTest {
                 cache.saveCourses(listOf(calculus.copy(customColorHex = "#FF0000")), term, signIn)
                 WriteAnswer(sent = true, serverClockUs = CLOCK_US, applied = emptySet(), values = mapOf("color_hex" to "#00FF00"))
             },
-            records = { true }, sends = { true }, lastWriterWins = { true }, ack = ack,
+            records = { true }, sends = { true }, ack = ack,
         )
         queue(placed(color(calculus, "#FF0000"), calculus))
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf("#FF0000"), cache.loadCourses(term).map { it.customColorHex })
         assertNull(ack.lastAck(colorField(calculus)))
-        assertEquals(emptySet<String>(), overrides.held(0L))
+        assertEquals(emptySet<String>(), overrides.heldFields())
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
@@ -953,7 +941,7 @@ class CourseOverridesChannelTest {
         assertTrue(overrides.queueAsOldest(PendingCourseOverrides.Change(calculus.moodleIdNumber!!, colorHex = "#123456", semester = term, courseNo = calculus.courseNo), signIn))
         assertTrue(overrides.queueAsOldest(PendingCourseOverrides.Change(physics.moodleIdNumber!!, colorHex = "#654321", semester = term, courseNo = physics.courseNo), signIn))
         prefs.syncCourseColors = true
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(listOf("#FF0000", "#654321"), v4Backend.sent.map { Regex(""""color_hex":"([^"]+)"""").find(it.body.orEmpty())?.groupValues?.get(1) })
         assertTrue(v4Backend.sent.last().body.orEmpty().endsWith(""","hlc":0}"""))
@@ -974,7 +962,7 @@ class CourseOverridesChannelTest {
     fun `on v4 a key written twice goes once, as its last change`() = runTest {
         queue(placed(color(calculus, "#FF0000"), calculus), placed(color(physics, "#00FF00"), physics), placed(color(calculus, "#0000FF"), calculus))
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(
             listOf(
@@ -992,9 +980,9 @@ class CourseOverridesChannelTest {
         v4Backend.answer(v4PathOf(calculus), 503, """{"error":"internal_error","message":"made up"}""")
         val overrides = v4Overrides()
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(0, waiting().single().attempts)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(List(2) { v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}""") }, v4Shapes())
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -1005,7 +993,7 @@ class CourseOverridesChannelTest {
         queue(placed(color(calculus, "#FF0000"), calculus))
         v4Backend.answer(v4PathOf(calculus), 422, """{"error":"invalid_request","message":"made up","fields":[]}""")
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(1, v4Backend.sent.size)
         assertEquals(listOf(1), waiting().map { it.attempts })
@@ -1018,7 +1006,7 @@ class CourseOverridesChannelTest {
         queue(placed(color(calculus, "#FF0000", semester = term), calculus))
         v4Backend.answer(v4PathOf(calculus), 404, notFound)
 
-        v4Overrides().retry(signIn)
+        v4Overrides().drain(signIn)
 
         assertEquals(1, v4Backend.sent.size)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -1031,12 +1019,12 @@ class CourseOverridesChannelTest {
         v4Backend.answer(v4PathOf(calculus), 404, notFound)
         val overrides = v4Overrides()
 
-        repeat(3) { overrides.retry(signIn) }
+        repeat(3) { overrides.drain(signIn) }
         assertEquals("parked at the first 404, and not sent again", 1, v4Backend.sent.size)
         assertEquals(listOf(max), waiting().map { it.attempts })
 
         Outbox(setOf(overrides)).courseUploadLanded(signIn)
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(List(2) { v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}""") }, v4Shapes())
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
@@ -1048,9 +1036,9 @@ class CourseOverridesChannelTest {
         repeat(2) { v4Backend.answer(v4PathOf(calculus), 422, """{"error":"invalid_request","message":"made up","fields":[]}""") }
 
         val first = v4Overrides()
-        repeat(2) { first.retry(signIn) }
+        repeat(2) { first.drain(signIn) }
         val next = v4Overrides()
-        repeat(2) { next.retry(signIn) }
+        repeat(2) { next.drain(signIn) }
 
         assertEquals("once per process, refused again and parked", 2, v4Backend.sent.size)
         assertEquals(listOf(max), waiting().map { it.attempts })
@@ -1064,41 +1052,12 @@ class CourseOverridesChannelTest {
         v4Backend.answer(v4PathOf(calculus), 404, notARoute)
         val overrides = v4Overrides()
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
         assertEquals(listOf(1), waiting().map { it.attempts })
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
         assertEquals(2, v4Backend.sent.size)
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
-    /**
-     * A base that names no API version takes `/v4`'s rules as it takes its requests: a change an
-     * older build queued by its Moodle id alone goes by its course's key, found where its id leads,
-     * as on any other base. Under `/v3`'s rules nothing looked for the key, and the change parked.
-     */
-    @Test
-    fun `on a base that names no version an older build's change by its Moodle id goes to its course's key`() = runTest {
-        val current = cache.currentSemesterCode()
-        cache.saveCourses(listOf(calculus), current, signIn)
-        queue(color(calculus, "#FF0000"))
-        val unversioned = RecordingBackend()
-        val overrides = PendingCourseOverrides(
-            cache, pushApiClientAt("http://127.0.0.1:9", unversioned.client, prefs, syncClock), prefs,
-            syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
-        )
-
-        overrides.retry(signIn)
-
-        assertEquals(
-            listOf(
-                listOf(
-                    "PATCH", "http://127.0.0.1:9/sync/courses/client:$current:MA1010002/override", listOf(bearer), json,
-                    """{"color_hex":"#FF0000","hlc":1790000000123000}""",
-                ),
-            ),
-            unversioned.sent.map { it.shape() },
-        )
-        assertEquals(emptyList<PendingCourseOverride>(), waiting())
-    }
 }

@@ -1,6 +1,6 @@
 // What one send of the course colors and names' channel (PendingCourseOverrides) does: the PATCH
-// of one waiting change, run by its lane, what its answer or its failure leaves queued, and on
-// /v4 the backend's value taken where it kept a later one.
+// of one waiting change, run by its lane, what its answer or its failure leaves queued, and the
+// backend's value taken where it kept a later one.
 
 package org.ntust.app.tigerduck.data
 
@@ -22,33 +22,6 @@ import org.ntust.app.tigerduck.sync.outbox.OnDiskAttempts
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.sync.outbox.UntimedEntries
 import org.ntust.app.tigerduck.util.logSummary
-
-/**
- * Sends one course's colour, or its name in one locale, as sign-in [signIn], and says only whether
- * it went out; for a test that sends through one. [stillAllowed] is read once more right before
- * the request goes, after whatever suspends in between.
- */
-internal fun interface CourseOverrideSender {
-    suspend fun send(
-        moodleId: String,
-        colorHex: String?,
-        customName: String?,
-        locale: String?,
-        signIn: SignIn,
-        stillAllowed: () -> Boolean,
-        madeAtMs: Long?,
-    ): Boolean
-}
-
-// A sender that says only whether a change went: an answer with nothing more in it.
-internal fun CourseOverrideSender.answering() = CourseOverrideWriter { change, _, signIn, allowed ->
-    val moodleId = change.moodleId ?: return@CourseOverrideWriter WriteAnswer.NOT_SENT
-    if (send(moodleId, change.colorHex, change.customName, change.locale, signIn, allowed, change.madeAtMs)) {
-        WriteAnswer(sent = true, serverClockUs = null, applied = null, values = emptyMap())
-    } else {
-        WriteAnswer.NOT_SENT
-    }
-}
 
 /**
  * Sends [change], a course's color or its name in one locale, to the course [target] names, as
@@ -74,13 +47,11 @@ internal class CourseOverridesStore(private val dataCache: DataCache) : LaneStor
 
 /**
  * The lane's rules: one change per field ([fieldOf]), its refusals counted in the change itself,
- * parked at [maxAttempts]; and, on `/v4` ([lastWriterWins]), one an older build wrote with no time
- * given the old-entry time [oldEntryTimeMs] reads (X1). On `/v3` such a change goes without one,
- * as it always has, so it is given none.
+ * parked at [maxAttempts]; and one an older build wrote with no time given the old-entry time
+ * [oldEntryTimeMs] reads (X1).
  */
 internal fun courseOverridesPolicy(
     maxAttempts: Int,
-    lastWriterWins: () -> Boolean,
     oldEntryTimeMs: suspend () -> Long,
 ) = LanePolicy(
     field = ::fieldOf,
@@ -92,18 +63,15 @@ internal fun courseOverridesPolicy(
         sameEdit = { a, b -> a.isSameChange(b) },
     ),
     untimed = UntimedEntries(
-        timeOf = { change -> change.madeAtMs ?: if (lastWriterWins()) null else SENT_WITHOUT_TIME },
+        timeOf = { change -> change.madeAtMs },
         withTime = { change, atMs -> change.copy(madeAtMs = atMs) },
         oldEntryTimeMs = oldEntryTimeMs,
     ),
 )
 
-// What a change with no time reads as on /v3, where it goes without one: a time it needs none of.
-private const val SENT_WITHOUT_TIME = 0L
-
 /** Where a change's course is on this phone: its term and number. */
 internal data class CoursePlace(val semester: String, val courseNo: String) {
-    /** The key the backend knows the course by on `/v4`. */
+    /** The key the backend knows the course by. */
     val key: String get() = SyncField.courseKey(semester, courseNo)
 }
 
@@ -152,7 +120,7 @@ internal fun placesByMoodleId(everyTerm: Map<String, List<Course>>, current: Str
 }
 
 /**
- * Where a change an older build kept with no term goes on `/v4`, in iOS's order
+ * Where a change an older build kept with no term goes, in iOS's order
  * (`OutboxSender.courseKey`): the first course with [moodleId] in the terms this phone caches
  * ([placesByMoodleId], [current]'s first); with none, the term and number the id itself names
  * ([termAndNumber]) among [current] and then [catalogue]'s terms, the catalogue's order, newest
@@ -197,18 +165,17 @@ internal fun fieldOf(row: PendingCourseOverride): String {
 /**
  * The course channel's sends, one waiting change at a time as its lane hands it over, read as the
  * request is about to go: its kind's gate ([sends]), the PATCH ([writer]), and what became of it.
- * [waiting] reads the lane's changes, [confirmed] notes a change the backend has, before the lane
- * lets it go, and [lastWriterWins] says the backend settles each field by its stamp, as `/v4` does.
+ * [waiting] reads the lane's changes, and [landed] runs once the backend has a change, before the
+ * lane lets it go and hands over the next.
  */
 internal class CourseOverrideSends(
     private val dataCache: DataCache,
     private val writer: CourseOverrideWriter,
     private val sends: (color: Boolean) -> Boolean,
-    private val lastWriterWins: () -> Boolean,
     // The catalogue's terms, newest first, for an older build's change by its Moodle id.
     private val catalogue: () -> List<String>,
     private val waiting: suspend () -> List<PendingCourseOverride>,
-    private val confirmed: suspend (key: String, signIn: SignIn) -> Unit,
+    private val landed: suspend () -> Unit,
 ) {
     /**
      * The lane's send of [change] under [signIn]. Not sent while its kind does not go, or once
@@ -219,11 +186,11 @@ internal class CourseOverrideSends(
         val color = change.colorHex != null
         val allowed = { sends(color) && signIn.isCurrent }
         if (!allowed()) return SendResult.NotSent
-        val place = placeOf(change) ?: if (lastWriterWins()) located(change) else null
+        val place = placeOf(change) ?: located(change)
         val answer = try {
             // The request carries [signIn], so a sign-out after the check sends it without a token
             // rather than with the next account's.
-            writer.write(change, CourseRef(change.moodleId, place?.key), signIn, allowed)
+            writer.write(change, CourseRef(place?.key), signIn, allowed)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -231,8 +198,8 @@ internal class CourseOverrideSends(
             return afterFailure(change, e)
         }
         if (!answer.sent) return SendResult.NotSent
-        change.key?.let { confirmed(it, signIn) }
-        if (lastWriterWins() && place != null) takeWinner(change, place, answer, signIn)
+        if (change.key != null) landed()
+        if (place != null) takeWinner(change, place, answer, signIn)
         return SendResult.Sent(answer.serverClockUs)
     }
 
@@ -269,8 +236,8 @@ internal class CourseOverrideSends(
         return dataCache.loadCourses(place.semester).none { it.courseNo == place.courseNo }
     }
 
-    // A row an older build wrote with no term: where its Moodle id leads (legacyPlaceOf), as `/v4`
-    // names a course by its key. Null when nothing does: the row parks (CourseKeyUnknownException),
+    // A row an older build wrote with no term: where its Moodle id leads (legacyPlaceOf), as the
+    // backend names a course by its key. Null when nothing does: the row parks (CourseKeyUnknownException),
     // and each later try is this lookup again, on this phone's files, with no request, as the key is
     // built before the request is.
     private suspend fun located(change: PendingCourseOverride): CoursePlace? {

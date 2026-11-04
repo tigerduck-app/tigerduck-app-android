@@ -128,7 +128,6 @@ class LwwOverridesTest {
         courseSync = DataCache.CourseSync(0L) { 0L },
         beforeFetch = 0L,
         syncedBefore = syncedBefore,
-        heldFields = outbox::heldFields,
     )
 
     private fun reconciler() = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs)

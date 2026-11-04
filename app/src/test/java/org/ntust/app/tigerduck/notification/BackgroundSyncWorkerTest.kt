@@ -22,14 +22,20 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.HolidayOverrideApply
-import org.ntust.app.tigerduck.data.HolidayOverrideSender
+import org.ntust.app.tigerduck.data.HolidayOverrideWriter
 import org.ntust.app.tigerduck.data.PendingHolidayOverrides
+import org.ntust.app.tigerduck.data.TOOK
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.CourseOverrideResult
+import org.ntust.app.tigerduck.push.StampedValue
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
-import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncPolicy
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
+import org.ntust.app.tigerduck.ui.screen.home.StampedMerges
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.testSignIn
 import org.junit.After
@@ -390,39 +396,36 @@ class BackgroundSyncWorkerTest {
 
     @Test
     fun `a background sync applies the server's custom course names when name sync is on`() = runTest {
-        val syncNames = CourseSyncReconciler.syncsCourseNames(true, emptySet())
+        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term, testSignIn())
+        val syncNames = SyncPolicy(cloudSync = true, flavorSyncs = true, setOf(SyncCategory.COURSE_NAMES), emptySet()).applies(SyncCategory.COURSE_NAMES)
 
-        CourseSyncReconciler.applyNameOverrides(
-            cache, listOf(override("CS1001", mapOf("zh-Hant" to "資結"))), syncNames, testSignIn(),
-        )
+        applyNames("CS1001", mapOf("zh-Hant" to "資結"), syncNames = syncNames)
 
         assertEquals(mapOf("CS1001" to mapOf("zh-Hant" to "資結")), cache.loadCourseCustomNames())
     }
 
     @Test
     fun `a background sync leaves custom names alone when name sync is off`() = runTest {
-        val off = CourseSyncReconciler.syncsCourseNames(false, emptySet())
+        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term, testSignIn())
+        val off = SyncPolicy(cloudSync = true, flavorSyncs = true, emptySet(), emptySet()).applies(SyncCategory.COURSE_NAMES)
         // On, but held for the re-enable check the user has yet to answer.
-        val held = CourseSyncReconciler.syncsCourseNames(true, setOf("course_names"))
-        val names = listOf(override("CS1001", mapOf("zh-Hant" to "資結")))
+        val names = setOf(SyncCategory.COURSE_NAMES)
+        val held = SyncPolicy(cloudSync = true, flavorSyncs = true, names, held = names).applies(SyncCategory.COURSE_NAMES)
 
-        CourseSyncReconciler.applyNameOverrides(cache, names, off, testSignIn())
-        CourseSyncReconciler.applyNameOverrides(cache, names, held, testSignIn())
+        applyNames("CS1001", mapOf("zh-Hant" to "資結"), syncNames = off)
+        applyNames("CS1001", mapOf("zh-Hant" to "資結"), syncNames = held)
 
         assertEquals(emptyMap<String, Map<String, String>>(), cache.loadCourseCustomNames())
     }
 
+    // The holidays' queue, which nothing sends here.
+    private fun pendingHolidays() = PendingHolidayOverrides(prefs = appPrefs, writer = HolidayOverrideWriter { _, _, _, _ -> TOOK }, syncs = { true })
+
     @Test
     fun `a background sync applies the server's holiday choices`() {
-        val pending = PendingHolidayOverrides(
-            prefs = appPrefs,
-            sender = HolidayOverrideSender { _, _, _, _ -> true },
-            syncs = { true },
-        )
-
-        HolidayOverrideApply.apply(
-            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = SignInSeries().current,
-            pending = pending, calendar = calendar,
+        HolidayOverrideApply.applyStamped(
+            snapshot = mapOf(3 to StampedValue(true, 1L), 5 to StampedValue(true, 1L)), serverHlc = 1_000_000L, keeps = { false },
+            signIn = SignInSeries().current, pending = pendingHolidays(), calendar = calendar,
         )
 
         assertEquals(setOf(3, 5), appPrefs.holidayNotifyOverrides)
@@ -431,17 +434,12 @@ class BackgroundSyncWorkerTest {
     @Test
     fun `a holiday snapshot is left unapplied when a sign-out refuses it`() {
         appPrefs.holidayNotifyOverrides = setOf(7)
-        val pending = PendingHolidayOverrides(
-            prefs = appPrefs,
-            sender = HolidayOverrideSender { _, _, _, _ -> true },
-            syncs = { true },
-        )
         val series = SignInSeries()
         val ended = series.end()
 
-        HolidayOverrideApply.apply(
-            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = ended,
-            pending = pending, calendar = calendar,
+        HolidayOverrideApply.applyStamped(
+            snapshot = mapOf(3 to StampedValue(true, 1L), 5 to StampedValue(true, 1L)), serverHlc = 1_000_000L, keeps = { false },
+            signIn = ended, pending = pendingHolidays(), calendar = calendar,
         )
 
         assertEquals(setOf(7), appPrefs.holidayNotifyOverrides)
@@ -451,13 +449,19 @@ class BackgroundSyncWorkerTest {
 
     private val term = "1151"
 
-    // The worker's pass, as it runs it, over this test's cache.
+    // The worker's pass, as it runs it, over this test's cache: [held] is read where the pass reads
+    // what the course overrides' channel holds, in the step that writes the names.
     private suspend fun applyNames(
         courseNo: String,
         names: Map<String, String>,
         held: suspend () -> Set<String> = { emptySet() },
+        syncNames: Boolean = true,
     ) = BackgroundCourseOverrides.apply(
-        cache, term, listOf(override(courseNo, names)), held, syncColors = false, syncNames = true, locale = "zh", testSignIn(),
+        cache, term, syncColors = false, syncNames = syncNames, locale = "zh", testSignIn(),
+        StampedMerges(
+            listOf(override(courseNo, names)), term, PullHolds(1L, AckClock()), held,
+            { cache.loadEveryTermCourses() }, { term to emptyList() },
+        ),
     )
 
     @Test

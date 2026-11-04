@@ -181,7 +181,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // Seeded here so a cold launch with cloud sync off does not show the
         // status dot's backend row as "unknown" until the first sync guard
         // runs — which, sync being off, may be never.
-        ServerStatusTracker.setCloudSyncEnabled(appPreferences.cloudSyncEnabled)
+        ServerStatusTracker.setCloudSyncEnabled(org.ntust.app.tigerduck.sync.SyncPolicies(appPreferences).current.tigerSyncOn)
         analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)

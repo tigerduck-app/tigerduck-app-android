@@ -10,8 +10,6 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
@@ -23,22 +21,20 @@ import org.ntust.app.tigerduck.sync.SyncCategory.COURSES
 import org.ntust.app.tigerduck.sync.SyncCategory.COURSE_COLORS
 import org.ntust.app.tigerduck.sync.SyncCategory.COURSE_NAMES
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler
-import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
- * [SyncPolicy] is pinned to the copies of each rule it will replace, on every combination of the
- * switches and the hold: each answer is checked against the copy run on the same preferences, the
- * backend client's gates by whether a request went out. Both flavors run this, so the flavor is
- * covered as the build gives it, and as an input of its own below. Every base takes `/v4`'s rules,
- * last writer wins, one that names no API version ([UNVERSIONED]) too: what a category keeps is
- * `/v4`'s rule, and every other answer today's copy.
+ * [SyncPolicy] is pinned to each rule it is the home of, on every combination of the switches and
+ * the hold: each answer is checked against the rule as the preferences spell it, the backend
+ * client's gates by whether a request went out. Both flavors run this, so the flavor is covered as
+ * the build gives it, and as an input of its own below. The backend settles each field by its
+ * stamp (last writer wins), so a category's edit is kept whatever its switches say.
  */
 class SyncPolicyTest {
 
     private val backend = ScriptedBackend()
     private val context = JvmContext()
-    private val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = UNVERSIONED }
+    private val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = BASE }
     private val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-sync-policy-test", Context.MODE_PRIVATE))
         .apply { save("access", "refresh", Long.MAX_VALUE) }
     private val tokenManager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
@@ -69,7 +65,7 @@ class SyncPolicyTest {
     }
 
     @Test
-    fun `every answer equals today's copy, on every combination of the switches and the hold`() = runTest {
+    fun `every answer equals its rule, on every combination of the switches and the hold`() = runTest {
         // Never the real backend, even past the scripted one.
         assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         val roster = listOf(Course(courseNo = "CS1", courseName = "CS1"))
@@ -83,20 +79,20 @@ class SyncPolicyTest {
 
             // Last writer wins: kept whatever the switches say, where the build has TigerSync.
             check("keeps(ASSIGNMENTS)", policy.flavorSyncs, policy.keeps(ASSIGNMENTS))
-            check("sends(ASSIGNMENTS)", UnsentMarks.sendsMarks(prefs), policy.sends(ASSIGNMENTS))
+            check("sends(ASSIGNMENTS)", prefs.cloudSyncEnabled && prefs.syncAssignments && ASSIGNMENTS.stored !in pending, policy.sends(ASSIGNMENTS))
             check("keeps(COURSE_COLORS)", policy.flavorSyncs, policy.keeps(COURSE_COLORS))
             check("keeps(COURSE_NAMES)", policy.flavorSyncs, policy.keeps(COURSE_NAMES))
-            check("sends(COURSE_COLORS)", PendingCourseOverrides.sends(prefs, color = true), policy.sends(COURSE_COLORS))
-            check("sends(COURSE_NAMES)", PendingCourseOverrides.sends(prefs, color = false), policy.sends(COURSE_NAMES))
             check(
-                "applies(COURSE_COLORS)",
-                CourseSyncReconciler.syncsCourseColors(prefs.syncCourseColors, pending), policy.applies(COURSE_COLORS),
+                "sends(COURSE_COLORS)",
+                prefs.cloudSyncEnabled && prefs.syncCourseColors && COURSE_COLORS.stored !in pending, policy.sends(COURSE_COLORS),
             )
             check(
-                "applies(COURSE_NAMES)",
-                CourseSyncReconciler.syncsCourseNames(prefs.syncCourseNames, pending), policy.applies(COURSE_NAMES),
+                "sends(COURSE_NAMES)",
+                prefs.cloudSyncEnabled && prefs.syncCourseNames && COURSE_NAMES.stored !in pending, policy.sends(COURSE_NAMES),
             )
-            check("applies(COURSES)", CourseSyncReconciler.syncsCourseList(prefs.syncCourses, pending), policy.applies(COURSES))
+            check("applies(COURSE_COLORS)", prefs.syncCourseColors && COURSE_COLORS.stored !in pending, policy.applies(COURSE_COLORS))
+            check("applies(COURSE_NAMES)", prefs.syncCourseNames && COURSE_NAMES.stored !in pending, policy.applies(COURSE_NAMES))
+            check("applies(COURSES)", prefs.syncCourses && COURSES.stored !in pending, policy.applies(COURSES))
             check(
                 "applies(ASSIGNMENTS)",
                 AssignmentOverrideReconciler.reasonToLeaveMarks(prefs.syncAssignments, pending) == null,
@@ -128,50 +124,17 @@ class SyncPolicyTest {
     }
 
     @Test
-    fun `the policy takes the build's flavor, and last writer wins at the default backend`() {
+    fun `the policy takes the build's flavor`() {
         prefs.announcementApiBaseUrlOverride = null
         val policy = policies.current
         assertEquals(!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true), policy.flavorSyncs)
-        assertTrue(policy.lastWriterWins)
-    }
-
-    @Test
-    fun `last writer wins on every base, one that names no version included`() {
-        for ((base, wins) in listOf(
-            "http://127.0.0.1:9/v4" to true,
-            "http://127.0.0.1:9/prefix/v4/" to true,
-            // As the released build left it: moved to v4.
-            "http://127.0.0.1:9/v3" to true,
-            "http://127.0.0.1:9" to true,
-            "http://127.0.0.1:9/v4x" to true,
-        )) {
-            prefs.announcementApiBaseUrlOverride = base
-            assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
-            assertEquals(base, wins, policies.current.lastWriterWins)
-        }
-    }
-
-    @Test
-    fun `on v4 every switch reads as on v3, and every category is kept whatever its switches say`() {
-        store(master = true, on = setOf(COURSES), held = setOf(COURSES))
-        val v4 = policies.current
-        // The same reading under /v3's rules, which no base takes any more.
-        val v3 = SyncPolicy(v4.cloudSync, v4.flavorSyncs, v4.switchedOn, v4.held, lastWriterWins = false)
-
-        assertTrue(v4.lastWriterWins)
-        for (category in SyncCategory.entries) {
-            assertEquals("sends($category)", v3.sends(category), v4.sends(category))
-            assertEquals("applies($category)", v3.applies(category), v4.applies(category))
-            assertEquals("syncs($category)", v3.syncs(category), v4.syncs(category))
-            assertEquals("keeps($category)", v4.flavorSyncs, v4.keeps(category))
-        }
     }
 
     @Test
     fun `a build without TigerSync keeps, sends and uploads nothing, whatever its switches say`() {
-        for (cloudSync in listOf(false, true)) for (lww in listOf(false, true)) for (on in everySet) for (held in everySet) {
-            val policy = SyncPolicy(cloudSync, flavorSyncs = false, switchedOn = on, held = held, lastWriterWins = lww)
-            val row = "cloudSync=$cloudSync lww=$lww on=$on held=$held"
+        for (cloudSync in listOf(false, true)) for (on in everySet) for (held in everySet) {
+            val policy = SyncPolicy(cloudSync, flavorSyncs = false, switchedOn = on, held = held)
+            val row = "cloudSync=$cloudSync on=$on held=$held"
             assertFalse(row, policy.tigerSyncOn)
             assertFalse(row, policy.uploadsCourses)
             assertFalse(row, policy.sendsCourseIgnores)
@@ -179,6 +142,7 @@ class SyncPolicyTest {
                 assertFalse("syncs($category) at $row", policy.syncs(category))
                 assertFalse("syncsOverride at $row", policy.syncsOverride(category == COURSE_COLORS, category == COURSE_NAMES))
                 assertFalse("keeps($category) at $row", policy.keeps(category))
+                assertFalse("keepsHolidays at $row", policy.keepsHolidays)
                 assertFalse("sends($category) at $row", policy.sends(category))
                 // A full sync never runs here; asked anyway, the answer is the switch's and the hold's.
                 assertEquals("applies($category) at $row", category in on && category !in held, policy.applies(category))
@@ -187,20 +151,12 @@ class SyncPolicyTest {
     }
 
     @Test
-    fun `under last writer wins every category is kept whatever its switches say, and nothing else changes`() {
+    fun `every category and holiday is kept whatever its switches say, where the build has TigerSync`() {
         for (cloudSync in listOf(false, true)) for (flavor in listOf(false, true)) for (on in everySet) for (held in everySet) {
-            val before = SyncPolicy(cloudSync, flavor, on, held, lastWriterWins = false)
-            val after = SyncPolicy(cloudSync, flavor, on, held, lastWriterWins = true)
+            val policy = SyncPolicy(cloudSync, flavor, on, held)
             val row = "cloudSync=$cloudSync flavor=$flavor on=$on held=$held"
-            assertEquals(row, before.tigerSyncOn, after.tigerSyncOn)
-            assertEquals(row, before.uploadsCourses, after.uploadsCourses)
-            assertEquals(row, before.sendsCourseIgnores, after.sendsCourseIgnores)
-            for (category in SyncCategory.entries) {
-                assertEquals("keeps($category) at $row", flavor, after.keeps(category))
-                assertEquals("sends($category) at $row", before.sends(category), after.sends(category))
-                assertEquals("syncs($category) at $row", before.syncs(category), after.syncs(category))
-                assertEquals("applies($category) at $row", before.applies(category), after.applies(category))
-            }
+            assertEquals("keepsHolidays at $row", flavor, policy.keepsHolidays)
+            for (category in SyncCategory.entries) assertEquals("keeps($category) at $row", flavor, policy.keeps(category))
         }
     }
 
@@ -222,8 +178,7 @@ class SyncPolicyTest {
     }
 
     private companion object {
-        /** A base that names no API version, which takes `/v4`'s rules as every base does. */
-        const val UNVERSIONED = "http://127.0.0.1:9"
+        const val BASE = "http://127.0.0.1:9/v4"
         val KEY = CourseRef(courseKey = "client:1151:CS1")
     }
 }

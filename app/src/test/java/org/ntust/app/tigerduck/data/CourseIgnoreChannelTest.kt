@@ -33,6 +33,7 @@ import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.sync.SyncField
@@ -105,7 +106,7 @@ class CourseIgnoreChannelTest {
         val ignores = CourseIgnoreSync(
             cache,
             CourseIgnoreWriter { target, ignore, _, _, _ ->
-                sent += target.moodleId to ignore
+                sent += target.courseKey to ignore
                 if (ignore == null) {
                     fillOut.complete(Unit)
                     release.await()
@@ -120,7 +121,7 @@ class CourseIgnoreChannelTest {
             },
             clock = { 9_000L },
         )
-        val fill = launch { ignores.applySnapshot(snapshot(fetchedAtMs = 9_000L, "BBB" to true), signIn) }
+        val fill = launch { ignores.applySnapshot(snapshot(fetchedAtMs = 9_000L, "BBB" to true), signIn) { false } }
         fillOut.await()
         armed = true
         val retry = launch { ignores.retryPending(signIn) }
@@ -130,7 +131,7 @@ class CourseIgnoreChannelTest {
         fill.join()
         retry.join()
 
-        assertEquals(listOf<Pair<String?, Boolean?>>("${term}BBB" to null), sent)
+        assertEquals(listOf<Pair<String?, Boolean?>>("client:$term:BBB" to null), sent)
         assertEquals(listOf("$term:AAA" to true), waiting().map { it.key to it.ignore })
     }
 
@@ -152,7 +153,7 @@ class CourseIgnoreChannelTest {
         val ignores = CourseIgnoreSync(
             cache,
             CourseIgnoreWriter { target, ignore, _, _, _ ->
-                sent += target.moodleId to ignore
+                sent += target.courseKey to ignore
                 if (ignore == null) {
                     fillOut.complete(Unit)
                     release.await()
@@ -167,7 +168,7 @@ class CourseIgnoreChannelTest {
             },
             clock = { 9_000L },
         )
-        val fill = launch { ignores.applySnapshot(snapshot(fetchedAtMs = 9_000L, "BBB" to true), signIn) }
+        val fill = launch { ignores.applySnapshot(snapshot(fetchedAtMs = 9_000L, "BBB" to true), signIn) { false } }
         fillOut.await()
         armed = true
         val retry = launch { ignores.retryPending(signIn) }
@@ -177,7 +178,7 @@ class CourseIgnoreChannelTest {
         fill.join()
         retry.join()
 
-        assertEquals(listOf<Pair<String?, Boolean?>>("${term}BBB" to null), sent)
+        assertEquals(listOf<Pair<String?, Boolean?>>("client:$term:BBB" to null), sent)
         assertEquals(emptyList<PendingCourseIgnore>(), waiting())
     }
 
@@ -188,29 +189,25 @@ class CourseIgnoreChannelTest {
      */
     @Test
     fun `a change the re-enable check holds while it is read again under the sync's lock does not go`() = runTest {
-        // With no time, each read of the queue asks whether the backend goes by stamps.
-        queue(change("AAA", madeAtMs = null))
+        queue(change("AAA"))
         val sent = mutableListOf<String?>()
         var sendsAsked = 0
         var held = false
         val ignores = CourseIgnoreSync(
             cache,
             CourseIgnoreWriter { target, ignore, _, _, _ ->
-                sent += target.moodleId
+                sent += target.courseKey
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
             CourseIgnoreEffects {},
+            // The retry asks as it starts and its send once more; the hold comes on as the change
+            // is read again under the lock, so the gate the send asks last, right before the request,
+            // finds it.
             sends = {
-                sendsAsked++
+                if (++sendsAsked >= 3) held = true
                 !held
             },
             clock = { 9_000L },
-            // Once the retry and its send have asked the gate, the next read of the queue is the one
-            // under the lock: the hold comes on as it reads.
-            outbox = IgnoreOutbox({ 9_000L }, {
-                if (sendsAsked >= 2) held = true
-                false
-            }, AckClock(), CallersScope(), null),
         )
 
         ignores.retryPending(signIn)
@@ -219,16 +216,16 @@ class CourseIgnoreChannelTest {
         assertEquals(listOf("$term:AAA" to true), waiting().map { it.key to it.ignore })
     }
 
-    /** Fix round 1: one batch, one time, as each change of a batch always went on v3, however the clock moves as its courses are read. */
+    /** Fix round 1: one batch, one time, as each change of a batch always went, however the clock moves as its courses are read. */
     @Test
-    fun `on v3 every change of a batch goes with the batch's one time`() = runTest {
+    fun `every change of a batch goes with the batch's one time`() = runTest {
         var clockMs = 5_000L
         val stamps = mutableListOf<Long?>()
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreSender { _, _, _, _, madeAtMs ->
+            CourseIgnoreWriter { _, ignore, _, _, madeAtMs ->
                 stamps += madeAtMs
-                true
+                WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
             CourseIgnoreEffects {},
             sends = { true },
@@ -255,12 +252,12 @@ class CourseIgnoreChannelTest {
         var clockMs = 1_000L
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreSender { _, ignore, _, _, _ ->
+            CourseIgnoreWriter { _, ignore, _, _, _ ->
                 sent += ignore
                 if (sent.size > 1) throw PushApiException("patchCourseIgnore failed: HTTP 422", 422)
                 firstOut.complete(Unit)
                 release.await()
-                true
+                WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
             CourseIgnoreEffects {},
             sends = { true },
@@ -294,12 +291,12 @@ class CourseIgnoreChannelTest {
         var clockMs = 1_000L
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreSender { _, ignore, _, _, _ ->
+            CourseIgnoreWriter { _, ignore, _, _, _ ->
                 sent += ignore
                 if (ignore == true) {
                     firstOut.complete(Unit)
                     release.await()
-                    return@CourseIgnoreSender true
+                    return@CourseIgnoreWriter WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
                 }
                 newerSent.complete(Unit)
                 throw PushApiException("patchCourseIgnore failed: HTTP 422", 422)
@@ -458,7 +455,7 @@ class CourseIgnoreChannelTest {
             CourseIgnoreEffects { effects++ },
             sends = { CourseIgnoreSync.syncsCourseIgnores(prefs) },
             clock = { nowMs++ },
-            outbox = IgnoreOutbox({ nowMs++ }, { true }, AckClock(), backgroundScope, null),
+            outbox = IgnoreOutbox({ nowMs++ }, AckClock(), backgroundScope, null),
         )
         queue(change("AAA"), change("BBB", changedAtMs = 2_000L))
 
@@ -519,7 +516,7 @@ class CourseIgnoreChannelTest {
             CourseIgnoreEffects {},
             sends = { true },
             clock = { nowMs },
-            outbox = IgnoreOutbox({ nowMs }, { true }, ack, backgroundScope, null),
+            outbox = IgnoreOutbox({ nowMs }, ack, backgroundScope, null),
         )
         queue(change("AAA"))
 
@@ -529,7 +526,7 @@ class CourseIgnoreChannelTest {
         assertNull(ack.lastAck(field("AAA")))
         assertEquals(emptyList<PendingCourseIgnore>(), waiting())
         // Nor did the reply mark the course as changed here: the next student's own snapshot is taken.
-        ignores.applySnapshot(snapshot(fetchedAtMs = 1L, "AAA" to false), signIn)
+        ignores.applySnapshot(snapshot(fetchedAtMs = 1L, "AAA" to false), signIn, PullHolds(1L, ack)::keeps)
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
     }
 
@@ -602,7 +599,7 @@ class CourseIgnoreChannelTest {
             fetchedAtMs = 5_000L,
         )
 
-        v4Ignores().applySnapshot(snapshot, signIn)
+        v4Ignores().applySnapshot(snapshot, signIn) { false }
 
         val sent = v4Backend.sent.single()
         assertEquals(listOf("PATCH", "$v4/sync/courses/client:$term:AAA/override"), sent.shape().take(2))

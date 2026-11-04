@@ -2,8 +2,6 @@ package org.ntust.app.tigerduck.sync
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
-import org.ntust.app.tigerduck.network.backend.BackendApi
-import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,18 +13,19 @@ import javax.inject.Singleton
  * - [cloudSync] is the master switch as `AppPreferences.cloudSyncEnabled` reads it, which is
  *   already off on fdroid.
  * - [flavorSyncs] says whether this build has TigerSync at all. It is an input of its own, so a
- *   rule that holds whatever the switches say ([keeps] under [lastWriterWins]) still holds nothing
- *   on a build that never sends.
+ *   rule that holds whatever the switches say ([keeps]) still holds nothing on a build that never
+ *   sends.
  * - [switchedOn] holds the categories whose switch is on, and [held] those the re-enable check
  *   holds (`pendingConflictCategories`) until the user answers it.
- * - [lastWriterWins] says the backend settles each field by its stamp, as `/v4` does.
+ *
+ * The backend settles each field by its stamp (`/v4`, last writer wins), so an edit is kept while
+ * its switches are off and sent once they are on (LWW D12).
  */
 class SyncPolicy(
     val cloudSync: Boolean,
     val flavorSyncs: Boolean,
     val switchedOn: Set<SyncCategory>,
     val held: Set<SyncCategory>,
-    val lastWriterWins: Boolean,
 ) {
     /** Whether TigerSync runs at all: its switch is on, on a build that has it. */
     val tigerSyncOn: Boolean get() = cloudSync && flavorSyncs
@@ -46,18 +45,23 @@ class SyncPolicy(
         tigerSyncOn && (!color || syncs(SyncCategory.COURSE_COLORS)) && (!name || syncs(SyncCategory.COURSE_NAMES))
 
     /**
-     * Whether an edit of [category] is kept to send: while TigerSync and the category's switch are
-     * on, as `UnsentMarks.recordsMarks` and `PendingCourseOverrides.records` decide today. Under
-     * [lastWriterWins] it is kept whatever the switches say, and sent once they are on (LWW D12); a
-     * sign-out still clears it. The course list's own queues keep their edits whatever the
-     * switches say and do not ask this today.
+     * Whether an edit of [category] is kept to send: on a build that has TigerSync, whatever the
+     * switches say, and sent once they are on ([sends], LWW D12); a sign-out still clears it.
      */
-    fun keeps(category: SyncCategory): Boolean = flavorSyncs && (lastWriterWins || syncs(category))
+    fun keeps(category: SyncCategory): Boolean = when (category) {
+        SyncCategory.COURSES, SyncCategory.COURSE_COLORS, SyncCategory.COURSE_NAMES, SyncCategory.ASSIGNMENTS -> flavorSyncs
+    }
+
+    /**
+     * Whether a holiday's choice is kept to send. Holidays have no switch of their own and no
+     * re-enable check, so it is kept as a category's edit is ([keeps]), and sent while TigerSync is on.
+     */
+    val keepsHolidays: Boolean get() = flavorSyncs
 
     /**
      * Whether an edit of [category] goes up now: TigerSync and the category's switch are on, and no
-     * re-enable check holds it, as `UnsentMarks.sendsMarks` and `PendingCourseOverrides.sends`
-     * decide. Last writer wins changes nothing here: an edit kept while off waits for the switches.
+     * re-enable check holds it, which the marks' and the course overrides' channels ask. An edit
+     * kept while off waits for the switches.
      */
     fun sends(category: SyncCategory): Boolean = when (category) {
         // The course list's writes go while the check holds the list, as Use Local sends them then.
@@ -68,9 +72,9 @@ class SyncPolicy(
 
     /**
      * Whether a full sync applies the backend's [category]: its switch is on and no re-enable check
-     * holds it, as `CourseSyncReconciler.syncsCourseList`, `syncsCourseColors` and
-     * `syncsCourseNames` and `AssignmentOverrideReconciler.reasonToLeaveMarks` decide. Like them it
-     * does not read the master switch: a full sync runs only while [tigerSyncOn].
+     * holds it, which the full sync's steps ask, and `AssignmentOverrideReconciler.reasonToLeaveMarks`
+     * decides for the marks. It does not read the master switch: a full sync runs only while
+     * [tigerSyncOn].
      */
     fun applies(category: SyncCategory): Boolean = category in switchedOn && category !in held
 
@@ -100,8 +104,6 @@ class SyncPolicies @Inject constructor(private val prefs: AppPreferences) {
             flavorSyncs = FLAVOR_SYNCS,
             switchedOn = SyncCategory.entries.filterTo(LinkedHashSet()) { prefs.switchOf(it) },
             held = SyncCategory.of(prefs.school.pendingConflictCategories.get()),
-            // The API the endpoint setting names now: /v4 settles every field by its stamp.
-            lastWriterWins = BackendApi.of(resolveAnnouncementEndpoint(prefs).url) == BackendApi.V4,
         )
 
     private fun AppPreferences.switchOf(category: SyncCategory): Boolean = when (category) {
