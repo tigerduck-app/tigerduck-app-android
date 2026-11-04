@@ -151,7 +151,10 @@ internal class CurrentTermCourses(
             membership.gone,
         )
         // The copies merged down follow their rows, for the term's uploads' adds; the pull covers this term alone.
-        dataCache.updateCoursesIfChanged(semester, signIn) { CourseMembership.followingRows(it, semester, rows, CourseMembership.heldIn(result, semester)) }
+        // One a write told since the sync began keeps that (compare-and-set).
+        dataCache.updateCoursesIfChanged(semester, signIn) { courses ->
+            CourseMembership.followingRows(courses, semester, rows, CourseMembership.heldIn(result, semester)) { courseSync.retoldSince(semester, it) }
+        }
     }
 
     private companion object {

@@ -131,13 +131,23 @@ internal object CourseMembership {
      * nothing of, is told it was added by hand: the backend has nothing of it, and the school's
      * fetch has not listed it, which would have made it the school's. It then goes up as the
      * student's own add, at 0, which against no row makes a `user_added` one (Codex on round 5).
+     *
+     * A course [written] names, whose provenance a write changed since the pull began
+     * (`DataCache.CourseSync.retoldSince`), keeps what that write told it: it is newer than the
+     * snapshot (compare-and-set, Greptile on PR #687).
      */
-    fun followingRows(courses: List<Course>, semester: String, rows: List<ServerCourse>, held: Set<String>? = null): List<Course> {
+    fun followingRows(
+        courses: List<Course>,
+        semester: String,
+        rows: List<ServerCourse>,
+        held: Set<String>? = null,
+        written: (courseNo: String) -> Boolean = { false },
+    ): List<Course> {
         val filed = rows.filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }
         val listed = filed.mapTo(mutableSetOf()) { it.courseNo }
         val byHand = filed.filter { it.isUserAdded }.mapTo(mutableSetOf()) { it.courseNo }
         return courses.map { course ->
-            val copy = course.isManual && !TranscriptTerms.isAddedHere(course)
+            val copy = course.isManual && !TranscriptTerms.isAddedHere(course) && !written(course.courseNo)
             val told = when {
                 !copy -> null
                 course.courseNo in listed -> course.courseNo in byHand

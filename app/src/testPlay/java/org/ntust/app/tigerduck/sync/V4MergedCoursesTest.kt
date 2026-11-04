@@ -4,13 +4,17 @@ import android.app.Application
 import android.content.Context
 import android.os.Looper
 import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -40,6 +44,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * The courses a `/v4` snapshot merged down, as the device check on PR V found them: a freshly
@@ -60,6 +65,8 @@ class V4MergedCoursesTest {
     private val rules = V4WriteRules()
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleScope = CoroutineScope(Job().apply { cancel() })
+
+    private val afterSnapshot = AtomicReference<(() -> Unit)?>(null)
 
     private lateinit var w: AccountWorld
     private lateinit var rig: AppSyncRig
@@ -87,7 +94,10 @@ class V4MergedCoursesTest {
             .putString("payload", """{"revision":1,"semesters":[{"code":"$TERM","start":"2026-09-01","end":"2027-01-31"}],"holidays":[]}""")
             .commit()
         val clock = SyncClock(SyncClockStore(context), prefs)
-        val client = appBackendClient(prefs, clock, backend.client, rules)
+        // The rules, then whatever a test runs once the snapshot's answer is in, before the pull reads it.
+        val client = appBackendClient(prefs, clock, backend.client) { chain ->
+            rules.intercept(chain).also { if (chain.request().url.encodedPath == "/v4/sync/full") afterSnapshot.getAndSet(null)?.invoke() }
+        }
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client, backendLogin = client)
         rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS))
@@ -279,6 +289,70 @@ class V4MergedCoursesTest {
         assertEquals(listOf("XA0000002", "XU0000007"), term.courseNos().sorted())
         assertEquals(listOf(key("XU0000007")), term.adds())
         assertEquals(emptyList<String>(), rules.refused)
+    }
+
+    /** A school fetch's commit of [semester], which lists [courseNo]: the copy is the school's. */
+    private suspend fun schoolFetchLists(courseNo: String, semester: String = TERM) {
+        val fetched = listOf(Course(courseNo = courseNo, courseName = "School $courseNo", moodleIdNumber = "$semester$courseNo"))
+        assertTrue(
+            w.dataCache.saveCourses(ClassTableCourseMerge.mergeFetched(fetched, w.dataCache.loadCourses(semester), emptyMap(), "zh", emptySet()), semester, signIn),
+        )
+    }
+
+    /**
+     * Greptile on PR #687 (P1): a pull's snapshot lists a merged course as added by hand, and a
+     * school fetch then saves it as the school's, as its roster upload sends it. The pull's step
+     * does not put the older snapshot's word back over the fetch's: a provenance write applies only
+     * over what it read (compare-and-set), and a write since the sync began is newer than its
+     * snapshot. So no later upload names the course, an add the student never made.
+     */
+    @Test
+    fun `a school fetch's word on a copy, saved while the pull's snapshot was out, stands over the snapshot's`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XE0000005")), TERM, signIn))
+        backend.answer("GET /v4/sync/full", 200, snapshot(row("XE0000005", source = "user_added", addedHlc = SERVER_HLC - 5_000)))
+        afterSnapshot.set { runBlocking { schoolFetchLists("XE0000005") } }
+
+        rig.home.sync.pull(state, signIn)
+
+        assertEquals(mapOf<String, Boolean?>("XE0000005" to false), provenance(TERM))
+        uploadTaken("XE0000005")
+        rig.pushApi.uploadCourses(w.dataCache.loadCourses(TERM), TERM, signIn)
+        assertEquals(listOf("XE0000005"), uploads().single().courseNos())
+        assertEquals(emptyList<String>(), uploads().single().adds())
+    }
+
+    /**
+     * Codex on round 6 (P2): Home's upload of a term the snapshot holds nothing of goes as the term
+     * is committed, read under the lock a school fetch commits and uploads under, not as the pull
+     * read it before: a copy the fetch made the school's meanwhile goes unnamed. Here the fetch holds
+     * that lock while the pull tells the copy, and commits once the pull has.
+     */
+    @Test
+    fun `Home's upload of a term the snapshot holds nothing of goes as a school fetch committed it meanwhile`() = runBlocking {
+        w.appPrefs.school.syncedCategories.set(SyncCategory.entries.map { it.stored }.toSet(), signIn)
+        assertTrue(w.dataCache.saveCourses(listOf(olderCopy("XU0000007")), TERM, signIn))
+        backend.answer("GET /v4/sync/full", 200, snapshot())
+        val held = CompletableDeferred<Unit>()
+        val commit = CompletableDeferred<Unit>()
+        val fetch = launch(Dispatchers.IO) {
+            rig.home.adds.uploading {
+                held.complete(Unit)
+                commit.await()
+                schoolFetchLists("XU0000007")
+            }
+        }
+        held.await()
+
+        val pull = launch(Dispatchers.IO) { rig.home.sync.pull(state, signIn) }
+        withTimeout(10_000) { while (!pull.isCompleted && provenance(TERM)["XU0000007"] != true) delay(10) }
+        commit.complete(Unit)
+        fetch.join()
+        pull.join()
+
+        val upload = uploadsOf(TERM).single()
+        assertEquals(listOf("XU0000007"), upload.courseNos())
+        assertEquals(emptyList<String>(), upload.adds())
     }
 
     /** The background's pull covers its own term alone: another term's untold copy stays untold. */
