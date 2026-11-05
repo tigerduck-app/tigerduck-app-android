@@ -53,8 +53,9 @@ class ClubDirectory internal constructor(
 
     private val refreshLock = Mutex()
 
+    /** When the stored answer was fetched, epoch milliseconds; null for none. */
     @Volatile
-    private var storedAt: Instant? = null
+    private var storedAtMs: Long? = null
 
     @Volatile
     private var maxAgeSeconds = 0L
@@ -63,8 +64,8 @@ class ClubDirectory internal constructor(
         val payload = prefs.getString(KEY_PAYLOAD, null)
         val read = payload?.let { runCatching { ClubApiList.clubs(it) }.getOrNull() }
         if (read != null) {
-            storedAt = Instant.ofEpochMilli(prefs.getLong(KEY_STORED_AT, 0L))
-            maxAgeSeconds = prefs.getLong(KEY_MAX_AGE, 0L)
+            storedAtMs = runCatching { prefs.getLong(KEY_STORED_AT, 0L) }.getOrNull()
+            maxAgeSeconds = storedLifetime(runCatching { prefs.getLong(KEY_MAX_AGE, 0L) }.getOrNull())
             _state.value = ClubDirectoryState(listed(read, chinese()))
         }
     }
@@ -81,8 +82,7 @@ class ClubDirectory internal constructor(
      * fetch waits for it, and finds the answer fresh. A failed fetch keeps the stored answer.
      */
     suspend fun refresh() = refreshLock.withLock {
-        val stored = storedAt
-        if (stored != null && now().isBefore(stored.plusSeconds(maxAgeSeconds))) return@withLock
+        if (isFresh(storedAtMs, maxAgeSeconds, now())) return@withLock
         try {
             val answer = client.clubs()
             val read = ClubApiList.clubs(answer.body)
@@ -92,8 +92,8 @@ class ClubDirectory internal constructor(
                 .putLong(KEY_STORED_AT, at.toEpochMilli())
                 .putLong(KEY_MAX_AGE, answer.maxAgeSeconds)
                 .apply()
-            storedAt = at
-            maxAgeSeconds = answer.maxAgeSeconds
+            storedAtMs = at.toEpochMilli()
+            maxAgeSeconds = storedLifetime(answer.maxAgeSeconds)
             _state.value = ClubDirectoryState(listed(read, chinese()))
         } catch (e: CancellationException) {
             throw e
@@ -109,6 +109,20 @@ class ClubDirectory internal constructor(
         private const val KEY_PAYLOAD = "payload"
         private const val KEY_STORED_AT = "stored_at"
         private const val KEY_MAX_AGE = "max_age"
+
+        /**
+         * A stored `max-age` as it was written, at most a day ([ClubApiClient.maxAge]); anything
+         * else, below zero, past a day or unreadable, is a copy this build did not write, and stale.
+         */
+        internal fun storedLifetime(seconds: Long?): Long =
+            seconds?.takeIf { it in 0..ClubApiClient.LONGEST_MAX_AGE_SECONDS } ?: 0L
+
+        /** Whether an answer fetched at [storedAtMs] is still within [maxAgeSeconds] at [now], as iOS's `FreshnessPolicy`; never throws. */
+        internal fun isFresh(storedAtMs: Long?, maxAgeSeconds: Long, now: Instant): Boolean {
+            val stored = storedAtMs ?: return false
+            val age = runCatching { Math.subtractExact(now.toEpochMilli(), stored) }.getOrNull() ?: return false
+            return age < maxAgeSeconds * 1000
+        }
 
         /** The order of the list's groups; a club of another attribute, or of none, comes after them. */
         val ATTRIBUTE_ORDER = listOf("學藝性", "藝術性", "體育性", "聯誼性", "服務性", "自治性")

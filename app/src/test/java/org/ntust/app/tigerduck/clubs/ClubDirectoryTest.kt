@@ -108,6 +108,25 @@ class ClubDirectoryTest {
     }
 
     @Test
+    fun `a stored lifetime past a day, or below zero, reads as stale, and the directory is fetched again`() = runBlocking {
+        for (stored in listOf(Long.MAX_VALUE, -1L)) {
+            context.getSharedPreferences("club_directory", 0).edit()
+                .putString("payload", envelope(club(9001, "測試棋藝社")))
+                .putLong("stored_at", now.toEpochMilli())
+                .putLong("max_age", stored)
+                .apply()
+            server.enqueue("clubs", Answer(body = envelope(club(9002, "測試吉他社")), headers = mapOf("Cache-Control" to "max-age=600")))
+            val clubs = directory()
+
+            val failure = runCatching { clubs.refresh() }.exceptionOrNull()
+
+            assertNull("max_age $stored", failure)
+            assertEquals("max_age $stored", listOf(9002), clubs.state.value.clubs.map { it.id })
+        }
+        assertEquals(2, server.requests("clubs").size)
+    }
+
+    @Test
     fun `a directory that cannot be read keeps the stored one`() = runBlocking {
         server.enqueue("clubs", Answer(body = envelope(club(9001, "測試棋藝社")), headers = mapOf("Cache-Control" to "max-age=0")))
         val clubs = directory()
