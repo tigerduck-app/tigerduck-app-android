@@ -38,9 +38,16 @@ import org.ntust.app.tigerduck.shared.tls.pinnedClientBuilder
 sealed interface DownloadPlan {
     /**
      * Saves it to the phone's Downloads as [fileName]. [anyPage]: asked for in a browser the
-     * developer page's "Open a page" opened, whose every hop may go anywhere.
+     * caller left unrestricted, whose every hop may go anywhere. [restriction] follows the launch
+     * through redirects, including its first host and any SSO hosts added at opening.
      */
-    data class Save(val url: String, val fileName: String, val mimeType: String, val anyPage: Boolean = false) : DownloadPlan
+    data class Save(
+        val url: String,
+        val fileName: String,
+        val mimeType: String,
+        val anyPage: Boolean = false,
+        val restriction: BrowserAllowlist? = null,
+    ) : DownloadPlan
 
     /** Not saved: off the allowlist, or not an https file the browser can fetch again (`blob:`, `data:`). */
     data object Refused : DownloadPlan
@@ -66,7 +73,7 @@ object BrowserDownloadPlans {
         val given = mimeType?.substringBefore(';')?.trim()?.lowercase()?.takeIf { it.isNotEmpty() && it != GENERIC_TYPE }
         val name = guessFileName(url, contentDisposition, given).trim().ifEmpty { "download" }
         val type = given ?: name.substringAfterLast('.', "").takeIf { it.isNotEmpty() }?.let { mimeOfExtension(it.lowercase()) } ?: GENERIC_TYPE
-        return DownloadPlan.Save(url, name, type, anyPage = allowlist.anyPage)
+        return DownloadPlan.Save(url, name, type, anyPage = allowlist.anyPage, restriction = allowlist)
     }
 }
 
@@ -194,7 +201,7 @@ class MediaStoreDownloadTransfer(
         repeat(MAX_REDIRECTS + 1) {
             // A download stopped at a sign-out asks for nothing more, under anyone's cookies.
             currentCoroutineContext().ensureActive()
-            val hopAllowlist = allowlist().let { if (plan.anyPage) it.lettingAnyPageIn() else it }
+            val hopAllowlist = plan.restriction ?: allowlist().let { if (plan.anyPage) it.lettingAnyPageIn() else it }
             if (!hopAllowlist.allows(url)) throw IOException("download left the allowlist")
             val request = Request.Builder().url(url).apply {
                 cookieFor(url)?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }

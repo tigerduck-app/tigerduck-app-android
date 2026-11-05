@@ -37,7 +37,7 @@ class BrowserPageScriptsTest {
 
     @Test
     fun `only Moodle's pages lose their logout`() {
-        assertEquals(setOf("https://moodle2.ntust.edu.tw"), BrowserPageScripts.HIDE_LOGOUT_ORIGINS)
+        assertEquals(setOf("https://moodle2.ntust.edu.tw", "http://moodle2.ntust.edu.tw"), BrowserPageScripts.HIDE_LOGOUT_ORIGINS)
     }
 
     @Test
@@ -98,6 +98,6 @@ class BrowserPageScriptsTest {
 
     @Test
     fun `every school page loses its logout`() {
-        assertEquals(setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw"), BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS)
+        assertEquals(setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw", "http://ntust.edu.tw", "http://*.ntust.edu.tw"), BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS)
     }
 }

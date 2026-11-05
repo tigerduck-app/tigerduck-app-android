@@ -87,6 +87,45 @@ class SchoolBrowserSignInTest {
     }
 
     @Test
+    fun `sites with their own forms wait for the student without an automatic link`() = runTest {
+        val school = signIn()
+        listOf(
+            "https://cardsystem.ntust.edu.tw/std/index.php/user/login",
+            "https://studentpay.ntust.edu.tw/",
+            "https://suggestionbox.ntust.edu.tw/login",
+            "https://stuinfosys.ntust.edu.tw/Authenticate/Account/EnrollStudent/ethicscourse",
+            "https://stuinfosys.ntust.edu.tw/Authenticate/SSOAccount/Index/SSOcgesocial",
+            "https://cour01.ntust.edu.tw/DMP_student/",
+        ).forEach {
+            assertFalse(it, school.signsInAhead(it))
+            assertEquals(it, null, school.signedInUrl(it))
+            assertFalse(it, school.isSignInPage(it))
+        }
+        assertTrue(runs.isEmpty())
+        assertTrue(warms.isEmpty())
+    }
+
+    @Test
+    fun `cookie budget cleanup lets the same host sign in again without waiting`() = runTest {
+        val school = signIn()
+        assertTrue(school.signInWithoutLink(PAGE, byHand = false))
+        assertFalse(school.maySignInWithoutLink(PAGE, byHand = false))
+        school.sessionCleared(PAGE)
+        assertFalse(school.hasSession(PAGE, "$SITE_COOKIE=site-made-up"))
+        assertTrue(school.signInWithoutLink(PAGE, byHand = false))
+        assertEquals(listOf(PAGE, PAGE), runs)
+    }
+
+    @Test
+    fun `a landing page signs in ahead through its SSO button without filling a form`() = runTest {
+        val target = "https://sa.ntust.edu.tw/Dorm/"
+        val school = signIn()
+        assertTrue(school.signsInAhead(target))
+        assertTrue(school.signInWithoutLink(target, byHand = false))
+        assertEquals(listOf("https://sa.ntust.edu.tw/Dorm/OAuth2/Login"), runs)
+    }
+
+    @Test
     fun `the site's cookies go into the browser over https alone, and are flushed`() = runTest {
         val school = signIn()
         assertTrue(school.signInWithoutLink(PAGE, byHand = false))

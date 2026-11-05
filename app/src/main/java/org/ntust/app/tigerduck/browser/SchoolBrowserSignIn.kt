@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.browser
 
 import android.os.SystemClock
+import org.ntust.app.tigerduck.browser.sites.BrowserSchoolSites
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
@@ -65,8 +66,16 @@ class SchoolBrowserSignIn(
         return cookies.isNotEmpty() && cookies.all { (name, value) -> value.isNotEmpty() && sent[name] == value }
     }
 
-    /** A school page loads as it is; its site's own redirect to SSO is what signs it in. */
-    override fun signsInAhead(url: String): Boolean = false
+    override fun sessionCleared(url: String) {
+        val host = hostOf(url) ?: return
+        synchronized(this) {
+            handed.remove(host)
+            lastRuns.remove(host)
+        }
+    }
+
+    /** A landing page with an SSO button signs in through that entry before it loads. */
+    override fun signsInAhead(url: String): Boolean = BrowserSchoolSites.signInLink(url) != null
 
     override fun signsInFrom(page: String?): Boolean = page == null || isSchool(page)
 
@@ -92,7 +101,7 @@ class SchoolBrowserSignIn(
         val before = generation()
         synchronized(this) { lastRuns[host] = now() to before }
         val session = try {
-            withTimeoutOrNull(timeoutMs) { runWithSession(target) }
+            withTimeoutOrNull(timeoutMs) { runWithSession(BrowserSchoolSites.signInLink(target) ?: target) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

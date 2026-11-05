@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.browser
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
+import org.ntust.app.tigerduck.browser.sites.BrowserSchoolSites
+import org.ntust.app.tigerduck.browser.sites.MoodleSite
 
 /** What a page inside the TigerDuck browser asks to go to, and what the browser does. */
 sealed interface NavigationDecision {
@@ -28,7 +30,7 @@ object BrowserRouting {
      */
     fun navigation(url: String, allowlist: BrowserAllowlist): NavigationDecision = when (scheme(url)) {
         "https", "http" -> when {
-            isMoodleLogout(url) || isSchoolLogout(url) -> NavigationDecision.Refuse
+            BrowserSchoolSites.isLogout(url) || isSchoolLogout(url) -> NavigationDecision.Refuse
             allowlist.allows(url) -> NavigationDecision.Load
             else -> NavigationDecision.OpenOutside(url)
         }
@@ -50,7 +52,7 @@ object BrowserRouting {
      * browser then signs in again as for any session Moodle ends.
      */
     fun blocksRequest(url: String, isForMainFrame: Boolean, allowlist: BrowserAllowlist): Boolean =
-        isMoodleLogout(url) || isSchoolLogout(url) || isForMainFrame && navigation(url, allowlist) != NavigationDecision.Load
+        BrowserSchoolSites.isLogout(url) || isSchoolLogout(url) || isForMainFrame && navigation(url, allowlist) != NavigationDecision.Load
 
     /**
      * Whether [url] ends Moodle's session: its logout page, `/login/logout.php`, and auth_oidc's
@@ -109,14 +111,7 @@ object BrowserRouting {
     /** The query parameters sites name an action by. */
     internal val ACTION_PARAMETERS = listOf("action", "act", "op", "cmd", "do", "mode", "method", "task", "func")
 
-    fun isMoodleLogout(url: String): Boolean {
-        val parsed = url.toHttpUrlOrNull() ?: return false
-        if (!parsed.host.trimEnd('.').equals(MoodleWebservice.SITE_HOST, ignoreCase = true)) return false
-        val segments = parsed.pathSegments.filter { it.isNotEmpty() }.map { it.lowercase() }
-        return LOGOUT_PATHS.any { path -> segments.size >= path.size && segments.subList(0, path.size) == path }
-    }
-
-    private val LOGOUT_PATHS = listOf(listOf("login", "logout.php"), listOf("auth", "oidc", "logout.php"))
+    fun isMoodleLogout(url: String): Boolean = MoodleSite.isLogout(url)
 
     private fun scheme(url: String): String? = url.substringBefore(':', "").takeIf { it.isNotEmpty() }?.lowercase()
 }

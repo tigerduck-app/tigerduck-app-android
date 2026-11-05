@@ -28,6 +28,9 @@ interface BrowserSignIn {
     /** [hasSession] for [url]'s site, for a provider that signs in more than one site. */
     fun hasSession(url: String, cookieHeader: String?): Boolean = hasSession(cookieHeader)
 
+    /** The opening host's cookies were removed to stay below its header budget. */
+    fun sessionCleared(url: String) = Unit
+
     /**
      * Whether opening [url] with no session kept signs the browser in before it loads; when not,
      * only the site sending the browser to its sign-in page does.
