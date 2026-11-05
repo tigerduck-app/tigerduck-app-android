@@ -7,9 +7,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -21,9 +23,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
@@ -42,13 +46,15 @@ import javax.inject.Inject
 @HiltViewModel
 class ScoreViewModel internal constructor(
     authState: StateFlow<Boolean>,
+    /** Whether the account is signed in as it is now, then every change: [AccountSession.changes]. */
+    accountChanges: Flow<Boolean>,
     private val storedStudentId: () -> String?,
     private val storedPassword: () -> String?,
     /** The student's cached grades, with when they were fetched; see [NtustScoreService.cachedScoreReport]. */
     private val cachedSnapshot: suspend (studentId: String) -> DataCache.ScoreReportSnapshot?,
     private val fetchReport: suspend (studentId: String, password: String, force: Boolean) -> ScoreReport,
     private val isOnline: () -> Boolean,
-    private val isDemo: () -> Boolean,
+    private val session: AccountSession,
     private val strings: (Int) -> String,
     /** The class table's cached courses of a term, portal and hand-added together; see [DataCache.loadCourses]. */
     private val rosterCourses: suspend (term: String) -> List<Course>,
@@ -56,25 +62,27 @@ class ScoreViewModel internal constructor(
     private val recordStatus: (ServerKind, ServerStatus) -> Unit = { server, status -> ServerStatusTracker.set(status, server) },
 ) : ViewModel() {
 
+    @OptIn(StartsAccountWork::class)
     @Inject
     constructor(
         @ApplicationContext context: Context,
         authService: AuthService,
         scoreService: NtustScoreService,
         networkChecker: NetworkChecker,
-        demoAccount: DemoAccount,
         dataCache: DataCache,
+        sessions: AccountSessions,
     ) : this(
         authState = authService.authState,
+        accountChanges = sessions.school.changes,
         storedStudentId = { authService.storedStudentId },
         storedPassword = { authService.storedPassword },
         cachedSnapshot = scoreService::cachedScoreReport,
         fetchReport = { id, password, force ->
             if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.SCORE_SYSTEM)
-            scoreService.fetchScoreReport(id, password, forceRefresh = force)
+            scoreService.fetchScoreReport(id, password, sessions.school.current, forceRefresh = force)
         },
         isOnline = networkChecker::isAvailable,
-        isDemo = { demoAccount.isActive },
+        session = sessions.school,
         strings = context::getString,
         rosterCourses = { term -> dataCache.loadCourses(term) },
     )
@@ -102,7 +110,7 @@ class ScoreViewModel internal constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authState
 
-    private val syncedAt = ScoreSyncedAt(viewModelScope, authState, cachedSnapshot)
+    private val syncedAt = ScoreSyncedAt(viewModelScope, accountChanges, cachedSnapshot)
 
     /** For the sync dot's "Last synced" row; see [ScoreSyncedAt]. */
     val syncedAtMs: StateFlow<Long> = syncedAt.value
@@ -133,8 +141,14 @@ class ScoreViewModel internal constructor(
 
     init {
         // A sign-in from this page's own lock, and a sign-out with another student's sign-in
-        // after it, both land while the view model lives.
-        viewModelScope.launch { authState.collect { load() } }
+        // after it, both land while the view model lives. A sign-out empties the page whoever is
+        // stored by the time this hears of it: the same student again has a new sign-in to load.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            accountChanges.collect { signedIn ->
+                if (!signedIn) switchAccount(to = null)
+                load()
+            }
+        }
     }
 
     fun load() {
@@ -221,7 +235,7 @@ class ScoreViewModel internal constructor(
         }
         // The demo account has no scores and no server to ask for them: the
         // empty state, not the refusal reported as a load failure.
-        if (isDemo()) return
+        if (session.isDemo) return
 
         _isRefreshing.value = true
         _errorMessage.value = null

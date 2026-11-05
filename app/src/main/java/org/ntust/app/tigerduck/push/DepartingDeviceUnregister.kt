@@ -11,7 +11,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.canonicalBackend
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.IOException
@@ -60,7 +60,9 @@ interface PendingUnregisterStore {
  * other account then. Sent after a sign-in of the same account, the unregister would delete that
  * session's device instead. A sign-in at another backend, which the API endpoint setting can name
  * since the sign-out, moves nothing at this one, and the debt still goes to the backend it is owed
- * to: its tokens are that backend's, whatever the setting names.
+ * to: its tokens are that backend's, whatever the setting names. A backend is one across its API
+ * versions ([ApiBase.sameBackend]), and the debt goes at the API the app speaks ([ApiBase.of]):
+ * one an older build stored for `/v3` is still that backend's after the move to `/v4`.
  */
 @Singleton
 class DepartingDeviceUnregister internal constructor(
@@ -163,7 +165,7 @@ class DepartingDeviceUnregister internal constructor(
      * its lifetime. As the iPhone's retriesKeptSession (tigerduck-app#908).
      */
     private fun heldBack(base: String): Boolean =
-        base.startsWith("http://", ignoreCase = true) && canonicalBackend(base) != canonicalBackend(endpoint())
+        base.startsWith("http://", ignoreCase = true) && !ApiBase.sameBackend(base, endpoint())
 
     // Under the mutex.
     private fun drop() {
@@ -186,7 +188,7 @@ class DepartingDeviceUnregister internal constructor(
         currentCoroutineContext().ensureActive()
         // Asked again before each send: the setting can move while a refresh or a DELETE is out.
         if (heldBack(current.session.baseUrl)) return Outcome.RETRY
-        val base = current.session.baseUrl
+        val base = ApiBase.of(current.session.baseUrl)
         var status = deleteDevice(base, current.deviceId, current.session.accessToken) { !heldBack(base) }
         if (status == 401 && !refreshed) {
             // Turned down before its time, a revoked token, say: a refreshed one may still go out.

@@ -2,8 +2,10 @@ package org.ntust.app.tigerduck
 
 import android.content.Intent
 import android.net.Uri
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
-import java.util.concurrent.atomic.AtomicReference
+import org.ntust.app.tigerduck.shared.account.SignInBound
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -76,20 +78,25 @@ internal fun takeSharedClassTableCode(intent: Intent, restored: Boolean): String
  * not scan the code again (decided for both apps, 2026-10-19).
  *
  * In memory only, never in saved state or on disk, so quitting the app loses it. A newer link
- * replaces it, and a sign-out drops it ([drop], from `AuthService.logout`).
+ * replaces it, and a sign-out ends the sign-in it was held for. The time signed out shares the
+ * next sign-in, so a link that came before one is held for it.
  */
+@OptIn(StartsAccountWork::class)
 @Singleton
-class HeldShareLink @Inject constructor() {
-    private val held = AtomicReference<String?>(null)
+class HeldShareLink @Inject constructor(private val session: AccountSession) {
+    private val held = SignInBound<String?>(null)
 
     /** [text], to open now when [mayOpen]; otherwise held, in place of any held before. */
     fun arrived(text: String, mayOpen: Boolean): String? {
-        held.set(text.takeUnless { mayOpen })
+        held.set(text.takeUnless { mayOpen }, session.current)
         return text.takeIf { mayOpen }
     }
 
     /** The link held, taken, once [mayOpen]. */
-    fun release(mayOpen: Boolean): String? = if (mayOpen) held.getAndSet(null) else null
-
-    fun drop() = held.set(null)
+    fun release(mayOpen: Boolean): String? {
+        if (!mayOpen) return null
+        val link = held.value
+        held.set(null, session.current)
+        return link
+    }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.core.os.ConfigurationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -14,6 +16,7 @@ import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.util.logSummary
@@ -37,7 +40,9 @@ import javax.inject.Singleton
  * every OkHttp client, the file's data goes into the same caches the real
  * fetches fill, and [ServerStatusTracker] holds every status dot at OK. Each
  * screen then takes the offline path it already has, over the demo data.
- * Signing out leaves it.
+ * Signing out leaves it. The school session answers whether the app is in the
+ * demo ([org.ntust.app.tigerduck.auth.session.AccountSession.isDemo]): this
+ * class moves it, and the stored flag it starts from at the next process.
  */
 @Singleton
 class DemoAccount @Inject constructor(
@@ -47,10 +52,9 @@ class DemoAccount @Inject constructor(
     private val bulletinCache: BulletinCache,
     private val appPreferences: AppPreferences,
     private val importedClassTables: ImportedClassTableStore,
+    private val sessions: AccountSessions,
 ) {
-    /** Whether the demo account is signed in. Read live: sign-in flips it without a restart. */
-    val isActive: Boolean
-        get() = store.demoMode
+    private val isActive: Boolean get() = sessions.school.isDemo
 
     /** Whether these are the demo account's credentials. Reads the bundled file and nothing else. */
     fun matches(studentId: String, password: String): Boolean =
@@ -99,18 +103,24 @@ class DemoAccount @Inject constructor(
     }
 
     /**
-     * Switch to the demo account. Demo mode goes on first, so nothing that
-     * starts after this can reach a server and overwrite the data written
-     * next.
+     * Switch to the demo account, in place of the sign-in [from], and hand back the sign-in that
+     * follows it; null, with nothing changed, when a sign-out has ended [from]. Demo mode goes on
+     * first, then the session's answer, so nothing that starts after this can reach a server and
+     * overwrite the data written next. All that the demo's sign-out takes away goes on in one step
+     * against that sign-out's end of [from]: it came first, and nothing is left behind it, or it
+     * clears all of this after.
      */
-    suspend fun enter() {
-        val fixture = load(currentLang()) ?: return
-        store.demoMode = true
-        store.studentIdOverride = fixture.studentId
-        store.libraryQrContent = fixture.libraryQrContent
-        store.libraryFakeSignedIn = fixture.libraryFakeSignedIn
-        ServerStatusTracker.enterDemoMode()
-        write(fixture)
+    suspend fun enter(from: SignIn): SignIn? {
+        val fixture = load(currentLang()) ?: return from
+        val signIn = sessions.school.startDemo(from) {
+            store.demoMode = true
+            store.studentIdOverride = fixture.studentId
+            store.libraryQrContent = fixture.libraryQrContent
+            store.libraryFakeSignedIn = fixture.libraryFakeSignedIn
+            ServerStatusTracker.enterDemoMode()
+        } ?: return null
+        write(fixture, signIn)
+        return signIn
     }
 
     /**
@@ -118,17 +128,23 @@ class DemoAccount @Inject constructor(
      * language the app now shows, and over anything a request already in
      * flight at sign-in may have written after it.
      */
+    @OptIn(StartsAccountWork::class)
     suspend fun reapply() {
-        if (!isActive) return
-        load(currentLang())?.let { write(it) }
+        val signIn = sessions.school.current
+        if (!signIn.isDemo) return
+        load(currentLang())?.let { write(it, signIn) }
     }
 
     /**
      * Leave the demo account. Part of the school sign-out, which clears the cached data itself; a
-     * demo library signed in stays, as a real library account does, until [signOutLibrary].
+     * demo library signed in stays, as a real library account does, until [signOutLibrary]. The
+     * stored flag first: one that would not clear leaves the session's answer as the flag reads,
+     * which the next start tries again from, and School Mail, which only that answer keeps shut,
+     * shut until then.
      */
     fun exit() {
         store.clearSchool()
+        sessions.school.signIns.leaveDemo()
         ServerStatusTracker.exitDemoMode()
     }
 
@@ -146,8 +162,8 @@ class DemoAccount @Inject constructor(
         )
     }
 
-    private suspend fun write(fixture: DemoFixture) {
-        fixture.courses?.let { dataCache.saveCourses(it) }
+    private suspend fun write(fixture: DemoFixture, signIn: SignIn) {
+        fixture.courses?.let { dataCache.saveCourses(it, signIn) }
         // The ids the course detail finds the demo courses' Moodle content under. A course has
         // no idnumber of its own, so it is looked up as `<term><courseNo>`, as one added by hand.
         fixture.moodle?.let { moodle ->
@@ -155,15 +171,15 @@ class DemoAccount @Inject constructor(
             val ids = moodle.courses.associate {
                 MoodleCourseIds.normalizedIdnumber(term + it.courseNo) to it.moodleId
             }
-            dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids)
+            dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids, signIn)
         }
-        fixture.assignments?.let { dataCache.saveAssignments(it) }
+        fixture.assignments?.let { dataCache.saveAssignments(it, signIn) }
         // The assignments' pages read these, as a round would have kept them.
-        fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty())) }
-        // Only while still the demo account, asked under the cache's lock: a sign-out exits it
-        // before its clear, which a write let through earlier lands before.
-        fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { isActive } }
-        fixture.calendar?.let { dataCache.saveCalendarEvents(it) }
+        fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty()), signIn) }
+        // Only while still this sign-in, asked under the cache's lock: a sign-out ends it before
+        // its clear, which a write let through earlier lands before.
+        fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { signIn.isCurrent } }
+        fixture.calendar?.let { dataCache.saveCalendarEvents(it, signIn) }
     }
 
     /**
@@ -171,15 +187,16 @@ class DemoAccount @Inject constructor(
      * the demo courses are in. Called by the demo sign-in once the store knows the demo account
      * signed in, so another account's leftovers are gone first. Only at sign-in, not on each
      * start: a classmate the reviewer deleted stays deleted. A sign-out empties them with every
-     * other import.
+     * other import, and one past [signIn]'s end, whose import would be the next student's, is
+     * not imported.
      */
-    suspend fun importClassmates() {
+    suspend fun importClassmates(signIn: SignIn) {
         val fixture = load(currentLang()) ?: return
         val classmates = fixture.classmates ?: return
         importDemoClassmates(
             importedClassTables, dataCache.currentSemesterCode(), classmates,
             AppClock.instant().truncatedTo(ChronoUnit.MINUTES),
-        )
+        ) { signIn.isCurrent }
     }
 
     private fun load(lang: String): DemoFixture? = runCatching {
@@ -201,13 +218,15 @@ class DemoAccount @Inject constructor(
 
 /**
  * Imports [classmates] into [store] on [semester], each as its share code shared at
- * [sharedAt] would import it: the course codes NTUST's query can look up, with their details.
+ * [sharedAt] would import it: the course codes NTUST's query can look up, with their details;
+ * each while [stillCurrent] says so ([ImportedClassTableStore.add]).
  */
 internal suspend fun importDemoClassmates(
     store: ImportedClassTableStore,
     semester: String,
     classmates: List<DemoFixture.Classmate>,
     sharedAt: Instant,
+    stillCurrent: () -> Boolean = { true },
 ) {
     for (classmate in classmates) {
         val courses = classmate.courses.filter { CourseService.isCourseNo(it.courseNo) }
@@ -217,7 +236,7 @@ internal suspend fun importDemoClassmates(
             sharedAt,
             listOf(ClassTableShareCode.Term(semester, courses.map { it.courseNo })),
         )
-        store.add(code, classmate.nickname, mapOf(semester to courses))
+        store.add(code, classmate.nickname, mapOf(semester to courses), stillCurrent = stillCurrent)
     }
 }
 

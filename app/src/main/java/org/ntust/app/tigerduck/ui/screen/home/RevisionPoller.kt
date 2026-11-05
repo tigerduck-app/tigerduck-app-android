@@ -95,7 +95,9 @@ class RevisionPollSchedule(nowMs: Long) {
 /**
  * Runs [poll] on [RevisionPollSchedule], one request at a time, in [scope].
  * A 401 gets one [relogin]; another 401, or a failed relogin, stops polling
- * until the next [start].
+ * until the next [start]. [relogin] is for whoever is signed in by then: the
+ * poll after it is a request of its own, under a sign-in of its own, not a
+ * replay of the one refused.
  *
  * Confined to [scope]'s thread, the main thread in the app: every method and
  * every coroutine it launches runs there.
@@ -284,16 +286,18 @@ internal sealed interface ChangeFeedPlan {
  * rather than fetch it a second time, as on a return, when the poll and Home's
  * own sync start together, and so does one, or a sign-out, that overtakes the
  * feed's read. One that did not move the watermark failed, and backs off like
- * any other failure instead of being retried every 10 seconds.
+ * any other failure instead of being retried every 10 seconds. A 401 that
+ * outlives the poll's sign-in was the last student's: it starts no relogin and
+ * stops no polling for the one here now.
  */
 internal suspend fun pollRevisionOnce(
     syncEnabled: () -> Boolean,
     online: () -> Boolean,
     signIn: suspend () -> Boolean,
-    fetchRevision: suspend () -> Long,
-    fetchChanges: suspend (sinceRevision: Long) -> SyncChangesPage?,
+    fetchRevision: suspend (SignIn) -> Long,
+    fetchChanges: suspend (sinceRevision: Long, SignIn) -> SyncChangesPage?,
     lastKnownRevision: () -> Long,
-    setLastKnownRevision: (Long) -> Unit,
+    setLastKnownRevision: (Long, SignIn) -> Unit,
     currentSignIn: () -> SignIn,
     fullSyncsInFlight: () -> Int,
     retryUnsent: suspend (SignIn) -> Unit,
@@ -301,19 +305,20 @@ internal suspend fun pollRevisionOnce(
 ): RevisionPollOutcome {
     if (!syncEnabled()) return RevisionPollOutcome.UNCHANGED
     if (!online()) return RevisionPollOutcome.OFFLINE
+    // Before the sign-in below, as a request's is: a sign-out during it leaves this poll nothing to ask.
+    val startedIn = currentSignIn()
     if (!signIn()) return RevisionPollOutcome.UNCHANGED
     return try {
-        val revision = fetchRevision()
+        val revision = fetchRevision(startedIn)
         val since = lastKnownRevision()
         if (revision <= since) return RevisionPollOutcome.UNCHANGED
         if (fullSyncsInFlight() > 0) return RevisionPollOutcome.CHANGED
         if (since > 0) {
-            val startedIn = currentSignIn()
             // Read on the poll's own thread, with nothing suspending between the
             // check and the move, as a full sync sets the watermark.
             fun overtaken() = lastKnownRevision() != since || !startedIn.isCurrent || fullSyncsInFlight() > 0
             val page = try {
-                fetchChanges(since)
+                fetchChanges(since, startedIn)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -325,7 +330,7 @@ internal suspend fun pollRevisionOnce(
             Log.i(TAG, "[feed] since=$since plan=$plan")
             if (plan is ChangeFeedPlan.Advance) {
                 retryUnsent(startedIn)
-                if (!overtaken()) setLastKnownRevision(plan.to)
+                if (!overtaken()) setLastKnownRevision(plan.to, startedIn)
                 return RevisionPollOutcome.CHANGED
             }
         }
@@ -335,7 +340,11 @@ internal suspend fun pollRevisionOnce(
         throw e
     } catch (e: PushApiException) {
         Log.w(TAG, "[poll] failed: ${e.logSummary()}")
-        if (e.statusCode == 401) RevisionPollOutcome.UNAUTHORIZED else RevisionPollOutcome.FAILED
+        when {
+            e.statusCode != 401 -> RevisionPollOutcome.FAILED
+            startedIn.isCurrent -> RevisionPollOutcome.UNAUTHORIZED
+            else -> RevisionPollOutcome.UNCHANGED
+        }
     } catch (e: Exception) {
         Log.w(TAG, "[poll] failed: ${e.logSummary()}")
         RevisionPollOutcome.FAILED

@@ -12,16 +12,22 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertNotNull
-import org.ntust.app.tigerduck.HeldShareLink
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.auth.session.AccountPlan
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SchoolSignOut
+import org.ntust.app.tigerduck.auth.session.SchoolStores
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
 import org.ntust.app.tigerduck.browser.BrowserDownloads
 import org.ntust.app.tigerduck.browser.BrowserSettings
 import org.ntust.app.tigerduck.browser.StorageClearing
+import org.ntust.app.tigerduck.clubs.ClubActivities
+import org.ntust.app.tigerduck.clubs.ClubApiClient
+import org.ntust.app.tigerduck.clubs.ClubSubscriptions
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -39,6 +45,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityBoundaryScheduler
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
+import org.ntust.app.tigerduck.mail.store.SharedPrefsMailStateStore
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleTokenPairStore
@@ -57,6 +64,7 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import java.io.File
@@ -82,6 +90,10 @@ internal class AccountWorld(
     val semesterCatalog: SemesterCatalog,
     val widgetUpdater: WidgetUpdater,
     val academicCalendar: AcademicCalendarStore,
+    val demoAccount: DemoAccount,
+    val fixtures: DebugFixtureStore,
+    /** Every sign-out: the school's real plan; School Mail and the library hold nothing here. */
+    val plans: SignOutPlans,
 )
 
 /**
@@ -97,6 +109,10 @@ internal fun accountWorld(
     idleScope: CoroutineScope,
     /** The backend's stand-in for the requests a sync sends; refused without one. */
     backend: OkHttpClient? = null,
+    /** The backend's stand-in for its logins; refused without one. */
+    backendLogin: OkHttpClient? = null,
+    /** The outbox the school's sign-out clears; one with no channel, as the app's is today. */
+    outbox: Outbox = Outbox(emptySet()),
     /** Runs as the school takes a password, before its answer comes back. */
     schoolAnswering: () -> Unit = {},
 ): AccountWorld {
@@ -106,7 +122,9 @@ internal fun accountWorld(
         schoolPage(chain.request())
     }.build()
     val refusing = OkHttpClient.Builder().addInterceptor { throw IOException("no network in this test") }.build()
-    val sessions = AccountSessions(DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")))
+    val sessions = AccountSessions(
+        DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")), SharedPrefsMailStateStore(context),
+    )
     val appPrefs = AppPreferences(context)
     val credentials = CredentialManager(credentialPrefs)
     val fixtures = DebugFixtureStore(context)
@@ -115,11 +133,11 @@ internal fun accountWorld(
     val bulletinCache = BulletinCache(context)
     val portalLinksCache = PortalLinksCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
-    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported)
-    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
+    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
+    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
-    val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1", session = sessions.school)
+    val tokens = AuthTokenManager(credentials.v3Tokens, backendLogin ?: refusing, appPrefs, "device-1", session = sessions.school)
     // As its Hilt constructor builds it, over the refusing client.
     val moodleTokens = MoodleTokenService(
         clientFor = { refusing },
@@ -143,7 +161,7 @@ internal fun accountWorld(
         scope = idleScope,
         now = System::currentTimeMillis,
     )
-    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, idleScope)
+    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, sessions, idleScope)
     val uiLanguage = UiLanguageMonitor(appPrefs)
     val pushApi = PushApiClient(backend ?: refusing, appPrefs, tokens)
     val liveUpdate = LiveActivityPreferences(context)
@@ -156,35 +174,58 @@ internal fun accountWorld(
         context, dataCache, WidgetBoundaryScheduler(context, academicCalendar),
         AnalyticsLogger(context, appPrefs), idleScope, uiLanguage,
     )
+    val pushRegistration = PushRegistrationService(
+        context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope,
+        DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
+    )
+    lateinit var plans: SignOutPlans
     val auth = AuthService(
         context = context,
         sessionManager = sessionManager,
         ssoLoginService = sso,
         credentials = credentials,
-        pushRegistration = PushRegistrationService(
-            context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope, fixtures,
-            DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
-        ),
+        pushRegistration = pushRegistration,
         notificationSettingsSync = notificationSettingsSync,
         authTokenManager = tokens,
         moodleTokenService = moodleTokens,
         storedPasswordLatch = latch,
-        courseService = courseService,
-        moodleService = MoodleService(
-            sessionManager, moodleTokens, courseService, dataCache, appPrefs,
-            MoodleWebservice(sessionManager, moodleTokens), idleScope,
-        ),
-        dataCache = dataCache,
-        bulletinCache = bulletinCache,
-        portalLinksCache = portalLinksCache,
-        bulletinReadStateStore = BulletinReadStateStore(context),
         importedClassTables = imported,
-        widgetUpdater = widgetUpdater,
         appScope = appScope,
         demoAccount = demoAccount,
-        prefs = appPrefs,
-        classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
-        heldShareLink = HeldShareLink(),
+        sessions = sessions,
+        signOutPlans = { plans },
+    )
+    plans = SignOutPlans(
+        school = SchoolSignOut(
+            context = context,
+            auth = auth,
+            credentials = credentials,
+            authTokenManager = tokens,
+            notificationSettingsSync = notificationSettingsSync,
+            courseService = courseService,
+            moodleService = MoodleService(
+                sessionManager, moodleTokens, courseService, dataCache, appPrefs,
+                MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
+            ),
+            classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
+            prefs = appPrefs,
+            sessionManager = sessionManager,
+            stores = SchoolStores(
+                { BulletinReadStateStore(context) }, { appPrefs }, { latch }, { ClubSubscriptions(context) },
+                { ClubActivities(context, ClubApiClient(OkHttpClient())) }, { imported }, { outbox }, { dataCache },
+            ),
+            pushRegistration = pushRegistration,
+            demoAccount = demoAccount,
+            bulletinCache = bulletinCache,
+            portalLinksCache = portalLinksCache,
+            widgetUpdater = widgetUpdater,
+            session = sessions.school,
+            appScope = appScope,
+        ),
+        mail = AccountPlan({ false }) {},
+        library = AccountPlan({ false }) {},
+        readLibraryAgain = {},
+        leaveDemoLibrary = demoAccount::signOutLibrary,
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
     val browserClearings = MutableStateFlow(0)
@@ -198,6 +239,7 @@ internal fun accountWorld(
         academicCalendar = academicCalendar,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = idleScope,
+        session = sessions.school,
     )
     val browser = BrowserDataCleaner(
         storage = {
@@ -211,8 +253,8 @@ internal fun accountWorld(
     )
     val effects = AccountSessionEffects(
         context = context,
-        accountState = auth.accountState,
-        signIns = auth.signIns,
+        events = sessions.events,
+        signedIn = { auth.authState.value },
         assignmentReminders = assignmentReminders,
         refreshLiveUpdates = liveUpdates::refresh,
         stopLiveUpdates = liveUpdates::stop,
@@ -222,7 +264,7 @@ internal fun accountWorld(
     return AccountWorld(
         appPrefs, credentials, dataCache, bulletinCache, portalLinksCache, imported, tokens, auth, browserClearings, sessions, effects,
         pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
-        academicCalendar,
+        academicCalendar, demoAccount, fixtures, plans,
     )
 }
 

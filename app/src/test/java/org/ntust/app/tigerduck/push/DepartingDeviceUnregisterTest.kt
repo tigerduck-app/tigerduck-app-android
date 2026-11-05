@@ -16,6 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.push.DepartingDeviceUnregister.Outcome
 import java.io.IOException
 
@@ -89,7 +90,7 @@ class DepartingDeviceUnregisterTest {
     private fun unregister() = DepartingDeviceUnregister(
         owed = owed,
         deleteDevice = { base, device, token, mayDepart ->
-            assertEquals("the DELETE goes to the backend that issued the token", backend, base)
+            assertEquals("the DELETE goes to the backend that issued the token, at the API the app speaks", ApiBase.of(backend), base)
             // As PushApiClient.deleteDevice: asked once on the I/O thread, right before it goes.
             beforeDelete()
             if (!mayDepart()) throw UnregisterHeldBack()

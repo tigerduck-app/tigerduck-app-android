@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailDevServerSettings
 import org.ntust.app.tigerduck.mail.MailError
@@ -44,6 +46,7 @@ class MailAccountViewModel @Inject constructor(
     private val account: MailAccount,
     private val site: MailSite,
     private val ntust: NtustAccountSource,
+    private val signOutPlans: SignOutPlans,
 ) : ViewModel() {
     val signedIn: StateFlow<Boolean> = account.signedIn
     val authFailed: StateFlow<Boolean> = account.authFailed
@@ -137,7 +140,7 @@ class MailAccountViewModel @Inject constructor(
         }
     }
 
-    fun signOut() = account.signOut()
+    fun signOut() = signOutPlans.signOut(SignOutReason.MAIL)
 
     fun clearError() {
         _error.value = null

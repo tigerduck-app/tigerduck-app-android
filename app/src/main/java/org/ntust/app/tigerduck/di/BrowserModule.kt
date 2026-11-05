@@ -10,6 +10,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.browser.AndroidWebViewStorage
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.browser.BrowserCleanup
@@ -22,7 +24,6 @@ import org.ntust.app.tigerduck.browser.MediaStoreDownloadTransfer
 import org.ntust.app.tigerduck.browser.MoodleBrowserSignIn
 import org.ntust.app.tigerduck.browser.MoodleWebSessionSignIn
 import org.ntust.app.tigerduck.browser.SchoolBrowserSignIn
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
@@ -79,7 +80,7 @@ object BrowserModule {
     /**
      * Who signs the browser in where: Moodle, through its autologin, and between
      * its keys through the app's own sign-in to its website with the SSO session
-     * the app holds. A school SSO provider would join this list; none is written yet.
+     * the app holds, and the school's sites through the app's SSO session.
      */
     @Provides
     @Singleton
@@ -90,13 +91,14 @@ object BrowserModule {
         ssoLoginService: SsoLoginService,
         credentials: org.ntust.app.tigerduck.data.preferences.CredentialManager,
         @ApplicationScope appScope: CoroutineScope,
-        demoAccount: DemoAccount,
+        authService: AuthService,
+        session: AccountSession,
         cleanup: BrowserCleanup,
     ): BrowserSignIns {
         val usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() }
         val webSession = MoodleWebSessionSignIn(
             run = tokenService::signInToWebsite,
-            isDemo = { demoAccount.isActive },
+            session = session,
             usable = usable,
             generation = { BrowserSession.generation.value },
             writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },
@@ -108,13 +110,16 @@ object BrowserModule {
             // by the way of the site: it signs in to SSO again whatever the app thinks of its
             // session. In the app's scope, awaited: a timeout leaves it to finish for the app.
             warm = { target ->
+                val before = BrowserSession.generation.value
                 appScope.async {
+                    if (!usable() || !authService.canAskSchool) return@async false
                     val id = credentials.ntustStudentId ?: return@async false
                     val password = credentials.ntustPassword ?: return@async false
                     try {
                         ssoLoginService.ensureServiceLogin(target, id.trim().uppercase(), password) {
                             // Not for an account that signed out while it waited.
-                            credentials.ntustStudentId == id
+                            usable() && BrowserSession.generation.value == before &&
+                                authService.canAskSchool && credentials.ntustStudentId == id
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e

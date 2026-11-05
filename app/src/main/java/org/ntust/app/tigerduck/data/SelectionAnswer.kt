@@ -38,9 +38,9 @@ sealed interface RecordedSelection {
     data class Kept(override val answer: SelectionAnswer) : RecordedSelection
 
     /**
-     * Not kept: an answer newer than the fetch's is the term's, or the data was wiped since the
-     * fetch began. The fetch stops, and its roster is committed, uploaded and drawn on by
-     * nothing: the newer answer's fetch saves and sends the term, and a wipe's account has left.
+     * Not kept: an answer newer than the fetch's is the term's, or the sign-in the fetch began
+     * under has ended. The fetch stops, and its roster is committed, uploaded and drawn on by
+     * nothing: the newer answer's fetch saves and sends the term, and the other's account has left.
      * Not a failure to retry.
      */
     data object Refused : RecordedSelection

@@ -6,6 +6,7 @@ import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.PortalLinksCache
 import org.ntust.app.tigerduck.data.cache.PortalLinksSnapshot
 import org.ntust.app.tigerduck.network.model.PortalLink
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +42,7 @@ class NtustPortalService @Inject constructor(
         studentId: String,
         password: String,
         useEnglish: Boolean,
+        signIn: SignIn,
     ): List<PortalLink> = withContext(Dispatchers.IO) {
         val url = if (useEnglish) PORTAL_URL_EN else PORTAL_URL_ZH
 
@@ -56,7 +58,7 @@ class NtustPortalService @Inject constructor(
         // the SSO wall in disguise — don't cache an empty portal.
         if (links.isEmpty()) throw NtustPortalError.ParseFailed()
 
-        cache.save(PortalLinksSnapshot(links, Date(), studentId.trim()), langFor(useEnglish))
+        cache.save(PortalLinksSnapshot(links, Date(), studentId.trim()), langFor(useEnglish), signIn)
         links
     }
 

@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
 import org.ntust.app.tigerduck.util.logSummary
 
@@ -27,7 +28,8 @@ import org.ntust.app.tigerduck.util.logSummary
  */
 class MoodleWebSessionSignIn(
     private val run: suspend () -> List<Cookie>,
-    private val isDemo: () -> Boolean,
+    /** The school's session: nothing runs for the demo account. */
+    private val session: AccountSession,
     private val usable: () -> Boolean,
     private val generation: () -> Int,
     private val writeCookie: (url: String, value: String) -> Unit,
@@ -40,7 +42,7 @@ class MoodleWebSessionSignIn(
 
     /** Whether [signIn] may run now: by itself once every [INTERVAL_MS], [byHand] at once. */
     fun maySignIn(byHand: Boolean = false): Boolean {
-        if (isDemo() || !usable()) return false
+        if (session.isDemo || !usable()) return false
         if (byHand) return true
         val (at, forGeneration) = lastRun ?: return true
         return forGeneration != generation() || now() - at >= INTERVAL_MS

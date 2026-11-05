@@ -73,6 +73,15 @@ class FakeMailServer {
     /** Fires inside a STORE of the seen flag, before it takes: a test acts while a mark-read is on the server. */
     var onSetSeen: (() -> Unit)? = null
 
+    /** Set, a STORE of the seen flag marks this many of the mail it names, then is refused, as a NO after some FETCHes. */
+    var refuseSeenAfter: Int? = null
+
+    /** One `UID STORE` of the seen flag as it landed: whose login sent it, and which mail it named. */
+    data class SeenStore(val login: String, val folder: String, val uids: List<Long>, val seen: Boolean)
+
+    /** Every STORE of the seen flag that landed, in order; one refused under a moved UIDVALIDITY adds nothing. */
+    val seenStores = java.util.Collections.synchronizedList(mutableListOf<SeenStore>())
+
     /** How many times a session was actually asked for a mail's raw source -- a cache hit adds nothing here. */
     var rawSourceFetches = 0
         private set
@@ -115,10 +124,11 @@ class FakeMailServer {
         if (passwords[credentials.loginName] != credentials.password) throw MailError.AuthFailed()
         opens++
         openSessions++
-        FakeSession()
+        FakeSession(credentials.loginName)
     }
 
-    inner class FakeSession : MailSession {
+    /** [login]: whose session this is, as its LOGIN named them. */
+    inner class FakeSession(private val login: String = "") : MailSession {
         private var closed = false
 
         private fun <T> call(block: () -> T): T {
@@ -184,9 +194,13 @@ class FakeMailServer {
         override fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) =
             call { out.write("attachment $partId".toByteArray()) }
 
-        override fun setSeen(folder: String, uids: List<Long>, seen: Boolean) = call {
+        override fun setSeen(folder: String, uids: List<Long>, seen: Boolean, uidValidity: Long?) = call {
+            refuseUnder(uidValidity)
             onSetSeen?.invoke()
-            list(folder).filter { it.summary.uid in uids }.forEach { it.summary = it.summary.copy(flags = it.summary.flags.copy(seen = seen)) }
+            val landed = refuseSeenAfter?.let { uids.take(it) } ?: uids
+            list(folder).filter { it.summary.uid in landed }.forEach { it.summary = it.summary.copy(flags = it.summary.flags.copy(seen = seen)) }
+            if (landed.size < uids.size) throw MailError.Protocol("NO STORE refused partway")
+            seenStores += SeenStore(login, folder, uids, seen)
         }
 
         override fun setAnswered(folder: String, uid: Long) = call {

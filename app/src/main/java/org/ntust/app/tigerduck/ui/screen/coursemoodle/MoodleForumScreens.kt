@@ -86,11 +86,10 @@ fun MoodleForumsScreen(
 ) {
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
-    PageScaffold(
+    MoodleListScaffold(
         title = stringResource(R.string.course_detail_forums_label),
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(store?.let { MoodlePage.forums(it.courseId) }) },
+        moodlePath = store?.let { MoodlePage.forums(it.courseId) },
     ) { padding ->
         Box(
             Modifier
@@ -188,11 +187,10 @@ fun MoodleForumScreen(
         lookup = current.ensureForum(forumId)
     }
     if (lookup == MoodleLookup.Missing) LaunchedEffect(Unit) { onBack() }
-    PageScaffold(
+    MoodleListScaffold(
         title = forum?.name.orEmpty(),
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(forum?.let { MoodlePage.forum(it.cmid) }) },
+        moodlePath = forum?.let { MoodlePage.forum(it.cmid) },
     ) { padding ->
         Box(
             Modifier

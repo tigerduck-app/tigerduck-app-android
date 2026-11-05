@@ -65,6 +65,13 @@ class BuiltInPinsTest {
     /** TWCA Global Root CA and TWCA CYBER Root CA. */
     private val twcaRoots get() = certificates("/tls/twca-roots.pem")
 
+    /**
+     * ISRG Root X1 and X2 as the system stores ship them, and Root YR and Root YE as Let's Encrypt
+     * cross-signs them from X1 and X2 (public data): a cross-signed certificate carries the root's
+     * own key, so its SPKI is the root's.
+     */
+    private val isrgRoots get() = certificates("/tls/isrg-roots.pem")
+
     @Test
     fun `the root fixtures hold the roots the system stores ship`() {
         // SHA-256 fingerprints as crt.sectigo.com, Mozilla and the macOS store list Sectigo's, and
@@ -83,6 +90,31 @@ class BuiltInPinsTest {
             ),
             twcaRoots.fingerprints(),
         )
+    }
+
+    @Test
+    fun `the ISRG fixture holds the roots ISRG publishes`() {
+        // SHA-256 fingerprints as letsencrypt.org/certificates and the system stores list them, so a
+        // swapped fixture can't vouch for its own pins.
+        assertEquals(
+            setOf(
+                "96BCEC06264976F37460779ACF28C5A7CFE8A3C0AAE11A8FFCEE05C0BDDF08C6",
+                "69729B8E15A86EFC177A57AFB7171DFC64ADD28C2FCA8CF1507E34453CCB1470",
+                "072639D0B140D5BFFAE16AD9C3F6CC6086040621F51EE61A6D46A8915C07CF76",
+                "0FC0901CCA2BAE9E9FDBB02D50D02F1094F7B36672086991B9E897626DC485F0",
+            ),
+            isrgRoots.fingerprints(),
+        )
+    }
+
+    @Test
+    fun `the clubs pins are ISRG's four roots, for clubs dot ntust alone`() {
+        assertEquals(isrgRoots.map { it.spki }.toSet(), set("clubs").pins)
+        assertEquals(
+            listOf(org.ntust.app.tigerduck.shared.tls.PinDomain("clubs.ntust.edu.tw", includeSubdomains = false)),
+            set("clubs").domains,
+        )
+        assertEquals(java.time.Instant.parse("2027-07-21T00:00:00Z"), set("clubs").expiresAt)
     }
 
     @Test

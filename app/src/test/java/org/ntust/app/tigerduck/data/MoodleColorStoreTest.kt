@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
@@ -48,8 +49,8 @@ class MoodleColorStoreTest {
 
     @Test
     fun `an upgrade with a hand-added course cached still keeps what the first refresh brings`() = runBlocking {
-        cache.saveCourses(listOf(course("CS9").copy(isManual = true)), "1151")
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337))
+        cache.saveCourses(listOf(course("CS9").copy(isManual = true)), "1151", testSignIn())
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337), testSignIn())
         val book = MoodleColorBook()
 
         store(book).ensureLoaded()
@@ -60,7 +61,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `an upgrade with the cache evicted keeps what the first refresh brings`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337), testSignIn())
         val book = MoodleColorBook()
 
         store(book).ensureLoaded()
@@ -71,7 +72,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a color given is written, and read back by the next process`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1152CS2" to 5337))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1152CS2" to 5337), testSignIn())
         val later = Course(courseNo = "CS2", courseName = "CS2", moodleIdNumber = "1152CS2")
         val first = MoodleColorBook()
         store(first).ensureLoaded()
@@ -92,7 +93,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a sign-out deletes the file and leaves the next account's courses new`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val book = MoodleColorBook()
         val store = store(book)
         store.ensureLoaded()
@@ -109,7 +110,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a sign-out before the first load still leaves the next session persisted`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val book = MoodleColorBook()
         val store = store(book)
         store.forgetAccount()
@@ -124,7 +125,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a file left by another student, or by a sign-out cut short, is not inherited`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
@@ -142,11 +143,12 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a file found while signed out is deleted`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
-        waitForFile()
+        // The first store's last write: the load's own state can land first, and this one after the delete.
+        waitForFile(containing = "CS1")
 
         student = null
         store(MoodleColorBook()).ensureLoaded()
@@ -156,7 +158,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `after another student signs in over the first, the file is the new student's`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337, "1152CS3" to 902))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337, "1152CS3" to 902), testSignIn())
         val book = MoodleColorBook()
         val store = store(book)
         store.ensureLoaded()

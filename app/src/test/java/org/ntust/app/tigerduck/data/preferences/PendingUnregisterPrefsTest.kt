@@ -145,7 +145,7 @@ class PendingUnregisterPrefsTest {
         }
         val app = if (File(dir, "app/src/main/java").isDirectory) File(dir, "app") else dir!!
         val source = File(app, "src/main/java/org/ntust/app/tigerduck/data/preferences/CredentialManager.kt").readText()
-        val clearAll = source.substringAfter("fun clearAll()").substringBefore("\n    }")
+        val clearAll = source.substringAfter("fun clearAll(").substringBefore("\n    }")
 
         assertTrue(clearAll, "clearAllButOwedUnregister(prefs)" in clearAll)
         assertFalse(clearAll, ".clear()" in clearAll)

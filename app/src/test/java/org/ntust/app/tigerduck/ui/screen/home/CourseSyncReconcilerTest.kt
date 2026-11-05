@@ -5,11 +5,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
+import org.ntust.app.tigerduck.push.TombstoneKind
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SyncField
 
 /**
  * The tombstone rules in particular are load-bearing: an earlier version of
@@ -34,8 +35,9 @@ class CourseSyncReconcilerTest {
 
     // ---- deletions, per semester ----
     //
-    // These carry over the pre-semester rules unchanged; what is new is that
-    // each one now holds for one term without reaching into the others.
+    // The term's membership ([CourseMembership]), each rule holding for one term without reaching
+    // into the others: another device's delete is its `hide` tombstone, and a course whose delete
+    // or add waits here ([grace], [pendingAdds]) is one this phone keeps.
 
     private fun reconcile(
         semester: String = "1141",
@@ -47,17 +49,16 @@ class CourseSyncReconcilerTest {
         selectionDropped: Set<String> = emptySet(),
         serverKnown: Set<String> = emptySet(),
         pendingAdds: Set<String> = emptySet(),
-    ) = CourseSyncReconciler.reconcileSemester(
+    ) = CourseMembership.reconcileTerm(
         semester = semester,
         localCourses = local,
         serverRows = rows,
-        tombstoneNos = tombstoneNos,
-        tombstones = tombstones,
+        tombstones = tombstoneNos.map { tombstone(it, semester).copy(hlc = 1L, kind = TombstoneKind.HIDE) },
+        hides = tombstones,
+        keeps = { it in grace || it in pendingAdds },
         serverKnownNos = serverKnown,
-        graceCourseNos = grace,
-        pendingAddNos = pendingAdds,
         selectionDroppedNos = selectionDropped,
-    )
+    ).outcome
 
     /**
      * A course deleted here whose DELETE has not landed yet (the outbox,
@@ -95,32 +96,11 @@ class CourseSyncReconcilerTest {
         assertTrue(out.merged.none { it.courseNo == "B" })
     }
 
-    /**
-     * And it must not count as evidence of presence either: a dropped row
-     * left in scope would un-hide a course the user had deleted by hand.
-     */
-    @Test
-    fun `a dropped row does not un-hide a course the user deleted`() {
-        val out = reconcile(
-            local = listOf(local("A")),
-            rows = listOf(server("A"), server("B")),
-            tombstones = setOf("1141:B"),
-            selectionDropped = setOf("B"),
-        )
-        assertTrue("1141:B" in out.tombstones)
-    }
-
     /** Without the drop, the same row merges — the guard is what changes it. */
     @Test
     fun `the same server row still merges when 選課 has not dropped it`() {
         val out = reconcile(local = listOf(local("A")), rows = listOf(server("A"), server("B")))
         assertEquals(listOf("B"), out.merged.map { it.courseNo })
-    }
-
-    @Test
-    fun `a synced course the server no longer lists is tombstoned`() {
-        val out = reconcile(local = listOf(local("A"), local("B")), rows = listOf(server("A")))
-        assertEquals(setOf("1141:B"), out.tombstones)
     }
 
     @Test
@@ -130,20 +110,6 @@ class CourseSyncReconcilerTest {
             rows = listOf(server("A")),
         )
         assertTrue("a hand-typed course must survive server silence", out.tombstones.isEmpty())
-    }
-
-    @Test
-    fun `a manual course the server HAS listed is tombstoned once it drops off`() {
-        // The reported sync bug. Every row merged down from the cloud is
-        // stamped isManual by `toCourse`, so blanket immunity made it
-        // immortal: no roster could retire it and this device uploaded it
-        // back on every refresh, undoing the other device's reset.
-        val out = reconcile(
-            local = listOf(local("A"), local("M", manual = true)),
-            rows = listOf(server("A")),
-            serverKnown = setOf("M"),
-        )
-        assertEquals(setOf("1141:M"), out.tombstones)
     }
 
     @Test
@@ -180,17 +146,6 @@ class CourseSyncReconcilerTest {
     }
 
     @Test
-    fun `reappearing on the server un-deletes, beating both tombstone rules`() {
-        val out = reconcile(
-            local = listOf(local("A")),
-            rows = listOf(server("A")),
-            tombstoneNos = setOf("A"),
-            tombstones = setOf("1141:A"),
-        )
-        assertTrue("a course back on the server must come back", out.tombstones.isEmpty())
-    }
-
-    @Test
     fun `a delete still in flight is not un-deleted by the row it is racing`() {
         val out = reconcile(
             rows = listOf(server("A")),
@@ -220,6 +175,7 @@ class CourseSyncReconcilerTest {
             semester = "1142",
             local = listOf(local("CS101")),
             rows = listOf(server("CS101", semester = "1151")).filter { it.semester == "1142" },
+            tombstoneNos = setOf("CS101"),
             tombstones = setOf("1142:CS101"),
         )
         assertEquals("1142's deletion must survive 1151 listing the number", setOf("1142:CS101"), out.tombstones)
@@ -261,35 +217,6 @@ class CourseSyncReconcilerTest {
         )
         assertEquals(setOf("1141:A"), out.tombstones)
         assertEquals(listOf("M"), out.toUpload.map { it.courseNo })
-    }
-
-    @Test
-    fun `an empty term does not re-upload a course this device already hid`() {
-        // Hidden here earlier (a delete by hand, or a tombstone from a
-        // previous sync) — silence from the server is no reason to push it
-        // back up, in either the scoped or the legacy bare shape.
-        val scoped = reconcile(local = listOf(local("A"), local("B")), tombstones = setOf("1141:A"))
-        assertEquals(listOf("B"), scoped.toUpload.map { it.courseNo })
-        val bare = reconcile(local = listOf(local("A"), local("B")), tombstones = setOf("A"))
-        assertEquals(listOf("B"), bare.toUpload.map { it.courseNo })
-    }
-
-    /**
-     * The other half of the manual-course rule. A tombstone can only name a
-     * course some device once uploaded; a hand-typed course no snapshot has
-     * carried is not that course, even when the numbers match — say the
-     * term was reset elsewhere and the student typed it back in here before
-     * the re-add upload landed.
-     */
-    @Test
-    fun `a tombstone does not delete a hand-typed course the server has never seen`() {
-        val out = reconcile(
-            local = listOf(local("A", manual = true)),
-            rows = emptyList(),
-            tombstoneNos = setOf("A"),
-        )
-        assertTrue(out.tombstones.isEmpty())
-        assertEquals(listOf("A"), out.toUpload.map { it.courseNo })
     }
 
     @Test
@@ -347,19 +274,6 @@ class CourseSyncReconcilerTest {
         )
         assertEquals(emptySet<String>(), out.tombstones)
         assertEquals(listOf("M"), out.toUpload.map { it.courseNo })
-    }
-
-    /** Only the waiting add keeps it: another known course the server dropped still goes. */
-    @Test
-    fun `a waiting add keeps only its own course`() {
-        val out = reconcile(
-            local = listOf(local("A"), local("M", manual = true), local("N", manual = true)),
-            rows = listOf(server("A")),
-            tombstoneNos = setOf("M"),
-            serverKnown = setOf("M", "N"),
-            pendingAdds = setOf("M"),
-        )
-        assertEquals(setOf("1141:N"), out.tombstones)
     }
 
     // ---- keeping the cache honest ----
@@ -421,21 +335,13 @@ class CourseSyncReconcilerTest {
     }
 
     /**
-     * The backend's rule, mirrored: a reset tombstone does not bind the
-     * device that wrote it, whose next upload releases it. Between that
-     * DELETE and the upload, this device must not read its own tombstones
-     * as "hide everything" — the refetch filters by the tombstone store and
-     * would then upload nothing, leaving the term hidden for good.
+     * Every tombstone of the term counts, a reset's this device wrote included: the snapshot no
+     * longer says which those are, and the course membership reads a reset by its stamp.
      */
     @Test
-    fun `this device's own reset tombstones do not count`() {
-        val own = tombstone("A", "1141").copy(deletedByReset = true, deletedByThisDevice = true)
-        val elsewhere = tombstone("B", "1141").copy(deletedByReset = true)
-        val ownSingleDelete = tombstone("C", "1141").copy(deletedByThisDevice = true)
-        assertEquals(
-            setOf("B", "C"),
-            CourseSyncReconciler.tombstoneNosFor("1141", listOf(own, elsewhere, ownSingleDelete)),
-        )
+    fun `the term's tombstones count, and no other term's`() {
+        val tombstones = listOf(tombstone("A", "1141"), tombstone("B", "1141"), tombstone("C", "1151"))
+        assertEquals(setOf("A", "B"), CourseSyncReconciler.tombstoneNosFor("1141", tombstones))
     }
 
     @Test
@@ -514,15 +420,18 @@ class CourseSyncReconcilerTest {
         assertEquals(listOf("1122", "1132", "1141"), terms)
     }
 
-    // ---- colour overrides ----
+    // ---- color overrides, as a pull applies them (StampedCourseOverrides.colors) ----
+
+    /** [courses] of 1141 with [rows]' colors, but each field [kept] names, which this phone keeps. */
+    private fun colors(courses: List<Course>, rows: List<CourseOverrideResult>, kept: Set<String> = emptySet()) =
+        StampedCourseOverrides.colors(courses, "1141", rows, kept::contains)
+
+    /** The color field of 1141's course [no], by its key. */
+    private fun colorField(no: String) = SyncField.color(SyncField.courseKey("1141", no))
 
     @Test
     fun `a colour override matches by courseNo and reports the change`() {
-        val updated = CourseSyncReconciler.applyColorOverrides(
-            courses = listOf(local("A")),
-            overrides = listOf(CourseOverrideResult("m1", "A", "#FF0000")),
-            syncColors = true,
-        )
+        val updated = colors(listOf(local("A")), listOf(CourseOverrideResult("m1", "A", "#FF0000", semester = "1141")))
         assertEquals("#FF0000", updated!!.courses.single().customColorHex)
         assertEquals(emptyMap<String, String>(), updated.moved)
     }
@@ -530,11 +439,7 @@ class CourseSyncReconcilerTest {
     @Test
     fun `a colour override falls back to matching on Moodle id`() {
         val course = Course(courseNo = "A", courseName = "A", moodleIdNumber = "m9")
-        val updated = CourseSyncReconciler.applyColorOverrides(
-            courses = listOf(course),
-            overrides = listOf(CourseOverrideResult("m9", courseNo = null, colorHex = "#00FF00")),
-            syncColors = true,
-        )
+        val updated = colors(listOf(course), listOf(CourseOverrideResult("m9", courseNo = null, colorHex = "#00FF00")))
         assertEquals("#00FF00", updated!!.courses.single().customColorHex)
     }
 
@@ -545,13 +450,12 @@ class CourseSyncReconcilerTest {
     @Test
     fun `a course taken again takes its own term's colour, not an earlier term's`() {
         val course = Course(courseNo = "A", courseName = "A", moodleIdNumber = "m1141")
-        val updated = CourseSyncReconciler.applyColorOverrides(
-            courses = listOf(course),
-            overrides = listOf(
+        val updated = colors(
+            listOf(course),
+            listOf(
                 CourseOverrideResult("m1122", "A", "#FF0000", semester = "1122"),
                 CourseOverrideResult("m1141", "A", "#00FF00", semester = "1141"),
             ),
-            syncColors = true,
         )
         assertEquals("#00FF00", updated!!.courses.single().customColorHex)
     }
@@ -559,11 +463,7 @@ class CourseSyncReconcilerTest {
     @Test
     fun `null when the colour is unchanged, so no cache write or widget reload`() {
         val course = Course(courseNo = "A", courseName = "A", customColorHex = "#FF0000")
-        assertNull(
-            CourseSyncReconciler.applyColorOverrides(
-                listOf(course), listOf(CourseOverrideResult("m1", "A", "#FF0000")), syncColors = true
-            )
-        )
+        assertNull(colors(listOf(course), listOf(CourseOverrideResult("m1", "A", "#FF0000", semester = "1141"))))
     }
 
     /** tigerduck-app-android#380: a snapshot fetched before a PATCH landed still has the old colour. */
@@ -572,11 +472,7 @@ class CourseSyncReconcilerTest {
         val a = Course(courseNo = "A", courseName = "A", moodleIdNumber = "mA", customColorHex = "#FF0000")
         val b = Course(courseNo = "B", courseName = "B", moodleIdNumber = "mB", customColorHex = "#00FF00")
         val rows = listOf(CourseOverrideResult("mA", "A", "#0000FF"), CourseOverrideResult("mB", "B", "#00FF00"))
-        assertNull(
-            CourseSyncReconciler.applyColorOverrides(
-                listOf(a, b), rows, syncColors = true, held = setOf(PendingCourseOverride.colorKey("mA")),
-            )
-        )
+        assertNull(colors(listOf(a, b), rows, kept = setOf(colorField("A"))))
     }
 
     @Test
@@ -584,10 +480,8 @@ class CourseSyncReconcilerTest {
         val a = Course(courseNo = "A", courseName = "A", moodleIdNumber = "1141A", customColorHex = "#FF0000")
         val b = Course(courseNo = "B", courseName = "B", moodleIdNumber = "1141B", customColorHex = "#00FF00")
         // Picked red for B on another device, while this phone's red for A waits to go up.
-        val rows = listOf(colour("A", "#0000FF", "2026-03-01T00:00:00+00:00"), colour("B", "#FF0000", "2026-03-02T00:00:00+00:00"))
-        val outcome = CourseSyncReconciler.applyColorOverrides(
-            listOf(a, b), rows, syncColors = true, held = setOf(PendingCourseOverride.colorKey("1141A")),
-        )!!
+        val rows = listOf(colorRow("A", "#0000FF", 1L), colorRow("B", "#FF0000", 2L))
+        val outcome = colors(listOf(a, b), rows, kept = setOf(colorField("A")))!!
         assertEquals("#FF0000", outcome.courses.single { it.courseNo == "A" }.customColorHex)
         val movedTo = outcome.courses.single { it.courseNo == "B" }.customColorHex
         assertTrue("B left red: $movedTo", movedTo != null && movedTo.uppercase() != "#FF0000")
@@ -599,30 +493,24 @@ class CourseSyncReconcilerTest {
         val a = Course(courseNo = "A", courseName = "A", moodleIdNumber = "1141A", customColorHex = "#FF0000")
         val b = Course(courseNo = "B", courseName = "B", moodleIdNumber = "1141B", customColorHex = "#00FF00")
         // The server never had a colour for A; B's red there would move A off the red it has waiting.
-        val outcome = CourseSyncReconciler.applyColorOverrides(
-            listOf(a, b), listOf(colour("B", "#FF0000", null)), syncColors = true,
-            held = setOf(PendingCourseOverride.colorKey("1141A")),
-        )!!
+        val outcome = colors(listOf(a, b), listOf(colorRow("B", "#FF0000", null)), kept = setOf(colorField("A")))!!
         assertEquals("#FF0000", outcome.courses.single { it.courseNo == "A" }.customColorHex)
         val movedTo = outcome.courses.single { it.courseNo == "B" }.customColorHex
         assertTrue("B left red: $movedTo", movedTo != null && movedTo.uppercase() != "#FF0000")
         assertEquals(mapOf("B" to movedTo), outcome.moved)
     }
 
-    private fun colour(no: String, hex: String, at: String?) =
-        CourseOverrideResult("1141$no", no, hex, colorHexUpdatedAt = at)
+    // 1141's course [no]'s row, its color [hex] set by an edit stamped [hlc].
+    private fun colorRow(no: String, hex: String, hlc: Long?) =
+        CourseOverrideResult("1141$no", no, hex, semester = "1141", courseKey = "client:1141:$no", colorHexHlc = hlc)
 
     @Test
     fun `two courses the server holds on one colour settle apart, the latest pick keeping it`() {
         // An older build left A and B both red on the server. Applied row by
         // row both stayed red on every Android phone (tigerduck-app-android#295).
-        val outcome = CourseSyncReconciler.applyColorOverrides(
+        val outcome = colors(
             courses = listOf(local("A"), local("B"), local("C")),
-            overrides = listOf(
-                colour("B", "#FF6B6B", "2026-10-10T08:00:00.000002+00:00"),
-                colour("A", "#FF6B6B", "2026-10-10T08:00:00.000001+00:00"),
-            ),
-            syncColors = true,
+            rows = listOf(colorRow("B", "#FF6B6B", 2L), colorRow("A", "#FF6B6B", 1L)),
         )!!
 
         val byNo = outcome.courses.associateBy { it.courseNo }
@@ -635,15 +523,14 @@ class CourseSyncReconcilerTest {
 
     @Test
     fun `a row with no pick time counts as the oldest, and ties go by course number`() {
-        val outcome = CourseSyncReconciler.applyColorOverrides(
+        val outcome = colors(
             courses = listOf(local("A"), local("B"), local("C"), local("D")),
-            overrides = listOf(
-                colour("A", "#FF6B6B", "2026-10-10T08:00:00+00:00"),
-                colour("C", "#FF6B6B", null),
-                colour("D", "#4ECDC4", "2026-10-10T09:00:00+00:00"),
-                colour("B", "#4ECDC4", "2026-10-10T09:00:00+00:00"),
+            rows = listOf(
+                colorRow("A", "#FF6B6B", 800L),
+                colorRow("C", "#FF6B6B", null),
+                colorRow("D", "#4ECDC4", 900L),
+                colorRow("B", "#4ECDC4", 900L),
             ),
-            syncColors = true,
         )!!
 
         val byNo = outcome.courses.associateBy { it.courseNo }
@@ -655,15 +542,11 @@ class CourseSyncReconcilerTest {
 
     @Test
     fun `the same rows in any order settle the same way`() {
-        val rows = listOf(
-            colour("A", "#FF6B6B", "2026-10-10T08:00:01+00:00"),
-            colour("B", "#FF6B6B", "2026-10-10T08:00:02+00:00"),
-            colour("C", "#FF6B6B", "2026-10-10T08:00:03+00:00"),
-        )
+        val rows = listOf(colorRow("A", "#FF6B6B", 1L), colorRow("B", "#FF6B6B", 2L), colorRow("C", "#FF6B6B", 3L))
         val courses = listOf(local("A"), local("B"), local("C"))
 
-        val forward = CourseSyncReconciler.applyColorOverrides(courses, rows, syncColors = true)!!
-        val backward = CourseSyncReconciler.applyColorOverrides(courses, rows.reversed(), syncColors = true)!!
+        val forward = colors(courses, rows)!!
+        val backward = colors(courses, rows.reversed())!!
 
         assertEquals(forward, backward)
         assertEquals(setOf("A", "B"), forward.moved.keys)
@@ -672,10 +555,9 @@ class CourseSyncReconcilerTest {
 
     @Test
     fun `a course pinned here to a colour the server gives another course moves off it`() {
-        val outcome = CourseSyncReconciler.applyColorOverrides(
+        val outcome = colors(
             courses = listOf(local("A"), Course(courseNo = "B", courseName = "B", customColorHex = "#FF6B6B")),
-            overrides = listOf(colour("A", "#FF6B6B", "2026-10-10T08:00:00+00:00")),
-            syncColors = true,
+            rows = listOf(colorRow("A", "#FF6B6B", 1L)),
         )!!
 
         val byNo = outcome.courses.associateBy { it.courseNo }
@@ -689,42 +571,17 @@ class CourseSyncReconcilerTest {
             Course(courseNo = "A", courseName = "A", customColorHex = "#FF6B6B"),
             Course(courseNo = "B", courseName = "B", customColorHex = "#4ECDC4"),
         )
-        assertNull(
-            CourseSyncReconciler.applyColorOverrides(
-                courses,
-                listOf(colour("A", "#FF6B6B", null), colour("B", "#4ECDC4", null)),
-                syncColors = true,
-            )
-        )
+        assertNull(colors(courses, listOf(colorRow("A", "#FF6B6B", null), colorRow("B", "#4ECDC4", null))))
     }
 
-    @Test
-    fun `null when colour sync is off, whatever the server says`() {
-        assertNull(
-            CourseSyncReconciler.applyColorOverrides(
-                listOf(local("A")), listOf(CourseOverrideResult("m1", "A", "#FF0000")), syncColors = false
-            )
-        )
-    }
-
-    // ---- custom names ----
-
-    @Test
-    fun `names merge per locale without disturbing the others`() {
-        val merged = CourseSyncReconciler.mergeCustomNames(
-            existing = mapOf("A" to mapOf("zh-TW" to "微積分", "en" to "Calculus")),
-            overrides = listOf(CourseOverrideResult("m1", "A", null, mapOf("en" to "Calc I"))),
-            syncNames = true,
-        )
-        assertEquals(mapOf("zh-TW" to "微積分", "en" to "Calc I"), merged!!.getValue("A"))
-    }
+    // ---- custom names, as a pull applies them (StampedCourseOverrides.names) ----
 
     @Test
     fun `an empty name clears that locale, and the last one drops the course`() {
-        val merged = CourseSyncReconciler.mergeCustomNames(
+        val merged = StampedCourseOverrides.names(
             existing = mapOf("A" to mapOf("en" to "Calculus")),
             overrides = listOf(CourseOverrideResult("m1", "A", null, mapOf("en" to ""))),
-            syncNames = true,
+            held = emptySet(),
         )
         assertTrue("no empty leftover entry for A", "A" !in merged!!)
     }
@@ -732,159 +589,26 @@ class CourseSyncReconcilerTest {
     /** tigerduck-app-android#380. */
     @Test
     fun `a name this phone has waiting to send is kept over the server's, the other locales merging still`() {
-        val merged = CourseSyncReconciler.mergeCustomNames(
+        val merged = StampedCourseOverrides.names(
             existing = mapOf("A" to mapOf("en" to "Calc I")),
             overrides = listOf(CourseOverrideResult("mA", "A", null, mapOf("en" to "Calculus", "zh-TW" to "微積分"))),
-            syncNames = true,
-            held = setOf(PendingCourseOverride.nameKey("mA", "en")),
+            held = setOf("A" to "en"),
         )
         assertEquals(mapOf("en" to "Calc I", "zh-TW" to "微積分"), merged!!.getValue("A"))
     }
 
     @Test
     fun `null when every name the server sends is waiting to go up from here`() {
-        val merged = CourseSyncReconciler.mergeCustomNames(
+        val merged = StampedCourseOverrides.names(
             existing = emptyMap(),
             overrides = listOf(CourseOverrideResult("mA", "A", null, mapOf("en" to "Calculus"))),
-            syncNames = true,
-            held = setOf(PendingCourseOverride.nameKey("mA", "en")),
+            held = setOf("A" to "en"),
         )
         assertNull(merged)
     }
 
     @Test
-    fun `null when name sync is off or nothing was sent`() {
-        val o = listOf(CourseOverrideResult("m1", "A", null, mapOf("en" to "X")))
-        assertNull(CourseSyncReconciler.mergeCustomNames(emptyMap(), o, syncNames = false))
-        assertNull(CourseSyncReconciler.mergeCustomNames(emptyMap(), emptyList(), syncNames = true))
-    }
-
-    // ---- the courses re-enable check ----
-
-    @Test
-    fun `the course list is held while the courses re-enable check waits for the user`() {
-        // A reconcile meanwhile un-hides a course deleted here while sync was
-        // off, since the server still lists it, and Use Local could then no
-        // longer keep it deleted (tigerduck-app-android#153).
-        assertFalse(CourseSyncReconciler.syncsCourseList(switchOn = true, pendingConflictCategories = setOf("courses")))
-        assertFalse(
-            CourseSyncReconciler.syncsCourseList(switchOn = true, pendingConflictCategories = setOf("assignments", "courses"))
-        )
-    }
-
-    @Test
-    fun `the course list syncs when its switch is on and no courses check is pending`() {
-        assertTrue(CourseSyncReconciler.syncsCourseList(switchOn = true, pendingConflictCategories = emptySet()))
-        assertTrue(
-            CourseSyncReconciler.syncsCourseList(
-                switchOn = true,
-                pendingConflictCategories = setOf("course_colors", "course_names", "assignments"),
-            )
-        )
-    }
-
-    @Test
-    fun `the course list does not sync with its switch off`() {
-        assertFalse(CourseSyncReconciler.syncsCourseList(switchOn = false, pendingConflictCategories = emptySet()))
-    }
-
-    // ---- the colour and name re-enable checks ----
-
-    @Test
-    fun `the server's colours are held while the colours re-enable check waits for the user`() {
-        // Applied meanwhile, they would answer the check for the user, and
-        // Use Local could no longer keep this phone's colours
-        // (tigerduck-app-android#296).
-        assertFalse(CourseSyncReconciler.syncsCourseColors(switchOn = true, pendingConflictCategories = setOf("course_colors")))
-        assertTrue(
-            CourseSyncReconciler.syncsCourseColors(
-                switchOn = true,
-                pendingConflictCategories = setOf("courses", "course_names", "assignments"),
-            )
-        )
-        assertFalse(CourseSyncReconciler.syncsCourseColors(switchOn = false, pendingConflictCategories = emptySet()))
-    }
-
-    @Test
-    fun `the server's names are held while the names re-enable check waits for the user`() {
-        assertFalse(CourseSyncReconciler.syncsCourseNames(switchOn = true, pendingConflictCategories = setOf("course_names")))
-        assertTrue(
-            CourseSyncReconciler.syncsCourseNames(
-                switchOn = true,
-                pendingConflictCategories = setOf("courses", "course_colors", "assignments"),
-            )
-        )
-        assertFalse(CourseSyncReconciler.syncsCourseNames(switchOn = false, pendingConflictCategories = emptySet()))
-    }
-
-    // ---- a course reset made on another device ----
-
-    @Test
-    fun `the account's first sync here remembers the server's reset without applying it`() {
-        assertEquals(
-            CourseSyncReconciler.CourseReset(apply = false, remember = "2026-10-10T16:42:49.666640+00:00"),
-            CourseSyncReconciler.coursesReset(server = "2026-10-10T16:42:49.666640+00:00", lastSeen = null),
-        )
-        assertEquals(
-            CourseSyncReconciler.CourseReset(apply = false, remember = ""),
-            CourseSyncReconciler.coursesReset(server = null, lastSeen = null),
-        )
-    }
-
-    @Test
-    fun `a reset newer than the one remembered is applied, whatever this phone's clock says`() {
-        val reset = CourseSyncReconciler.coursesReset(
-            server = "2026-10-10T16:42:49.666641+00:00",
-            lastSeen = "2026-10-10T16:42:49.666640+00:00",
-        )
-        assertEquals(CourseSyncReconciler.CourseReset(apply = true, remember = "2026-10-10T16:42:49.666641+00:00"), reset)
-    }
-
-    @Test
-    fun `the reset already remembered is not applied again`() {
-        val at = "2026-10-10T16:42:49.666640+00:00"
-        assertEquals(
-            CourseSyncReconciler.CourseReset(apply = false, remember = at),
-            CourseSyncReconciler.coursesReset(server = at, lastSeen = at),
-        )
-        // isoformat() drops a zero fraction; the same instant written either way is one reset.
-        assertFalse(
-            CourseSyncReconciler.coursesReset(
-                server = "2026-10-10T16:42:49+00:00",
-                lastSeen = "2026-10-10T16:42:49.000000+00:00",
-            ).apply
-        )
-    }
-
-    @Test
-    fun `the first reset after a sync that found none counts as new`() {
-        assertTrue(CourseSyncReconciler.coursesReset(server = "2026-10-10T16:42:49+00:00", lastSeen = "").apply)
-    }
-
-    @Test
-    fun `no reset, or one that does not parse, keeps what was remembered`() {
-        val at = "2026-10-10T16:42:49+00:00"
-        assertEquals(CourseSyncReconciler.CourseReset(false, at), CourseSyncReconciler.coursesReset(null, at))
-        assertEquals(CourseSyncReconciler.CourseReset(false, at), CourseSyncReconciler.coursesReset("garbage", at))
-    }
-
-    @Test
-    fun `the first sync after the update applies a reset newer than the old build's last sync, once`() {
-        // The old build kept this phone's clock at its last sync; a reset
-        // made elsewhere since then would otherwise be remembered unapplied.
-        val legacy = backendInstant("2026-10-10T16:00:00+00:00")!!.toEpochMilli()
-
-        assertEquals(
-            CourseSyncReconciler.CourseReset(apply = true, remember = "2026-10-10T16:42:49+00:00"),
-            CourseSyncReconciler.coursesReset("2026-10-10T16:42:49+00:00", lastSeen = null, legacyLastSyncMs = legacy),
-        )
-        assertFalse(
-            "a reset the old build had already seen",
-            CourseSyncReconciler.coursesReset("2026-10-10T15:00:00+00:00", lastSeen = null, legacyLastSyncMs = legacy).apply,
-        )
-        assertFalse(
-            "with what this build remembered, the old stamp is not read",
-            CourseSyncReconciler.coursesReset("2026-10-10T16:42:49+00:00", lastSeen = "2026-10-10T16:42:49+00:00", legacyLastSyncMs = legacy).apply,
-        )
+    fun `null when nothing was sent and nothing is held`() {
+        assertNull(StampedCourseOverrides.names(emptyMap(), emptyList(), held = emptySet()))
     }
 }

@@ -1,6 +1,6 @@
 package org.ntust.app.tigerduck.library
 
-import org.ntust.app.tigerduck.demo.DemoAccount
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.shared.LibraryService
 import javax.inject.Inject
@@ -17,21 +17,22 @@ import javax.inject.Singleton
 class LibraryReturnSignIn internal constructor(
     private val session: LibrarySession,
     private val libraryService: LibraryService,
-    private val demoActive: () -> Boolean,
+    /** The school's: the demo account is signed in there, and reaches no server. */
+    private val school: AccountSession,
     private val isOnline: () -> Boolean,
 ) {
     @Inject
     constructor(
         session: LibrarySession,
         libraryService: LibraryService,
-        demoAccount: DemoAccount,
+        school: AccountSession,
         networkChecker: NetworkChecker,
-    ) : this(session, libraryService, { demoAccount.isActive }, networkChecker::isAvailable)
+    ) : this(session, libraryService, school, networkChecker::isAvailable)
 
     /** Returns whether it signed in. */
     suspend fun onAppResumed(): Boolean {
         session.refresh()
-        if (demoActive()) return false
+        if (school.isDemo) return false
         return libraryService.signInIfCredentialed(isOnline)
     }
 }

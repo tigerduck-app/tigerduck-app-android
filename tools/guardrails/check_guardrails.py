@@ -34,6 +34,38 @@ Offense kinds (counts in the baseline):
   sign-in-read    lines that name StartsAccountWork outside the layers that may
                   start account work. Every other layer is handed the sign-in.
                   The baseline has no entries of this kind and takes none.
+  bearer-home     lines that write a "Bearer " header outside the token manager,
+                  the guard that reads it, and the one line of the departing
+                  unregister, the only request with no sign-in. Takes no
+                  baseline entries either.
+  sign-out-reactor lines that follow a sign-in or a sign-out by watching state or
+                  a stream of the account's own. Every reactor reads one stream
+                  of account events, so a fast sign-out and sign-in can't be
+                  missed. Takes no baseline entries either.
+  sign-out-start  lines that start an account's sign-out outside its plan: the
+                  token manager's logout, School Mail's or the library's
+                  sign-out, or the school's or the library's credentials
+                  dropped, anywhere but SignOutPlans.kt and those accounts'
+                  own homes. One plan runs every sign-out, in order. Takes no
+                  baseline entries either.
+  sync-switch-read lines that name a sync switch or the re-enable hold
+                  (cloudSyncEnabled, syncCourses, syncCourseColors,
+                  syncCourseNames, syncAssignments, pendingConflictCategories)
+                  outside SyncPolicy and the files that store or send them.
+                  SyncPolicy answers whether a category keeps, sends or applies.
+  sync-write      calls of a backend sync write (the override PATCHes, the
+                  holiday PUT, the course deletes and uploads, the assignment
+                  upload, and their ...Answered forms), and references to one
+                  (client::deleteCourse), outside push/, sync/ and the queues.
+                  A declaration is not a call. A write leaves through its
+                  channel's outbox.
+  status-in-message contains() of a status code or a backend error code on a
+                  message. BackendError reads the code once. It has no home.
+  full-sync-fetch calls of fetchFullSync, and references to it, outside
+                  SyncApiClient and the Synchronizer, which runs every full sync.
+  api-version-literal string literals that are "v3" or "v4", or hold /v3 or
+                  /v4 as a path segment, outside ApiBase, which turns a base
+                  from one version to the other. Takes no baseline entries.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -68,6 +100,7 @@ MAX_FILE_LINES = 400
 MAX_FUNCTION_LINES = 80
 BASELINE_IN_REPO = "tools/guardrails/baseline.json"
 
+PUSH_API = "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt"
 TAIPEI_HOME = "shared/src/main/java/org/ntust/app/tigerduck/shared/time/TaipeiClock.kt"
 TERM_HOME = "shared/src/main/java/org/ntust/app/tigerduck/shared/time/AcademicTerm.kt"
 PREFERENCES = "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt"
@@ -103,25 +136,72 @@ ACCOUNT_COUNTER = re.compile(
     r"|cacheGeneration|accountEpoch|isStillSignedInAs)\b"
     r"|DataCache\.Generation|\b(?:generation|signIn): Int\b")
 DEMO_CHECK = re.compile(
-    r"\b(?:isDemo|isDemoSession|appDemoActive|demoMailbox)\b"
-    r"|\b(?:demoAccount|demo)\.isActive\b|\b(?:store|fixtures)\.demoMode\b")
+    r"\b(?:isDemo|isDemoSession|appDemoActive|demoMailbox|demoFromElsewhere)\b"
+    r"|\b(?:demoAccount|demo)\.isActive\b|\.demoMode\b")
 STARTS_ACCOUNT_WORK = re.compile(r"\bStartsAccountWork\b")
 APP_PACKAGE = "/org/ntust/app/tigerduck/"
 
 # Homes are regexes on the path under the app's package. A file inside one is
 # where that rule is allowed to live.
 DEMO_HOMES = re.compile(
-    r"(?:demo/|auth/session/|shared/account/|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
-    r"|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
+    r"(?:auth/session/AccountSessions?\.kt$|shared/account/SignIn\.kt$"
+    r"|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
+    r"|demo/|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
 SIGN_IN_HOMES = re.compile(
-    r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|demo/|liveactivity/"
+    r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|ShareCodeLink\.kt$|demo/|liveactivity/"
     r"|notification/.*(?:Worker|Receiver)\.kt$|push/PushRegistrationService\.kt$"
-    r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/sync/MailChecker\.kt$"
-    r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/moodle/"
+    r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/MailRepository\.kt$"
+    r"|mail/sync/MailChecker\.kt$"
+    r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/CourseService\.kt$|network/moodle/"
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
-# Kinds that are counts of lines and, apart from these, take no baseline entry
+SIGN_OUT_REACTOR = re.compile(
+    r"\b(?:authState|accountState|signOuts|studentChanges|signIns)\.collect\b|\bauthState\.first\b")
+# A call, or a reference handed on to run it later. LibraryAccountGate's own signOut { } is not one.
+SIGN_OUT_START = re.compile(
+    r"\b(?:authTokenManager\.logout|(?:mailAccount|account|librarySession)\.signOut"
+    r"|credentials\.signOutSchoolAccount|clearLibraryCredentials)\s*\("
+    r"|\b(?:authTokenManager::logout|(?:mailAccount|account|librarySession)::signOut"
+    r"|credentials::signOutSchoolAccount)\b|::clearLibraryCredentials\b")
+SIGN_OUT_HOMES = re.compile(
+    r"(?:auth/session/SignOutPlans\.kt$|mail/MailAccount\.kt$|library/LibrarySession\.kt$"
+    r"|data/preferences/CredentialManager\.kt$)")
+BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
+SYNC_SWITCH = re.compile(
+    r"\b(?:cloudSyncEnabled|syncCourses|syncCourseColors|syncCourseNames|syncAssignments"
+    r"|pendingConflictCategories)\b")
+SYNC_SWITCH_HOMES = re.compile(
+    r"(?:sync/SyncPolicy\.kt$|data/preferences/AppPreferences\.kt$|data/preferences/SchoolKeys\.kt$"
+    r"|push/PushApiModels\.kt$)")
+# A call, or a reference (client::deleteCourse) handed on to make it later. A name that
+# merely starts with one (deleteCourseCaches) is not one of the writes, and a declaration
+# of one is not a call: see calls().
+SYNC_WRITES = (r"(?:patchAssignmentOverride|patchCourseOverride|patchCourseIgnore|putHolidayOverride"
+               r"|deleteCourse|deleteAllCourses|uploadCourses|uploadAssignments)(?:Answered)?")
+SYNC_WRITE = re.compile(r"\b" + SYNC_WRITES + r"\s*\(|::\s*" + SYNC_WRITES + r"\b")
+QUEUES = r"(?:UnsentMarks|PendingHolidayOverrides|PendingCourseOverrides|CourseIgnoreSync" \
+         r"|PendingCourseAdds|PendingCourseDeletes|CourseIgnoreQueue)"
+SYNC_WRITE_HOMES = re.compile(r"(?:push/|sync/|data/" + QUEUES + r"\.kt$)")
+# Positional or named: contains("401"), contains(other = "401"), and either after a
+# named ignoreCase.
+STATUS_IN_MESSAGE = re.compile(
+    r'\bcontains\s*\(\s*(?:ignoreCase\s*=\s*\w+\s*,\s*)?(?:other\s*=\s*)?'
+    r'"(?:\d{3}|session_revoked|clock_ahead|hlc_required)"')
+FULL_SYNC_FETCH = re.compile(r"\bfetchFullSync\s*\(|::\s*fetchFullSync\b")
+# What stands between "fun" and the name it declares on that line: modifiers come before
+# "fun", and after it only type parameters and a receiver type (Foo<T>?.), comments blanked.
+DECLARES = re.compile(r"\bfun\b[\s\w.<>,?*:`]*$")
+FULL_SYNC_HOMES = re.compile(r"(?:push/SyncApiClient\.kt$|sync/Synchronizer\.kt$)")
+# On a literal's own text, a template standing as TEMPLATE: "v3" itself, or v3 or v4
+# as a whole path segment, "/v4", "https://h/v3/", "$base/v4?x" or "${base}/v3".
+TEMPLATE = "\x00"
+API_VERSION = re.compile(r"(?:^|/)v[34](?=$|[/?#$\x00])")
+API_VERSION_HOMES = re.compile(r"network/backend/ApiBase\.kt$")
+BEARER_LITERAL = '"Bearer '
+UNREGISTER_BEARER = 'removeDevice("Bearer '
+# Kinds that are counts of lines or calls and, apart from these, take no baseline entry
 # the flag cannot record.
-INTRODUCIBLE = ("account-counter", "demo-check")
+INTRODUCIBLE = ("account-counter", "demo-check", "sync-switch-read", "sync-write",
+                "status-in-message", "full-sync-fetch")
 
 
 def in_home(rel, homes):
@@ -132,6 +212,21 @@ def in_home(rel, homes):
 
 def matching_lines(code, pattern):
     return sum(1 for line in code.split("\n") if pattern.search(line))
+
+
+def calls(code, pattern):
+    """Calls and callable references the pattern finds in lexed code, declarations left out.
+
+    A match is a declaration when its line reads "fun" before it with nothing between but
+    type parameters and a receiver type: fun deleteCourse(, fun <T> Foo<T>.deleteCourse(.
+    Python's lookbehind is fixed-width, so the line before the match is read instead.
+    """
+    count = 0
+    for m in pattern.finditer(code):
+        line_start = code.rfind("\n", 0, m.start()) + 1
+        if not DECLARES.search(code, line_start, m.start()):
+            count += 1
+    return count
 
 
 def sign_in_reads(code):
@@ -154,6 +249,16 @@ DEFAULT_BASELINE = os.path.join(HERE, "baseline.json")
 
 # ---------------------------------------------------------------- lexing
 
+def string_literals(text):
+    """The text of every string literal in text, a template in it standing as TEMPLATE.
+
+    A literal inside a template is a literal of its own. Comments hold none.
+    """
+    found = []
+    _code(text, 0, False, [], False, found)
+    return found
+
+
 def lex(text, keep_strings=False):
     """Returns text with comments and string text blanked, same length.
 
@@ -172,7 +277,7 @@ def _blank(chunk, raw):
     return "".join(("\r" if raw else "\n") if c == "\n" else " " for c in chunk)
 
 
-def _code(text, i, keep, out, in_template):
+def _code(text, i, keep, out, in_template, literals=None):
     n, depth = len(text), 0
     while i < n:
         c = text[i]
@@ -195,9 +300,9 @@ def _code(text, i, keep, out, in_template):
             out.append(_blank(text[i:j], False))
             i = j
         elif text.startswith('"""', i):
-            i = _string(text, i, keep, out, True)
+            i = _string(text, i, keep, out, True, literals)
         elif c == '"':
-            i = _string(text, i, keep, out, False)
+            i = _string(text, i, keep, out, False, literals)
         elif c == "'":
             m = re.match(r"'(\\.[^']*|[^\\'])'", text[i:i + 12])
             if m:
@@ -222,30 +327,40 @@ def _code(text, i, keep, out, in_template):
     return i
 
 
-def _string(text, i, keep, out, raw):
+def _string(text, i, keep, out, raw, literals=None):
     quote = '"""' if raw else '"'
     out.append(quote)
     i += len(quote)
     n = len(text)
+    own = []
+
+    def done(at):
+        if literals is not None:
+            literals.append("".join(own))
+        return at
+
     while i < n:
         if text.startswith(quote, i):
             out.append(quote)
-            return i + len(quote)
+            return done(i + len(quote))
         c = text[i]
         if not raw and c == "\n":
-            return i  # unterminated; let the code go on
+            return done(i)  # unterminated; let the code go on
         if not raw and c == "\\":
             out.append(text[i:i + 2] if keep else "  ")
+            own.append(text[i:i + 2])
             i += 2
         elif text.startswith("${", i):
             out.append("${" if keep else "  ")
-            i = _code(text, i + 2, keep, out, True)
+            own.append(TEMPLATE)
+            i = _code(text, i + 2, keep, out, True, literals)
             out.append("}" if keep else " ")
             i += 1
         else:
             out.append(c if keep else _blank(c, raw) if c == "\n" else " ")
+            own.append(c)
             i += 1
-    return i
+    return done(i)
 
 
 # ---------------------------------------------------------------- scanning helpers
@@ -532,7 +647,9 @@ def term_sorts(code):
 # ---------------------------------------------------------------- scan
 
 KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
-         "top-app-bar", "account-counter", "demo-check", "sign-in-read")
+         "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home",
+         "sign-out-reactor", "sign-out-start", "sync-switch-read", "sync-write",
+         "status-in-message", "full-sync-fetch", "api-version-literal")
 
 
 def is_test_set(name):
@@ -593,10 +710,22 @@ def scan(root):
         if SHARED_UI not in rel:
             add(rel, "top-app-bar", top_app_bar_calls(code))
         add(rel, "account-counter", matching_lines(code, ACCOUNT_COUNTER))
+        add(rel, "sign-out-reactor", matching_lines(code, SIGN_OUT_REACTOR))
+        if not in_home(rel, SIGN_OUT_HOMES):
+            add(rel, "sign-out-start", matching_lines(code, SIGN_OUT_START))
         if not in_home(rel, DEMO_HOMES):
             add(rel, "demo-check", matching_lines(code, DEMO_CHECK))
         if not in_home(rel, SIGN_IN_HOMES):
             add(rel, "sign-in-read", sign_in_reads(code))
+        if not in_home(rel, SYNC_SWITCH_HOMES):
+            add(rel, "sync-switch-read", matching_lines(code, SYNC_SWITCH))
+        if not in_home(rel, SYNC_WRITE_HOMES):
+            add(rel, "sync-write", calls(code, SYNC_WRITE))
+        if not in_home(rel, FULL_SYNC_HOMES):
+            add(rel, "full-sync-fetch", calls(code, FULL_SYNC_FETCH))
+        if not in_home(rel, API_VERSION_HOMES):
+            add(rel, "api-version-literal",
+                sum(1 for literal in string_literals(text) if API_VERSION.search(literal)))
 
         # Literals are matched with strings kept and comments blanked, so a
         # KDoc that mentions the zone does not count.
@@ -606,6 +735,11 @@ def scan(root):
         add(rel, "fdroid-literal", sum(
             line.count('"fdroid"') for line in kept.split("\n")
             if not (rel == PREFERENCES and "BuildConfig" in line)))
+        if not in_home(rel, BEARER_HOMES):
+            # One call there: the unregister, which holds its session and no sign-in.
+            rest = kept.replace(UNREGISTER_BEARER, "", 1) if rel == PUSH_API else kept
+            add(rel, "bearer-home", rest.count(BEARER_LITERAL))
+        add(rel, "status-in-message", len(STATUS_IN_MESSAGE.findall(kept)))
     return found
 
 

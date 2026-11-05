@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -38,7 +39,9 @@ import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.sync.RefreshOrder
+import org.ntust.app.tigerduck.sync.SchoolUploads
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -56,6 +59,7 @@ import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -106,7 +110,7 @@ class HomeViewModel @Inject constructor(
     private val liveActivityManager: LiveActivityManager,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
-    private val pushApiClient: PushApiClient,
+    private val schoolUploads: SchoolUploads,
     private val syncApiClient: SyncApiClient,
     private val authTokenManager: AuthTokenManager,
     private val backendSync: HomeBackendSync,
@@ -271,8 +275,10 @@ class HomeViewModel @Inject constructor(
         HomeAssignmentFilters.hasIgnored(all, ignoredIncludingCourses(all, ignored, courseKeys))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
-    private val saveMarkedCompletedChannel = Channel<Set<String>>(Channel.CONFLATED)
+    // Each tap's mark, with the sign-in it was made in, which the save holds on to: written in the
+    // order made, one assignment at a time onto the marks as stored, never as Home's whole sets, so
+    // a pull's mark of another assignment saved meanwhile stays.
+    private val markSaves = Channel<Triple<String, String, SignIn>>(Channel.UNLIMITED)
 
     // Swipes on Home, counted on the main thread; see reloadAdoptedMarks.
     private var markTaps = 0
@@ -340,13 +346,8 @@ class HomeViewModel @Inject constructor(
         //     }
         // }
         viewModelScope.launch {
-            for (ids in saveIgnoredChannel) {
-                dataCache.saveIgnoredAssignments(ids)
-            }
-        }
-        viewModelScope.launch {
-            for (ids in saveMarkedCompletedChannel) {
-                dataCache.saveMarkedCompletedAssignments(ids)
+            for ((id, status, signIn) in markSaves) {
+                dataCache.updateAssignmentMarks(signIn) { marks, _ -> AssignmentOverrideReconciler.withStatus(marks, id, status) }
             }
         }
         viewModelScope.launch {
@@ -359,17 +360,16 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-        viewModelScope.launch {
-            // React to login/logout: clear immediately on sign-out, kick off a
-            // fresh data fetch on sign-in so the UI never lingers on a prior
-            // user's cached courses.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // React to login/logout: clear immediately on sign-out, kick off a fresh data fetch
+            // on sign-in so the UI never lingers on a prior user's cached courses.
             //
-            // A sign-in, not the value the StateFlow replays to a new collector: a user already
-            // signed in at launch is fetched for by load(), which MainNavigation calls straight
-            // after construction. Fetching here as well ran the whole school pipeline twice on
-            // every cold start.
+            // A sign-in, not the state a new collector starts from: a user already signed in at
+            // launch is fetched for by load(), which MainNavigation calls straight after
+            // construction. Fetching here as well ran the whole school pipeline twice on every
+            // cold start.
             var wasAuthed: Boolean? = null
-            authService.authState.collect { isAuthed ->
+            authTokenManager.session.changes.collect { isAuthed ->
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {
@@ -383,10 +383,6 @@ class HomeViewModel @Inject constructor(
                     _ignoredAssignmentIds.value = emptySet()
                     _markedCompletedIds.value = emptySet()
                     _ignoredCourseKeys.value = emptySet()
-                    // The watermark is the departing account's: the next account's feed read after
-                    // it would skip that account's own earlier changes. From 0 the poll runs a full
-                    // sync until one lands for the account that signs in.
-                    syncState.lastKnownRevision = 0
                     hasLoaded = false
                     _initialLoadComplete.value = true
                 } else if (signedIn) {
@@ -423,14 +419,16 @@ class HomeViewModel @Inject constructor(
             // next swipe writes the ones held here back over them.
             dataCache.marksAdoptedVersion.drop(1).collect {
                 if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
+                val signIn = signInNow()
                 reloadAdoptedMarks(
                     read = { dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments() },
                     tapsMade = { markTaps },
-                    stillSignedIn = { authService.isStillSignedInAs(account) },
+                    stillSignedIn = { signIn.isCurrent },
                 ) { ignored, completed ->
-                    _ignoredAssignmentIds.value = ignored
-                    _markedCompletedIds.value = completed
+                    signIn.ifCurrent {
+                        _ignoredAssignmentIds.value = ignored
+                        _markedCompletedIds.value = completed
+                    }
                 }
             }
         }
@@ -439,9 +437,9 @@ class HomeViewModel @Inject constructor(
             // and reading them back here could undo a newer swipe.
             dataCache.assignmentMarksVersion.drop(1).collect {
                 if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
+                val signIn = signInNow()
                 val courseKeys = dataCache.loadIgnoredCourses()
-                if (authService.isStillSignedInAs(account)) _ignoredCourseKeys.value = courseKeys
+                signIn.ifCurrent { _ignoredCourseKeys.value = courseKeys }
             }
         }
         viewModelScope.launch {
@@ -459,7 +457,7 @@ class HomeViewModel @Inject constructor(
                 )
                 if (relabeled != _allCourses.value) {
                     updateCoursesAndAssignments(relabeled, _allAssignments.value)
-                    dataCache.saveCourses(relabeled)
+                    dataCache.saveCourses(relabeled, signInNow())
                 }
             }
         }
@@ -627,7 +625,7 @@ class HomeViewModel @Inject constructor(
     private val revisionPoller = RevisionPoller(
         scope = viewModelScope,
         poll = ::pollRevision,
-        relogin = authService::attemptRelogin,
+        relogin = { authService.attemptRelogin(signInNow()) },
         now = SystemClock::elapsedRealtime,
     )
 
@@ -649,25 +647,23 @@ class HomeViewModel @Inject constructor(
 
     fun stopRevisionPolling() = revisionPoller.stop()
 
-    // cloudSyncEnabled already reads false on fdroid at its source
-    // (AppPreferences.cloudSyncEnabled), so no separate flavor check is
-    // needed here.
+    // TigerSync as SyncPolicy reads it: off on fdroid whatever the switch says.
     private suspend fun pollRevision(): RevisionPollOutcome = pollRevisionOnce(
-        syncEnabled = { prefs.cloudSyncEnabled },
+        syncEnabled = { SyncPolicies(prefs).current.tigerSyncOn },
         online = networkChecker::isAvailable,
         signIn = authTokenManager::signInIfSignedOut,
         fetchRevision = syncApiClient::fetchRevision,
         fetchChanges = syncApiClient::fetchChanges,
-        lastKnownRevision = { syncState.lastKnownRevision },
-        setLastKnownRevision = { syncState.lastKnownRevision = it },
+        lastKnownRevision = { syncState.lastKnownRevision.value },
+        setLastKnownRevision = syncState.lastKnownRevision::set,
         currentSignIn = ::signInNow,
         fullSyncsInFlight = backendPullsInFlight::get,
         retryUnsent = backendSync::sendWhatWaits,
         fullSync = ::syncAndRepublish,
     ).also { outcome ->
-        // Reached the server with nothing new: a re-enable check that failed
-        // runs again here, as after a full sync (which a change starts).
-        if (outcome == RevisionPollOutcome.UNCHANGED) reenableCheck.runIfOwed()
+        // Reached the server with nothing new: a re-enable check, and a club document sync,
+        // that failed run again here, as after a full sync (which a change starts).
+        if (outcome == RevisionPollOutcome.UNCHANGED) { reenableCheck.runIfOwed(); backendSync.retryOwedSettings(signInNow()) }
     }
 
     /**
@@ -718,27 +714,26 @@ class HomeViewModel @Inject constructor(
             var assignments = dataCache.loadAssignments()
 
             if (forceRemote) {
-                // Moodle-direct for the assignment/course list (proven,
-                // correct semester filtering). Backend handles override
-                // sync only (done/ignored marks across devices).
-                pullFromBackend()
-                // Re-read after backend sync so server-merged courses and
-                // deletions are reflected even if the Moodle fetch below fails.
-                courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
-
-                val studentId = authService.storedStudentId
-                val password = authService.storedPassword
-                if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
-                    val (remote, remoteAssignments) =
-                        fetchCoursesAndAssignments(studentId, password)
+                // The backend's pull and the school's fetch together, the pull applied first (RefreshOrder):
+                // Moodle-direct for the course and assignment lists, the backend for the marks across devices.
+                // No outbox step of its own: the pass sends what waits first, so its snapshot has it.
+                RefreshOrder.run(pull = ::pullFromBackend, pushOutbox = {}) { afterPull ->
+                    val studentId = authService.storedStudentId
+                    val password = authService.storedPassword
+                    val fetched = if (studentId.isNullOrBlank() || password.isNullOrBlank()) null else fetchCoursesAndAssignments(studentId, password, afterPull)
+                    afterPull()
+                    // Re-read after the pull so server-merged courses and
+                    // deletions are reflected even if the Moodle fetch failed.
+                    courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
+                    val (remote, remoteAssignments) = fetched ?: return@run
 
                     if (remote != null && remote.courses.isNotEmpty()) {
-                        // Onto the term as it stands, so a concurrent color change isn't
-                        // erased and manually-added courses survive the refresh.
+                        // Onto the term as it stands, so a concurrent color change isn't erased and manually-added
+                        // courses survive the refresh; under the lock a sync's upload of the term reads and sends under.
                         val names = dataCache.loadCourseCustomNames()
                         val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
-                        courses = commitFetchedTerm(
-                            dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer,
+                        courses = pendingCourseAdds.uploading { commitFetchedTerm(
+                            dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer, remote.signIn,
                             waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) },
                         ) { fetched, current, hidden ->
                             HomeCourseMerge.mergeRemote(
@@ -749,12 +744,11 @@ class HomeViewModel @Inject constructor(
                                 deletedNos = hidden,
                                 onlyGains = remote.onlyGains,
                             )
-                        }
+                        } }
                             // A newer course selection answer's fetch committed the term instead.
                             ?: dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
-                        // The class table loaded: a day of use towards the
-                        // Play rating ask (issue #332). A source that failed
-                        // is a status dot, which ReviewPrompt reads.
+                        // The class table loaded: a day of use towards the Play rating ask
+                        // (issue #332). A source that failed is a status dot, which ReviewPrompt reads.
                         reviewPrompt.classTableLoaded()
                         widgetUpdater.requestUpdate()
                     }
@@ -766,15 +760,12 @@ class HomeViewModel @Inject constructor(
                     val written = remoteAssignments?.let {
                         moodleService.storeAssignments(it.assignments, it.answer)
                     }
-                    if (written != null) {
+                    if (written != null && remoteAssignments != null) {
                         assignments = written
-                        try {
-                            pushApiClient.uploadAssignments(written)
-                        } catch (e: CancellationException) {
-                            // A sign-out cancels this fetch: taken for a failed upload, the
-                            // fetch would go on to show the departing account's lists again.
-                            throw e
-                        } catch (e: Exception) {
+                        // After this process's first pull. A sign-out cancels this fetch, and the
+                        // cancellation goes on up: taken for a failed upload, the fetch would go on to
+                        // show the departing account's lists again.
+                        schoolUploads.assignments(written, remoteAssignments.answer.signIn) { e ->
                             prefs.setLastSyncSource(SyncSource.LOCAL)
                             Log.w("HomeViewModel", "uploadAssignments failed (non-fatal): ${e.logSummary()}")
                         }
@@ -801,42 +792,39 @@ class HomeViewModel @Inject constructor(
     /**
      * A fetch's courses of [semester], and whether the term only gains them; see
      * [HomeCourseMerge.mergeRemote]. [answer] is the course selection answer they come from, as
-     * recorded; see [commitFetchedTerm].
+     * recorded, and [signIn] the sign-in the fetch began under; see [commitFetchedTerm].
      */
-    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String, val answer: SelectionAnswer?)
+    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String, val answer: SelectionAnswer?, val signIn: SignIn)
 
     /**
-     * One network round of the two enrolment sources (NTUST course-selection
-     * portal + Moodle enrolled-courses) run in parallel, then per-course
-     * detail lookups run in parallel while assignments are fetched alongside.
-     * The term's courses are course selection's, else the transcript's on
-     * disk added to the cached ones (see [TranscriptTerms.termFrom]); Moodle
-     * gives their names and links, and the assignments' courses.
-     * Returns (null, null) for any piece that failed so the caller can fall
-     * back to cached data cleanly, null courses when no source named any or
-     * course selection's answer was refused ([RecordedSelection.Refused]), and
-     * null assignments when there was no course to ask Moodle about.
+     * One network round of the two enrolment sources (NTUST course-selection portal + Moodle
+     * enrolled-courses) run in parallel, then per-course detail lookups run in parallel while
+     * assignments are fetched alongside. The term's courses are course selection's, else the
+     * transcript's on disk added to the cached ones (see [TranscriptTerms.termFrom]); Moodle gives
+     * their names and links, and the assignments' courses. Returns (null, null) for any piece that
+     * failed so the caller can fall back to cached data cleanly, null courses when no source named
+     * any or course selection's answer was refused ([RecordedSelection.Refused]), and null
+     * assignments when there was no course to ask Moodle about. Only the enrolments are fetched
+     * beside the pull: [afterPull] is awaited before anything reads or writes this phone's data.
      */
     private suspend fun fetchCoursesAndAssignments(
         studentId: String,
         password: String,
+        afterPull: suspend () -> Unit,
     ): Pair<RemoteCourses?, AssignmentsToStore?> = coroutineScope {
-        // TTL-throttled, so this costs one request an hour however often Home
-        // refreshes. Resolved before the gate below, which depends on it.
+        // Before the fetch: a sign-out while it runs drops what it brings.
+        val signIn = signInNow()
+        // TTL-throttled, one request an hour however often Home refreshes; before the gate below, which needs it.
         semesterCatalog.refreshIfStale()
         val semester = courseService.currentSemesterCode()
-        // 選課 serves exactly one term and its 選課清單 page carries no term
-        // marker, so its course numbers belong to whichever term the catalogue
-        // reports as open. While that runs ahead of the term in session —
-        // 選課 for the next term opens weeks before it starts — importing them
-        // here would file the *next* term's enrolments into this term's cache.
+        // 選課 serves exactly one term and its 選課清單 page carries no term marker, so its course
+        // numbers belong to whichever term the catalogue reports as open. While that runs ahead of
+        // the term in session — 選課 for the next term opens weeks before it starts — importing
+        // them here would file the *next* term's enrolments into this term's cache.
         val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
-        // Before the fetch: a sign-out while it runs drops its roster.
-        val generation = dataCache.writeGeneration()
 
-        // Moodle webservice calls auth with a long-lived wstoken, so they
-        // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
-        // Let them run concurrently with the SSO + course-selection scrape.
+        // Moodle webservice calls auth with a long-lived wstoken, not the NTUST SSO cookies
+        // ensureAuthenticated refreshes: they run beside the SSO and course-selection scrape.
         val moodleEnrolledDef = async {
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.MOODLE)
@@ -849,6 +837,8 @@ class HomeViewModel @Inject constructor(
                 null
             }
         }
+        // When course selection answered, before any wait: the answer's age, recorded with it (finding 4, round 4).
+        var answeredAt = 0L
         val courseNosDef = async {
             if (!servesSelectionSemester) return@async emptyList()
             val authed = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
@@ -856,6 +846,7 @@ class HomeViewModel @Inject constructor(
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.COURSE_SELECTION)
                 val nos = courseService.fetchEnrolledCourseNos(studentId, password)
+                answeredAt = System.currentTimeMillis()
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.COURSE_SELECTION)
                 nos
             } catch (e: CancellationException) {
@@ -868,20 +859,19 @@ class HomeViewModel @Inject constructor(
         }
 
         val courseNos = courseNosDef.await()
-        // Before anything overwrites the cache: a course that was in the
-        // portal roster and is not in this answer was dropped in 加退選, and
-        // the backend will keep serving it until someone deletes it by hand.
-        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
         val moodleEnrolled = moodleEnrolledDef.await()
+        // What follows reads or writes this phone's data, the pull's writes in it, as on dev.
+        afterPull()
+        // Before anything overwrites the cache: a course that was in the portal roster and is not
+        // in this answer was dropped in 加退選, and the backend keeps serving it until deleted by hand.
+        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn, answeredAt) }
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
-        // Moodle adds no course to the term, but its courses are still whose
-        // assignments are asked for when course selection gave nothing.
+        // Moodle adds no course to the term, but its courses' assignments are asked for when course selection gave nothing.
         val rosterCourseNos = CourseRosterMerge.assignmentCourseNos(courseNos, moodleForSemester).toSet()
         val cached = dataCache.loadCourses(semester)
-        // Course selection's answer, else the transcript's classes added to
-        // the term, else the term stays as it is (tigerduck-app#890). The
-        // transcript on disk: Home never signs in to the score system.
+        // Course selection's answer, else the transcript's classes added to the term, else the term stays
+        // as it is (tigerduck-app#890). The transcript on disk: Home never signs in to the score system.
         val term = TranscriptTerms.termFrom(courseNos, dataCache.loadScoreReport(studentId)?.report, semester, cached)
 
         val coursesDef = async {
@@ -889,9 +879,8 @@ class HomeViewModel @Inject constructor(
             if (recorded == RecordedSelection.Refused) return@async null
             term ?: return@async null
 
-            // A course whose query fails, or brings no rows, keeps its row in
-            // the term, where Moodle's stand-in would take its times and room
-            // off this phone and, uploaded, off every other device (#417).
+            // A course whose query fails, or brings no rows, keeps its row in the term, where Moodle's stand-in
+            // would take its times and room off this phone and, uploaded, off every other device (#417).
             val cachedByNo = cached.associateBy { it.courseNo }
             val looked = term.courseNos.map { courseNo ->
                 async {
@@ -903,7 +892,7 @@ class HomeViewModel @Inject constructor(
                 TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
                 onlyGains = term.onlyGains,
                 semester = semester,
-                answer = recorded?.answer,
+                answer = recorded?.answer, signIn = signIn,
             )
         }
 
@@ -932,24 +921,21 @@ class HomeViewModel @Inject constructor(
         coursesDef.await() to assignmentsDef.await()
     }
 
-    /**
-     * Reads the courses, assignments and marks off the cache and shows them, for a sync round that
-     * has ended.
-     */
+    /** Reads the courses, assignments and marks off the cache and shows them, for a sync round that has ended. */
     private suspend fun reloadFromCache() {
         if (!authService.authState.value) return
-        val account = authService.storedStudentId
+        val signIn = signInNow()
         val courses = dataCache.loadCourses()
         val assignments = dataCache.loadAssignments()
         val ignored = dataCache.loadIgnoredAssignments()
         val marked = dataCache.loadMarkedCompletedAssignments()
         val courseKeys = dataCache.loadIgnoredCourses()
-        // Signed out, or in as someone else, while the files were
-        // read: what they held was the departing account's.
-        if (!authService.isStillSignedInAs(account)) return
-        _ignoredAssignmentIds.value = ignored
-        _markedCompletedIds.value = marked
-        _ignoredCourseKeys.value = courseKeys
+        // Signed out while the files were read: what they held was the departing account's.
+        signIn.ifCurrent {
+            _ignoredAssignmentIds.value = ignored
+            _markedCompletedIds.value = marked
+            _ignoredCourseKeys.value = courseKeys
+        } ?: return
         TigerDuckTheme.buildCourseColorMap(courses)
         updateCoursesAndAssignments(courses, assignments)
     }
@@ -957,9 +943,9 @@ class HomeViewModel @Inject constructor(
     /** Shows the cached courses with the assignments and marks Home already holds; see the `coursesVersion` collector. */
     private suspend fun reloadCoursesFromCache() {
         if (!authService.authState.value) return
-        val account = authService.storedStudentId
+        val signIn = signInNow()
         val courses = dataCache.loadCourses()
-        if (!authService.isStillSignedInAs(account)) return
+        if (!signIn.isCurrent) return
         TigerDuckTheme.buildCourseColorMap(courses)
         updateCoursesAndAssignments(courses, _allAssignments.value, rearmReminders = false)
     }
@@ -1040,18 +1026,14 @@ class HomeViewModel @Inject constructor(
     fun toggleIgnore(assignment: Assignment) = toggleOverride(
         assignment = assignment,
         primary = _ignoredAssignmentIds,
-        primaryChannel = saveIgnoredChannel,
         secondary = _markedCompletedIds,
-        secondaryChannel = saveMarkedCompletedChannel,
         statusWhenSet = AssignmentOverrideReconciler.STATUS_IGNORED,
     )
 
     fun toggleMarkCompleted(assignment: Assignment) = toggleOverride(
         assignment = assignment,
         primary = _markedCompletedIds,
-        primaryChannel = saveMarkedCompletedChannel,
         secondary = _ignoredAssignmentIds,
-        secondaryChannel = saveIgnoredChannel,
         statusWhenSet = AssignmentOverrideReconciler.STATUS_COMPLETED,
     )
 
@@ -1068,30 +1050,26 @@ class HomeViewModel @Inject constructor(
     private fun toggleOverride(
         assignment: Assignment,
         primary: MutableStateFlow<Set<String>>,
-        primaryChannel: Channel<Set<String>>,
         secondary: MutableStateFlow<Set<String>>,
-        secondaryChannel: Channel<Set<String>>,
         statusWhenSet: String,
     ) {
+        val signIn = signInNow()
         val id = assignment.assignmentId
         markTaps++
         val wasSet = id in primary.value
         primary.update { if (wasSet) it - id else it + id }
-        if (!wasSet) {
-            secondary.update { it - id }
-            secondaryChannel.trySend(secondary.value)
-        }
-        primaryChannel.trySend(primary.value)
+        if (!wasSet) secondary.update { it - id }
+        val status = if (wasSet) AssignmentOverrideReconciler.STATUS_NONE else statusWhenSet
+        markSaves.trySend(Triple(id, status, signIn))
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
-        val status = if (wasSet) AssignmentOverrideReconciler.STATUS_NONE else statusWhenSet
         pendingOverrides.add(id)
         revisionPoller.noteActivity()
         viewModelScope.launch {
             try {
                 // Kept on disk until it lands; a failure is logged there.
-                unsentMarks.send(id, status, signInNow())
+                unsentMarks.send(id, status, signIn)
             } finally {
                 // Always release the in-flight lock: from here on a PATCH
                 // that failed is protected by UnsentMarks, which lets the id

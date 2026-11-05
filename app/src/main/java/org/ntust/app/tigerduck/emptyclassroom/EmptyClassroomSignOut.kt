@@ -9,5 +9,5 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
  */
 fun forgetEmptyClassroom(classroomUsage: ClassroomUsageService, prefs: AppPreferences) {
     classroomUsage.forget()
-    prefs.emptyClassroomBuilding = null
+    prefs.school.emptyClassroomBuilding.clear()
 }

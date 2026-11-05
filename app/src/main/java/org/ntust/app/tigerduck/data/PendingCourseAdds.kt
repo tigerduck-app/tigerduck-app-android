@@ -1,22 +1,38 @@
 package org.ntust.app.tigerduck.data
 
-import android.util.Log
-import kotlinx.coroutines.CancellationException
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.QueueFile
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.util.logSummary
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
+import org.ntust.app.tigerduck.sync.outbox.LanePolicy
+import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
+import org.ntust.app.tigerduck.sync.outbox.OutboxLane
+import org.ntust.app.tigerduck.sync.outbox.UntimedEntries
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Uploads one term's courses as sign-in [signIn], each add in [addedAt] with its time; see
- * [PushApiClient.uploadCourses].
+ * [PushApiClient.uploadCoursesAnswered].
  */
 internal fun interface CourseUploader {
     suspend fun upload(
@@ -30,10 +46,10 @@ internal fun interface CourseUploader {
 
 /**
  * Courses added by hand on the class table whose upload the backend has not
- * taken, by term.
+ * taken, by term: the outbox's course adds channel.
  *
  * An add went up once. A sync re-uploads a term's courses only when the
- * server has none for it (`CourseSyncReconciler.reconcileSemester`), so in a
+ * server has none for it (`CourseMembership.reconcileTerm`), so in a
  * term the server already had, a failed upload left the course on this phone
  * alone: never on another device, and lost at sign-out. Now the add waits on
  * disk, kept before the request so a process killed during it keeps it too,
@@ -45,25 +61,69 @@ internal fun interface CourseUploader {
  * Meanwhile the reconcile keeps the course ([waitingIn]), past a tombstone or
  * the server's silence, and the sign-out warning counts it.
  *
+ * The adds wait in an [OutboxLane] over the queue's own two files ([CourseAddsStore]), one per
+ * course ([membershipField]). One send is a term's upload with the adds asked of it, under the
+ * send lock ([removing]): a full sync's retry asks for every add of a term, the class table's add
+ * for its own. An add is never given up on for its refusals, as before. An add an older build
+ * kept with no moment goes with its old-entry time (X1), one made while course sync is off
+ * is kept until it is on (LWW D12), and one the backend refused, a hide or reset elsewhere being
+ * newer, is the backend's to settle unless the course was added again since.
+ *
  * As the iPhone's outbox since tigerduck-app#727.
  */
 @Singleton
 class PendingCourseAdds internal constructor(
     private val dataCache: DataCache,
     private val uploader: CourseUploader,
-) {
-    @Inject constructor(dataCache: DataCache, pushApiClient: PushApiClient) : this(
+    private val outbox: MembershipOutbox = MembershipOutbox(),
+) : OutboxChannel {
+    @Inject constructor(
+        dataCache: DataCache,
+        pushApiClient: PushApiClient,
+        syncPolicies: SyncPolicies? = null,
+        ackClock: AckClock? = null,
+        @ApplicationScope scope: CoroutineScope? = null,
+        oldEntryTime: OldEntryTime? = null,
+    ) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
-            pushApiClient.uploadCoursesAnswered(courses, semester, forceKeys, signIn, addedAt = addedAt)
+            pushApiClient.uploadCoursesAnswered(courses, semester, signIn, forceKeys, addedAt = addedAt)
         },
+        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime),
     )
 
-    private val mutex = Mutex()
+    override val id: OutboxChannelId get() = OutboxChannelId.COURSE_ADDS
 
     // One upload at a time, and none while courses are taken off the backend;
     // see [removing].
     private val sendMutex = Mutex()
+
+    private val sends: CourseAddSends = CourseAddSends(
+        dataCache, uploader, outbox,
+        waiting = { lane.entries() },
+        settle = { signIn, change -> lane.edit(signIn, change) },
+    )
+
+    private val lane: OutboxLane<CourseAdd> = OutboxLane(
+        OutboxChannelId.COURSE_ADDS,
+        CourseAddsStore(dataCache),
+        LanePolicy(
+            field = CourseAdd::field,
+            // An add is never given up on for its refusals, as before it was a channel.
+            maxAttempts = Int.MAX_VALUE,
+            attempts = InMemoryAttempts(CourseAdd::field),
+            stopsOnRetry = true,
+            untimed = UntimedEntries(
+                // X1: an add with no moment is given its old-entry time, written back.
+                timeOf = { add -> add.addedAtMs },
+                withTime = { add, atMs -> add.copy(addedAtMs = atMs) },
+                oldEntryTimeMs = { outbox.oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.COURSE_ADDS)) ?: 0L },
+            ),
+        ),
+        outbox.ack,
+        outbox.scope,
+        sends::sendRequested,
+    )
 
     /**
      * Uploads [courseNo], just added to [semester]'s list [courses], forcing it
@@ -71,30 +131,41 @@ class PendingCourseAdds internal constructor(
      * ([PendingCourseDeletes.stamp]): the backend applies it only when later
      * than the course's last add, hide and reset, so an add kept offline loses
      * to a hide or a reset made since on another device (#591). Kept until the
-     * backend accepts or settles it. Let go as well when nothing was sent
-     * because course sync is off: the re-enable check answers for the courses
-     * when it comes back on.
+     * backend accepts or settles it, and kept while course sync is off, until it
+     * is on (LWW D12).
      */
     suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: Long? = null, signIn: SignIn) {
-        val kept = edit(
-            signIn,
-            change = { it.with(semester, listOf(courseNo)) },
-            changeTimes = { times -> if (addedAt != null) times.withTime(semester, courseNo, addedAt) else times.withoutTimes(semester, listOf(courseNo)) },
-        )
+        val kept = lane.edit(signIn) { it.asked(CourseAdd(semester, courseNo, addedAt)) }
         if (!kept) return
         trySend(semester, listOf(courseNo), signIn, courses)
     }
 
     /**
+     * Keeps an add of [courseNo] in [semester] stamped 0, the oldest (LWW D13), unless one waits
+     * for the course: it fills only what the backend holds no stamp for. Sends nothing.
+     */
+    suspend fun queueAsOldest(semester: String, courseNo: String, signIn: SignIn): Boolean =
+        lane.edit(signIn) { adds ->
+            if (adds.any { it.field == membershipField(semester, courseNo) }) adds else adds + CourseAdd(semester, courseNo, 0L)
+        }
+
+    /**
      * Sends every add still waiting, with the course as this phone has it
      * now; each full sync starts with this, so the snapshot it fetches has
      * them. An add whose course this phone no longer holds is let go unsent.
+     * Each term's adds go in one upload, a term after the other, in the file's order.
      */
-    suspend fun retry(signIn: SignIn) {
-        for ((semester, nos) in waiting()) {
-            if (!trySend(semester, nos, signIn)) return
+    override suspend fun drain(signIn: SignIn) {
+        for ((semester, adds) in lane.entries().groupBy { it.semester }) {
+            if (!trySend(semester, adds.map { it.courseNo }, signIn)) return
         }
     }
+
+    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
+
+    override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    override fun forgetMemory() = lane.forgetMemory()
 
     /**
      * Runs [block], which takes courses off the backend (a course deleted by
@@ -118,6 +189,27 @@ class PendingCourseAdds internal constructor(
     suspend fun <T> uploading(block: suspend () -> T): T = sendMutex.withLock { block() }
 
     /**
+     * One request of a course channel's, [block], under the send lock [removing] takes, then
+     * [then] with its result once the lock is given back. The lock is waited for in the caller,
+     * so one cancelled while it waits sends nothing; once it is held, the request runs to its end
+     * on the application scope, the lock held, so a caller's cancellation never cuts it short nor
+     * lets an add or a DELETE start beside it (spec §5.3).
+     */
+    internal suspend fun <T> sendingOne(block: suspend () -> T, then: suspend (T) -> Unit = {}): T {
+        sendMutex.lock()
+        // ATOMIC: once the lock is taken, the block runs to give it back, whatever has been cancelled.
+        return outbox.scope.async(start = CoroutineStart.ATOMIC) {
+            val result = try {
+                block()
+            } finally {
+                sendMutex.unlock()
+            }
+            then(result)
+            result
+        }.await()
+    }
+
+    /**
      * Lets go of the adds [serverCourses], a snapshot's rows, list as enrolled: the server has
      * them. A landed add enrolls its course, and a roster never drops it after, so a row a roster
      * dropped is one from before the add. So is an enrolled row of a course on this phone's drop
@@ -132,105 +224,33 @@ class PendingCourseAdds internal constructor(
             .filter { !it.isDropped && (it.isUserAdded || it.courseNo !in droppedHere[it.semester].orEmpty()) }
             .groupBy({ it.semester }, { it.courseNo })
         if (waiting.none { (semester, nos) -> listed[semester].orEmpty().any { it in nos } }) return
-        edit(
-            signIn,
-            change = { pending -> listed.entries.fold(pending) { acc, (semester, nos) -> acc.without(semester, nos) } },
-            changeTimes = { times -> listed.entries.fold(times) { acc, (semester, nos) -> acc.withoutTimes(semester, nos) } },
-        )
+        lane.edit(signIn) { adds -> adds.filterNot { it.courseNo in listed[it.semester].orEmpty() } }
     }
 
     /**
      * Sends [courseNos]' adds in [semester], [courses] going up (or the
      * courses themselves as this phone holds them), under the sign-in
-     * [signIn] they were read with. Checked under the send lock, right before
-     * the request: an add whose course has left this phone's cache or been
-     * deleted since is let go unsent, and a sign-out since stops the send,
-     * false. The request itself carries [signIn], so a sign-out after the
-     * check sends it without a token rather than with the next account's.
+     * [signIn] they were read with, as one request of the lane's
+     * ([CourseAddSends]). False when a sign-out since stops it; the request
+     * itself carries [signIn], so a sign-out after the check sends it without
+     * a token rather than with the next account's.
      */
     private suspend fun trySend(
         semester: String,
         courseNos: List<String>,
         signIn: SignIn,
         courses: List<Course>? = null,
-    ): Boolean = sendMutex.withLock {
-        if (!signIn.isCurrent) return@withLock false
-        // Only adds still waiting: one an upload ahead of this one retired meanwhile must not go
-        // again, its force key lifting a delete made since. Read with their moments in one
-        // step, under the lock they change under: a timed add read without its moment would go
-        // unstamped.
-        val (waitingNow, timesNow) = mutex.withLock { waiting() to waitingTimes() }
-        val stillWaiting = waitingNow[semester].orEmpty()
-        val requested = courseNos.filter { it in stillWaiting }
-        val cached = dataCache.loadCourses(semester)
-        val deleted = dataCache.loadDeletedCourseNos()
-        val held = requested.filter { no ->
-            cached.any { it.courseNo == no } && !CourseTombstoneKeys.isHidden(no, semester, deleted)
-        }
-        // An add with its time goes under protocol 2, alone with the others timed: there every
-        // other course of the upload counts as the school's roster. One an older install kept
-        // has no time and goes as before.
-        val times = timesNow[semester].orEmpty()
-        val (timed, untimed) = held.partition { it in times }
-        val source = courses ?: cached
-        val stamped = if (timed.isEmpty()) Taken() else {
-            upload(source.filter { it.courseNo in timed }, semester, timed, signIn, times.filterKeys { it in timed })
-        }
-        val unstamped = if (untimed.isEmpty()) Taken() else {
-            upload(courses ?: cached.filter { it.courseNo in untimed }, semester, untimed, signIn, emptyMap())
-        }
-        // A timed add the backend refused, a hide or reset elsewhere being newer: the server has
-        // ruled on the course, so a snapshot's tombstone may hide it, as it never does a course
-        // this phone typed and the server has not seen. Not one it applied: a snapshot taken
-        // before the add landed would then read its absence as a delete.
-        if (stamped.refused.isNotEmpty()) {
-            dataCache.updateServerKnownNos(signIn) { known ->
-                known + (semester to (known[semester].orEmpty() + stamped.refused).distinct().sorted())
-            }
-        }
-        val done = requested - held.toSet() + stamped.settled + unstamped.settled
-        if (done.isNotEmpty()) {
-            // Only an add still as it was sent: one added again meanwhile has a newer moment,
-            // which this answer, to the older add, does not settle.
-            edit(signIn) { pending, current ->
-                val same = done.filter { current[semester]?.get(it) == times[it] }
-                pending.without(semester, same) to current.withoutTimes(semester, same)
-            }
-        }
-        true
+    ): Boolean {
+        val fields = courseNos.mapTo(HashSet()) { membershipField(semester, it) }
+        val landed = sendingOne(
+            block = {
+                if (!signIn.isCurrent) return@sendingOne null
+                // A landing is told by the client that sends it, as every course upload's is.
+                sends.asking(semester, courseNos, courses) { lane.drain(signIn, fields) }
+            },
+        )
+        return landed != null
     }
-
-    // What an upload settled of [courseNos]: those the backend took, and the timed adds it refused.
-    private class Taken(val accepted: List<String> = emptyList(), val refused: List<String> = emptyList()) {
-        val settled: List<String> get() = accepted + refused
-    }
-
-    // The course numbers the backend took: those its answer accepts (a 200
-    // alone is not acceptance, see PushApiClient.uploadCourses), or all of
-    // them when nothing was sent because course sync is off; and the timed
-    // adds it answered without applying. None on a failure.
-    private suspend fun upload(
-        courses: List<Course>,
-        semester: String,
-        courseNos: List<String>,
-        signIn: SignIn,
-        addedAt: Map<String, Long>,
-    ): Taken =
-        try {
-            val answer = uploader.upload(courses, semester, courseNos.map { forceKey(semester, it) }, signIn, addedAt)
-            val taken = if (answer == null) {
-                Taken(accepted = courseNos)
-            } else {
-                Taken(courseNos.filter { it in answer.accepted }, courseNos.filter { it in answer.refusedAdds })
-            }
-            if (taken.settled.size < courseNos.size) Log.w(TAG, "course add not accepted, kept for the next sync")
-            taken
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w(TAG, "course add upload failed, kept for the next sync: ${e.logSummary()}")
-            Taken()
-        }
 
     /**
      * Lets go of every waiting add: a course reset made on another device has
@@ -238,7 +258,7 @@ class PendingCourseAdds internal constructor(
      * add kept past it would put its course back on every device.
      */
     suspend fun forgetAll(signIn: SignIn) {
-        edit(signIn, change = { emptyMap() }, changeTimes = { emptyMap() })
+        lane.edit(signIn) { emptyList() }
     }
 
     /** The course numbers whose add in [semester] is still waiting, for the reconcile to keep. */
@@ -246,48 +266,13 @@ class PendingCourseAdds internal constructor(
 
     private suspend fun waiting(): Map<String, List<String>> = dataCache.loadPendingCourseAdds()
 
-    // When each waiting add was asked; an add without one goes unstamped.
-    private suspend fun waitingTimes(): Map<String, Map<String, Long>> = dataCache.loadPendingCourseAddTimes()
-
-    // An add asked again keeps the later moment: it is the newer add.
-    private fun Map<String, Map<String, Long>>.withTime(semester: String, courseNo: String, addedAt: Long) =
-        this + (semester to this[semester].orEmpty().let { it + (courseNo to maxOf(it[courseNo] ?: 0L, addedAt)) })
-
-    private fun Map<String, Map<String, Long>>.withoutTimes(semester: String, courseNos: Collection<String>): Map<String, Map<String, Long>> {
-        val kept = this[semester].orEmpty() - courseNos.toSet()
-        return if (kept.isEmpty()) this - semester else this + (semester to kept)
-    }
-
-    // [edit] with each file changed on its own.
-    private suspend fun edit(
-        signIn: SignIn,
-        change: (Map<String, List<String>>) -> Map<String, List<String>>,
-        changeTimes: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>> = { it },
-    ): Boolean = edit(signIn) { pending, times -> change(pending) to changeTimes(times) }
-
-    // The adds and their moments, changed together under one lock. False, and nothing written,
-    // once [signIn] has ended. A moment is written before its add and goes
-    // after it, so an add with a moment is never read without it: sent unstamped, it would
-    // count from when it arrives and win over a hide made after it elsewhere.
-    private suspend fun edit(
-        signIn: SignIn,
-        change: (Map<String, List<String>>, Map<String, Map<String, Long>>) -> Pair<Map<String, List<String>>, Map<String, Map<String, Long>>>,
-    ): Boolean = mutex.withLock {
-        val before = waiting()
-        val timesBefore = waitingTimes()
-        val (after, timesAfter) = change(before, timesBefore)
-        val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
-        suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, signIn)
-        suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, signIn)
-        if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes()
-    }
-
-    private fun Map<String, List<String>>.with(semester: String, courseNos: List<String>) =
-        this + (semester to (this[semester].orEmpty() + courseNos).distinct())
-
-    private fun Map<String, List<String>>.without(semester: String, courseNos: Collection<String>): Map<String, List<String>> {
-        val kept = this[semester].orEmpty() - courseNos.toSet()
-        return if (kept.isEmpty()) this - semester else this + (semester to kept)
+    // [add] kept in place of the add waiting for its course, or last: an add asked again keeps
+    // the later moment, the newer add's, and one asked with none has none.
+    private fun List<CourseAdd>.asked(add: CourseAdd): List<CourseAdd> {
+        val at = indexOfFirst { it.field == add.field }
+        if (at < 0) return this + add
+        val time = add.addedAtMs?.let { maxOf(this[at].addedAtMs ?: 0L, it) }
+        return toMutableList().also { it[at] = add.copy(addedAtMs = time) }
     }
 
     companion object {
@@ -296,4 +281,13 @@ class PendingCourseAdds internal constructor(
         /** The key an upload forces past a tombstone, as the class table's add sends it. */
         fun forceKey(semester: String, courseNo: String): String = "client:$semester:$courseNo"
     }
+}
+
+/** The course adds join the outbox. */
+@Module
+@InstallIn(SingletonComponent::class)
+object CourseAddsChannelModule {
+    @Provides
+    @IntoSet
+    fun channel(adds: PendingCourseAdds): OutboxChannel = adds
 }

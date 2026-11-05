@@ -8,9 +8,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,12 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +39,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -67,6 +60,7 @@ import org.ntust.app.tigerduck.ui.screen.signin.AutoSignInFailedBanner
 import org.ntust.app.tigerduck.ui.screen.signin.NtustSignInViewModel
 import org.ntust.app.tigerduck.ui.screen.signin.bannerRejection
 import java.util.Calendar
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,8 +87,11 @@ fun HomeScreen(
     // unaffected — the drag handler resolves both ends by section id, never by
     // this list's indices — and the add-section dialog still sees the full
     // list, so a hidden section can't be added twice.
-    val visibleSections = remember(sections, termClockVersion) {
-        if (viewModel.isTermInSession()) sections
+    // Held here rather than in the time slider: arranged, Home draws its outline in its place, and
+    // a time the user picked would go with it. Out of term it stays while a club has an activity.
+    val timeSlider = rememberTimeSliderViewModel()
+    val visibleSections = remember(sections, termClockVersion, timeSlider.clubsRevision) {
+        if (viewModel.isTermInSession() || timeSlider.hasClubActivities(Date(AppClock.nowMillis()))) sections
         else sections.filterNot { it.type == HomeSection.HomeSectionType.TODAY_COURSES }
     }
     // Re-read on the same pulse, so a holiday published or switched on another
@@ -129,9 +126,6 @@ fun HomeScreen(
     var showAddSectionDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     HomeEditingLeaveEffect(editing, listState)
-    // Here rather than in the time slider: arranged, Home draws its outline in
-    // its place, and a time the user picked would go with it.
-    val timeSlider = remember { TimeSliderViewModel() }
 
     // Intercept the system back gesture while editing — exit edit mode
     // instead of navigating away. This matches Android-native expectations
@@ -195,6 +189,7 @@ fun HomeScreen(
         onAdd = { showAddSectionDialog = true },
         onDone = editing::finish,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        menu = rememberHomeMenu(onEdit = editing::start),
     ) { padding ->
         HomePage(
             sections = visibleSections,
@@ -287,7 +282,6 @@ fun HomeScreen(
             onKeepServer = { viewModel.resolveSyncConflicts(keepLocal = false) },
         )
     }
-
 }
 /**
  * Home's page under its pull to refresh: [header], [banner] when there is one, and [sections],
@@ -461,51 +455,4 @@ private fun greetingText(): String {
         hour < 18 -> stringResource(R.string.greeting_afternoon)
         else -> stringResource(R.string.greeting_evening)
     }
-}
-@Composable
-private fun SyncConflictDialog(
-    conflicts: List<AssignmentSyncConflict>,
-    onKeepLocal: () -> Unit,
-    onKeepServer: () -> Unit,
-) {
-    @Composable
-    fun statusLabel(s: String) = when (s) {
-        "ignored", "archived" -> stringResource(R.string.sync_conflict_status_ignored)
-        "locally_completed" -> stringResource(R.string.sync_conflict_status_completed)
-        "none" -> stringResource(R.string.sync_conflict_status_none)
-        else -> s
-    }
-
-    AlertDialog(
-        onDismissRequest = {},
-        title = { Text(stringResource(R.string.sync_conflict_title)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.sync_conflict_message), style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-                conflicts.forEach { c ->
-                    Text(
-                        stringResource(R.string.sync_conflict_item_header, c.kind, c.label),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        stringResource(R.string.sync_conflict_item_detail, statusLabel(c.localStatus), statusLabel(c.serverStatus)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onKeepServer) {
-                Text(stringResource(R.string.sync_conflict_use_server))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onKeepLocal) {
-                Text(stringResource(R.string.sync_conflict_use_local))
-            }
-        },
-    )
 }

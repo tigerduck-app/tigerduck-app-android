@@ -1,17 +1,17 @@
 package org.ntust.app.tigerduck.mail
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,36 +56,26 @@ data class PostedSentCopyNotice(val notice: SentCopyNotice, val origin: SentCopy
  */
 @Singleton
 class SentCopyNotices @Inject constructor(
-    account: MailAccount,
+    private val account: MailAccount,
     @ApplicationScope scope: CoroutineScope,
 ) {
     /**
-     * The account's generation and the notice posted under it, as one value. [report] checks the
-     * one and publishes the other in a single compare-and-set, and the account changing moves the
-     * one and clears the other the same way, so the cleanup -- which runs on [scope]'s dispatcher,
-     * not the sender's -- lands before a report or after it, never between its check and its
-     * publication, where it used to leave the departing account's notice to the next sign-in.
+     * The notice posted, which [report] publishes in a compare-and-set once it has asked after the
+     * student. No data class: a new one is a change even with no notice on either side, so the
+     * cleanup of the account changing -- which runs on [scope]'s dispatcher, not the sender's --
+     * lands before a report or after it, never between its check and its publication, where it
+     * used to leave the departing account's notice to the next sign-in.
      */
-    private data class Posting(val generation: Int, val notice: PostedSentCopyNotice?)
+    private class Posting(val notice: PostedSentCopyNotice?)
 
-    private val posting = MutableStateFlow(Posting(0, null))
+    private val posting = MutableStateFlow(Posting(null))
 
     /** The notice last posted under the signed-in account, if any; a screen's own is [noticeFor]. */
     val posted: PostedSentCopyNotice? get() = posting.value.notice
 
-    /**
-     * Moved each time the account changes. A send reads it as it starts and hands it to [report],
-     * so a send the account left while it was going out reports nothing to the next one.
-     */
-    val accountGeneration: Int get() = posting.value.generation
-
     init {
         // Subscribed before this returns, as the repository's own sign-out collector is.
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            merge(account.signOuts, account.studentChanges).collect {
-                posting.update { Posting(it.generation + 1, null) }
-            }
-        }
+        scope.follow(account.events) { if (it !is AccountEvent.SignedIn) posting.value = Posting(null) }
     }
 
     /**
@@ -94,19 +84,23 @@ class SentCopyNotices @Inject constructor(
      */
     internal var onReportChecked: (() -> Unit)? = null
 
-    /** Posts [notice] for [origin], unless the account has changed since [accountGeneration] was read. */
-    fun report(notice: SentCopyNotice, origin: SentCopyOrigin, accountGeneration: Int) {
+    /**
+     * Posts [notice] for [origin], unless the student the send began under, as [signIn], has left:
+     * a send they left during reports nothing to the next one. A password typed again leaves them
+     * here, and their notice with them.
+     */
+    fun report(notice: SentCopyNotice, origin: SentCopyOrigin, signIn: SignIn) {
         posting.update { current ->
-            if (current.generation != accountGeneration) return@update current
+            if (account.hasLeft(signIn)) return@update current
             onReportChecked?.invoke()
             // Published only if nothing moved [posting] since [current] was read; an account that
-            // changed meanwhile fails this compare-and-set, and the next pass sees its generation.
-            current.copy(notice = PostedSentCopyNotice(notice, origin))
+            // changed meanwhile fails this compare-and-set, and the next pass finds them gone.
+            Posting(PostedSentCopyNotice(notice, origin))
         }
     }
 
     fun dismiss() {
-        posting.update { it.copy(notice = null) }
+        posting.value = Posting(null)
     }
 
     /** The notice for [origin]'s screen alone, kept current in [scope]. */

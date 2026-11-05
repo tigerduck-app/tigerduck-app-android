@@ -22,8 +22,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.ui.AppState
@@ -37,8 +35,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AssignmentReminderSettingsViewModel @Inject constructor(
     val appState: AppState,
-    private val scheduler: AssignmentNotificationScheduler,
-    private val dataCache: DataCache,
+    private val reminders: AssignmentReminderSwitch,
     private val notificationSettingsSync: NotificationSettingsSync,
 ) : ViewModel() {
 
@@ -64,37 +61,13 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
         }
     }
 
-    fun setEnabled(value: Boolean) {
-        appState.notifyAssignments = value
-        notificationSettingsSync.markAssignmentUnconfirmedAndPush()
-        if (value) {
-            rescheduleFromCache()
-        } else {
-            scheduler.cancelAllTracked()
-        }
-    }
+    /** The same write as Home's ⋮ makes: see [AssignmentReminderSwitch]. */
+    fun setEnabled(value: Boolean) = reminders.setEnabled(value, viewModelScope)
 
     fun setOffsetEnabled(offset: AssignmentReminderOffset, enabled: Boolean) {
         appState.setNotifyAssignmentOffsetEnabled(offset, enabled)
         notificationSettingsSync.markAssignmentUnconfirmedAndPush()
-        if (appState.prefs.notifyAssignments) rescheduleFromCache()
-    }
-
-    /**
-     * Rebuild every pending reminder against the on-disk assignment cache.
-     * Called whenever the master toggle or any offset toggle changes so the
-     * user sees immediate effect instead of waiting for the next sync to
-     * re-arm alarms with the new preference set. Reads the stored offsets,
-     * not AppState's copy of them, for the reason
-     * AssignmentReminderSettingsState gives.
-     */
-    private fun rescheduleFromCache() {
-        viewModelScope.launch {
-            scheduler.scheduleAll(
-                dataCache.loadOutstandingAssignments(),
-                appState.prefs.notifyAssignmentOffsets,
-            )
-        }
+        if (appState.prefs.notifyAssignments) reminders.reschedule(viewModelScope)
     }
 
     private companion object {

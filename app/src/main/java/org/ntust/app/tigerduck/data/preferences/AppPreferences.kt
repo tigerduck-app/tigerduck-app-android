@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.session.AccountScoped
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -30,54 +31,45 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The effective value of the `cloudSyncEnabled` preference: [storedValue] on
- * every flavor except fdroid, which ships without Google Play Services and
- * can never run TigerSync's course-sync / server-push pipeline regardless of
- * what is stored. [AppPreferences.cloudSyncEnabled]'s getter is the one call
- * site that applies this, so every reader — direct (`PushApiClient`,
+ * The effective value of the `cloudSyncEnabled` preference: [storedValue] on every flavor except
+ * fdroid, which ships without Google Play Services and can never run TigerSync's course-sync /
+ * server-push pipeline regardless of what is stored. [AppPreferences.cloudSyncEnabled]'s getter is
+ * the one call site that applies this, so every reader — direct (`PushApiClient`,
  * `NotificationSettingsSync`'s gates, `HomeBackendSync`, ...) or through
- * [org.ntust.app.tigerduck.ui.AppState.cloudSyncEnabled], which seeds its
- * in-memory mirror from this same getter — agrees on fdroid without each one
- * re-deriving the flavor check itself.
+ * [org.ntust.app.tigerduck.ui.AppState.cloudSyncEnabled], which seeds its in-memory mirror from
+ * this same getter — agrees on fdroid without each one re-deriving the flavor check itself.
  *
- * [flavor] defaults to [BuildConfig.FLAVOR] for that one production call
- * site. Tests pass it explicitly instead: [AppPreferences] can't be
- * constructed on the plain JVM this module's tests run on (its constructor
- * calls the real `Context.getSharedPreferences`, and there is neither
- * Robolectric nor a mocking library here), so this pure function — not the
- * getter itself — is what a unit test exercises. Taking the flavor as a
- * parameter also means the same test passes under both
- * `testPlayDebugUnitTest` and `testFdroidDebugUnitTest`, instead of a literal
- * expectation on `BuildConfig.FLAVOR` that would only be true under one of
- * them.
+ * [flavor] defaults to [BuildConfig.FLAVOR] for that one production call site. Tests pass it
+ * explicitly instead: [AppPreferences] can't be constructed on the plain JVM this module's tests
+ * run on (its constructor calls the real `Context.getSharedPreferences`, and there is neither
+ * Robolectric nor a mocking library here), so this pure function — not the getter itself — is what
+ * a unit test exercises. Taking the flavor as a parameter also means the same test passes under
+ * both `testPlayDebugUnitTest` and `testFdroidDebugUnitTest`, instead of a literal expectation on
+ * `BuildConfig.FLAVOR` that would only be true under one of them.
  */
 fun effectiveCloudSyncEnabled(storedValue: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
     storedValue && !flavor.equals("fdroid", ignoreCase = true)
 
 /**
- * The stored Home layout, made safe to show: the read side of
- * [AppPreferences.homeSections], a pure function for the same reason as
- * [effectiveCloudSyncEnabled].
+ * The stored Home layout, made safe to show: the read side of [AppPreferences.homeSections], a pure
+ * function for the same reason as [effectiveCloudSyncEnabled].
  *
- * Gson builds [HomeSection] without running its constructor (CLAUDE.md,
- * "Upgrade-safe persistence"), so whatever an older build wrote differently
- * arrives as a null behind a non-null Kotlin type, which cannot be tested
- * for once the object exists. The repairs are therefore made on the JSON
- * tree, before the types are built:
+ * Gson builds [HomeSection] without running its constructor (CLAUDE.md, "Upgrade-safe
+ * persistence"), so whatever an older build wrote differently arrives as a null behind a non-null
+ * Kotlin type, which cannot be tested for once the object exists. The repairs are therefore made on
+ * the JSON tree, before the types are built:
  *
- * - a section whose `type`, or a shortcut whose `feature`, names a constant
- *   this build does not have is dropped rather than left to NPE in the
- *   grid — the one rename so far, GPA to SCORE, is instead mapped by the
- *   `@SerializedName` alternate on [AppFeature.SCORE], which `gson` applies
+ * - a section whose `type`, or a shortcut whose `feature`, names a constant this build does not
+ *   have is dropped rather than left to NPE in the grid — the one rename so far, GPA to SCORE, is
+ *   instead mapped by the `@SerializedName` alternate on [AppFeature.SCORE], which `gson` applies
  *   here too;
- * - a section without `widgets` reads back with none, where the Kotlin
- *   default would not have applied.
+ * - a section without `widgets` reads back with none, where the Kotlin default would not have
+ *   applied.
  *
- * QUICK_WIDGETS sections are kept: builds before 2.5 filtered them out of
- * what they read ("feature temporarily disabled") but left them stored, so
- * the layout a user saved comes back now that the grid ships. The
- * renumbering remains for a layout such a build re-saved with the gap that
- * left, as HomeSectionLayout.add would otherwise hand out a duplicate.
+ * QUICK_WIDGETS sections are kept: builds before 2.5 filtered them out of what they read ("feature
+ * temporarily disabled") but left them stored, so the layout a user saved comes back now that the
+ * grid ships. The renumbering remains for a layout such a build re-saved with the gap that left, as
+ * HomeSectionLayout.add would otherwise hand out a duplicate.
  */
 internal fun restoreHomeSections(json: String?, gson: Gson): List<HomeSection> {
     json ?: return HomeSection.defaults()
@@ -107,7 +99,7 @@ internal fun restoreHomeSections(json: String?, gson: Gson): List<HomeSection> {
 
 @Singleton
 class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
-    FirstTriggerSeenStore, AssignmentReminderPrefs, ReviewPromptStore {
+    FirstTriggerSeenStore, AssignmentReminderPrefs, ReviewPromptStore, AccountScoped {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
@@ -125,7 +117,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     // Where builds before the server-time course-reset check kept this
-    // phone's clock at its last full sync; see legacyLastCourseSyncAtMs.
+    // phone's clock at its last full sync; see forgetLegacyLastCourseSyncAt.
     private val legacySyncPrefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_sync", Context.MODE_PRIVATE)
     private val gson = Gson()
@@ -264,55 +256,13 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             if (value != previous) _syncLiveActivityChanged.tryEmit(Unit)
         }
 
-    var pendingConflictCategories: Set<String>
-        get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet("pendingConflictCategories", value).apply()
+    /** The school account's keys, which write only with a sign-in; see [SchoolKeys]. */
+    val school = SchoolKeys(prefs) { _schoolDataSyncedAtMs.value = it }
 
     /**
-     * The re-enable check's categories, named as in [pendingConflictCategories],
-     * whose data a full sync has applied on this phone for the signed-in
-     * account. Only these are marked for the check when switched back on: for
-     * any other, the phone holds none of the account's data to compare. Added
-     * to by `HomeBackendSync.pull`, filled by `DataMigration.migrate3to4`, and
-     * cleared at sign-out by [clearSyncStamps].
+     * Forgets this phone's clock at an older build's last full sync, which no rule reads since a
+     * reset's tombstones take the courses it cleared (LWW D10): at a sign-out and a full reset.
      */
-    var syncedCategories: Set<String>
-        get() = prefs.getStringSet("syncedCategories", emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet("syncedCategories", value).apply()
-
-    /**
-     * Whether a full sync has taken the signed-in account's assignment marks
-     * on this phone, or sent them up as its first sync, so that from now on a
-     * server holding no marks is the truth — see
-     * `AssignmentOverrideReconciler.isFirstUpload`. False on an install that
-     * predates it, which therefore runs that first sync once more. Cleared at
-     * sign-out by [clearSyncStamps]. Turning sync off keeps it: turning it
-     * back on marks the category for the re-enable check, and syncs leave the
-     * marks alone until that is settled.
-     */
-    var assignmentMarksSyncedOnce: Boolean
-        get() = prefs.getBoolean("assignmentMarksSyncedOnce", false)
-        set(value) = prefs.edit().putBoolean("assignmentMarksSyncedOnce", value).apply()
-
-    /**
-     * The server's `courses_reset_at` as the last full sync read it, for the
-     * next one to tell a new reset from one already applied; empty once a
-     * sync found none, and null before the signed-in account's first sync
-     * here — see `CourseSyncReconciler.coursesReset`. Cleared at sign-out by
-     * [clearSyncStamps].
-     */
-    var lastSeenCoursesResetAt: String?
-        get() = prefs.getString("lastSeenCoursesResetAt", null)
-        set(value) = prefs.edit().putString("lastSeenCoursesResetAt", value).apply()
-
-    /**
-     * This phone's clock at an older build's last full sync, epoch ms, or 0:
-     * read by the first sync since the update, which then forgets it
-     * ([forgetLegacyLastCourseSyncAt]); see `CourseSyncReconciler.coursesReset`.
-     */
-    val legacyLastCourseSyncAtMs: Long
-        get() = legacySyncPrefs.getLong("last_course_sync_at", 0L)
-
     fun forgetLegacyLastCourseSyncAt() {
         legacySyncPrefs.edit().remove("last_course_sync_at").apply()
     }
@@ -325,16 +275,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * Which revision of the wizard this install has actually been through.
      *
      * Stamped by [org.ntust.app.tigerduck.ui.AppState.completeOnboarding] with
-     * [ONBOARDING_VERSION]. The default of 0 is every pre-2.0.1 install: they
-     * finished onboarding before this key existed, which means they finished a
-     * wizard that had no TigerSync page and no 2.0.1 privacy copy. Those
-     * installs are walked through it once — still signed in, since nothing
-     * here touches [CredentialManager]. See `AppState.needsOnboardingRerun`.
+     * [ONBOARDING_VERSION]. The default of 0 is every pre-2.0.1 install: they finished onboarding
+     * before this key existed, which means they finished a wizard that had no TigerSync page and no
+     * 2.0.1 privacy copy. Those installs are walked through it once — still signed in, since
+     * nothing here touches [CredentialManager]. See `AppState.needsOnboardingRerun`.
      *
-     * Separate from [hasCompletedOnboarding] on purpose: that flag also gates
-     * push registration and the "What's new" fresh-install check, and clearing
-     * it to re-show the wizard would make an upgrading user look like a brand
-     * new one to both.
+     * Separate from [hasCompletedOnboarding] on purpose: that flag also gates push registration and
+     * the "What's new" fresh-install check, and clearing it to re-show the wizard would make an
+     * upgrading user look like a brand new one to both.
      */
     var onboardingVersion: Int
         get() = prefs.getInt("onboardingVersion", 0)
@@ -448,13 +396,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         listOf(accentColorHex, accentGradientStartHex, accentGradientEndHex, accentGradientDirection.code)
 
     /**
-     * Stores a pick from the accent color page whole: the swatch [lightHex],
-     * and the gradient from [gradientStartHex] to [gradientEndHex], or
-     * [AccentPolicy.NO_GRADIENT] for both. One write, and one
-     * [accentColorChanged] when the pick changes anything: a gradient from
-     * the swatch already picked leaves [accentColorHex] as it was, and the
-     * watch, which reads all three as it hears the change, must never hear a
-     * pick half stored.
+     * Stores a pick from the accent color page whole: the swatch [lightHex], and the gradient from
+     * [gradientStartHex] to [gradientEndHex], or [AccentPolicy.NO_GRADIENT] for both. One write,
+     * and one [accentColorChanged] when the pick changes anything: a gradient from the swatch
+     * already picked leaves [accentColorHex] as it was, and the watch, which reads all three as it
+     * hears the change, must never hear a pick half stored.
      */
     fun storeAccentPick(lightHex: Int, gradientStartHex: Int, gradientEndHex: Int) {
         val changed = lightHex != accentColorHex ||
@@ -525,9 +471,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /**
      * Observable form of [alwaysShowAllPeriods], for the class table.
      *
-     * The grid derives its row list from this, and the toggle lives on a
-     * different screen — a plain getter would leave the timetable showing
-     * the old rows until something else happened to invalidate it.
+     * The grid derives its row list from this, and the toggle lives on a different screen — a plain
+     * getter would leave the timetable showing the old rows until something else happened to
+     * invalidate it.
      */
     val alwaysShowAllPeriodsFlow: StateFlow<Boolean> =
         _alwaysShowAllPeriods.asStateFlow()
@@ -556,13 +502,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         _showClassroomInClassTable.asStateFlow()
 
     /**
-     * Print each course's room in the corner of its class-table cell. On by
-     * default, as on the iPhone: where a class meets is what students look up
-     * next to which course it is. It defaulted off before 2.4.0, and a
-     * default is nothing stored, so the flip alone upgrades everyone who never
-     * touched the switch; whoever turned it off stored a false and keeps it.
-     * Device-local, like every display preference; the settings document the
-     * backend syncs does not carry it.
+     * Print each course's room in the corner of its class-table cell. On by default, as on the
+     * iPhone: where a class meets is what students look up next to which course it is. It defaulted
+     * off before 2.4.0, and a default is nothing stored, so the flip alone upgrades everyone who
+     * never touched the switch; whoever turned it off stored a false and keeps it. Device-local,
+     * like every display preference; the settings document the backend syncs does not carry it.
      */
     var showClassroomInClassTable: Boolean
         get() = _showClassroomInClassTable.value
@@ -836,14 +780,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }
 
     /**
-     * Whether [notifyAssignments]/[notifyAssignmentOffsets] as they stand now
-     * have *not* yet been confirmed to have reached the server — the
-     * assignments-section mirror of `LiveActivityPreferences.hasUnconfirmedSyncEdit`;
-     * see that property's KDoc for why this has to be persisted rather than
-     * kept in memory, and why a plain `Boolean` rather than a version counter.
-     * A plain hand-written `getBoolean`/`putBoolean` pair, not a field on a
-     * Gson-deserialized class, so the upgrade-safe-persistence rule does not
-     * apply here.
+     * Whether [notifyAssignments]/[notifyAssignmentOffsets] as they stand now have *not* yet been
+     * confirmed to have reached the server — the assignments-section mirror of
+     * `LiveActivityPreferences.hasUnconfirmedSyncEdit`; see that property's KDoc for why this has
+     * to be persisted rather than kept in memory, and why a plain `Boolean` rather than a version
+     * counter. A plain hand-written `getBoolean`/`putBoolean` pair, not a field on a
+     * Gson-deserialized class, so the upgrade-safe-persistence rule does not apply here.
      */
     var hasUnconfirmedAssignmentSyncEdit: Boolean
         get() = prefs.getBoolean("hasUnconfirmedAssignmentSyncEdit", false)
@@ -950,31 +892,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             prefs.edit().putString("homeSections", gson.toJson(value)).apply()
         }
 
-    var ssoLoginTimestamp: Long
-        get() = prefs.getLong("ssoLoginTimestamp", 0L)
-        set(value) = prefs.edit().putLong("ssoLoginTimestamp", value).apply()
-
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
 
-    /**
-     * When Moodle last answered a whole round of assignments, epoch ms; 0
-     * for never, or not since the last sign-out. The age of what Home, the
-     * class table and the calendar show, and what the background worker
-     * measures its assignment refresh against — see
-     * [org.ntust.app.tigerduck.ui.RefreshPolicies].
-     *
-     * A flow, for the "Last synced" row that shows it.
-     */
+    /** [SchoolKeys.schoolDataSyncedAtMs] as a flow, for the "Last synced" row that shows it. */
     private val _schoolDataSyncedAtMs =
         MutableStateFlow(prefs.getLong("schoolDataSyncedAtMs", 0L))
     val schoolDataSyncedAtMs: StateFlow<Long> = _schoolDataSyncedAtMs.asStateFlow()
-
-    fun markSchoolDataSynced(atMs: Long) {
-        prefs.edit().putLong("schoolDataSyncedAtMs", atMs).apply()
-        _schoolDataSyncedAtMs.value = atMs
-    }
 
     /**
      * When the library last issued the signed-in library account a QR code,
@@ -999,11 +924,30 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     /**
-     * On sign-out, this stamp, the background worker's two below,
-     * [syncedCategories], [assignmentMarksSyncedOnce],
-     * [lastSeenCoursesResetAt] and the upload ledgers: what they record
-     * belonged to the account that left, and the next account's worker must
-     * not wait out the old one's hour before its first sync.
+     * At the school's sign-out ([org.ntust.app.tigerduck.auth.session.SchoolStores]): the sync
+     * stamps, the holiday choices and the school choices, each tried whatever became of the one
+     * before, as the sign-out's own steps are, and a failure told after.
+     */
+    override fun forgetAccount() = listOf(::clearSyncStamps, ::forgetHolidayOverrides, ::forgetSchoolChoices)
+        .map { runCatching(it) }.forEach { it.getOrThrow() }
+
+    /**
+     * The term picked in the class table, on which the next student's picker would open, and a
+     * re-enable check left pending, which would hold the next student's marks and then offer Use
+     * Local, sending the data the sign-out wipes over the server's.
+     */
+    fun forgetSchoolChoices() {
+        school.classTableSelectedSemester.clear()
+        school.pendingConflictCategories.clear()
+    }
+
+    /**
+     * On sign-out, this stamp, the background worker's two below, [SchoolKeys.syncedCategories],
+     * [SchoolKeys.assignmentMarksSyncedOnce] and the upload ledgers: what they record belonged to
+     * the account that left, and the next account's worker must not wait out the old one's hour
+     * before its first sync. So does `lastSeenCoursesResetAt`, the server's `courses_reset_at` as
+     * an older build's last full sync read it, which nothing reads since a reset's tombstones take
+     * the courses it cleared (LWW D10).
      */
     fun clearSyncStamps() {
         prefs.edit()
@@ -1021,20 +965,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         forgetLegacyLastCourseSyncAt()
         _schoolDataSyncedAtMs.value = 0L
     }
-
-    /**
-     * The assignment list the backend last accepted from this phone, as a
-     * fingerprint, and when; see `push.UploadLedger`. Forgotten at sign-out
-     * by [clearSyncStamps] and when a sync switch comes back on by
-     * [forgetUploads].
-     */
-    var assignmentsUploadFingerprint: String?
-        get() = prefs.getString("assignmentsUploadFingerprint", null)
-        set(value) = prefs.edit().putString("assignmentsUploadFingerprint", value).apply()
-
-    var assignmentsUploadedAtMs: Long
-        get() = prefs.getLong("assignmentsUploadedAtMs", 0L)
-        set(value) = prefs.edit().putLong("assignmentsUploadedAtMs", value).apply()
 
     /**
      * The course list of [semester] the backend last accepted from this
@@ -1103,28 +1033,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .removeCourseUploads(null)
             .apply()
     }
-
-    /** When the background worker last synced with the backend, epoch ms. */
-    var backgroundOverridesSyncedAtMs: Long
-        get() = prefs.getLong("backgroundOverridesSyncedAtMs", 0L)
-        set(value) = prefs.edit().putLong("backgroundOverridesSyncedAtMs", value).apply()
-
-    /**
-     * When the background worker last refreshed the timetable, epoch ms. Its
-     * own clock, unlike assignments': only the worker reads it, and only if
-     * the class table asks for background refreshes.
-     */
-    var backgroundCoursesSyncedAtMs: Long
-        get() = prefs.getLong("backgroundCoursesSyncedAtMs", 0L)
-        set(value) = prefs.edit().putLong("backgroundCoursesSyncedAtMs", value).apply()
-
-    /**
-     * The term the background worker last fetched courses in, by the app's clock; null before the
-     * first. Its first run in another term fetches that term's courses.
-     */
-    var backgroundCoursesTerm: String?
-        get() = prefs.getString("backgroundCoursesTerm", null)
-        set(value) = prefs.edit().putString("backgroundCoursesTerm", value).apply()
 
     /**
      * Debug-only escape hatch from the Developer section: when true,
@@ -1225,30 +1133,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         return created
     }
 
-    /** Semester the user last viewed in the class table. Null until first pick. */
-    var classTableSelectedSemester: String?
-        get() = prefs.getString("classTableSelectedSemester", null)
-        set(value) {
-            val editor = prefs.edit()
-            if (value == null) editor.remove("classTableSelectedSemester")
-            else editor.putString("classTableSelectedSemester", value)
-            editor.apply()
-        }
-
-    /**
-     * The building the empty-classroom finder last showed at the user's pick, by the booking
-     * site's code (e.g. "TR"). Null until the first pick; cleared at sign-out, so the next
-     * account opens on its own building.
-     */
-    var emptyClassroomBuilding: String?
-        get() = prefs.getString("emptyClassroomBuilding", null)
-        set(value) {
-            val editor = prefs.edit()
-            if (value == null) editor.remove("emptyClassroomBuilding")
-            else editor.putString("emptyClassroomBuilding", value)
-            editor.apply()
-        }
-
     /**
      * Holidays the user asked to keep receiving class reminders on.
      *
@@ -1297,13 +1181,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     /**
      * Semester codes published by NTUST, newest first — see
-     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first
-     * successful fetch, which the catalogue reads as "fall back to the month
-     * heuristic".
+     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first successful fetch,
+     * which the catalogue reads as "fall back to the month heuristic".
      *
-     * Stored as a delimited string rather than a `StringSet` because
-     * `SharedPreferences` sets are unordered, and this list's whole value is
-     * that it is newest-first.
+     * Stored as a delimited string rather than a `StringSet` because `SharedPreferences` sets are
+     * unordered, and this list's whole value is that it is newest-first.
      */
     var semesterCatalogTerms: List<String>
         get() = prefs.getString("semesterCatalogTerms", null)

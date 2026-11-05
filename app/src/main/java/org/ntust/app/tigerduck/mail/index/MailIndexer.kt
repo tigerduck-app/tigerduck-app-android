@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.mail.imap.MailSession
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /** Runs [block] on the connection the mail screens share, as MailRepository's own calls do. */
 internal interface MailSessionRunner {
@@ -47,12 +48,12 @@ internal class MailIndexer(
     private val stillOwner: (Owner) -> Boolean,
 ) {
     /**
-     * Whom a run downloads for: the signed-in account's [address], read together with the
-     * [generation] it signed in at, so a run never pairs one account's address with the sign-in
-     * of the next, whose credentials its requests would then go out under; and the index as it
-     * was then, which deleting what it holds moves on to the next [epoch].
+     * Whom a run downloads for: the signed-in account's [address], read together with its
+     * [signIn], so a run never pairs one account's address with the sign-in of the next, whose
+     * credentials its requests would then go out under; and the index as it was then, which
+     * deleting what it holds moves on to the next [epoch].
      */
-    data class Owner(val address: String, val generation: Int, val epoch: Int)
+    data class Owner(val address: String, val signIn: SignIn, val epoch: Int)
 
     /** What [folder]'s index lacks, newest first, as [plan] found it for [owner] under [uidValidity]. */
     class Plan internal constructor(

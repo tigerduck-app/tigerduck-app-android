@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -84,15 +85,16 @@ class SettingsDocumentApiClient @Inject constructor(
     private val api = BackendServices(SettingsDocumentApi::class.java, client)
 
     /**
-     * The Bearer Authorization header, signing in first when there is no
-     * session. Without one it throws [org.ntust.app.tigerduck.auth.NotSignedInException]
-     * and the request is not sent.
+     * The Bearer Authorization header of a request of [signIn]'s, signing in
+     * first when there is no session. Without one, or once [signIn] has ended,
+     * it throws [org.ntust.app.tigerduck.auth.NotSignedInException] and the
+     * request is not sent.
      */
-    private suspend fun authHeader(): String = authTokenManager.requireAuthHeader()
+    private suspend fun authHeader(signIn: SignIn): String = authTokenManager.requireAuthHeader(signIn)
 
     /** Reified convenience for [read] — see that overload for behaviour. */
-    suspend inline fun <reified T> read(namespace: String): SettingsDocumentEnvelope<T>? =
-        read(namespace, T::class.java)
+    suspend inline fun <reified T> read(namespace: String, signIn: SignIn): SettingsDocumentEnvelope<T>? =
+        read(namespace, signIn, T::class.java)
 
     /**
      * `GET /v3/settings/{namespace}`.
@@ -102,10 +104,10 @@ class SettingsDocumentApiClient @Inject constructor(
      * their first write to it (e.g. every pre-v2.1.0 user has never written
      * `live_activity`, and may never have written `notification` at all).
      */
-    suspend fun <T> read(namespace: String, type: Class<T>): SettingsDocumentEnvelope<T>? =
+    suspend fun <T> read(namespace: String, signIn: SignIn, type: Class<T>): SettingsDocumentEnvelope<T>? =
         withContext(Dispatchers.IO) {
             val service = api.at(baseUrl)
-            service.document(authHeader(), namespace).execute().use { response ->
+            service.document(authHeader(signIn), namespace).execute().use { response ->
                 if (response.code == 404) return@use null
                 val text = response.body.string()
                 if (!response.isSuccessful) {
@@ -123,7 +125,8 @@ class SettingsDocumentApiClient @Inject constructor(
         namespace: String,
         document: T,
         baseRevision: Long?,
-    ): SettingsWriteResult<T> = write(namespace, document, baseRevision, T::class.java)
+        signIn: SignIn,
+    ): SettingsWriteResult<T> = write(namespace, document, baseRevision, signIn, T::class.java)
 
     /**
      * `PUT /v3/settings/{namespace}` with body
@@ -147,6 +150,7 @@ class SettingsDocumentApiClient @Inject constructor(
         namespace: String,
         document: T,
         baseRevision: Long?,
+        signIn: SignIn,
         type: Class<T>,
         isCurrent: () -> Boolean = { true },
     ): SettingsWriteResult<T> = withContext(Dispatchers.IO) {
@@ -156,7 +160,7 @@ class SettingsDocumentApiClient @Inject constructor(
             "base_revision" to baseRevision,
         )
         val service = api.at(baseUrl)
-        val call = service.putDocument(authHeader(), namespace, payload)
+        val call = service.putDocument(authHeader(signIn), namespace, payload)
         if (!isCurrent()) return@withContext SettingsWriteResult.Abandoned
         call.execute().use { response ->
             val text = response.body.string()

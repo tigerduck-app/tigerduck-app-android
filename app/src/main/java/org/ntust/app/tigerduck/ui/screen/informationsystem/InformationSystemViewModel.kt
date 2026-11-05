@@ -6,12 +6,11 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -75,13 +74,11 @@ class InformationSystemViewModel @Inject constructor(
     private var lastUseEnglish: Boolean? = null
 
     init {
-        // This screen can be a retained tab that outlives a sign-out, so it has to forget the
-        // previous account itself. Both flows are followed: a sign-out and sign-in that land
-        // together leave authState unchanged, but the counted state still moves, and a student
-        // signing in over another moves neither, only signIns. drop(1): the current value is
-        // where this ViewModel starts, not a change.
-        viewModelScope.launch { authService.accountState.drop(1).collect { accountChanged() } }
-        viewModelScope.launch { authService.signIns.collect { accountChanged() } }
+        // A retained tab follows every change, including a sign-out and sign-in that land
+        // before it runs again. Subscribe before a change can leave the old student's page.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            sessions.school.changes.collect { accountChanged() }
+        }
     }
 
     private fun accountChanged() {
@@ -119,8 +116,7 @@ class InformationSystemViewModel @Inject constructor(
         }
     }
 
-    // Whether a result for [studentId] in this language is still the one the page is for. The
-    // student is asked too: another student signing in over a stored one ends no sign-in.
+    // Whether a result for [studentId] in this language is still the one the page is for.
     private fun isCurrent(signIn: SignIn, studentId: String, useEnglish: Boolean) =
         signIn.isCurrent &&
             authService.storedStudentId == studentId &&
@@ -153,7 +149,7 @@ class InformationSystemViewModel @Inject constructor(
                 if (isCurrent(signIn, studentId, useEnglish)) _state.update(change)
             }
             try {
-                val links = portalService.fetchPortalLinks(studentId, password, useEnglish)
+                val links = portalService.fetchPortalLinks(studentId, password, useEnglish, signIn)
                 publish { applyFilters(it.copy(items = links, loadState = LoadState.Loaded)) }
             } catch (e: CancellationException) {
                 throw e

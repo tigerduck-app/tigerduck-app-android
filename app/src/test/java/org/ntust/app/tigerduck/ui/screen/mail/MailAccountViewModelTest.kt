@@ -11,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.mailSignOutPlans
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.InMemoryCredentialStore
@@ -54,12 +55,10 @@ class MailAccountViewModelTest {
     private fun viewModel(
         site: MailSite = schoolMailSite(),
         ntust: NtustAccountSource = FakeNtustAccount(),
-    ) = MailAccountViewModel(
-        MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), server.factory(), MailCache(tmp.root),
-            FakeDemoGate(), site, RecordingScheduler(), RecordingNotifier(), appScope),
-        site,
-        ntust,
-    )
+    ) = MailAccount(
+        InMemoryCredentialStore(), InMemoryMailStateStore(), server.factory(), MailCache(tmp.root),
+        FakeDemoGate(), site, RecordingScheduler(), RecordingNotifier(), appScope,
+    ).let { account -> MailAccountViewModel(account, site, ntust, mailSignOutPlans(account)) }
 
     /** A device signed in to the NTUST system, which is the case the prefill is for. */
     private fun withNtustAccount() = FakeNtustAccount("b10000001", "sso-secret")

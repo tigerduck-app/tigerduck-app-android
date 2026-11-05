@@ -43,6 +43,17 @@ class ClassTableWiringTest {
         for (call in calls) assertTrue("$name no longer calls $call", call in body)
     }
 
+    /** Every change, not the state: a sign-out and a sign-in landing together still clear the page. */
+    @Test
+    fun `the class table follows each change of the account from before it first runs`() {
+        val text = source().joinToString("\n")
+        val follows = Regex(
+            """viewModelScope\.launch\(start = CoroutineStart\.UNDISPATCHED\) \{(?:\s*//[^\n]*)*\s*var wasAuthed: Boolean\? = null\s*""" +
+                """authTokenManager\.session\.changes\.collect \{ isAuthed ->""",
+        )
+        assertTrue("the init no longer follows the session's changes as they land", follows.containsMatchIn(text))
+    }
+
     /** The clock ticks on the minute: no poll with a delay is left in the view model's init. */
     @Test
     fun `the class table follows the minute ticks instead of polling`() {
@@ -64,7 +75,7 @@ class ClassTableWiringTest {
     /** tigerduck-app-android#241. */
     @Test
     fun `a reset goes through the backend first, and says so when the backend could not take it`() {
-        assertCalls("wipeTerm", "termReset.run(semester) { pushApiClient.deleteAllCourses(semester) }")
+        assertCalls("wipeTerm", "termReset.run(semester, signIn) { pushApiClient.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null) }")
         assertCalls("resetCourses", "if (wiped) fetchData() else _resetFailedEvent.tryEmit(semester)")
     }
 
@@ -81,8 +92,9 @@ class ClassTableWiringTest {
         assertTrue("deleteCourse takes the adds lock the outbox takes itself", "pendingCourseAdds.removing {" !in delete)
 
         val wipe = body("wipeTerm")
-        val held = wipe.indexOf("pendingCourseAdds.removing {")
-        assertTrue("wipeTerm no longer holds the course adds back over the reset", held in 0 until wipe.indexOf("termReset.run(semester)"))
+        // TermResets.run holds them back (PendingCourseAdds.removing): TermResetsWiringTest.
+        val held = wipe.indexOf("termResets.run(semester) {")
+        assertTrue("wipeTerm no longer holds the course adds back over the reset", held in 0 until wipe.indexOf("termReset.run(semester, signIn)"))
     }
 
     /**
@@ -93,11 +105,27 @@ class ClassTableWiringTest {
     @Test
     fun `a reset drops the term's queued deletes before letting the adds lock go`() {
         val wipe = body("wipeTerm")
-        val reset = wipe.indexOf("termReset.run(semester)")
+        val reset = wipe.indexOf("termReset.run(semester, signIn)")
         val forgot = wipe.indexOf("pendingCourseDeletes.forgetTerm(semester, signIn)")
         val released = wipe.indexOf("?: return false")
         assertTrue("wipeTerm forgets the term's queued deletes after the reset lands", forgot > reset)
         assertTrue("wipeTerm forgets them inside the adds lock", forgot < released)
+    }
+
+    /**
+     * PR R fix rounds 5 and 6: a term upload waiting for the first pull, or let go by it and waiting
+     * for the adds lock, would send the term from before the reset. The reset goes through
+     * TermResets, which lets go of it inside the lock once the reset lands (TermResetsWiringTest,
+     * and SchoolUploadsTest for what that drops), over the app's own SchoolUploads and adds.
+     */
+    @Test
+    fun `a reset lets go of the term's uploads waiting for the first pull before letting the adds lock go`() {
+        assertTrue(
+            "the class table's TermResets is no longer over the app's adds and school uploads",
+            source().any { "TermResets(pendingCourseAdds, schoolUploads)" in it },
+        )
+        val wipe = body("wipeTerm")
+        assertTrue("wipeTerm's reset no longer goes through TermResets", wipe.indexOf("termResets.run(semester) {") in 0 until wipe.indexOf("termReset.run(semester, signIn)"))
     }
 
     /** tigerduck-app-android#380: sent again later, a waiting colour or name would bring a row the user removed back. */
@@ -105,7 +133,7 @@ class ClassTableWiringTest {
     fun `a deleted course, and a reset term, take their waiting colours and names with them`() {
         assertCalls("deleteCourse", "pendingCourseOverrides.forget(")
         val wipe = body("wipeTerm")
-        val reset = wipe.indexOf("termReset.run(semester)")
+        val reset = wipe.indexOf("termReset.run(semester, signIn)")
         val forgot = wipe.indexOf("pendingCourseOverrides.forget(")
         assertTrue("wipeTerm no longer forgets the term's waiting colours and names after the reset", forgot > reset)
     }
@@ -181,8 +209,10 @@ class ClassTableWiringTest {
         val relabel = source.indexOf("showEdit(relabeled, semester)")
         assertTrue("the abbreviation relabel no longer makes its edit through showEdit", relabel >= 0)
         assertTrue("the abbreviation relabel no longer saves through saveEdit", source.indexOf("saveEdit(relabeled, semester, edit)", relabel) > relabel)
-        assertCalls("showEdit", "_courses.value = updated", "noteTermEdit(semester)", "unsavedEdits[edit] = semester to edited")
-        assertCalls("saveEdit", "dataCache.saveCourses(updated, semester)", "unsavedEdits.remove(edit)")
+        assertCalls("showEdit", "_courses.value = updated", "noteTermEdit(semester)", "unsavedEdits[edit.id] = semester to edited")
+        // Onto the term as it stands, what the edit changed of the list it was made of: ClassTableEditSave, under RefreshOverEditTest.
+        assertCalls("saveEdit", "dataCache.saveClassTableEdit(semester, edit.signIn, edit.before, updated)", "unsavedEdits.remove(edit.id)")
+        assertCalls("showEdit", "UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)")
         assertCalls("fetchTermCourses", "editGeneration = { termEdits[semester] ?: 0 }")
     }
 
@@ -195,7 +225,7 @@ class ClassTableWiringTest {
     @Test
     fun `a fetch folds onto the term's cache under the courses' lock, with the edits still on their way`() {
         val body = body("fetchTermCourses")
-        val locked = body.indexOf("dataCache.updateCourses(semester) { current, _ ->")
+        val locked = body.indexOf("dataCache.updateCourses(semester, signIn) { current, _ ->")
         val fold = body.indexOf("termFetch.foldLatest(")
         assertTrue("fetchTermCourses no longer folds under the courses' lock", locked in 0 until fold)
         assertCalls("fetchTermCourses", "cachedCourses = { current }", "unsavedEdits = { unsavedEditsIn(semester) }")
@@ -233,7 +263,7 @@ class ClassTableWiringTest {
         val commit = body.indexOf("pendingCourseAdds.uploading {")
         val fold = body.indexOf("termFetch.foldLatest(")
         // The fold is saved by the courses' lock it is taken under.
-        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         val checks = Regex("""if \(!mayCommit\(\)\) return""").findAll(body).map { it.range.first }.toList()
         assertTrue("fetchTermCourses no longer commits under PendingCourseAdds.uploading", commit in 0 until fold)
@@ -248,6 +278,40 @@ class ClassTableWiringTest {
         )
     }
 
+    /**
+     * Race 5, PR L's gaps: a rename saves its course first, onto the term as it stands, then its
+     * name once its change is kept, so a pull's names step between finds neither a name with no
+     * course nor one with no change held (RefreshOverEditTest drives the same writes).
+     */
+    @Test
+    fun `a rename saves its course, then its name once its change is kept`() {
+        for (name in listOf("setCustomCourseName", "revertCourseName")) {
+            val body = body(name)
+            val kept = body.indexOf("val kept = ")
+            val save = body.indexOf("saveEdit(updated, _currentSemester.value, edit)")
+            val waits = body.indexOf(".await()", save)
+            val names = body.indexOf("dataCache.updateCourseCustomNames(edit.signIn)")
+            assertTrue("$name no longer records its change first", kept in 0 until save)
+            assertTrue("$name no longer saves its course, then waits for the change, then its name", save < waits && waits < names)
+        }
+        assertCalls("syncCourseOverride", "courseNo = course.courseNo, signIn = signInNow(), kept = kept,", "kept.complete(Unit)")
+    }
+
+    /**
+     * PR R fix rounds 3 and 5: the class table's commit stores the roster it committed the term as,
+     * course selection's or a rebuilt past term's, with the write, under the courses' lock, as
+     * `commitFetchedTerm` does for Home and the background (SchoolUploadsTest drives that one).
+     */
+    @Test
+    fun `the class table's commit stores its roster with the term's write`() {
+        val body = body("fetchTermCourses")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
+        val stored = body.indexOf("dataCache.committedWith(semester, roster(), signIn)")
+        val fold = body.indexOf("termFetch.foldLatest(")
+        assertTrue("the commit no longer stores its roster inside the write", save in 0 until fold && fold < stored)
+        assertTrue("stored outside the courses' lock", body.indexOf("folded ?: current", stored) > stored)
+    }
+
     /** tigerduck-app-android#264: rooms are announced late, and the page fetches on launch only. */
     /**
      * A fetch whose course selection answer a newer one replaced (Home's, the background's or
@@ -259,7 +323,7 @@ class ClassTableWiringTest {
     fun `a fetch of a superseded course selection answer saves and uploads nothing`() {
         val body = body("fetchTermCourses")
         val checks = Regex("""answer != null && !dataCache\.isLatestAnswer\(semester, answer\)""").findAll(body).map { it.range.first }.toList()
-        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
         val fold = body.indexOf("termFetch.foldLatest(")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         assertTrue("fetchTermCourses no longer checks the answer under the courses' lock", checks.any { it in save until fold })
@@ -275,7 +339,7 @@ class ClassTableWiringTest {
     @Test
     fun `a fetch or warm of a refused course selection answer looks up, saves and uploads nothing`() {
         for (name in listOf("fetchData", "warmTerm")) {
-            assertCalls(name, "val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)")
+            assertCalls(name, "val recorded = dataCache.recordSelectionRoster(semester, selectionNos, signIn)")
         }
         assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true)")
         assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn)")
@@ -323,7 +387,7 @@ class ClassTableWiringTest {
         assertCalls(
             "fetchData",
             "if (selectionDef.await().isEmpty()) transcript.fetched() else transcript.cachedOnly()",
-            "scoreService.fetchScoreReport(studentId, password)",
+            "scoreService.fetchScoreReport(studentId, password, signIn)",
             "ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM)",
             "warmTerms(studentId, password, moodleAll, transcript, signIn)",
             "ClassTableTermSource.of(semester, selectionNos, report, servesSelectionSemester,",
@@ -351,9 +415,9 @@ class ClassTableWiringTest {
      */
     @Test
     fun `answers fetched for an account that left reach no term`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { authService.isStillSignedInAs(studentId) }")
-        assertCalls("fetchData", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
-        assertCalls("warmTerms", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { signIn.isCurrent }")
+        assertCalls("fetchData", "stillSignedIn = { signIn.isCurrent }")
+        assertCalls("warmTerms", "stillSignedIn = { signIn.isCurrent }")
     }
 
     /**
@@ -366,9 +430,9 @@ class ClassTableWiringTest {
         val body = body("fetchTermCourses")
         val commit = body.indexOf("pendingCourseAdds.uploading {")
         val committed = body.indexOf("termFetch.committed(")
-        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)")
+        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, signIn)")
         val fold = body.indexOf("termFetch.foldLatest(")
-        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         assertTrue("fetchTermCourses no longer commits the drawn term under the lock", commit in 0 until committed)
         assertTrue("fetchTermCourses no longer records a rebuild's drops in the commit", record in committed until fold)
@@ -397,10 +461,11 @@ class ClassTableWiringTest {
             "rebuiltRoster = it.roster",
             "is ClassTableTermSource.Selection -> source.rosterNos",
             "is ClassTableTermSource.Rebuild -> rebuiltRoster",
-            "hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos())",
-            "pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms)",
+            // The upload SchoolUploads.term builds of the term with that roster, under SchoolUploadsTest.
+            "schoolUploads.term(signIn, semester, merged, roster(),",
+            "pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms)",
         )
-        assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("val upload = CourseUpload.of("))
+        assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("schoolUploads.term("))
     }
 
     /**
@@ -415,7 +480,7 @@ class ClassTableWiringTest {
         assertTrue("fetchData no longer reads the sign-in before its fetch", pinned in 0 until fetch.indexOf("courseService.fetchEnrolledCourseNos("))
         assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn,", "warmTerms(studentId, password, moodleAll, transcript, signIn)")
         assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn)")
-        assertCalls("fetchTermCourses", "signIn = signIn")
+        assertCalls("fetchTermCourses", "pushApiClient.uploadCourses(upload.courses, semester, signIn,")
     }
 
     /** Someone else's class table is looked up as shared; only the user's own terms are rebuilt. */

@@ -12,10 +12,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.push.syncFixture
 
 /**
- * Which 410s from our backend say the app is too old ([ApiVersionGate]). The change feed's
- * `sync_revision_expired` is not one of them: it asks for a full sync, which the app makes.
+ * Which 410s from our backend say the app is too old ([ApiVersionGate]): `api_retired`,
+ * `app_version_retired`, or none that names a code. The change feed's `sync_revision_expired` is
+ * not one of them: it asks for a full sync, which the app makes.
  */
 class ApiVersionInterceptorTest {
 
@@ -63,6 +65,57 @@ class ApiVersionInterceptorTest {
         answer("$BACKEND/bulletins", 410, "<html>Gone</html>")
 
         assertTrue(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `a v4 envelope that retires the API or the app version latches the gate`() {
+        for (code in listOf("api_retired", "app_version_retired")) {
+            ApiVersionGate.resetForTesting()
+
+            answer("$BACKEND/sync/full", 410, """{"error": "$code", "message": "Update the app.", "current_api": "/v4"}""")
+
+            assertTrue(code, ApiVersionGate.isRetired.value)
+        }
+    }
+
+    @Test
+    fun `the v3 410 the backend sends once v3 retires latches the gate`() {
+        answer("$BACKEND/sync/full", 410, """{"detail": "This API version has been retired.", "current_api": "/v4", "error": "api_retired"}""")
+
+        assertTrue(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `a 410 with no body latches the gate`() {
+        answer("$BACKEND/sync/full", 410, "")
+
+        assertTrue(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `no other status latches the gate, the v4 feed's 409 included`() {
+        answer("$BACKEND/sync?since_revision=12", 409, """{"error": "sync_revision_expired", "current_revision": 52}""")
+        answer("$BACKEND/sync/full", 404, """{"detail": "api_retired"}""")
+        answer("$BACKEND/sync/full", 500, "Internal Server Error")
+
+        assertFalse(ApiVersionGate.isRetired.value)
+    }
+
+    /** The one 410 that latched before and no longer does: none the backend sends today. */
+    @Test
+    fun `a 410 that names a code it does not know leaves the gate alone, in either version`() {
+        answer("$BACKEND/bulletin-subscriptions/7", 410, """{"error": "subscription_gone", "message": "Gone."}""")
+        answer("$BACKEND/bulletin-subscriptions/7", 410, """{"detail": "subscription_gone"}""")
+
+        assertFalse(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `the v4 feed's expired revision is not a retired API either`() {
+        answer("$BACKEND/sync?since_revision=12", 409, syncFixture("v4/feed-expired.json"))
+        answer("$BACKEND/sync?since_revision=12", 410, syncFixture("v4/feed-expired.json"))
+
+        assertFalse(ApiVersionGate.isRetired.value)
     }
 
     @Test

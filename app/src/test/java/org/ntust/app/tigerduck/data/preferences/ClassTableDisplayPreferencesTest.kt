@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.library.FlipToLibraryDefaultOffMigration
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.notification.ClassReminders
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The class table's display switches in Settings > Display, as the iPhone app
@@ -64,8 +65,8 @@ class ClassTableDisplayPreferencesTest {
                 .apply { if (stored != null) putBoolean("showClassroomInClassTable", stored) }
                 .commit()
             val prefs = prefs()
-            DataMigration.settleReenableCheck(prefs, signedIn = true)
-            DataMigration.dropStaleCoursesCheck(prefs)
+            DataMigration.settleReenableCheck(prefs, signedIn = true, testSignIn())
+            DataMigration.dropStaleCoursesCheck(prefs, testSignIn())
             ClassReminders.migrateIfNeeded(prefs, LiveActivityPreferences(context))
             LibraryTabKeepMigration.runIfNeeded(prefs)
             FlipToLibraryDefaultOffMigration.runIfNeeded(prefs)

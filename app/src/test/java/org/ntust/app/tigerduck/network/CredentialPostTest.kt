@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.network
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.FormBody
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -12,6 +14,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
 /**
  * [executeSignInFormPost] against a stand-in school that answers as an application interceptor,
@@ -19,7 +23,8 @@ import java.io.IOException
  */
 class CredentialPostTest {
 
-    private val guard = AccountSessionGuard()
+    private val series = SignInSeries()
+    private val guard = AccountSessionGuard(AccountSession(series, CoroutineScope(SupervisorJob())))
 
     private fun client(answer: (Interceptor.Chain) -> Response) = OkHttpClient.Builder()
         .addInterceptor(guard.markCall)
@@ -38,7 +43,7 @@ class CredentialPostTest {
             val request = chain.request()
             if (request.method == "POST") {
                 // The account signs out while the school answers the form.
-                guard.nextAccount()
+                series.end()
                 redirect(request, 302, CALLBACK_URL)
             } else {
                 getStartedUnderDepartedAccount = guard.isStale(request)

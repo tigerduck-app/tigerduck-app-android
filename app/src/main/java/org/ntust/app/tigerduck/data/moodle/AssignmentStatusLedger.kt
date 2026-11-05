@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data.moodle
 
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.util.Date
 
 /**
@@ -14,8 +15,8 @@ data class SubmissionStatusAnswer(
     val submittedAtMs: Long?,
     /** A monotonic clock's reading before the request went out. */
     val askedAtMs: Long,
-    /** The cache's generation when the request went out; see `DataCache.userDataGeneration`. */
-    val generation: Int,
+    /** The sign-in the request went out under. */
+    val signIn: SignIn,
     /**
      * Epoch milliseconds of the extension a teacher granted the student, `extensionduedate`;
      * null for none, which takes a revoked one off.
@@ -34,15 +35,11 @@ data class SubmissionStatusAnswer(
  * round's own request times, rather than the page waiting the round out. Both the round's write
  * and a page's run under the cache's lock, so the two cannot pass each other.
  *
- * Every answer carries the cache's generation its request went out under, and the wipe at a
- * sign-out moves that generation under the same lock. An answer of a generation that has gone is
- * refused, and the answers kept under it go with it, so a departing account's round that writes
- * between the sign-out and the wipe leaves nothing the next account's rounds could inherit.
+ * Every answer carries the sign-in its request went out under. An answer of a sign-in that has
+ * ended is refused, and the answers kept under it go with it, so a departing account's round that
+ * writes between the sign-out and the wipe leaves nothing the next account's rounds could inherit.
  */
-class AssignmentStatusLedger(
-    /** The cache's generation now, which the wipe at a sign-out moves under the cache's lock. */
-    private val currentGeneration: () -> Int,
-) {
+class AssignmentStatusLedger {
     private data class Accepted(val askedAtMs: Long, val submitted: Boolean, val submittedAtMs: Long?, val extensionDueMs: Long?) {
         constructor(answer: SubmissionStatusAnswer) :
             this(answer.askedAtMs, answer.submitted, answer.submittedAtMs, answer.extensionDueMs)
@@ -57,20 +54,19 @@ class AssignmentStatusLedger(
 
     private val accepted = HashMap<String, Accepted>()
 
-    /** The generation the entries in [accepted] were taken under. */
-    private var generation: Int? = null
+    /** The sign-in the entries in [accepted] were taken under. */
+    private var owner: SignIn? = null
 
     /**
-     * The entries, with those of a generation that has gone dropped first; null when [asked] is
-     * not the current generation, whose answers are refused.
+     * The entries, with those of a sign-in that has ended dropped first; null when [asked] has
+     * ended, whose answers are refused. An account has one current sign-in, so when [asked] is
+     * current the entries left are its own.
      */
-    private fun entriesFor(asked: Int): HashMap<String, Accepted>? {
-        val current = currentGeneration()
-        if (generation != current) {
-            accepted.clear()
-            generation = current
-        }
-        return accepted.takeIf { asked == current }
+    private fun entriesFor(asked: SignIn): HashMap<String, Accepted>? {
+        if (owner?.isCurrent != true) accepted.clear()
+        if (!asked.isCurrent) return null
+        owner = asked
+        return accepted
     }
 
     /**
@@ -80,7 +76,7 @@ class AssignmentStatusLedger(
      */
     @Synchronized
     fun offer(answer: SubmissionStatusAnswer): Boolean {
-        val entries = entriesFor(answer.generation) ?: return false
+        val entries = entriesFor(answer.signIn) ?: return false
         val current = entries[answer.assignmentId]
         if (current != null && current.askedAtMs >= answer.askedAtMs) return false
         entries[answer.assignmentId] = Accepted(answer)
@@ -88,20 +84,20 @@ class AssignmentStatusLedger(
     }
 
     /**
-     * [assignments] as a round of [generation] writes them, [answers] being what Moodle answered
+     * [assignments] as a round of [signIn] writes them, [answers] being what Moodle answered
      * the round for each status it asked and got, by id. An assignment whose accepted answer is
      * newer than the round's request for it takes the accepted answer; the rest the round got an
      * answer for take that answer, which is accepted from here on, whatever the caller made of
      * the cached status meanwhile. One the round got no answer for, kept from the cache, takes
-     * any accepted answer and is never stamped. A round of a generation that has gone writes
+     * any accepted answer and is never stamped. A round of a sign-in that has ended writes
      * nothing of its own.
      */
     @Synchronized
-    fun reconcile(assignments: List<Assignment>, answers: Map<String, SubmissionStatusAnswer>, generation: Int): List<Assignment> {
-        val entries = entriesFor(generation)
+    fun reconcile(assignments: List<Assignment>, answers: Map<String, SubmissionStatusAnswer>, signIn: SignIn): List<Assignment> {
+        val entries = entriesFor(signIn)
         return assignments.map { assignment ->
             val id = assignment.assignmentId
-            val answer = answers[id]?.takeIf { it.generation == generation }
+            val answer = answers[id]?.takeIf { it.signIn == signIn }
             val current = entries?.get(id)
             when {
                 current != null && (answer == null || current.askedAtMs > answer.askedAtMs) -> current.applyTo(assignment)

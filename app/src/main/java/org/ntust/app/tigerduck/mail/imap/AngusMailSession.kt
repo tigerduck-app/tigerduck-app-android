@@ -403,11 +403,11 @@ class AngusMailSession internal constructor(
         return true
     }
 
-    override fun setSeen(folder: String, uids: List<Long>, seen: Boolean) = io {
+    override fun setSeen(folder: String, uids: List<Long>, seen: Boolean, uidValidity: Long?) = io {
         if (uids.isEmpty()) return@io
         val f = folder(folder, Folder.READ_WRITE)
-        val messages = f.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
-        if (messages.isNotEmpty()) f.setFlags(messages, Flags(Flags.Flag.SEEN), seen)
+        requireUidValidity(f, uidValidity)
+        f.send(seenStore(uids, seen))
     }
 
     override fun setAnswered(folder: String, uid: Long) = io {

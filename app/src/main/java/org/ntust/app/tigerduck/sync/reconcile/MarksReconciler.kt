@@ -1,0 +1,42 @@
+package org.ntust.app.tigerduck.sync.reconcile
+
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncMode
+import org.ntust.app.tigerduck.sync.SyncPass
+import org.ntust.app.tigerduck.ui.screen.home.AssignmentMarkStep
+import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
+import javax.inject.Inject
+
+/**
+ * The assignment marks: Home's mark step ([AssignmentMarkStep]), with the Assignments switch as the
+ * pass read it. In the background, the worker's ([BackgroundMarkStep]), which sends none up (C2):
+ * a first sync's marks are Home's to queue. Both take the snapshot's marks field by field, but
+ * those this phone keeps ([SyncPass.holds], LWW D12).
+ */
+class MarksReconciler @Inject constructor(
+    private val prefs: AppPreferences,
+    dataCache: DataCache,
+) : Reconciler {
+
+    private val markStep = AssignmentMarkStep.over(prefs, dataCache)
+
+    private val backgroundStep = BackgroundMarkStep.over(prefs, dataCache)
+
+    override suspend fun reconcile(pass: SyncPass): Boolean {
+        val signIn = pass.signIn
+        val holds = pass.holds()
+        val marksTaken = when (pass.mode) {
+            SyncMode.FOREGROUND -> markStep.pull(pass.home, pass.result, SyncCategory.ASSIGNMENTS in pass.policy.switchedOn, signIn, holds)
+            SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn, holds, SyncCategory.ASSIGNMENTS in pass.syncedBefore).let { marks ->
+                pass.marksChanged = marks.changed
+                marks.taken
+            }
+        }
+        // Recorded at once, for this sign-in only: a later step that fails must
+        // not leave the next sync reading an empty server as this phone's first.
+        if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
+        return marksTaken
+    }
+}

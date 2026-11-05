@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailAccount
@@ -38,6 +40,7 @@ import org.ntust.app.tigerduck.mail.sanitize.HtmlSanitizer
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.io.File
 import java.io.InputStream
 import java.time.Instant
@@ -78,6 +81,7 @@ class ComposeAttachment(
  * it has gone out or been taken back it is kept on the phone ([HeldSendStore]), and after the
  * system ends the app it opens here again for review ([reopen]), never sent on its own.
  */
+@OptIn(StartsAccountWork::class)
 @HiltViewModel
 class SchoolMailComposeViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
@@ -224,21 +228,20 @@ class SchoolMailComposeViewModel @Inject constructor(
 
     /**
      * Moved by every sign-out and every student signing in over another, on the main thread: a
-     * load of the contacts lands only while it has not moved since the load began. The account's
-     * generation is not enough, as a student change is told before the next sign-in moves it.
+     * load of the contacts lands only while it has not moved since the load began. The sign-in
+     * is not enough, as a student change is told before the next sign-in ends it.
      */
     private var contactsTicket = 0
 
     init {
         // Kept on the phone for the account they came from alone (tigerduck-app#552). Subscribed
         // before this constructor returns, as the repository subscribes, so no change can come
-        // between the load starting and the screen hearing of it: neither flow replays.
-        for (left in listOf(account.signOuts, account.studentChanges)) {
-            viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                left.collect {
-                    contactsTicket++
-                    _state.update { it.copy(contacts = emptyList()) }
-                }
+        // between the load starting and the screen hearing of it: the stream replays nothing.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            account.events.collect { event ->
+                if (event is AccountEvent.SignedIn) return@collect
+                contactsTicket++
+                _state.update { it.copy(contacts = emptyList()) }
             }
         }
         loadContacts()
@@ -252,7 +255,7 @@ class SchoolMailComposeViewModel @Inject constructor(
     private fun loadContacts() {
         val ticket = contactsTicket
         viewModelScope.launch {
-            val generation = account.accountGeneration
+            val signIn = account.currentSignIn
             val contacts = try {
                 withContext(io) {
                     RecipientSuggestions.contacts(repository.correspondence(), repository.selfAddress().address, Instant.now())
@@ -262,7 +265,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             } catch (e: Exception) {
                 return@launch
             }
-            if (ticket == contactsTicket && account.accountGeneration == generation) _state.update { it.copy(contacts = contacts) }
+            if (ticket == contactsTicket && signIn.isCurrent) _state.update { it.copy(contacts = contacts) }
         }
     }
 
@@ -338,7 +341,7 @@ class SchoolMailComposeViewModel @Inject constructor(
         viewModelScope.launch {
             // The sign-in a rejection is for: one that comes back once it has left is not the next
             // one's (spec §7.4), as the repository's own record of it already holds.
-            val generation = account.accountGeneration
+            val signIn = account.currentSignIn
             _state.update { it.copy(loading = true, loadError = null) }
             try {
                 val original = repository.summary(sourceFolder, sourceUid) ?: throw MailError.Protocol("message is gone")
@@ -394,7 +397,7 @@ class SchoolMailComposeViewModel @Inject constructor(
                     )
                 }
             } catch (e: MailError) {
-                if (e is MailError.AuthFailed) account.onAuthFailure(generation)
+                if (e is MailError.AuthFailed) account.onAuthFailure(signIn)
                 _state.update { it.copy(loading = false, loadError = e) }
             }
         }
@@ -410,9 +413,9 @@ class SchoolMailComposeViewModel @Inject constructor(
     private fun reopen(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, loadError = null) }
-            val generation = account.accountGeneration
+            val signIn = account.currentSignIn
             val held = try {
-                withContext(io) { account.ownAddress?.let { heldSends.adopt(id, it) }?.also { heldId = id } }
+                withContext(io) { account.heldMailOwner?.let { heldSends.adopt(id, it) }?.also { heldId = id } }
             } catch (e: CancellationException) {
                 // Closed while it read: an adoption that went through still lets go, or no composer
                 // could open the mail again before the next restart.
@@ -420,11 +423,11 @@ class SchoolMailComposeViewModel @Inject constructor(
                 throw e
             }
             // Read for a student who has left since: not this one's to see.
-            if (held != null && account.accountGeneration != generation) {
+            if (held != null && !signIn.isCurrent) {
                 heldId = null
                 withContext(io) { heldSends.release(id) }
             }
-            if (held == null || account.accountGeneration != generation) {
+            if (held == null || !signIn.isCurrent) {
                 _state.update { it.copy(loading = false) }
                 return@launch
             }
@@ -581,7 +584,7 @@ class SchoolMailComposeViewModel @Inject constructor(
         }
         // The sign-in the student confirmed the send under: a mail held while another student
         // signed in over them must not go out as the next one's.
-        val confirmedUnder = account.accountGeneration
+        val confirmedUnder = account.currentSignIn
         val answer = CompletableDeferred<Boolean>()
         heldSend = answer
         val id = heldId ?: UUID.randomUUID().toString()
@@ -593,7 +596,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             withContext(io) { keep(id, s, confirmedUnder) }
             val goes = withTimeoutOrNull(holdMs) { answer.await() } ?: true
             heldSend = null
-            if (!goes || account.accountGeneration != confirmedUnder) {
+            if (!goes || !confirmedUnder.isCurrent) {
                 withContext(io) { heldSends.forget(id) }
                 _state.update { it.copy(sending = false, holding = false, undone = !goes) }
                 return@launch
@@ -602,7 +605,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             // Unmarked, it is not kept at all, rather than offered again as unsent.
             withContext(io) { if (!heldSends.markSending(id)) heldSends.forget(id) }
             // The sign-in again, after that write: the mail is the confirming student's alone.
-            if (account.accountGeneration != confirmedUnder) {
+            if (!confirmedUnder.isCurrent) {
                 withContext(io) { heldSends.forget(id) }
                 _state.update { it.copy(sending = false, holding = false) }
                 return@launch
@@ -613,12 +616,11 @@ class SchoolMailComposeViewModel @Inject constructor(
     }
 
     /**
-     * Keeps the confirmed form [s] on the phone as mail [id] of the signed-in student, unless the
-     * sign-in has moved on from [generation]. A read of the encrypted store and a copy of every
-     * file picked here: for the IO dispatcher.
+     * Keeps the confirmed form [s] on the phone as mail [id] of the signed-in student, unless
+     * [signIn] has ended. Reads the encrypted store and copies each file: for the IO dispatcher.
      */
-    private fun keep(id: String, s: UiState, generation: Int): Boolean {
-        val owner = account.ownAddress ?: return false
+    private fun keep(id: String, s: UiState, signIn: SignIn): Boolean {
+        val owner = account.heldMailOwner ?: return false
         val fields = HeldSendStore.Fields(
             mode.name, sourceFolder, sourceUid, sourceLoaded, inReplyTo, references,
             s.to.entries, s.cc.entries, s.bcc.entries, s.subject, s.body,
@@ -633,7 +635,7 @@ class SchoolMailComposeViewModel @Inject constructor(
                 )
             }
         }
-        return heldSends.save(id, owner, fields, attachments, generation) { account.accountGeneration == generation }
+        return heldSends.keep(id, owner, fields, attachments, signIn)
     }
 
     /**
@@ -667,14 +669,12 @@ class SchoolMailComposeViewModel @Inject constructor(
     fun acknowledgeUndone() = _state.update { it.copy(undone = false) }
 
     /** The send itself, of the form [s] as it was confirmed under sign-in [confirmedUnder]. */
-    private fun ship(s: UiState, confirmedUnder: Int) {
+    private fun ship(s: UiState, confirmedUnder: SignIn) {
         val to = ComposeRules.parseRecipients(s.to.entries)
         val cc = ComposeRules.parseRecipients(s.cc.entries)
         val bcc = ComposeRules.parseRecipients(s.bcc.entries)
-        // Read before the mail goes out: an account that changes while it does must not leave
-        // its notice to the next one.
-        val accountGeneration = sentCopyNotices.accountGeneration
-        val generation = account.accountGeneration
+        // Read before the mail goes out: a notice stays the sign-in's it went out under.
+        val signIn = account.currentSignIn
         withStaged(onError = { error ->
             // Failed for sure, the mail is back in the editor alone, as after an Undo. One that may
             // have gone out stays kept as sending, to say so after a restart. Before the form can
@@ -683,7 +683,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             ComposeError.SendFailed(error)
         }) { attachments ->
             // Staging can take a while: a student signed in over the one who confirmed it sends none of it.
-            if (account.accountGeneration != confirmedUnder) throw MailError.Abandoned()
+            if (!confirmedUnder.isCurrent) throw MailError.Abandoned()
             val mail = OutgoingMail(repository.selfAddress(), to.addresses, cc.addresses, bcc.addresses,
                 s.subject.trim(), s.body, attachments, inReplyTo, references)
             val answered = if (sourceLoaded && (mode == ComposeMode.REPLY || mode == ComposeMode.REPLY_ALL)) sourceFolder to sourceUid else null
@@ -691,13 +691,13 @@ class SchoolMailComposeViewModel @Inject constructor(
             // The sent copy's APPEND logs in with the same stored password the send just used, so
             // a rejection there is the §7.4 rejected password and has to reach the account -- even
             // though the send itself succeeded and nothing was thrown for [withStaged] to classify.
-            if (copy is SentCopy.Failed && copy.error is MailError.AuthFailed) account.onAuthFailure(generation)
+            if (copy is SentCopy.Failed && copy.error is MailError.AuthFailed) account.onAuthFailure(signIn)
             if (sourceLoaded && mode == ComposeMode.DRAFT) discardSentDraft()
             // The mail went out, but its copy did not reach the sent folder. A notice, never an
             // [UiState.error]: the send succeeded, so failing the screen over it would tell the
             // user the opposite of what happened. It is reported before the screen closes, to
             // stay on the screens it goes back to until the user dismisses it.
-            SentCopyNotice.of(copy)?.let { sentCopyNotices.report(it, sentCopyOrigin, accountGeneration) }
+            SentCopyNotice.of(copy)?.let { sentCopyNotices.report(it, sentCopyOrigin, signIn) }
             dropHeld()
             _state.update { it.copy(done = true) }
         }
@@ -773,7 +773,7 @@ class SchoolMailComposeViewModel @Inject constructor(
     private fun withStaged(onError: suspend (MailError) -> ComposeError, block: suspend (List<OutgoingAttachment>) -> Unit) {
         viewModelScope.launch {
             // As in [runPrefill]: the sign-in a rejection is for.
-            val generation = account.accountGeneration
+            val signIn = account.currentSignIn
             _state.update { it.copy(sending = true, error = null, errorAcknowledged = false) }
             val staging = File(cache.attachmentsDir, "${MailCache.OUTGOING_PREFIX}${UUID.randomUUID()}")
             try {
@@ -797,7 +797,7 @@ class SchoolMailComposeViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 val error = MailErrors.classify(e)
-                if (error is MailError.AuthFailed) account.onAuthFailure(generation)
+                if (error is MailError.AuthFailed) account.onAuthFailure(signIn)
                 _state.update { it.copy(error = onError(error), errorAcknowledged = false) }
             } finally {
                 // Back is refused while sending (the screen's BackHandler), but this still runs

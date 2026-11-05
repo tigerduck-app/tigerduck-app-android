@@ -4,8 +4,13 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
 import org.ntust.app.tigerduck.data.MoodleColorStore
@@ -22,17 +27,17 @@ import javax.inject.Singleton
  * none, so a student who signed in there got no background sync until the app was next created
  * from scratch, and the full reset left the reminders and the Live Update running.
  *
- * Follows [AuthService.accountState] rather than the pages, and only its changes: the state the
- * process starts in is not one. MainActivity schedules the background sync for an account
+ * Follows the account's [AccountEvent]s rather than the pages, and so only its changes: the state
+ * the process starts in is not one. MainActivity schedules the background sync for an account
  * already signed in at launch. Never waits on anything slow, the browser's clearing least of
- * all, and counts the changes rather than reading the value, so no sign-out goes unseen.
+ * all, so no sign-out goes unseen.
  */
 @Singleton
 class AccountSessionEffects internal constructor(
     private val context: Context,
-    private val accountState: StateFlow<AccountState>,
-    /** Each sign-in by hand, a student signing in over another included; see [AuthService.signIns]. */
-    private val signIns: Flow<Unit>,
+    private val events: Flow<AccountEvent>,
+    /** Whether the school account shows as signed in now. */
+    private val signedIn: () -> Boolean,
     private val assignmentReminders: AssignmentNotificationScheduler,
     private val refreshLiveUpdates: () -> Unit,
     private val stopLiveUpdates: () -> Unit,
@@ -47,6 +52,7 @@ class AccountSessionEffects internal constructor(
     constructor(
         @ApplicationContext context: Context,
         authService: AuthService,
+        sessions: AccountSessions,
         assignmentReminders: AssignmentNotificationScheduler,
         liveActivityManager: LiveActivityManager,
         browserData: BrowserDataCleaner,
@@ -54,8 +60,8 @@ class AccountSessionEffects internal constructor(
         moodleColors: MoodleColorStore,
     ) : this(
         context = context,
-        accountState = authService.accountState,
-        signIns = authService.signIns,
+        events = sessions.events,
+        signedIn = { authService.authState.value },
         assignmentReminders = assignmentReminders,
         refreshLiveUpdates = { liveActivityManager.refresh() },
         stopLiveUpdates = liveActivityManager::stop,
@@ -65,26 +71,25 @@ class AccountSessionEffects internal constructor(
     )
 
     /**
-     * Follows the sign-in state on [scope] for the life of the process. [signOutCutShort] says the
-     * start has just finished a sign-out a process death cut short ([AuthService.finishOwedSignOut]):
+     * Follows the school account on [scope] for the life of the process. [signOutCutShort] says the
+     * start has just finished a sign-out a process death cut short ([SignOutPlans.finishOwedSignOut]):
      * that is no change from here, or was never one if the account was already gone, so what
      * follows a sign-out runs now.
      */
     fun start(scope: CoroutineScope, signOutCutShort: Boolean = false) {
-        // Where it starts is read now, not when the watcher first runs: a sign-out in between is a change.
-        var seen = accountState.value
-        scope.launch {
-            accountState.collect { now ->
-                val before = seen
-                seen = now
-                if (now.changes == before.changes) return@collect
-                // Seen late, a sign-out and a sign-in in between are two changes to the same value.
-                if (before.signedIn || now.changes - before.changes > 1) onSignedOut(scope)
-                if (now.signedIn) onSignedIn(scope)
+        // Subscribed now, not when the watcher first runs: a sign-out in between is a change.
+        scope.follow(events.filter { it.account == Account.SCHOOL }) { event ->
+            when (event) {
+                is AccountEvent.SignedOut -> onSignedOut(scope)
+                is AccountEvent.SignedIn -> when {
+                    // The same student typing their password again never turns authState off and on.
+                    event.byHand -> clearBrowserSoon(scope)
+                    // Seen late, with the sign-out behind it, there is nothing to start.
+                    signedIn() -> onSignedIn(scope)
+                }
+                is AccountEvent.StudentChanged -> Unit
             }
         }
-        // A student signing in over another never turns authState off and on.
-        scope.launch { signIns.collect { clearBrowserSoon(scope) } }
         when {
             signOutCutShort -> scope.launch { onSignedOut(scope) }
             // One a process death cut short, or one whose deletions did not all report, goes again.

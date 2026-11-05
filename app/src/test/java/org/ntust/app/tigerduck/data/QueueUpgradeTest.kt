@@ -9,16 +9,20 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
  * An update that finds edits queued: the files and preference keys this build wrote, the
  * fixtures `AccountFixturesTest` pins, are read by a new process and sent under its first
  * sign-in, stamps as stored, with no sign-out and no migration. A queue that stopped reading
- * them would lose edits the student made offline before the update.
+ * them would lose edits the student made offline before the update. An entry an older build kept
+ * with no time goes with its old-entry time (X1), here none known, so 0, the oldest;
+ * `V4QueueFixturesTest` sends the same fixtures with the times an update knows.
  */
 class QueueUpgradeTest {
 
@@ -42,7 +46,7 @@ class QueueUpgradeTest {
 
     @Test
     fun `the queued adds go up, each with the time it was stored with`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "One"), Course(courseNo = "CS1002", courseName = "Two")), "1141")
+        cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "One"), Course(courseNo = "CS1002", courseName = "Two")), "1141", testSignIn())
         val sent = mutableListOf<Triple<List<String>, List<String>, Map<String, Long>>>()
         val adds = PendingCourseAdds(cache, { courses, semester, forceKeys, _, addedAt ->
             assertEquals("1141", semester)
@@ -50,13 +54,16 @@ class QueueUpgradeTest {
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
-        adds.retry(signIn)
+        adds.drain(signIn)
 
         assertEquals(
             listOf(
-                Triple(listOf("CS1001"), listOf("client:1141:CS1001"), mapOf("CS1001" to 1_700_000_000_000L)),
-                // One an older install kept has no time, and goes as it did.
-                Triple(listOf("CS1002"), listOf("client:1141:CS1002"), emptyMap()),
+                // In one upload, each with its moment; one an older install kept with none has no
+                // old-entry time known here, so 0, the oldest (X1).
+                Triple(
+                    listOf("CS1001", "CS1002"), listOf("client:1141:CS1001", "client:1141:CS1002"),
+                    mapOf("CS1001" to 1_700_000_000_000L, "CS1002" to 0L),
+                ),
             ),
             sent,
         )
@@ -73,29 +80,29 @@ class QueueUpgradeTest {
             deleter = { courseKey, _, hiddenAt -> sent += courseKey to hiddenAt },
         )
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(listOf("client:1141:CS1003" to 1_700_000_001_000L), sent)
         assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseDeletes())
     }
 
     @Test
-    fun `the queued colors and names go, a row from before the stamp without one`() = runTest {
+    fun `the queued colors and names go, a row from before the stamp as the oldest`() = runTest {
         val sent = mutableListOf<Triple<String, String?, Long?>>()
         val overrides = PendingCourseOverrides(
             cache,
-            { moodleId, colorHex, _, _, _, stillAllowed, madeAtMs ->
+            { change, _, _, stillAllowed ->
                 assertEquals(true, stillAllowed())
-                sent += Triple(moodleId, colorHex, madeAtMs)
-                true
+                sent += Triple(change.moodleId.orEmpty(), change.colorHex, change.madeAtMs)
+                TOOK
             },
             records = { true },
             sends = { true },
         )
 
-        overrides.retry(signIn)
+        overrides.drain(signIn)
 
-        assertEquals(listOf(Triple("1141CS1001", "#336699", null)), sent)
+        assertEquals(listOf(Triple("1141CS1001", "#336699", 0L)), sent)
         assertEquals(emptyList<Any>(), cache.loadPendingCourseOverrides())
     }
 
@@ -104,15 +111,15 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<Int, String, Long?>>()
         val marks = UnsentMarks(
             cache,
-            sender = { id, status, _, madeAtMs ->
+            writer = { id, status, _, madeAtMs ->
                 sent += Triple(id, status, madeAtMs)
-                true
+                TOOK
             },
             records = { true },
             sends = { true },
         )
 
-        marks.retry(signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(Triple(7, "ignored", 1_700_000_004_000L)), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -123,9 +130,9 @@ class QueueUpgradeTest {
         val sent = mutableListOf<List<Any?>>()
         val ignores = CourseIgnoreSync(
             cache,
-            sender = { moodleId, ignore, moodleCourseId, madeAtMs ->
-                sent += listOf(moodleId, ignore, moodleCourseId, madeAtMs)
-                true
+            writer = { target, ignore, moodleCourseId, _, madeAtMs ->
+                sent += listOf(target.courseKey, ignore, moodleCourseId, madeAtMs)
+                WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
             effects = {},
             sends = { true },
@@ -134,7 +141,7 @@ class QueueUpgradeTest {
 
         ignores.retryPending(signIn)
 
-        assertEquals(listOf(listOf<Any?>("1141CS1001", true, 42, 1_700_000_005_000L)), sent)
+        assertEquals(listOf(listOf<Any?>("client:1141:CS1001", true, 42, 1_700_000_005_000L)), sent)
         assertEquals(emptyList<Any>(), cache.loadPendingCourseIgnores())
     }
 
@@ -148,16 +155,17 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<Int, Boolean, Long?>>()
         val holidays = PendingHolidayOverrides(
             prefs,
-            sender = { id, notify, _, madeAtMs ->
+            writer = { id, notify, _, madeAtMs ->
                 sent += Triple(id, notify, madeAtMs)
-                true
+                TOOK
             },
             syncs = { true },
         )
 
-        holidays.retry(signIn)
+        holidays.drain(signIn)
 
-        assertEquals(listOf(Triple(5, true, null)), sent)
+        // Its time unknown here: 0, the oldest.
+        assertEquals(listOf(Triple(5, true, 0L)), sent)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
     }
 

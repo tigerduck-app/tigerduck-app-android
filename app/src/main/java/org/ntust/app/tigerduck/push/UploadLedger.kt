@@ -3,7 +3,9 @@ package org.ntust.app.tigerduck.push
 import com.google.gson.Gson
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.security.MessageDigest
 
 /**
@@ -45,8 +47,8 @@ internal fun uploadFingerprint(backend: String, json: String): String =
     MessageDigest.getInstance("SHA-256").digest("$backend\n$json".toByteArray()).joinToString("") { "%02x".format(it) }
 
 /**
- * A term's course list as a fingerprint: the body [PushApiClient.uploadCourses] sends for it to
- * [backend], without force keys (a list with any goes whatever the ledger holds), the courses in
+ * A term's course list as a fingerprint: its [CourseUploadPayload.ledgerBody] for [backend], without
+ * adds (a list with an add asked of it goes whatever the ledger holds), the courses in
  * course-number order, so the roster as the class table holds it and as a sync holds it, the
  * same courses in another order, are one list. The term is the ledger's key, not part of this.
  *
@@ -64,7 +66,7 @@ internal fun courseUploadFingerprint(
     uploadFingerprint(
         backend,
         fingerprintGson.toJson(
-            CourseUploadPayload.build(courses.sortedBy { it.courseNo }, semester, rosterTerms = rosterTerms.sorted()),
+            CourseUploadPayload.ledgerBody(courses.sortedBy { it.courseNo }, semester, rosterTerms.sorted()),
         ),
     )
 
@@ -74,7 +76,6 @@ private val fingerprintGson = Gson()
 internal interface UploadLedgerStore {
     val fingerprint: String?
     val acceptedAtMs: Long
-    fun record(fingerprint: String, atMs: Long)
 }
 
 /**
@@ -97,33 +98,32 @@ internal class UploadLedger(
      * [REFUSED_UPLOAD_PAUSE_MS], by the sign-in it was sent under and its
      * fingerprint, with when the answer came.
      */
-    private val refused = HashMap<String, Long>()
+    private val refused = HashMap<Pair<SignIn, String>, Long>()
 
     /**
      * Runs [send] for a list with [fingerprint] when it is due, or whatever
      * the ledger holds when [always] (a forced re-add, a term the server has
      * emptied), and once [send] returns records it as accepted through
-     * [ifCurrent], which runs the record it is handed only while the sign-in
-     * the upload began under still stands, and under the lock a sign-out
-     * moves it under (`AuthTokenManager.runIfSignedIn`). Checking first and
-     * recording after left a gap a sign-out fell into: its clearing of the
-     * ledger landed between the two, and the departing account's list stayed
-     * for the next account to skip. Returns whether it sent. A [send] that
-     * throws records nothing; one the server turned away
-     * ([PushApiException.statusCode]) holds the same list back for
+     * [record], which writes only while the sign-in the upload began under
+     * still stands, atomic with the sign-out. Checking first and recording
+     * after left a gap a sign-out fell into: its clearing of the ledger
+     * landed between the two, and the departing account's list stayed for
+     * the next account to skip. Returns whether it sent. A [send] that
+     * throws records nothing; one the server turned away (an error
+     * [backendError] reads, from either version) holds the same list back for
      * [REFUSED_UPLOAD_PAUSE_MS] from the answer, unless [always], while
      * [signIn], the sign-in it was sent under, stands.
      */
     suspend fun sendIfDue(
         fingerprint: String,
-        ifCurrent: (record: () -> Unit) -> Unit,
+        record: (fingerprint: String, atMs: Long) -> Unit,
         always: Boolean = false,
-        signIn: Int = 0,
+        signIn: SignIn,
         send: suspend () -> Unit,
     ): Boolean =
         mutex.withLock {
             val now = clock()
-            val refusalKey = "$signIn:$fingerprint"
+            val refusalKey = signIn to fingerprint
             // Measured from the refusal, so a clock set back does not stretch the pause.
             refused.entries.removeAll { (_, at) -> now - at !in 0 until REFUSED_UPLOAD_PAUSE_MS }
             if (!always) {
@@ -132,11 +132,13 @@ internal class UploadLedger(
             }
             try {
                 send()
-            } catch (e: PushApiException) {
-                if (e.statusCode != null) refused[refusalKey] = clock()
+            } catch (e: Exception) {
+                // The backend answered with an error, on either version: /v3's PushApiException with
+                // its status, /v4's BackendException with its code. A failure with no answer is none.
+                if (e.backendError() != null) refused[refusalKey] = clock()
                 throw e
             }
-            ifCurrent { store.record(fingerprint, now) }
+            record(fingerprint, now)
             true
         }
 

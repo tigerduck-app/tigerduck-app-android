@@ -25,20 +25,21 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
-import org.ntust.app.tigerduck.data.PendingCourseDeletes
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.PendingHolidayOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
-import org.ntust.app.tigerduck.notification.TermCourseSync
-import org.ntust.app.tigerduck.push.SyncApiClient
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.ntust.app.tigerduck.push.WriteAnswer
 
 /**
  * The same student signs out and back in while Home's full sync has its fetch out. The student ID
@@ -52,7 +53,7 @@ import org.robolectric.annotation.Config
 class HomePullAcrossSignInTest {
 
     private val context = RuntimeEnvironment.getApplication()
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private val appJob = SupervisorJob()
     private val appScope = CoroutineScope(appJob + Dispatchers.IO)
     private val idleScope = CoroutineScope(Job().apply { cancel() })
@@ -84,38 +85,18 @@ class HomePullAcrossSignInTest {
         w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
-        val syncApi = SyncApiClient(w.tokens, w.appPrefs, backend.client)
-        marks = UnsentMarks(w.dataCache, w.pushApi, w.appPrefs)
-        adds = PendingCourseAdds(w.dataCache, w.pushApi)
-        ignores = CourseIgnoreSync(
+        val ignores = CourseIgnoreSync(
             w.dataCache,
-            sender = { _, _, _, _ -> true },
+            writer = { _, ignore, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
             effects = { ignoresChanged() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,
         )
-        sync = HomeBackendSync(
-            prefs = w.appPrefs,
-            dataCache = w.dataCache,
-            authService = w.auth,
-            authTokenManager = w.tokens,
-            syncApiClient = syncApi,
-            pushApiClient = w.pushApi,
-            notificationSettingsSync = w.notificationSettingsSync,
-            courseService = w.courseService,
-            semesterCatalog = w.semesterCatalog,
-            widgetUpdater = w.widgetUpdater,
-            academicCalendar = w.academicCalendar,
-            courseIgnoreSync = ignores,
-            unsentMarks = marks,
-            pendingCourseAdds = adds,
-            pendingCourseDeletes = PendingCourseDeletes(w.dataCache, adds, w.pushApi),
-            pendingCourseOverrides = PendingCourseOverrides(w.dataCache, w.pushApi, w.appPrefs),
-            pendingHolidayOverrides = PendingHolidayOverrides(w.appPrefs, w.pushApi),
-            reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),
-            termCourseSync = idleTermSync(),
-            appScope = idleScope,
-        )
+        val rig = homeSyncRig(context, w, backend.client, idleScope, ignores)
+        marks = rig.marks
+        adds = rig.adds
+        this.ignores = rig.ignores
+        sync = rig.sync
         signIn()
     }
 
@@ -123,27 +104,6 @@ class HomePullAcrossSignInTest {
     fun tearDown() {
         appScope.cancel()
     }
-
-    /** Asks the school nothing: the run's roster requests never reach it. */
-    private fun idleTermSync() = TermCourseSync(
-        w.dataCache,
-        sources = object : TermCourseSync.Sources {
-            override fun servesSelection(semester: String) = false
-            override suspend fun selection(studentId: String, password: String, fresh: Boolean) = emptyList<String>()
-            override suspend fun moodle() = emptyList<org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse>()
-            override suspend fun lookUp(
-                semester: String,
-                courseNo: String,
-                moodle: org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse?,
-                kept: Course?,
-            ) = kept
-        },
-        uploader = { _, _, _, _, _ -> },
-        waitingAdds = { emptySet() },
-        uploading = { block -> block() },
-        courseLocale = { "zh" },
-        uploadFailed = {},
-    )
 
     /** The student's school sign-in and backend session, as a sign-in leaves them. */
     private fun signIn() = runBlocking {
@@ -153,7 +113,7 @@ class HomePullAcrossSignInTest {
 
     /** The whole sign-out, wipe included, and the same student back. */
     private suspend fun signOutAndBackIn() {
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         withTimeout(10_000) { w.sessions.school.awaitOpen() }
         signIn()
     }
@@ -185,13 +145,13 @@ class HomePullAcrossSignInTest {
         .toString()
 
     /** Runs a full sync with its fetch held until [meanwhile] is done, answered with [body]. */
-    private suspend fun pullAcross(body: String = snapshot(), meanwhile: suspend () -> Unit) {
+    private suspend fun pullAcross(body: String = snapshot(), status: Int = 200, meanwhile: suspend () -> Unit) {
         val fetch = backend.hold(FULL_SYNC)
         val pulling = appScope.async { sync.pull(state, w.sessions.school.signIns.current) }
         withTimeout(10_000) { fetch.arrived.await() }
         meanwhile()
         fetch.body = body
-        fetch.release(200)
+        fetch.release(status)
         withTimeout(10_000) { pulling.await() }
     }
 
@@ -201,10 +161,10 @@ class HomePullAcrossSignInTest {
 
         val prefs = w.appPrefs
         val landed = mapOf(
-            "marks synced once" to prefs.assignmentMarksSyncedOnce,
-            "categories synced" to prefs.syncedCategories,
-            "course reset read" to prefs.lastSeenCoursesResetAt,
-            "watermark" to state.lastKnownRevision,
+            "marks synced once" to prefs.school.assignmentMarksSyncedOnce.get(),
+            "categories synced" to prefs.school.syncedCategories.get(),
+            "course reset read" to org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences("tigerduck_prefs", 0).getString("lastSeenCoursesResetAt", null),
+            "watermark" to state.lastKnownRevision.value,
             "marks shown" to state.ignoredAssignmentIds.value,
             "ignores shown" to state.ignoredCourseKeys.value,
             "colors shown" to state.allCourses.value.mapNotNull { it.customColorHex },
@@ -244,7 +204,7 @@ class HomePullAcrossSignInTest {
             // The new session's first edits, made while the old run's fetch is still out.
             val course = Course(courseNo = COURSE, courseName = "New session's", isManual = true)
             val added = Course(courseNo = ADDED, courseName = "New session's", isManual = true)
-            w.dataCache.saveCourses(listOf(course, added), TERM)
+            w.dataCache.saveCourses(listOf(course, added), TERM, testSignIn())
             val signIn = w.sessions.school.signIns.current
             marks.keep("8", "locally_completed", signIn)
             ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
@@ -258,13 +218,35 @@ class HomePullAcrossSignInTest {
         assertEquals("the old snapshot lists it, and settles nothing", mapOf(TERM to listOf(ADDED)), w.dataCache.loadPendingCourseAdds())
     }
 
+    @Test
+    fun `a 401 past a sign-out signs nobody in and replays nothing`() = runBlocking {
+        pullAcross(body = "{}", status = 401) { signOutAndBackIn() }
+
+        assertEquals("the one fetch, and no replay", 1, backend.received(FULL_SYNC).size)
+        assertEquals(emptyList<String>(), backend.received(LOGIN).map { it.endpoint })
+    }
+
+    /** The next account's status bar and banner: the old run has nothing to say of its backend. */
+    @Test
+    fun `a run past its sign-out leaves the backend's status to the next account`() = runBlocking {
+        pullAcross(body = "{}", status = 500) {
+            signOutAndBackIn()
+            // What the next account's own sync reported.
+            ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
+            w.appPrefs.setLastSyncSource(SyncSource.BACKEND)
+        }
+
+        assertEquals(ServerStatus.OK, ServerStatusTracker.statuses.value[ServerKind.BACKEND])
+        assertEquals(SyncSource.BACKEND, w.appPrefs.lastSyncSource.value)
+    }
+
     /** Read before the fetch: read after, a sign-out meanwhile would pin these marks to the next session. */
     @Test
     fun `a first-sync mark upload is pinned to the sign-in the run began under`() = runBlocking {
         pullAcross(body = """{"assignments":[],"current_revision":42}""") {
             signOutAndBackIn()
             // This phone's marks with an empty server: the old run takes them for a first sync.
-            w.dataCache.saveIgnoredAssignments(setOf("7"))
+            w.dataCache.saveIgnoredAssignments(setOf("7"), testSignIn())
             state.ignoredAssignmentIds.value = setOf("7")
         }
 
@@ -273,6 +255,7 @@ class HomePullAcrossSignInTest {
 
     private companion object {
         const val FULL_SYNC = "GET /sync/full"
+        const val LOGIN = "POST /auth/login"
         const val MARK = "PATCH /sync/assignments/7/override"
         const val STUDENT = "B00015999"
         const val TERM = "1141"

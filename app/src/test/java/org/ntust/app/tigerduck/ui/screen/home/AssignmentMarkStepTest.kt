@@ -4,63 +4,58 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.cache.AssignmentMarks
+import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.push.BackendSyncResult
-import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_IGNORED
-import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
+import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_COMPLETED
+import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_IGNORED
 import org.ntust.app.tigerduck.util.testSignIn
-import java.io.IOException
 
 /**
- * Home's assignment-mark step ([AssignmentMarkStep]): with the Assignments
- * sync switch off a full sync leaves this phone's done and ignored marks
- * alone, as on iOS (tigerduck-app-android#188, #209), and the first-sync
- * upload runs once per account (#155).
+ * Home's assignment-mark step ([AssignmentMarkStep]): with the Assignments sync switch off a full
+ * sync leaves this phone's done and ignored marks alone, as on iOS (tigerduck-app-android#188,
+ * #209), and otherwise the snapshot's marks are taken field by field (LWW D12), but each this
+ * phone holds: a tap whose PATCH is under way or waits to go up.
  */
 class AssignmentMarkStepTest {
 
     private var switchOn = true
     private var pending = emptySet<String>()
-    private var syncedBefore = false
     private var ignored = emptySet<String>()
     private var completed = emptySet<String>()
     private var writes = 0
-    private val sent = mutableListOf<Pair<Int, String>>()
-    private var send: suspend (Int, String) -> Unit = { id, status -> sent += id to status }
-
-    /** The sign-in each PATCH was pinned to. */
-    private val signIns = mutableListOf<SignIn>()
     private val pinned = testSignIn()
 
-    /** Runs as the step reads this phone's completed marks, for a switch flipped mid-sync. */
+    /** Runs as the step reads the re-enable hold, for a switch flipped mid-sync. */
     private var onRead: () -> Unit = {}
 
-    /** Marks tapped here whose PATCH has not landed; see UnsentMarks. */
-    private var unsent = emptySet<String>()
+    /** Marks tapped here whose PATCH has not landed, by assignment id, with the status the tap set; see UnsentMarks. */
+    private var unsent = emptyMap<String, String>()
 
-    private val step = AssignmentMarkStep(
+    // The store's one step: the marks as stored and those waiting, read and written under one lock;
+    // nothing once the sign-in has ended, as DataCache.updateAssignmentMarks.
+    private fun markStore(beforeRead: () -> Unit = {}, afterWrite: () -> Unit = {}) = AssignmentMarkStep.MarkStore { signIn, change ->
+        if (!signIn.isCurrent) return@MarkStore null
+        beforeRead()
+        val waiting = unsent.map { (id, status) -> UnsentMark(id, status) }
+        change(AssignmentMarks(ignored, completed), waiting).also {
+            writes++
+            ignored = it.ignored
+            completed = it.completed
+            afterWrite()
+        }
+    }
+
+    private fun step(store: AssignmentMarkStep.MarkStore = markStore()) = AssignmentMarkStep(
         switchOn = { switchOn },
-        pendingConflicts = { pending },
-        syncedBefore = { syncedBefore },
-        store = object : AssignmentMarkStep.MarkStore {
-            override suspend fun ignored() = ignored
-            override suspend fun completed() = completed.also { onRead() }
-            override suspend fun replace(ignored: Set<String>, completed: Set<String>) {
-                writes++
-                this@AssignmentMarkStepTest.ignored = ignored
-                this@AssignmentMarkStepTest.completed = completed
-            }
-        },
-        send = { id, status, signIn ->
-            signIns += signIn
-            send(id, status)
-        },
-        unsent = { unsent },
-        keepUnsent = { id, _, _ -> unsent = unsent + id },
+        pendingConflicts = { pending.also { onRead() } },
+        store = store,
     )
 
     private val state = HomeSyncState(
@@ -72,6 +67,9 @@ class AssignmentMarkStepTest {
         conflicts = MutableStateFlow(emptyList()),
         pendingOverrides = mutableSetOf(),
     )
+
+    /** A pull that holds nothing but what waits. */
+    private val holds = PullHolds(1L, AckClock())
 
     private fun server(ignored: Set<String> = emptySet(), completed: Set<String> = emptySet()) = BackendSyncResult(
         ignoredIds = ignored,
@@ -85,7 +83,7 @@ class AssignmentMarkStepTest {
     fun `with the switch off the server's marks are not taken`() = runTest {
         switchOn = false
 
-        val synced = step.pull(state, server(ignored = setOf("1")), syncsMarks = false, signIn = pinned)
+        val synced = step().pull(state, server(ignored = setOf("1")), syncsMarks = false, signIn = pinned, holds = holds)
 
         assertFalse(synced)
         assertEquals(0, writes)
@@ -93,20 +91,10 @@ class AssignmentMarkStepTest {
     }
 
     @Test
-    fun `with the switch off this phone's marks are not sent up as a first sync`() = runTest {
-        switchOn = false
-        completed = setOf("2")
-
-        step.pull(state, server(), syncsMarks = false, signIn = pinned)
-
-        assertEquals(emptyList<Pair<Int, String>>(), sent)
-    }
-
-    @Test
     fun `a switch turned off while the sync ran leaves the marks alone`() = runTest {
         onRead = { switchOn = false }
 
-        val synced = step.pull(state, server(ignored = setOf("1")), syncsMarks = true, signIn = pinned)
+        val synced = step().pull(state, server(ignored = setOf("1")), syncsMarks = true, signIn = pinned, holds = holds)
 
         assertFalse(synced)
         assertEquals(0, writes)
@@ -116,86 +104,28 @@ class AssignmentMarkStepTest {
     fun `the assignments re-enable check holds the marks`() = runTest {
         pending = setOf("assignments")
 
-        assertFalse(step.pull(state, server(ignored = setOf("1")), syncsMarks = true, signIn = pinned))
+        assertFalse(step().pull(state, server(ignored = setOf("1")), syncsMarks = true, signIn = pinned, holds = holds))
         assertEquals(0, writes)
     }
 
     @Test
-    fun `the first-sync upload goes up while the re-enable check waits for an answer`() = runTest {
-        // Decided for both apps (tigerduck-app-android#188): the one-time
-        // upload does not wait for the check, as on iOS.
-        pending = setOf("assignments")
-        ignored = setOf("1")
-
-        val synced = step.pull(state, server(), syncsMarks = true, signIn = pinned)
-
-        assertTrue(synced)
-        assertEquals(listOf(1 to STATUS_IGNORED), sent)
-    }
-
-    @Test
-    fun `with the switch off the first-sync upload does not go up while the check waits either`() = runTest {
-        switchOn = false
-        pending = setOf("assignments")
-        ignored = setOf("1")
-
-        assertFalse(step.pull(state, server(), syncsMarks = false, signIn = pinned))
-        assertEquals(emptyList<Pair<Int, String>>(), sent)
-    }
-
-    @Test
-    fun `the account's first sync here sends this phone's marks up instead of taking the empty server`() = runTest {
-        ignored = setOf("1")
-
-        val synced = step.pull(state, server(), syncsMarks = true, signIn = pinned)
-
-        assertTrue(synced)
-        assertEquals(listOf(1 to STATUS_IGNORED), sent)
-        assertEquals(setOf("1"), ignored)
-    }
-
-    @Test
-    fun `a first sync with a mark that did not land is not counted`() = runTest {
-        ignored = setOf("1")
-        send = { _, _ -> throw IOException("offline") }
-
-        assertFalse(step.pull(state, server(), syncsMarks = true, signIn = pinned))
-    }
-
-    @Test
     fun `after the first sync an empty server clears a stale copy instead of taking it back up`() = runTest {
-        syncedBefore = true
         ignored = setOf("1")
 
-        val synced = step.pull(state, server(), syncsMarks = true, signIn = pinned)
+        val synced = step().pull(state, server(), syncsMarks = true, signIn = pinned, holds = holds)
 
         assertTrue(synced)
-        assertEquals(emptyList<Pair<Int, String>>(), sent)
         assertEquals(emptySet<String>(), ignored)
         assertEquals(emptySet<String>(), state.ignoredAssignmentIds.value)
-    }
-
-    @Test
-    fun `a real disagreement is kept at this phone's value and asked about`() = runTest {
-        syncedBefore = true
-        completed = setOf("1")
-        val snapshot = server(ignored = setOf("1"))
-
-        step.pull(state, snapshot, syncsMarks = true, signIn = pinned)
-
-        assertEquals(setOf("1"), completed)
-        assertEquals(listOf("1"), state.conflicts.value.map { it.id })
-        assertNotNull(state.pendingResult)
     }
 
     /** What Home shows belongs to the session on screen: the old run's marks and questions are not its own. */
     @Test
     fun `a run whose sign-in has ended shows nothing of its snapshot and asks nothing`() = runTest {
-        syncedBefore = true
         completed = setOf("1")
         state.markedCompletedIds.value = setOf("1")
 
-        step.pull(state, server(ignored = setOf("1", "2")), syncsMarks = true, signIn = SignInSeries().end())
+        step().pull(state, server(ignored = setOf("1", "2")), syncsMarks = true, signIn = SignInSeries().end(), holds = holds)
 
         assertEquals(emptySet<String>(), state.ignoredAssignmentIds.value)
         assertEquals(setOf("1"), state.markedCompletedIds.value)
@@ -204,108 +134,90 @@ class AssignmentMarkStepTest {
     }
 
     @Test
-    fun `keeping the server's marks after the switch went off writes nothing`() = runTest {
-        switchOn = false
-        completed = setOf("1")
-
-        step.keepServer(state, server(ignored = setOf("1")), pinned)
-
-        assertEquals(0, writes)
-        assertEquals(setOf("1"), completed)
-    }
-
-    @Test
-    fun `keeping the server's marks takes them`() = runTest {
-        completed = setOf("1")
-
-        step.keepServer(state, server(ignored = setOf("1")), pinned)
-
-        assertEquals(setOf("1"), ignored)
-        assertEquals(emptySet<String>(), completed)
-    }
-
-    @Test
     fun `a tap whose PATCH failed survives a sync of a server without it`() = runTest {
         // Marked done offline after the account's first sync: the server has
         // no marks, and the next sync must not take that as the truth.
-        syncedBefore = true
         completed = setOf("3")
         state.markedCompletedIds.value = setOf("3")
-        unsent = setOf("3")
+        unsent = mapOf("3" to STATUS_COMPLETED)
 
-        step.pull(state, server(), syncsMarks = true, signIn = pinned)
+        step().pull(state, server(), syncsMarks = true, signIn = pinned, holds = holds)
 
         assertEquals(setOf("3"), completed)
         assertEquals(setOf("3"), state.markedCompletedIds.value)
     }
 
-    @Test
-    fun `keeping the server's marks keeps a tap that has not reached it`() = runTest {
-        ignored = setOf("1")
-        state.ignoredAssignmentIds.value = setOf("1")
-        unsent = setOf("1")
-
-        step.keepServer(state, server(completed = setOf("2")), pinned)
-
-        assertEquals(setOf("1"), ignored)
-        assertEquals(setOf("2"), completed)
+    /** Home's tap of [id] as [status]: on screen and in flight at once, then its own save. */
+    private fun tap(id: String, status: String) {
+        state.pendingOverrides += id
+        state.ignoredAssignmentIds.value = if (status == STATUS_IGNORED) state.ignoredAssignmentIds.value + id else state.ignoredAssignmentIds.value - id
+        ignored = if (status == STATUS_IGNORED) ignored + id else ignored - id
     }
 
-    @Test
-    fun `the first-sync upload is pinned to the sign-in the sync began under`() = runTest {
-        // A sign-out and another sign-in during the upload must not send the
-        // rest of these marks with the next account's session.
-        ignored = setOf("1")
-        completed = setOf("2")
-
-        step.pull(state, server(), syncsMarks = true, signIn = pinned)
-
-        assertEquals(listOf(pinned, pinned), signIns)
-    }
-
-    @Test
-    fun `a first-sync mark that did not land outlives the next sync`() = runTest {
-        ignored = setOf("1", "2")
-        state.ignoredAssignmentIds.value = setOf("1", "2")
-        send = { id, status ->
-            if (id == 2) throw IOException("offline")
-            sent += id to status
+    /**
+     * The mark step over a store where [tap] lands as the pull goes to write its marks: before
+     * the write's own read under the lock, or with [afterWrite] just after the write. Fires once.
+     */
+    private fun racingStep(afterWrite: Boolean = false, tap: () -> Unit): AssignmentMarkStep {
+        var tapped = false
+        val once = {
+            if (!tapped) {
+                tapped = true
+                tap()
+            }
         }
-
-        assertFalse(step.pull(state, server(), syncsMarks = true, signIn = pinned))
-        // The server now has 1, so the next sync is no first sync.
-        step.pull(state, server(ignored = setOf("1")), syncsMarks = true, signIn = pinned)
-
-        assertEquals(setOf("1", "2"), ignored)
+        return step(markStore(beforeRead = { if (!afterWrite) once() }, afterWrite = { if (afterWrite) once() }))
     }
 
+    /**
+     * A tap whose own save lands as the pull goes to write its marks: the pull writes each mark it
+     * changes onto the marks as they stand, and not the tapped one, whose PATCH is under way, so
+     * the tap stays on disk and on screen, beside the pull's mark.
+     */
     @Test
-    fun `a mark cleared while its first-sync PATCH was out is not kept to go up again`() = runTest {
-        ignored = setOf("1")
-        state.ignoredAssignmentIds.value = setOf("1")
-        send = { _, _ ->
-            // The user clears it on Home meanwhile; that tap goes up itself.
-            state.ignoredAssignmentIds.value = emptySet()
-            throw IOException("offline")
-        }
+    fun `a mark tapped while the pull writes the marks stays, on screen and in the store`() = runTest {
+        ignored = setOf("7")
+        state.ignoredAssignmentIds.value = setOf("7")
 
-        step.pull(state, server(), syncsMarks = true, signIn = pinned)
+        racingStep { tap("8", STATUS_IGNORED) }.pull(state, server(ignored = setOf("7", "9")), syncsMarks = true, signIn = pinned, holds = holds)
 
-        assertEquals("nothing kept to undo the clear", emptySet<String>(), unsent)
+        assertEquals("in the store", setOf("7", "8", "9"), ignored)
+        assertEquals("on screen", setOf("7", "8", "9"), state.ignoredAssignmentIds.value)
     }
 
+    /**
+     * A tap made as the pull's write lands, its own save after it: Home shows the marks as written,
+     * but the tapped one, in flight, as Home holds it.
+     */
     @Test
-    fun `a mark whose own tap is still going up is left to that tap`() = runTest {
-        ignored = setOf("1")
-        state.ignoredAssignmentIds.value = setOf("1")
-        state.pendingOverrides += "1"
-        send = { _, _ -> throw IOException("offline") }
+    fun `a mark tapped as the pull's write lands stays on screen`() = runTest {
+        ignored = setOf("7")
+        state.ignoredAssignmentIds.value = setOf("7")
 
-        step.pull(state, server(), syncsMarks = true, signIn = pinned)
+        racingStep(afterWrite = true) { tap("8", STATUS_IGNORED) }
+            .pull(state, server(ignored = setOf("7", "9")), syncsMarks = true, signIn = pinned, holds = holds)
 
-        assertEquals(emptySet<String>(), unsent)
+        assertEquals("in the store, its own save after the pull's", setOf("7", "8", "9"), ignored)
+        assertEquals("on screen", setOf("7", "8", "9"), state.ignoredAssignmentIds.value)
     }
 
-    private companion object {
+    /**
+     * The snapshot's marks are taken (LWW D12), a mark the two sides disagree on included, with no
+     * conflict to offer, and a mark tapped as the pull writes stays.
+     */
+    @Test
+    fun `on v4 a mark tapped during the pull stays, the rest are the snapshot's, and no conflict is offered`() = runTest {
+        ignored = setOf("7")
+        state.ignoredAssignmentIds.value = setOf("7")
+
+        val synced = racingStep { tap("8", STATUS_IGNORED) }
+            .pull(state, server(ignored = setOf("9"), completed = setOf("7")), syncsMarks = true, signIn = pinned, holds = holds)
+
+        assertTrue(synced)
+        assertEquals(setOf("8", "9"), ignored)
+        assertEquals(setOf("7"), completed)
+        assertEquals(setOf("8", "9"), state.ignoredAssignmentIds.value)
+        assertEquals(setOf("7"), state.markedCompletedIds.value)
+        assertEquals(emptyList<AssignmentSyncConflict>(), state.conflicts.value)
     }
 }

@@ -9,14 +9,16 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.shared.Course
@@ -54,10 +56,16 @@ interface FinderEnvironment {
     /** The account signed in now, which a course read is checked against before it is shown. */
     fun account(): String?
 
+    /** The sign-in a read starts under, which it holds until it is done. */
+    fun signIn(): SignIn
+
     /** Null while no one is signed in. */
     fun credentials(): ClassroomUsageService.Credentials?
 
     val signedIn: StateFlow<Boolean>
+
+    /** Whether the account is signed in as it is now, then every change: a sign-out and a sign-in together are two. */
+    val accountChanges: Flow<Boolean>
 
     /** Whether the account [credentials] were read for is still the one signed in. */
     fun isCurrent(credentials: ClassroomUsageService.Credentials): Boolean
@@ -88,12 +96,12 @@ class AppFinderEnvironment @Inject constructor(
     private val courseService: CourseService,
     private val prefs: AppPreferences,
     private val networkChecker: NetworkChecker,
-    private val demoAccount: DemoAccount,
     private val courseChangeStore: CourseChangeStore,
+    private val sessions: AccountSessions,
 ) : FinderEnvironment {
     override fun now(): LocalDateTime = AppClock.localDateTime(AppConstants.TAIPEI_ZONE)
 
-    override fun calendar(): AcademicCalendar = finderCalendar(demoAccount.isActive, academicCalendar::current)
+    override fun calendar(): AcademicCalendar = finderCalendar(sessions.school.isDemo, academicCalendar::current)
 
     override val calendarChanged: Flow<Unit> get() = academicCalendar.changes
 
@@ -112,18 +120,23 @@ class AppFinderEnvironment @Inject constructor(
         if (studentId != null && password != null) return ClassroomUsageService.Credentials(studentId, password)
         // The demo account reads its rooms from the device, and a clean install photographed
         // in it may hold no credentials at all.
-        return if (demoAccount.isActive) ClassroomUsageService.Credentials(studentId.orEmpty(), "") else null
+        return if (sessions.school.isDemo) ClassroomUsageService.Credentials(studentId.orEmpty(), "") else null
     }
 
     override val signedIn: StateFlow<Boolean> get() = authService.authState
+
+    override val accountChanges: Flow<Boolean> get() = sessions.school.changes
+
+    @OptIn(StartsAccountWork::class)
+    override fun signIn(): SignIn = sessions.school.current
 
     override fun isCurrent(credentials: ClassroomUsageService.Credentials): Boolean =
         authService.authState.value && authService.storedStudentId.orEmpty() == credentials.studentId
 
     override var pickedBuilding: String?
-        get() = prefs.emptyClassroomBuilding
+        get() = prefs.school.emptyClassroomBuilding.get()
         set(value) {
-            prefs.emptyClassroomBuilding = value
+            prefs.school.emptyClassroomBuilding.set(value, signIn())
         }
 
     override fun courseChanges(): CourseChanges = courseChangeStore.current()

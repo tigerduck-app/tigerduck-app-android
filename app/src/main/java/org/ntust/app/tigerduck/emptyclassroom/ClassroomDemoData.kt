@@ -6,9 +6,9 @@ import androidx.core.os.ConfigurationCompat
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.demo.DemoFixture
 import org.ntust.app.tigerduck.util.logSummary
 import java.time.LocalDate
@@ -22,7 +22,7 @@ import javax.inject.Singleton
 @Singleton
 class ClassroomDemoData @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val demoAccount: DemoAccount,
+    private val session: AccountSession,
     private val appPreferences: AppPreferences,
 ) {
     @Volatile
@@ -30,7 +30,7 @@ class ClassroomDemoData @Inject constructor(
 
     /** The rooms for [day] while the demo account is signed in, else null. */
     fun usage(day: LocalDate): CampusUsage? {
-        if (!demoAccount.isActive) return null
+        if (!session.isDemo) return null
         val lang = currentLang()
         val classrooms = loaded?.takeIf { it.first == lang }?.second ?: load(lang).also { loaded = lang to it }
         return classrooms?.usage(day)

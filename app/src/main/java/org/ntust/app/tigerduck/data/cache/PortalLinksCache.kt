@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.model.PortalLink
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
 import java.io.IOException
@@ -84,11 +85,11 @@ class PortalLinksCache @Inject constructor(@ApplicationContext context: Context)
         }
     }
 
-    suspend fun save(snapshot: PortalLinksSnapshot, lang: String) {
+    suspend fun save(snapshot: PortalLinksSnapshot, lang: String, signIn: SignIn) {
         clearing?.await()
         mutex.withLock {
             withContext(Dispatchers.IO) {
-                writeAtomically(fileFor(lang), gson.toJson(snapshot))
+                signIn.ifCurrent { writeAtomically(fileFor(lang), gson.toJson(snapshot)) }
             }
         }
     }

@@ -3,8 +3,14 @@
 package org.ntust.app.tigerduck.ui.screen.score
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -13,9 +19,16 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSession
 
 /**
  * Score follows the signed-in account: it loads after a sign-in from its own page, and the
@@ -25,6 +38,7 @@ import org.ntust.app.tigerduck.mail.MainDispatcherRule
 class ScoreViewModelAccountTest {
     @get:Rule val main = MainDispatcherRule()
 
+    private val session = testSession()
     private val signedIn = MutableStateFlow(false)
     private var studentId: String? = null
     private var online = true
@@ -38,8 +52,9 @@ class ScoreViewModelAccountTest {
         courses = listOf(CourseGrade(term = "1141", code = "CS1001301", name = "Course of $of")),
     )
 
-    private fun viewModel() = ScoreViewModel(
+    private fun viewModel(accountChanges: Flow<Boolean> = signedIn) = ScoreViewModel(
         authState = signedIn,
+        accountChanges = accountChanges,
         storedStudentId = { studentId },
         storedPassword = { studentId?.let { "password" } },
         cachedSnapshot = { null },
@@ -50,10 +65,22 @@ class ScoreViewModelAccountTest {
             report(id)
         },
         isOnline = { online },
-        isDemo = { false },
+        session = session,
         strings = { "string $it" },
         rosterCourses = { emptyList() },
     )
+
+    @Test
+    fun `the demo account has no scores to ask for, and shows the empty state rather than a failure`() {
+        session.signIns.startDemo()
+        signIn("B00015999")
+        val vm = viewModel()
+
+        vm.load()
+
+        assertEquals(emptyList<String>(), fetches.toList())
+        assertEquals(null, vm.errorMessage.value)
+    }
 
     private fun signIn(id: String) {
         studentId = id
@@ -89,6 +116,27 @@ class ScoreViewModelAccountTest {
 
         signIn("B11300002")
         assertEquals("B11300002", vm.report.value.student)
+    }
+
+    @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() {
+        val session = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob()))
+        val state = SignedInState(true).also { session.signedInFrom(it.signedIn) }
+        val late = StandardTestDispatcher()
+        Dispatchers.setMain(late)
+        signIn("B11300001")
+        val vm = viewModel(session.changes)
+        late.scheduler.advanceUntilIdle()
+        assertEquals("B11300001", vm.report.value.student)
+        val first = fetches.size
+
+        // The same student out and back in: their stored copy went with the sign-out.
+        state.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, session.signIns.current, null)) }
+        state.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
+        late.scheduler.advanceUntilIdle()
+
+        assertEquals("loaded again for the new sign-in", first + 1, fetches.size)
+        assertEquals("B11300001", vm.report.value.student)
     }
 
     @Test

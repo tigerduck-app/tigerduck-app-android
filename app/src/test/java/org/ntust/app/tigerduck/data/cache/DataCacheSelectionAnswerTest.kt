@@ -13,7 +13,9 @@ import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
@@ -37,7 +39,7 @@ class DataCacheSelectionAnswerTest {
     @Test
     fun `a course selection answer is kept with when it arrived`() = runTest {
         val before = System.currentTimeMillis()
-        cache.recordSelectionRoster(TERM, listOf(CS1, CS2))
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), testSignIn())
         val after = System.currentTimeMillis()
 
         val answer = cache.selectionAnswerIn(TERM)!!
@@ -48,10 +50,10 @@ class DataCacheSelectionAnswerTest {
 
     @Test
     fun `an empty answer keeps the term's answer and its time`() = runTest {
-        cache.recordSelectionRoster(TERM, listOf(CS1))
+        cache.recordSelectionRoster(TERM, listOf(CS1), testSignIn())
         val kept = cache.selectionAnswerIn(TERM)
 
-        cache.recordSelectionRoster(TERM, emptyList())
+        cache.recordSelectionRoster(TERM, emptyList(), testSignIn())
 
         assertEquals(kept, cache.selectionAnswerIn(TERM))
     }
@@ -70,7 +72,7 @@ class DataCacheSelectionAnswerTest {
         assertEquals(setOf(CS1), answer.courseNos)
         assertNull(answer.atMs)
         assertFalse(answer.listsSince(CS1, droppedAtMs = 0L))
-        cache.recordServerDrops(TERM, mapOf(CS1 to 0L))
+        cache.recordServerDrops(TERM, mapOf(CS1 to 0L), testSignIn())
         assertEquals(setOf(CS1), cache.serverDroppedIn(TERM))
     }
 
@@ -104,38 +106,38 @@ class DataCacheSelectionAnswerTest {
 
     @Test
     fun `a sync's server drops are kept but those a newer answer lists, and an answer since takes its courses off`() = runTest {
-        cache.recordSelectionRoster(TERM, listOf(CS1, CS3))
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS3), testSignIn())
         val answeredAt = cache.selectionAnswerIn(TERM)!!.atMs!!
         val hour = 3_600_000L
 
-        cache.recordServerDrops(TERM, mapOf(CS1 to answeredAt - hour, CS2 to answeredAt - hour, CS3 to answeredAt + hour))
-        cache.recordServerDrops(OTHER_TERM, mapOf(CS4 to null))
+        cache.recordServerDrops(TERM, mapOf(CS1 to answeredAt - hour, CS2 to answeredAt - hour, CS3 to answeredAt + hour), testSignIn())
+        cache.recordServerDrops(OTHER_TERM, mapOf(CS4 to null), testSignIn())
 
         assertEquals(setOf(CS2, CS3), cache.serverDroppedIn(TERM))
         assertEquals(setOf(CS4), cache.serverDroppedIn(OTHER_TERM))
 
-        cache.recordSelectionRoster(TERM, listOf(CS2))
+        cache.recordSelectionRoster(TERM, listOf(CS2), testSignIn())
         assertEquals(setOf(CS3), cache.serverDroppedIn(TERM))
 
         // A sync whose snapshot drops none of the term's courses clears it.
-        cache.recordServerDrops(TERM, emptyMap())
+        cache.recordServerDrops(TERM, emptyMap(), testSignIn())
         assertEquals(emptySet<String>(), cache.serverDroppedIn(TERM))
         assertEquals(setOf(CS4), cache.serverDroppedIn(OTHER_TERM))
     }
 
     @Test
     fun `what a fetch leaves out is the drop list and the server drops together`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
-        cache.recordSelectionRoster(TERM, listOf(CS2))
-        cache.recordServerDrops(TERM, mapOf(CS3 to null))
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
+        cache.recordSelectionRoster(TERM, listOf(CS2), testSignIn())
+        cache.recordServerDrops(TERM, mapOf(CS3 to null), testSignIn())
 
         assertEquals(setOf(CS1, CS3), cache.fetchDropsIn(TERM))
     }
 
     @Test
     fun `a sign-out takes the answer times and the server drops with the account`() = runTest {
-        cache.recordSelectionRoster(TERM, listOf(CS1))
-        cache.recordServerDrops(TERM, mapOf(CS2 to null))
+        cache.recordSelectionRoster(TERM, listOf(CS1), testSignIn())
+        cache.recordServerDrops(TERM, mapOf(CS2 to null), testSignIn())
 
         cache.clearAllUserData()
 
@@ -146,12 +148,14 @@ class DataCacheSelectionAnswerTest {
     }
 
     @Test
-    fun `nothing is kept once the data was wiped since the work began`() = runTest {
-        val generation = cache.userDataGeneration
+    fun `nothing is kept once the sign-in the work began under has ended`() = runTest {
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
         cache.clearAllUserData()
 
-        assertEquals(RecordedSelection.Refused, cache.recordSelectionRoster(TERM, listOf(CS1), generation))
-        cache.recordServerDrops(TERM, mapOf(CS2 to null), generation)
+        assertEquals(RecordedSelection.Refused, cache.recordSelectionRoster(TERM, listOf(CS1), signIn))
+        cache.recordServerDrops(TERM, mapOf(CS2 to null), signIn)
 
         assertNull(cache.selectionAnswerIn(TERM))
         assertEquals(emptySet<String>(), cache.serverDroppedIn(TERM))

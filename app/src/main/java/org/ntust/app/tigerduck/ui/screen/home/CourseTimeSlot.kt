@@ -137,15 +137,15 @@ val CourseTimeSlot.classroom: String
         return if (seen.isEmpty()) course.classroom(weekday) else seen.joinToString(", ")
     }
 
-sealed class CourseState {
+sealed class CourseState<out T> {
     /**
-     * One or more slots whose [start, end] currently contains the selected
+     * One or more items whose [start, end] currently contains the selected
      * time. 衝堂 (overlapping concurrent classes) produces a list with >1
      * entry; each must remain individually selectable so callers can open
      * the right slot's per-period room and assignments.
      */
-    data class InClass(val slots: List<CourseTimeSlot>) : CourseState()
-    data class Between(val previous: CourseTimeSlot?, val next: CourseTimeSlot?) : CourseState()
-    data class BeforeFirst(val next: CourseTimeSlot) : CourseState()
-    data class AfterLast(val previous: CourseTimeSlot) : CourseState()
+    data class InClass<out T>(val slots: List<T>) : CourseState<T>()
+    data class Between<out T>(val previous: T?, val next: T?) : CourseState<T>()
+    data class BeforeFirst<out T>(val next: T) : CourseState<T>()
+    data class AfterLast<out T>(val previous: T) : CourseState<T>()
 }

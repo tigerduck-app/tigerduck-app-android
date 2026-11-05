@@ -8,11 +8,12 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.demo.DemoAccount
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,10 +35,10 @@ class MoodleAutologin internal constructor(
     /** Real time, not the debug clock: Moodle counts [KEY_INTERVAL_MS] in real time. */
     private val now: () -> Long = System::currentTimeMillis,
     /**
-     * Moves on at every sign-out, read as it is now: the sign-out moves it where it runs, so a key
-     * that arrives after one is dropped, as iOS reads its session's generation.
+     * The sign-in as it is now, which ends at every sign-out: a key that arrives after one is
+     * dropped, as iOS reads its session's generation.
      */
-    private val signInGeneration: () -> Int,
+    private val currentSignIn: () -> SignIn,
     /** Whether a private token is stored, which a sign-out clears where it runs. */
     private val hasPrivateToken: () -> Boolean,
     /** Whether a private token can be fetched: a Moodle token is stored to fetch one for. */
@@ -48,22 +49,22 @@ class MoodleAutologin internal constructor(
      */
     private val fetchPrivateToken: suspend () -> Boolean,
 ) {
+    @OptIn(StartsAccountWork::class)
     @Inject
     constructor(
         webservice: MoodleWebservice,
         tokenService: MoodleTokenService,
-        authTokenManager: AuthTokenManager,
-        demoAccount: DemoAccount,
+        session: AccountSession,
         @ApplicationScope appScope: CoroutineScope,
     ) : this(
         // The demo account has no network and no private token.
         keySource = {
-            if (demoAccount.isActive) null else requestKey(webservice, tokenService::currentPrivateToken)
+            if (session.isDemo) null else requestKey(webservice, tokenService::currentPrivateToken)
         },
         scope = appScope,
-        signInGeneration = { authTokenManager.signInGeneration },
+        currentSignIn = { session.current },
         hasPrivateToken = { tokenService.currentPrivateToken() != null },
-        canFetchPrivateToken = { !demoAccount.isActive && tokenService.currentToken() != null },
+        canFetchPrivateToken = { !session.isDemo && tokenService.currentToken() != null },
         fetchPrivateToken = tokenService::fetchPrivateToken,
     )
 
@@ -75,10 +76,10 @@ class MoodleAutologin internal constructor(
     private var privateTokenFetch: Deferred<Boolean>? = null
 
     /** The sign-in [privateTokenFetch] was started for; opens after a sign-out don't share it. */
-    private var privateTokenFetchFor: Int? = null
+    private var privateTokenFetchFor: SignIn? = null
 
     /** The sign-in a fetch got no private token for, which no open fetches for again. */
-    private var noPrivateTokenFor: Int? = null
+    private var noPrivateTokenFor: SignIn? = null
 
     /** [url] behind a one-time sign-in where [signedIn] gives one, else [url]. */
     suspend fun url(url: String): String = signedIn(url) ?: url
@@ -98,28 +99,28 @@ class MoodleAutologin internal constructor(
      */
     suspend fun signedIn(url: String, waiting: (Boolean) -> Unit = {}): String? {
         if (!isSignInTarget(url)) return null
-        val generation = signInGeneration()
-        if (hasPrivateToken()) return keyedUrl(url, generation)
-        val fetch = pendingPrivateTokenFetch(generation) ?: return null
+        val signIn = currentSignIn()
+        if (hasPrivateToken()) return keyedUrl(url, signIn)
+        val fetch = pendingPrivateTokenFetch(signIn) ?: return null
         waiting(true)
         try {
             val fetched = withTimeoutOrNull(PRIVATE_TOKEN_WAIT_MS) { fetch.await() } == true
-            if (!fetched || !isStillSignedIn(generation)) return null
-            return keyedUrl(url, generation)
+            if (!fetched || !isStillSignedIn(signIn)) return null
+            return keyedUrl(url, signIn)
         } finally {
             waiting(false)
         }
     }
 
-    /** [url] behind a key asked for now, for the sign-in [generation] read, as [signedIn] says. */
-    private suspend fun keyedUrl(url: String, generation: Int): String? {
+    /** [url] behind a key asked for now, for [signIn], as [signedIn] says. */
+    private suspend fun keyedUrl(url: String, signIn: SignIn): String? {
         val request = synchronized(lock) {
             if (requesting || !isKeyDue()) return null
             requesting = true
-            startKeyRequest(generation)
+            startKeyRequest(signIn)
         }
         val key = withTimeoutOrNull(KEY_WAIT_MS) { request.await() } ?: return null
-        if (!isStillSignedIn(generation)) return null
+        if (!isStillSignedIn(signIn)) return null
         return signedInUrl(key, url)
     }
 
@@ -128,7 +129,7 @@ class MoodleAutologin internal constructor(
      * stops waiting: Moodle starts [KEY_INTERVAL_MS] at the request, so a key that comes late
      * counts.
      */
-    private fun startKeyRequest(generation: Int): Deferred<Key?> = scope.async {
+    private fun startKeyRequest(signIn: SignIn): Deferred<Key?> = scope.async {
         try {
             val key = try {
                 keySource()
@@ -138,7 +139,7 @@ class MoodleAutologin internal constructor(
                 Log.w(TAG, "autologin key unavailable: ${e.logSummary()}")
                 null
             }
-            if (key == null || key.value.isEmpty() || !isStillSignedIn(generation)) return@async null
+            if (key == null || key.value.isEmpty() || !isStillSignedIn(signIn)) return@async null
             synchronized(lock) { lastKeyAtMs = now() }
             key
         } finally {
@@ -159,19 +160,19 @@ class MoodleAutologin internal constructor(
      * is refused. A pair that came without a private token is not fetched again for the same
      * sign-in, as each fetch posts the password to SSO.
      */
-    private fun pendingPrivateTokenFetch(generation: Int): Deferred<Boolean>? {
+    private fun pendingPrivateTokenFetch(signIn: SignIn): Deferred<Boolean>? {
         if (!canFetchPrivateToken()) return null
         return synchronized(lock) {
-            if (noPrivateTokenFor == generation) return null
-            privateTokenFetch?.takeIf { it.isActive && privateTokenFetchFor == generation }
-                ?: startPrivateTokenFetch(generation).also {
+            if (noPrivateTokenFor === signIn) return null
+            privateTokenFetch?.takeIf { it.isActive && privateTokenFetchFor === signIn }
+                ?: startPrivateTokenFetch(signIn).also {
                     privateTokenFetch = it
-                    privateTokenFetchFor = generation
+                    privateTokenFetchFor = signIn
                 }
         }
     }
 
-    private fun startPrivateTokenFetch(generation: Int): Deferred<Boolean> = scope.async {
+    private fun startPrivateTokenFetch(signIn: SignIn): Deferred<Boolean> = scope.async {
         val fetched = try {
             fetchPrivateToken()
         } catch (e: CancellationException) {
@@ -180,12 +181,12 @@ class MoodleAutologin internal constructor(
             Log.w(TAG, "private token unavailable: ${e.logSummary()}")
             return@async false
         }
-        if (!fetched) synchronized(lock) { noPrivateTokenFor = generation }
+        if (!fetched) synchronized(lock) { noPrivateTokenFor = signIn }
         fetched
     }
 
-    /** No sign-out since [generation] was read: the generation has not moved and the token is still stored. */
-    private fun isStillSignedIn(generation: Int): Boolean = signInGeneration() == generation && hasPrivateToken()
+    /** No sign-out since [signIn] was read: it stands and the token is still stored. */
+    private fun isStillSignedIn(signIn: SignIn): Boolean = signIn.isCurrent && hasPrivateToken()
 
     /** A last key stamped ahead of the clock, left by a clock set back, counts as old. */
     private fun isKeyDue(): Boolean = msUntilKeyDue() == 0L

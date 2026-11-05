@@ -9,12 +9,16 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.network.model.BulletinDetail
 import org.ntust.app.tigerduck.network.model.BulletinListResponse
+import org.ntust.app.tigerduck.network.model.SubscriptionListRequest
+import org.ntust.app.tigerduck.network.model.SubscriptionListRule
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
-import org.ntust.app.tigerduck.network.model.SubscriptionRuleRequest
 import org.ntust.app.tigerduck.network.model.SubscriptionsListResponse
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,11 +59,12 @@ class BulletinApiClient @Inject constructor(
     private val api = BackendServices(BulletinApi::class.java, client)
 
     /**
-     * The Bearer Authorization header, signing in first when there is no
-     * session. Without one it throws [org.ntust.app.tigerduck.auth.NotSignedInException]
-     * and the request is not sent.
+     * The Bearer Authorization header of a request of [signIn]'s, signing in
+     * first when there is no session. Without one, or once [signIn] has ended,
+     * it throws [org.ntust.app.tigerduck.auth.NotSignedInException] and the
+     * request is not sent.
      */
-    private suspend fun authHeader(): String = authTokenManager.requireAuthHeader()
+    private suspend fun authHeader(signIn: SignIn): String = authTokenManager.requireAuthHeader(signIn)
 
     suspend fun fetchTaxonomy(): TaxonomyResponse = getJson { it.taxonomy() }
 
@@ -71,61 +76,44 @@ class BulletinApiClient @Inject constructor(
 
     suspend fun fetchDetail(id: Int): BulletinDetail = getJson { it.bulletin(id) }
 
-    // v3 subscription CRUD — device_id is implicit via Bearer JWT.
+    // Subscriptions — device_id is implicit via Bearer JWT. The list is read with one GET, and
+    // saved whole ([saveSubscriptions]).
 
-    suspend fun fetchSubscriptions(): SubscriptionsListResponse =
-        getJsonAuthed { service, auth -> service.subscriptions(auth) }
+    suspend fun fetchSubscriptions(signIn: SignIn): SubscriptionsListResponse =
+        getJsonAuthed(signIn) { service, auth -> service.subscriptions(auth) }
 
-    suspend fun createSubscription(rule: SubscriptionRule): SubscriptionRule =
+    /**
+     * This device's rules become [rules], in one PUT of the whole list, each rule kept by its
+     * `client_id` (`docs/api-v4.md`, "Subscriptions"). Answers the rules as the backend keeps them,
+     * in the order sent. Nothing is sent for a rule without a `client_id`, which the backend refuses.
+     */
+    suspend fun saveSubscriptions(rules: List<SubscriptionRule>, signIn: SignIn): List<SubscriptionRule> =
         withContext(Dispatchers.IO) {
-            val reqBody = SubscriptionRuleRequest(
-                name = rule.name,
-                orgs = rule.orgs,
-                tags = rule.tags,
-                mode = rule.mode,
-                enabled = rule.enabled,
+            val list = SubscriptionListRequest(
+                rules.map { rule ->
+                    SubscriptionListRule(
+                        clientId = rule.clientId ?: throw BulletinApiException("saveSubscriptions: a rule without a client_id"),
+                        name = rule.name,
+                        orgs = rule.orgs,
+                        tags = rule.tags,
+                        mode = rule.mode,
+                        enabled = rule.enabled,
+                    )
+                },
             )
-            val service = api.at(baseUrl)
-            service.newSubscription(authHeader(), reqBody).execute().use { response ->
+            api.at(baseUrl).subscriptionList(authHeader(signIn), list).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
-                    throw BulletinApiException("createSubscription failed: HTTP ${response.code} $text")
+                    throw BackendException(
+                        BackendError(response.code, BackendError.codeIn(text)),
+                        "saveSubscriptions failed: HTTP ${response.code} $text",
+                    )
                 }
-                if (text.isBlank()) throw BulletinApiException("createSubscription: empty body")
-                gson.fromJson(text, SubscriptionRule::class.java)
-                    ?: throw BulletinApiException("createSubscription: null response")
+                if (text.isBlank()) throw BulletinApiException("saveSubscriptions: empty body")
+                gson.fromJson(text, SubscriptionsListResponse::class.java)?.items
+                    ?: throw BulletinApiException("saveSubscriptions: null response")
             }
         }
-
-    suspend fun updateSubscription(id: Int, rule: SubscriptionRule): SubscriptionRule =
-        withContext(Dispatchers.IO) {
-            val reqBody = SubscriptionRuleRequest(
-                name = rule.name,
-                orgs = rule.orgs,
-                tags = rule.tags,
-                mode = rule.mode,
-                enabled = rule.enabled,
-            )
-            val service = api.at(baseUrl)
-            service.subscription(authHeader(), id, reqBody).execute().use { response ->
-                val text = response.body.string()
-                if (!response.isSuccessful) {
-                    throw BulletinApiException("updateSubscription failed: HTTP ${response.code} $text")
-                }
-                if (text.isBlank()) throw BulletinApiException("updateSubscription: empty body")
-                gson.fromJson(text, SubscriptionRule::class.java)
-                    ?: throw BulletinApiException("updateSubscription: null response")
-            }
-        }
-
-    suspend fun deleteSubscription(id: Int) = withContext(Dispatchers.IO) {
-        val service = api.at(baseUrl)
-        service.removeSubscription(authHeader(), id, EmptyBody).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw BulletinApiException("deleteSubscription failed: HTTP ${response.code}")
-            }
-        }
-    }
 
     /**
      * Concrete (non-generic) [T] only. `T::class.java` erases type parameters,
@@ -136,10 +124,10 @@ class BulletinApiClient @Inject constructor(
     private suspend inline fun <reified T> getJson(crossinline call: (BulletinApi) -> Call): T =
         withContext(Dispatchers.IO) { parsed(call(api.at(baseUrl))) }
 
-    private suspend inline fun <reified T> getJsonAuthed(crossinline call: (BulletinApi, String) -> Call): T =
+    private suspend inline fun <reified T> getJsonAuthed(signIn: SignIn, crossinline call: (BulletinApi, String) -> Call): T =
         withContext(Dispatchers.IO) {
             val service = api.at(baseUrl)
-            parsed(call(service, authHeader()))
+            parsed(call(service, authHeader(signIn)))
         }
 
     private inline fun <reified T> parsed(call: Call): T {

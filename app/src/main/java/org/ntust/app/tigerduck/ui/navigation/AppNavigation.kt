@@ -53,7 +53,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -192,12 +191,15 @@ fun AppNavigation(
     if (appState.showOnboarding) {
         OnboardingScreen()
     } else {
-        MainNavigation(
-            appState = appState,
-            analyticsLogger = analyticsLogger,
-            widgetStartRoute = widgetStartRoute,
-            onStartRouteConsumed = onStartRouteConsumed,
-        )
+        PageSettingsHost { navController ->
+            MainNavigation(
+                navController = navController,
+                appState = appState,
+                analyticsLogger = analyticsLogger,
+                widgetStartRoute = widgetStartRoute,
+                onStartRouteConsumed = onStartRouteConsumed,
+            )
+        }
         PermissionWarningDialogHost(appState.systemPermissions)
         NtustSignInSheetHost()
     }
@@ -241,12 +243,12 @@ internal fun NavHostController.navigateToStartRoute(route: String): Boolean =
 
 @Composable
 fun MainNavigation(
+    navController: NavHostController,
     appState: AppState,
     analyticsLogger: AnalyticsLogger,
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
-    val navController = rememberNavController()
     FlipToLibraryEffect(
         navController = navController,
         appState = appState,
@@ -602,9 +604,6 @@ fun MainNavigation(
                 AnnouncementsScreen(
                     onOpenBulletin = { id ->
                         navController.navigate(Screen.AnnouncementDetail.route(id))
-                    },
-                    onOpenSubscriptions = {
-                        navController.navigate(Screen.AnnouncementSubscriptions.route)
                     },
                     signedIn = signedIn,
                 )

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -10,6 +11,7 @@ import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
+import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -17,6 +19,8 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SchoolUploads
+import org.ntust.app.tigerduck.sync.TermResets
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
@@ -43,7 +47,9 @@ class PushCourseSyncBackendTest {
         val tokenManager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
         val api = PushApiClient(backend.client, prefs, tokenManager)
         val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
-        courses = PushCourseSyncBackend(api, prefs, PendingCourseOverrides(cache, api, prefs), testSignIn())
+        val overrides = PendingCourseOverrides(cache, api, prefs)
+        val resets = TermResets(PendingCourseAdds(cache, api), SchoolUploads.atOnce(cache))
+        courses = PushCourseSyncBackend(api, prefs, overrides, testSignIn(), runBlocking { overrides.reserveVersion() }, cache, resets)
     }
 
     private suspend fun fails(request: suspend () -> Unit): Boolean = runCatching { request() }.isFailure
@@ -52,10 +58,10 @@ class PushCourseSyncBackendTest {
     fun `with course sync off every request fails and none is sent`() = runTest {
         prefs.syncCourses = false
 
-        assertTrue(fails { courses.deleteAllCourses("1151") })
-        assertTrue(fails { courses.uploadCourses(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151") })
-        assertTrue(fails { courses.deleteCourse("client:1151:CS1") })
-        assertTrue(fails { courses.patchCustomName("1151CS1", "Calc", "en") })
+        assertTrue(fails { courses.resetTerm("1151") })
+        assertTrue(fails { courses.uploadTerm(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151") })
+        assertTrue(fails { courses.hideCourse("client:1151:CS1") })
+        assertTrue(fails { courses.patchStampedOverride("1151", "CS1", "1151CS1", name = "Calc", locale = "en") })
         assertEquals(emptyList<String>(), backend.endpoints())
     }
 
@@ -63,8 +69,8 @@ class PushCourseSyncBackendTest {
     fun `with cloud sync off every request fails and none is sent`() = runTest {
         prefs.cloudSyncEnabled = false
 
-        assertTrue(fails { courses.deleteAllCourses("1151") })
-        assertTrue(fails { courses.uploadCourses(emptyList(), "1151") })
+        assertTrue(fails { courses.resetTerm("1151") })
+        assertTrue(fails { courses.uploadTerm(emptyList(), "1151") })
         assertEquals(emptyList<String>(), backend.endpoints())
     }
 }

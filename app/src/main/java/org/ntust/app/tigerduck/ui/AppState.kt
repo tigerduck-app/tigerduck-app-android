@@ -119,20 +119,19 @@ class AppState @Inject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
-    private val mailAccount: org.ntust.app.tigerduck.mail.MailAccount,
+    session: org.ntust.app.tigerduck.auth.session.AccountSession,
+    private val signOutPlans: org.ntust.app.tigerduck.auth.session.SignOutPlans,
     val librarySession: LibrarySession,
     private val wearBridge: org.ntust.app.tigerduck.wear.WearScheduleBridge,
     private val browserData: org.ntust.app.tigerduck.browser.BrowserDataCleaner,
     private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
 ) {
     /**
-     * Whether the demo account was signed in when this process started.
-     *
-     * Sampled once, for what is decided once per process — the onboarding
-     * skip below, and rewriting the demo data. The demo sign-in switches the
-     * network and the status dots itself, without waiting for a restart.
+     * Whether the demo account was signed in when this process started. Sampled once, for what
+     * is decided once per process: the onboarding skip below, and rewriting the demo data. The
+     * demo sign-in switches the network and the status dots itself, without waiting for a restart.
      */
-    private val demoMode = demoAccount.isActive
+    private val demoMode = session.isDemo
 
     init {
         if (demoMode) {
@@ -153,10 +152,9 @@ class AppState @Inject constructor(
     val loadingState: StateFlow<LoadingState> = _loadingState
 
     /**
-     * `true` when on-device data could not be migrated cleanly (e.g. Keystore
-     * corruption wiped the credential store, or the user downgraded the app).
-     * The UI shows a non-dismissable dialog and calls [performFullReset] on
-     * confirm.
+     * `true` when on-device data could not be migrated cleanly (e.g. Keystore corruption wiped the
+     * credential store, or the user downgraded the app). The UI shows a non-dismissable dialog and
+     * calls [performFullReset] on confirm.
      */
     private val _needsUserReset = MutableStateFlow(false)
     val needsUserReset: StateFlow<Boolean> = _needsUserReset
@@ -625,13 +623,9 @@ class AppState @Inject constructor(
      * the "fresh start" it promises not one.
      */
     private val fullReset = FullReset(
-        // Its password, caches, alarms and posted notifications.
-        signOutMail = { mailAccount.signOut() },
-        // The school sign-out keeps a demo library signed in; a full reset does not.
-        signOutSchool = {
-            authService.logout()
-            demoAccount.signOutLibrary()
-        },
+        // School Mail, the school, and the demo library the school's sign-out keeps; see FullReset.
+        signOut = { signOutPlans.signOut(org.ntust.app.tigerduck.auth.session.SignOutReason.FULL_RESET) },
+        wiped = signOutPlans::resetWiped,
         clearCaches = { dataCache.clearEverything() },
         credentials = credentials,
         prefs = prefs,
@@ -692,6 +686,7 @@ class AppState @Inject constructor(
 
     @Suppress("unused")
     fun backgroundSync(
+        signIn: org.ntust.app.tigerduck.shared.account.SignIn,
         fetchCourses: suspend () -> Unit,
         fetchAssignments: suspend () -> Unit
     ) {
@@ -749,7 +744,7 @@ class AppState @Inject constructor(
             }
 
             if (changed) {
-                dataCache.saveCalendarEvents(cached)
+                dataCache.saveCalendarEvents(cached, signIn)
             }
 
             val hasCachedData = cached.isNotEmpty()

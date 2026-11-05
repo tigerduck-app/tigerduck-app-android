@@ -1,0 +1,1 @@
+{"error": "sync_revision_expired", "message": "The change log no longer reaches since_revision; sync in full.", "min_available_revision": 40, "current_revision": 52, "full_sync_required": true}

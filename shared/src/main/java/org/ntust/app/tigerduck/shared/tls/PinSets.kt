@@ -75,6 +75,25 @@ object BuiltInPins {
             ),
             expiresAt = Instant.parse("2027-05-04T00:00:00Z"),
         ),
+        // clubs.ntust.edu.tw alone, which serves a Let's Encrypt chain the ntust set's TWCA pins
+        // refuse: ISRG's four roots, X1, X2, Root YR and Root YE. Let's Encrypt changes its
+        // intermediates often, and each of them chains to one of these. The more specific domain,
+        // so it wins over ntust for that host and no other ([matching]).
+        PinSet(
+            id = "clubs",
+            domains = listOf(PinDomain("clubs.ntust.edu.tw", includeSubdomains = false)),
+            pins = setOf(
+                // ISRG Root X1
+                "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=",
+                // ISRG Root X2
+                "diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=",
+                // ISRG Root YR
+                "fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=",
+                // ISRG Root YE
+                "sCkq5UWXjg+7mKu9lMhhYF5bGLsy7VI/UNW3tccdR7w=",
+            ),
+            expiresAt = Instant.parse("2027-07-21T00:00:00Z"),
+        ),
     )
 }
 

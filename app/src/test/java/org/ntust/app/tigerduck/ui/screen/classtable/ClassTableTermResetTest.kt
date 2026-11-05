@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.Course
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Resetting a term, over real files (tigerduck-app-android#241). The backend goes first: with
@@ -41,16 +42,16 @@ class ClassTableTermResetTest {
         val context = JvmContext()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         reset = ClassTableTermReset(cache, clock = { 42L })
-        cache.saveCourses(listOf(portal, typed), term)
-        cache.saveDeletedCourseNos(tombstones)
-        cache.saveCourseCustomNames(names)
-        cache.saveServerKnownNos(mapOf(term to listOf("CS1010001"), "1142" to listOf("EE1010003")))
+        cache.saveCourses(listOf(portal, typed), term, testSignIn())
+        cache.saveDeletedCourseNos(tombstones, testSignIn())
+        cache.saveCourseCustomNames(names, testSignIn())
+        cache.saveServerKnownNos(mapOf(term to listOf("CS1010001"), "1142" to listOf("EE1010003")), testSignIn())
     }
 
     @Test
     fun `a reset the server could not take changes nothing on the phone`() = runTest {
         for (failure in listOf(IOException("offline"), PushApiException("deleteAllCourses failed: HTTP 401"))) {
-            assertNull(reset.run(term) { throw failure })
+            assertNull(reset.run(term, testSignIn()) { throw failure })
 
             assertEquals(tombstones, cache.loadDeletedCourseNos())
             assertEquals(listOf("CS1010001", "MA1010002"), cache.loadCourses(term).map { it.courseNo })
@@ -62,7 +63,7 @@ class ClassTableTermResetTest {
 
     @Test
     fun `a reset the server took forgets the term here, its custom names included`() = runTest {
-        val held = reset.run(term) {}
+        val held = reset.run(term, testSignIn()) {}
 
         assertEquals(setOf("CS1010001", "MA1010002"), held)
         assertEquals("the other term's hiding stays", setOf("1142:EE1010003"), cache.loadDeletedCourseNos())

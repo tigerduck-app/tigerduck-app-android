@@ -14,7 +14,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 /** What [PushApiClient.updateCredentials] sends, by the backend it goes to. */
 class CredentialsUpdateRequestTest {
 
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
 
     private fun update(override: String?) = runTest {
         val context = JvmContext()
@@ -26,7 +26,7 @@ class CredentialsUpdateRequestTest {
         tokens.save("access-1", "refresh-1", expiresAt = Long.MAX_VALUE)
         val manager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
 
-        PushApiClient(backend.client, prefs, manager).updateCredentials("moodle", "private")
+        PushApiClient(backend.client, prefs, manager).updateCredentials("moodle", manager.session.signIns.current, "private")
     }
 
     @Test

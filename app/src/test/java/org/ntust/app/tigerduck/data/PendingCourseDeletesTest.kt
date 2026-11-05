@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -150,7 +151,7 @@ class PendingCourseDeletesTest {
         deletes.send(term, typed, queuedAt = 7_000, signIn)
 
         answer = {}
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(listOf(7_000L, 7_000L), hiddenAts)
     }
@@ -166,11 +167,11 @@ class PendingCourseDeletesTest {
         assertEquals(emptySet<String>(), deletes.waitingIn("1142"))
 
         answer = { throw PushApiException("deleteCourse failed: HTTP 500") }
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(mapOf(term to listOf(typed)), queued())
 
         answer = {}
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(listOf("client:1151:MA1010002", "client:1151:MA1010002", "client:1151:MA1010002"), keys())
         assertEquals(emptyMap<String, List<String>>(), queued())
         assertEquals(emptySet<String>(), deletes.waitingIn(term))
@@ -197,10 +198,10 @@ class PendingCourseDeletesTest {
     @Test
     fun `a kept delete a retry has already sent is not sent again`() = runTest {
         deletes.keep(term, typed, deletes.stamp(), signIn)
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(emptyMap<String, List<String>>(), queued())
         // The roster brings the course back meanwhile.
-        cache.saveCourses(listOf(course(typed)), term)
+        cache.saveCourses(listOf(course(typed)), term, testSignIn())
 
         deletes.sendKept(term, typed, signIn)
 
@@ -229,7 +230,7 @@ class PendingCourseDeletesTest {
         adds.removing { deletes.forgetTerm(term, signIn) }
         assertEquals(mapOf("1142" to listOf(typed)), queued())
 
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(listOf("client:1142:MA1010002"), keys().drop(3))
     }
 
@@ -252,7 +253,7 @@ class PendingCourseDeletesTest {
 
         // Sent again, either would have taken a restored course off the server.
         answer = {}
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(listOf("client:1151:PE1010003"), keys().drop(3))
     }
 
@@ -287,7 +288,7 @@ class PendingCourseDeletesTest {
         signOut()
 
         assertEquals(emptyMap<String, List<String>>(), queued())
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(1, sent.size)
     }
 
@@ -301,7 +302,7 @@ class PendingCourseDeletesTest {
         val waiting = cache.loadPendingCourseDeletes()
 
         val ended = series.end()
-        deletes.retry(ended)
+        deletes.drain(ended)
         deletes.sendKept(term, typed, ended)
         deletes.keep(term, other, 6L, ended)
         deletes.send(term, other, 7L, ended)
@@ -324,7 +325,7 @@ class PendingCourseDeletesTest {
             beforeHeader = {}
             signOut()
         }
-        deletes.retry(signIn)
+        deletes.drain(signIn)
 
         assertEquals(emptyList<Sent>(), sent.filter { it.account == 2 })
         assertEquals(emptyMap<String, List<String>>(), queued())
@@ -333,7 +334,7 @@ class PendingCourseDeletesTest {
     /** The retry read both deletes; the second course was added back while the first was sent. */
     @Test
     fun `a retried delete whose course was added back meanwhile is not sent`() = runTest {
-        cache.saveCourses(listOf(course(typed), course(other)), term)
+        cache.saveCourses(listOf(course(typed), course(other)), term, testSignIn())
         answer = { throw IOException("offline") }
         deletes.send(term, typed, signIn)
         deletes.send(term, other, signIn)
@@ -344,7 +345,7 @@ class PendingCourseDeletesTest {
             sending.complete(Unit)
             landed.await()
         }
-        val retry = launch { deletes.retry(signIn) }
+        val retry = launch { deletes.drain(signIn) }
         sending.await()
         // Added back by hand meanwhile, as ClassTableViewModel.addCourse does.
         val readd = launch {
@@ -359,8 +360,8 @@ class PendingCourseDeletesTest {
 
         // Its stale DELETE would have taken the restored course off the server again.
         assertEquals(1, keys().count { it == "client:1151:PE1010003" })
-        // The add went up (the term's list, as an add sends it), after the first course's DELETE.
-        assertEquals(listOf(listOf(typed, other)), uploads)
+        // The add went up with its own course alone, as every add goes, after the first course's DELETE.
+        assertEquals(listOf(listOf(other)), uploads)
         assertEquals(listOf("DELETE", "upload"), events)
         assertEquals(emptyMap<String, List<String>>(), queued())
     }
@@ -373,7 +374,7 @@ class PendingCourseDeletesTest {
      */
     @Test
     fun `a delete asked after a re-add survives the re-add's forget`() = runTest {
-        cache.saveCourses(listOf(course(typed)), term)
+        cache.saveCourses(listOf(course(typed)), term, testSignIn())
         val sending = CompletableDeferred<Unit>()
         val landed = CompletableDeferred<Unit>()
         answer = {
@@ -394,7 +395,7 @@ class PendingCourseDeletesTest {
 
         assertEquals("the second delete stays queued", setOf(typed), deletes.waitingIn(term))
         answer = {}
-        deletes.retry(signIn)
+        deletes.drain(signIn)
         assertEquals(emptySet<String>(), deletes.waitingIn(term))
         assertEquals("client:1151:MA1010002", keys().last())
     }
@@ -441,7 +442,7 @@ class PendingCourseDeletesTest {
         restarted.forget(term, typed, signIn)
         assertEquals("the re-add lets the old delete go", emptySet<String>(), restarted.waitingIn(term))
         answer = {}
-        restarted.retry(signIn)
+        restarted.drain(signIn)
         assertEquals(1, sent.size)
     }
 
@@ -505,7 +506,7 @@ class PendingCourseDeletesTest {
             sent += Sent(courseKey, account = account)
             answer(courseKey)
         })
-        restarted.retry(signIn)
+        restarted.drain(signIn)
         assertEquals(listOf("client:1151:MA1010002"), keys())
         assertEquals(emptyMap<String, List<String>>(), queued())
     }
@@ -513,7 +514,7 @@ class PendingCourseDeletesTest {
     /** A delete under way holds the adds back, as a delete by hand did before it was queued. */
     @Test
     fun `a course add waits for a delete being sent`() = runTest {
-        cache.saveCourses(listOf(course(typed)), term)
+        cache.saveCourses(listOf(course(typed)), term, testSignIn())
         answer = { throw IOException("offline") }
         deletes.send(term, typed, signIn)
         events.clear()
@@ -524,7 +525,7 @@ class PendingCourseDeletesTest {
             sending.complete(Unit)
             landed.await()
         }
-        val retry = launch { deletes.retry(signIn) }
+        val retry = launch { deletes.drain(signIn) }
         sending.await()
         val add = launch { adds.send(listOf(course(typed)), term, typed, signIn = signIn) }
         runCurrent()

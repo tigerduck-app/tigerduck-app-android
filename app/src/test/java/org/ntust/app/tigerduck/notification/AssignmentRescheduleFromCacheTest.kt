@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
@@ -65,7 +66,7 @@ class AssignmentRescheduleFromCacheTest {
 
     @Test
     fun `the cached assignments get their reminders`() = runBlocking {
-        dataCache.saveAssignments(listOf(dueInThreeDays("1")))
+        dataCache.saveAssignments(listOf(dueInThreeDays("1")), testSignIn())
 
         scheduler.rescheduleFromCache(dataCache, prefs)
 
@@ -74,11 +75,11 @@ class AssignmentRescheduleFromCacheTest {
 
     @Test
     fun `an emptied cache takes every reminder away`() = runBlocking {
-        dataCache.saveAssignments(listOf(dueInThreeDays("1")))
+        dataCache.saveAssignments(listOf(dueInThreeDays("1")), testSignIn())
         scheduler.rescheduleFromCache(dataCache, prefs)
 
         // What a TA account's cache holds once Moodle leaves out the courses it TAs.
-        dataCache.saveAssignments(emptyList())
+        dataCache.saveAssignments(emptyList(), testSignIn())
         scheduler.rescheduleFromCache(dataCache, prefs)
 
         assertTrue(reminders().isEmpty())
@@ -87,7 +88,7 @@ class AssignmentRescheduleFromCacheTest {
     @Test
     fun `nothing is armed while reminders are off`() = runBlocking {
         prefs.notifyAssignments = false
-        dataCache.saveAssignments(listOf(dueInThreeDays("1")))
+        dataCache.saveAssignments(listOf(dueInThreeDays("1")), testSignIn())
 
         scheduler.rescheduleFromCache(dataCache, prefs)
 
@@ -102,10 +103,10 @@ class AssignmentRescheduleFromCacheTest {
                 dueInThreeDays("ignored"),
                 dueInThreeDays("marked"),
                 dueInThreeDays("course-ignored").copy(courseNo = "IGNORED"),
-            )
+            ), testSignIn()
         )
-        dataCache.saveIgnoredAssignments(setOf("ignored"))
-        dataCache.saveMarkedCompletedAssignments(setOf("marked"))
+        dataCache.saveIgnoredAssignments(setOf("ignored"), testSignIn())
+        dataCache.saveMarkedCompletedAssignments(setOf("marked"), testSignIn())
         dataCache.saveIgnoredCourses(
             setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")),
             testSignIn(),
@@ -121,11 +122,29 @@ class AssignmentRescheduleFromCacheTest {
     }
 
     @Test
-    fun `reminders armed again for an account that signed out leave the next account's alone`() = runBlocking {
-        dataCache.saveAssignments(listOf(dueInThreeDays("1")))
-        val departing = dataCache.userDataGeneration
+    fun `one assignment armed again for an account that signed out leaves the next account's reminders alone`() = runBlocking {
+        val series = SignInSeries()
+        val departing = series.current
+        series.end()
         dataCache.clearAllUserData()
-        dataCache.saveAssignments(listOf(dueInThreeDays("2")))
+        series.open()
+        dataCache.saveAssignments(listOf(dueInThreeDays("2")), series.current)
+        scheduler.scheduleAll(dataCache.loadOutstandingAssignments(), setOf(AssignmentReminderOffset.HR2))
+
+        scheduler.rescheduleOne("2", dataCache, prefs, departing)
+
+        assertEquals(listOf("2"), armedIds())
+    }
+
+    @Test
+    fun `reminders armed again for an account that signed out leave the next account's alone`() = runBlocking {
+        val series = SignInSeries()
+        val departing = series.current
+        dataCache.saveAssignments(listOf(dueInThreeDays("1")), departing)
+        series.end()
+        dataCache.clearAllUserData()
+        series.open()
+        dataCache.saveAssignments(listOf(dueInThreeDays("2")), series.current)
         // The next account's, for the one offset it chose, before the departing account's work
         // arms what it reads, for every default offset.
         scheduler.scheduleAll(dataCache.loadOutstandingAssignments(), setOf(AssignmentReminderOffset.HR2))

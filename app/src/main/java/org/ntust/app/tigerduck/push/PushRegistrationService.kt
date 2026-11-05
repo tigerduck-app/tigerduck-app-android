@@ -21,10 +21,12 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.DepartingSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -67,7 +69,6 @@ class PushRegistrationService @Inject constructor(
     private val appPreferences: AppPreferences,
     private val uiLanguage: UiLanguageMonitor,
     @param:ApplicationScope private val scope: CoroutineScope,
-    private val fixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
     private val departingUnregister: DepartingDeviceUnregister,
 ) {
     private val mutex = Mutex()
@@ -105,9 +106,13 @@ class PushRegistrationService @Inject constructor(
     private var accountPassesEnded = 0
     private var lastAccountPass: RegistrationPass? = null
 
+    // The sign-in work starting here belongs to, read where it starts.
+    @OptIn(StartsAccountWork::class)
+    private fun signInNow() = authTokenManager.session.current
+
     // The TigerSync switch's PATCHes, in order; see SwitchPatches.
-    private val switchPatches = SwitchPatches { enabled ->
-        api.updateDevicePreferences(identity.uuid(), cloudSyncEnabled = enabled)
+    private val switchPatches = SwitchPatches { enabled, signIn ->
+        api.updateDevicePreferences(identity.uuid(), signIn, cloudSyncEnabled = enabled)
     }
 
     private val prefs: SharedPreferences =
@@ -269,7 +274,7 @@ class PushRegistrationService @Inject constructor(
         // The demo account registered nothing, so there is nothing to delete
         // and no server to tell. Read now rather than in the coroutine:
         // sign-out leaves demo mode straight after calling this.
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             scope.launch { updateDiagnostic { it.copy(isRegistered = false, lastError = null) } }
             return
         }
@@ -355,11 +360,12 @@ class PushRegistrationService @Inject constructor(
      * in init — it stays alive and retries on the next language change.
      */
     private suspend fun syncLocalePreference() {
+        val signIn = signInNow()
         if (!authTokenManager.isLoggedIn) return
         runCatching {
             val locale = currentLocaleTag() ?: return@runCatching
             val deviceId = identity.uuid()
-            api.updateDevicePreferences(deviceId, locale = locale)
+            api.updateDevicePreferences(deviceId, signIn, locale = locale)
         }.onFailure { e ->
             if (e is CancellationException) throw e
             Log.w(TAG, "locale preference PATCH failed: ${e.logSummary()}")
@@ -370,7 +376,7 @@ class PushRegistrationService @Inject constructor(
         // The demo account contacts no server, so there is nothing to
         // register; report what a registered device reports, rather than the
         // refusal every request gets.
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             recordRegistrationAttempt(landed = true)
             updateDiagnostic { it.copy(isRegistered = true, lastError = null) }
             return true
@@ -388,7 +394,9 @@ class PushRegistrationService @Inject constructor(
         }
         var pass: RegistrationPass? = null
         try {
-            return registerWith(token).also { pass = it }.landed
+            // The sign-in first: a sign-out during the pass stops its POST, rather than sending
+            // it as the next account.
+            return registerWith(token, signInNow()).also { pass = it }.landed
         } finally {
             // Also after an unregister cancelled this pass, or the count stays up.
             withContext(NonCancellable) { endRegistration(token, pass) }
@@ -428,7 +436,7 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    private suspend fun registerWith(token: String?): RegistrationPass {
+    private suspend fun registerWith(token: String?, signIn: SignIn): RegistrationPass {
         if (token == null) {
             // No token in this process — the fetch has never succeeded. This
             // pass failed as surely as a rejected POST does, so it has to
@@ -474,9 +482,8 @@ class PushRegistrationService @Inject constructor(
             updateDiagnostic {
                 it.copy(
                     hasFcmToken = true,
-                    // Not isRegistered: no account row exists, and the settings
-                    // screen reads that flag to mean cloud sync is live. Custom
-                    // push reaches this device; user-scoped push does not.
+                    // Not isRegistered, which the settings screen reads as cloud sync live: no
+                    // account row exists. Custom push reaches this device; user-scoped push not.
                     lastError = announceError?.diagnosticText(),
                 )
             }
@@ -495,7 +502,8 @@ class PushRegistrationService @Inject constructor(
                     pushToken = PushTokenIn(tokenValue = token),
                     cloudSyncEnabled = cloudSyncEnabled,
                     locale = currentLocaleTag(),
-                )
+                ),
+                signIn,
             )
         }.fold(
             onSuccess = {
@@ -623,12 +631,13 @@ class PushRegistrationService @Inject constructor(
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
         if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return false
         // Demo account: kept on the device, and reported as accepted.
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
             updateDiagnostic { it.copy(lastError = null) }
             return true
         }
         val deviceId = identity.uuid()
+        val signIn = signInNow()
         // An account whose session is gone signs in first, as its row is the
         // one that decides. Outside the mutex, which registrations wait on.
         val signedIn = authTokenManager.signInIfSignedOut()
@@ -651,7 +660,7 @@ class PushRegistrationService @Inject constructor(
             val token = if (isUnregistering) null else fcmToken
             val failure = applyOptOutIfAccepted(prefs, KEY_SERVER_PUSH_OPT_OUT, optOut) {
                 if (signedIn) {
-                    api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
+                    api.updateDevicePreferences(deviceId, signIn, serverPushEnabled = !optOut)
                 } else if (token != null) {
                     api.registerAnonymous(
                         AnonymousDeviceRequest(
@@ -729,15 +738,16 @@ class PushRegistrationService @Inject constructor(
      * running (tigerduck-app-android#200).
      */
     suspend fun updateCloudSyncEnabled(enabled: Boolean) {
+        val signIn = signInNow()
         val request = switchPatches.request()
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             if (enabled && switchPatches.isLatest(request)) appPreferences.cloudSyncEnabled = true
             return
         }
         val passesBefore = mutex.withLock { accountPassesEnded }
         var sent = false
         val refusal = try {
-            sent = switchPatches.send(request, enabled)
+            sent = switchPatches.send(request, enabled, signIn)
             null
         } catch (e: CancellationException) {
             throw e
@@ -767,6 +777,18 @@ class PushRegistrationService @Inject constructor(
         if (refusal != null) throw refusal
     }
 
+    /**
+     * Tells the backend the Moodle token stored now, as each return to the app does. The sign-in is
+     * read before [storedToken]: a token read after a sign-out is the next account's, and goes
+     * under its own sign-in or not at all.
+     */
+    suspend fun refreshMoodleCredentials(storedToken: () -> String?) {
+        val signIn = signInNow()
+        if (!authTokenManager.isLoggedIn) return
+        val token = storedToken() ?: return
+        runCatching { api.updateCredentials(token, signIn) }
+    }
+
     /** See [updateCloudSyncEnabled]'s note on where the fdroid guard lives. */
     suspend fun updateSyncPreferences(
         syncCourses: Boolean,
@@ -776,11 +798,13 @@ class PushRegistrationService @Inject constructor(
         syncAssignmentReminders: Boolean,
         syncLiveActivity: Boolean,
     ) {
-        if (fixtures.demoMode) return
+        if (authTokenManager.session.isDemo) return
         val deviceId = identity.uuid()
+        val signIn = signInNow()
         runCatching {
             api.updateDevicePreferences(
                 deviceId,
+                signIn,
                 syncCourses = syncCourses,
                 syncCourseColors = syncCourseColors,
                 syncCourseNames = syncCourseNames,
@@ -928,34 +952,6 @@ internal fun RegistrationPass.covers(
  */
 internal fun RegistrationPass.leftSwitchBehind(cloudSyncNow: Boolean): Boolean =
     landed && withAccount && cloudSyncEnabled != cloudSyncNow
-
-/**
- * The TigerSync switch's PATCHes, one at a time: a flip waits for the PATCH
- * before it, so the server keeps the latest. Sent at once, an off and an on
- * in quick succession could land in either order. A flip a later one
- * overtook before it went is not sent at all.
- */
-internal class SwitchPatches(private val patch: suspend (enabled: Boolean) -> Unit) {
-    private val requests = java.util.concurrent.atomic.AtomicInteger()
-    private val mutex = Mutex()
-
-    /** A flip asked for; the number [send] and [isLatest] take. */
-    fun request(): Int = requests.incrementAndGet()
-
-    /** Whether no flip has been asked for since [request]. */
-    fun isLatest(request: Int): Boolean = requests.get() == request
-
-    /**
-     * Sends [enabled] for [request] once the PATCHes before it have ended,
-     * unless a later flip was asked for meanwhile, which sends its own.
-     * Returns whether it sent; throws what the PATCH throws.
-     */
-    suspend fun send(request: Int, enabled: Boolean): Boolean = mutex.withLock {
-        if (!isLatest(request)) return@withLock false
-        patch(enabled)
-        true
-    }
-}
 
 /**
  * Whether a failed registration climbs the retry's backoff: not when the

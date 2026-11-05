@@ -7,6 +7,7 @@ import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,6 +47,7 @@ class NtustScoreService internal constructor(
     suspend fun fetchScoreReport(
         studentId: String,
         password: String,
+        signIn: SignIn,
         forceRefresh: Boolean = false
     ): ScoreReport = withContext(Dispatchers.IO) {
         if (!forceRefresh) {
@@ -59,9 +61,6 @@ class NtustScoreService internal constructor(
             ) return@withContext cachedReport
         }
 
-        // Read before the fetch, so a wipe at any point after it stops the
-        // save below, even one landing right after its sign-in check.
-        val generation = dataCache.writeGeneration()
         val report = download(studentId, password)
 
         // A successful fetch that parses to a fully empty report usually
@@ -69,11 +68,11 @@ class NtustScoreService internal constructor(
         // don't poison the cache with that.
         if (report == ScoreReport.EMPTY) throw NtustScoreError.ParseFailed()
 
-        // Kept only while the student is still signed in and the data has not
-        // been wiped since the fetch began: the school takes seconds, and a
+        // Kept only while the student is still signed in and [signIn], read
+        // before the fetch, has not ended: the school takes seconds, and a
         // sign-out meanwhile wipes the student's files, which this save would
         // put back. As iOS's persistGuard.
-        if (isSignedInAs(studentId)) dataCache.saveScoreReport(report, studentId, generation)
+        if (isSignedInAs(studentId)) dataCache.saveScoreReport(report, studentId, signIn)
         report
     }
 

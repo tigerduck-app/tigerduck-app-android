@@ -17,6 +17,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -29,6 +30,9 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * The session around a [SignInSeries]: the work it launches ends with the sign-in, the school
@@ -85,6 +89,21 @@ class AccountSessionTest {
     }
 
     @Test
+    fun `work under a sign-in that has ended is cancelled at once, with the next one open`() = runBlocking {
+        val school = session()
+        val before = school.current
+        school.signIns.end()
+        school.open()
+        var ran = false
+
+        val job = school.launch(before) { ran = true }
+        withTimeout(5_000) { job.join() }
+
+        assertTrue(job.isCancelled)
+        assertFalse(ran)
+    }
+
+    @Test
     fun `a write under the ended sign-in during the clearing is dropped, even after the session opens`() {
         val school = session()
         school.signIns.end()
@@ -132,31 +151,104 @@ class AccountSessionTest {
 
     private var shown = false
 
+    @Test
+    fun `a demo sign-in takes the place of the sign-in it starts from`() {
+        val school = session()
+        val from = school.signIns.current
+        var prepared = false
+
+        val demo = school.startDemo(from) { prepared = true }
+
+        assertTrue(prepared)
+        assertSame(school.signIns.current, demo)
+        assertTrue(demo!!.isDemo)
+        assertTrue(demo.isCurrent)
+        assertFalse(from.isCurrent)
+        assertTrue(school.isDemo)
+    }
+
+    @Test
+    fun `a demo sign-in from one a sign-out ended raises nothing, and the wipe keeps the session closed`() {
+        val school = session()
+        val from = school.signIns.current
+        school.signIns.end()
+        var prepared = false
+
+        assertNull(school.startDemo(from) { prepared = true })
+
+        assertFalse(prepared)
+        assertFalse(school.isDemo)
+        assertFalse("still closed for the wipe", school.signIns.isOpen.value)
+    }
+
+    @Test
+    fun `a demo sign-in stops the work of the sign-in it replaces`() = runBlocking {
+        val school = session()
+        val running = CompletableDeferred<Unit>()
+        val work = school.launch {
+            running.complete(Unit)
+            awaitCancellation()
+        }
+        withTimeout(WAIT_MS) { running.await() }
+
+        school.startDemo(school.signIns.current) {}
+
+        withTimeout(WAIT_MS) { work.join() }
+        assertTrue(work.isCancelled)
+    }
+
+    @Test
+    fun `a sign-out waits out the demo's first step, and finds what to undo`() {
+        val school = session()
+        val from = school.signIns.current
+        val inTheStep = CountDownLatch(1)
+        val letGo = CountDownLatch(1)
+        var endedInTheStep = true
+        val demo = thread {
+            school.startDemo(from) {
+                inTheStep.countDown()
+                letGo.await(WAIT_MS, TimeUnit.MILLISECONDS)
+                endedInTheStep = !from.isCurrent
+            }
+        }
+        assertTrue(inTheStep.await(WAIT_MS, TimeUnit.MILLISECONDS))
+        val signOut = thread { school.signIns.end() }
+        // A moment for it to get to the series' lock, or past it with nothing to hold it.
+        signOut.join(MOMENT_MS)
+        letGo.countDown()
+        demo.join(WAIT_MS)
+        signOut.join(WAIT_MS)
+
+        assertFalse("a sign-out came in between", endedInTheStep)
+        assertFalse("it ended the demo sign-in", school.signIns.current.isCurrent)
+        assertTrue(school.isDemo)
+    }
+
     private fun typedSignIn(
         session: AccountSession,
         schoolAnswering: () -> Unit = {},
-        signInGeneration: () -> Int = { 1 },
+        currentSignIn: () -> SignIn = { session.signIns.current },
     ) = TypedAccountSignIn(
         schoolSignIn = { _, _ ->
             schoolAnswering()
             true
         },
-        signInInteractively = { signIn -> signIn(1) == SignInAttempt.SIGNED_IN },
+        signInInteractively = { signIn -> signIn(session.signIns.current) == SignInAttempt.SIGNED_IN },
         awaitOpen = session::awaitOpen,
-        isOpen = { session.isOpen },
-        signInGeneration = signInGeneration,
+        currentSignIn = currentSignIn,
         accountLock = Any(),
         storedStudentId = { stored?.first },
         writeAccount = { studentId, password -> stored = studentId to password },
         latch = InMemoryStoredPasswordLatch(),
+        leaveStoredAccount = {},
         isDemoAccount = { _, _ -> false },
-        enterDemo = {},
+        enterDemo = { it },
         accountChanging = {},
-        markSignedIn = { shown = true },
+        markSignedIn = { signIn -> signIn.isCurrent.also { if (it) shown = true } },
     )
 
     private suspend fun TypedAccountSignIn.typed(prepareSignedIn: suspend () -> Unit = {}) =
-        signIn(STUDENT, "made-up-password", prepareSignedIn) { _, _ -> SignInAttempt.SIGNED_IN }
+        signIn(STUDENT, "made-up-password", { prepareSignedIn() }) { _, _ -> SignInAttempt.SIGNED_IN }
 
     @Test
     fun `a sign-in during the clearing waits, then signs in`() = runBlocking {
@@ -178,18 +270,18 @@ class AccountSessionTest {
     @Test
     fun `a sign-out landing just after the wait is waited out too`() = runBlocking {
         // The session is open when the sign-in looks, and a sign-out lands before it reads the
-        // generation: read after the move, that generation would never show the sign-out.
+        // sign-in: what it reads is the ended one, and asking it shows the sign-out.
         val school = session()
-        var generation = 1
+        var signedOut = false
         val outcome = scope.async {
             typedSignIn(
                 school,
-                signInGeneration = {
-                    if (generation == 1) {
+                currentSignIn = {
+                    if (!signedOut) {
                         school.signIns.end()
-                        generation = 2
+                        signedOut = true
                     }
-                    generation
+                    school.signIns.current
                 },
             ).typed()
         }
@@ -204,7 +296,7 @@ class AccountSessionTest {
     }
 
     @Test
-    fun `a reply landing after a sign-out began stores nothing, with the generation not moved yet`() = runBlocking {
+    fun `a reply landing after a sign-out began stores nothing`() = runBlocking {
         val school = session()
 
         val outcome = typedSignIn(school, schoolAnswering = { school.signIns.end() }).typed()
@@ -241,5 +333,7 @@ class AccountSessionTest {
 
     private companion object {
         const val STUDENT = "B00015999"
+        const val WAIT_MS = 5_000L
+        const val MOMENT_MS = 200L
     }
 }

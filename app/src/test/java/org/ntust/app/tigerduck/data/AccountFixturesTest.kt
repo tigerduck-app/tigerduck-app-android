@@ -63,19 +63,20 @@ class AccountFixturesTest {
     @Test
     fun `the school and holiday preference keys are what the fixture holds`() {
         val prefs = AppPreferences(context)
-        prefs.assignmentMarksSyncedOnce = true
-        prefs.assignmentsUploadFingerprint = "fingerprint-1"
-        prefs.assignmentsUploadedAtMs = 1_700_000_000_000L
-        prefs.backgroundCoursesSyncedAtMs = 1_700_000_001_000L
-        prefs.backgroundCoursesTerm = "1141"
-        prefs.backgroundOverridesSyncedAtMs = 1_700_000_002_000L
-        prefs.classTableSelectedSemester = "1141"
-        prefs.emptyClassroomBuilding = "TR"
-        prefs.lastSeenCoursesResetAt = "2026-09-01T00:00:00Z"
-        prefs.pendingConflictCategories = setOf("courses")
-        prefs.markSchoolDataSynced(1_700_000_003_000L)
-        prefs.ssoLoginTimestamp = 1_700_000_004_000L
-        prefs.syncedCategories = setOf("assignments", "courses")
+        prefs.school.assignmentMarksSyncedOnce.set(true, testSignIn())
+        prefs.school.assignmentsUploadFingerprint.set("fingerprint-1", testSignIn())
+        prefs.school.assignmentsUploadedAtMs.set(1_700_000_000_000L, testSignIn())
+        prefs.school.backgroundCoursesSyncedAtMs.set(1_700_000_001_000L, testSignIn())
+        prefs.school.backgroundCoursesTerm.set("1141", testSignIn())
+        prefs.school.backgroundOverridesSyncedAtMs.set(1_700_000_002_000L, testSignIn())
+        prefs.school.classTableSelectedSemester.set("1141", testSignIn())
+        prefs.school.emptyClassroomBuilding.set("TR", testSignIn())
+        // What an older build kept of the server's last course reset, which nothing reads any more.
+        context.getSharedPreferences("tigerduck_prefs", 0).edit().putString("lastSeenCoursesResetAt", "2026-09-01T00:00:00Z").commit()
+        prefs.school.pendingConflictCategories.set(setOf("courses"), testSignIn())
+        prefs.school.schoolDataSyncedAtMs.set(1_700_000_003_000L, testSignIn())
+        prefs.school.ssoLoginTimestamp.set(1_700_000_004_000L, testSignIn())
+        prefs.school.syncedCategories.set(setOf("assignments", "courses"), testSignIn())
         prefs.holidayNotifyOverrides = setOf(3, 5)
         prefs.holidayOverridesAwaitingUpload = setOf(5)
 

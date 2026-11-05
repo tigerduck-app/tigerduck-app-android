@@ -98,11 +98,11 @@ class TimeSliderCourseChangesTest {
         val cancelled = changes(row(1, "cancelled", periods = morning))
 
         val clash = slider(cancelled, courses = listOf(course(), other))
-        val state = clash.currentCourseState as CourseState.InClass
-        assertEquals(listOf("CC900", "CC901"), state.slots.map { it.course.courseNo })
-        assertEquals("CC901", clash.thumbSlot?.course?.courseNo)
-        assertNull("a cancelled class alone leaves the thumb plain", slider(cancelled).thumbSlot)
-        assertEquals("CC900", slider(CourseChanges.EMPTY).thumbSlot?.course?.courseNo)
+        val state = clash.currentState as CourseState.InClass
+        assertEquals(listOf("CC900", "CC901"), state.slots.map { it.slot.course.courseNo })
+        assertEquals("CC901", clash.thumbItem?.slot?.course?.courseNo)
+        assertNull("a cancelled class alone leaves the thumb plain", slider(cancelled).thumbItem)
+        assertEquals("CC900", slider(CourseChanges.EMPTY).thumbItem?.slot?.course?.courseNo)
     }
 
     @Test

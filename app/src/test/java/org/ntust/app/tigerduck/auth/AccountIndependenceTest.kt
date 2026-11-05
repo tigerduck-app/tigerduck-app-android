@@ -9,6 +9,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.library.LibraryQRCache
@@ -23,6 +24,7 @@ import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
@@ -60,7 +62,7 @@ class AccountIndependenceTest {
         credentials.saveLibrarySignIn(
             credentials.libraryAccountGeneration, LIBRARY, "library-password", "library-token", Long.MAX_VALUE, byUser = true,
         )
-        prefs.classTableSelectedSemester = "1141"
+        prefs.school.classTableSelectedSemester.set("1141", testSignIn())
         mailCache = MailCache(File(tmp.root, "mail"))
         mailCache.attachmentsDir.mkdirs()
         mailFile = File(mailCache.attachmentsDir, "note.txt").apply { writeText("kept") }
@@ -75,7 +77,7 @@ class AccountIndependenceTest {
     private fun assertSchoolKept() {
         assertEquals(SCHOOL, credentials.ntustStudentId)
         assertEquals("school-password", credentials.ntustPassword)
-        assertEquals("1141", prefs.classTableSelectedSemester)
+        assertEquals("1141", prefs.school.classTableSelectedSemester.get())
     }
 
     private fun assertMailKept() {
@@ -103,7 +105,7 @@ class AccountIndependenceTest {
 
     @Test
     fun `the library's sign-out leaves the school and the mail`() {
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertEquals(null, credentials.libraryUsername)
         assertEquals(null, credentials.libraryPassword)
@@ -113,7 +115,7 @@ class AccountIndependenceTest {
 
     @Test
     fun `the mail's sign-out leaves the school and the library`() {
-        mailAccount().signOut()
+        mailAccount().signOut(SignOutReason.MAIL)
 
         assertEquals(null, credentials.mailStudentId)
         assertEquals(null, credentials.mailPassword)

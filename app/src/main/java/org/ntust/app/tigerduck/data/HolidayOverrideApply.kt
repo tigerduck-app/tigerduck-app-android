@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data
 
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.push.StampedValue
 import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
@@ -10,25 +11,31 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 internal object HolidayOverrideApply {
 
     /**
-     * Applies [snapshot], fetched at [fetchedAtMs] under sign-in [signIn], to
-     * [calendar]. A choice whose PUT has not landed stays as this phone has it,
-     * and a snapshot that may predate one is not applied: see
-     * [PendingHolidayOverrides.merged]. In a step that ends before the sign-in
-     * does ([SignIn.ifCurrent]): applied after the sign-out's clear, the
-     * departing account's choices would come back.
+     * Applies [snapshot], each holiday's choice with its stamp, field by field (LWW D12): a
+     * holiday takes the snapshot's choice, an absent one none, but one this phone keeps, whose own
+     * choice stays: waiting to go up or chosen since the snapshot began
+     * ([PendingHolidayOverrides.keptOver]), or one [keeps] names. Decided and written in one step,
+     * on the thread the Calendar's switch writes a choice on, which ends before the sign-in does
+     * ([SignIn.ifCurrent]): applied after the sign-out's clear, the departing account's choices
+     * would come back.
      */
-    fun apply(
-        snapshot: Set<Int>,
-        fetchedAtMs: Long,
+    fun applyStamped(
+        snapshot: Map<Int, StampedValue<Boolean>>,
+        serverHlc: Long,
+        keeps: (Int) -> Boolean,
         signIn: SignIn,
         pending: PendingHolidayOverrides,
         calendar: AcademicCalendarStore,
     ) {
         signIn.ifCurrent {
-            pending.merged(snapshot, fetchedAtMs, calendar.optedInHolidayIds)?.let { merged ->
+            val local = calendar.optedInHolidayIds
+            val kept = pending.keptOver(serverHlc)
+            val merged = (local + snapshot.keys).filterTo(HashSet()) { id ->
+                if (id in kept || keeps(id)) id in local else snapshot[id]?.value == true
+            }
+            if (merged != local) {
                 // A holiday this pull replaces loses its edit time with its value.
-                val before = calendar.optedInHolidayIds
-                pending.forgetEditTimes((merged - before) + (before - merged))
+                pending.forgetEditTimes((merged - local) + (local - merged))
                 calendar.applySyncedOverrides(merged)
             }
         }

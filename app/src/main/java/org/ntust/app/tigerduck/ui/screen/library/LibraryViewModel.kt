@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.library.LibraryPagePresence
@@ -34,6 +35,7 @@ class LibraryViewModel @Inject constructor(
     private val wearBridge: WearScheduleBridge,
     private val debugFixtures: DebugFixtureStore,
     private val demoAccount: DemoAccount,
+    private val session: AccountSession,
     private val librarySession: LibrarySession,
     private val pagePresence: LibraryPagePresence,
     qrCache: LibraryQRBitmapCache,
@@ -130,7 +132,7 @@ class LibraryViewModel @Inject constructor(
                 }
                 // The demo account itself never reaches the library, so
                 // anything else fails there the way a wrong password would.
-                if (demoAccount.isActive) {
+                if (session.isDemo) {
                     _errorMessage.value = context.getString(R.string.error_sign_in_failed)
                     return@launch
                 }

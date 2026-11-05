@@ -18,33 +18,37 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.PageSettings
+import org.ntust.app.tigerduck.ui.component.PageSettingsItem
 
 /**
  * The ⋮ menu's items on the user's own class table, in the iPhone's order:
- * adding to it, sharing it and taking in someone else's, exporting it, then
- * resetting it, in red. Each action closes the menu itself before it acts.
+ * adding to it and subscribing to clubs, sharing it and taking in someone else's, exporting it, then
+ * the page's settings right above resetting it, in red. Each action closes
+ * the menu itself before it acts; [close] is for the settings.
  */
 @Composable
 internal fun ColumnScope.OwnClassTableMenuItems(
     onAddCourse: () -> Unit,
+    onSubscribeClubs: () -> Unit,
     shareEnabled: Boolean,
     onShare: () -> Unit,
     onImport: () -> Unit,
     exportEnabled: Boolean,
     onExport: () -> Unit,
     onReset: () -> Unit,
+    close: () -> Unit,
 ) {
     DropdownMenuItem(
         text = { Text(stringResource(R.string.add_course_title)) },
         leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
         onClick = onAddCourse,
     )
-    // A place kept for club subscriptions, shown greyed out as the iPhone does.
+    // The club subscriptions, whose activities the grid shows.
     DropdownMenuItem(
         text = { Text(stringResource(R.string.class_table_subscribe_clubs)) },
         leadingIcon = { Icon(Icons.Filled.Groups, contentDescription = null) },
-        onClick = {},
-        enabled = false,
+        onClick = onSubscribeClubs,
     )
     HorizontalDivider()
     DropdownMenuItem(
@@ -66,6 +70,7 @@ internal fun ColumnScope.OwnClassTableMenuItems(
         enabled = exportEnabled,
     )
     HorizontalDivider()
+    PageSettingsItem(PageSettings.CLASS_TABLE, close)
     DropdownMenuItem(
         text = { Text(stringResource(R.string.class_table_reset_title), color = MaterialTheme.colorScheme.error) },
         leadingIcon = { Icon(Icons.Filled.Sync, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
@@ -75,7 +80,8 @@ internal fun ColumnScope.OwnClassTableMenuItems(
 
 /**
  * The ⋮ menu over someone else's class table, which is read-only: export and import as on the
- * user's own, then what applies to the person.
+ * user's own, then what applies to the person, with the page's settings right above its delete,
+ * as on the iPhone.
  */
 @Composable
 internal fun ColumnScope.PersonClassTableMenuItems(
@@ -84,6 +90,7 @@ internal fun ColumnScope.PersonClassTableMenuItems(
     onImport: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    close: () -> Unit,
 ) {
     DropdownMenuItem(
         text = { Text(stringResource(R.string.class_table_export_screenshot)) },
@@ -103,6 +110,7 @@ internal fun ColumnScope.PersonClassTableMenuItems(
         leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
         onClick = onRename,
     )
+    PageSettingsItem(PageSettings.CLASS_TABLE, close)
     DropdownMenuItem(
         text = { Text(stringResource(R.string.class_table_delete_user), color = MaterialTheme.colorScheme.error) },
         leadingIcon = {

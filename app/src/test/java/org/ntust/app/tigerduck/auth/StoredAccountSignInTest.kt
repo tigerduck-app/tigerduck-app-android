@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -20,7 +21,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 class StoredAccountSignInTest {
 
     private lateinit var manager: AuthTokenManager
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
 
     private var demo = false
     private var studentId: String? = "B00000000"
@@ -130,10 +131,10 @@ class StoredAccountSignInTest {
         assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn())
 
         studentId = "B00000000"
-        demo = true
+        manager.session.signIns.startDemo()
         assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn())
 
-        demo = false
+        manager.session.signIns.leaveDemo()
         password = null
         storedToken = null
         assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn())
@@ -155,7 +156,7 @@ class StoredAccountSignInTest {
     @Test
     fun `a sign-out during the harvest sends no login`() = runTest {
         storedToken = null
-        val generation = manager.signInGeneration
+        val signIn = manager.session.signIns.current
         harvest = {
             manager.logout()
             // The next account's sign-in stored its token meanwhile, and the
@@ -164,8 +165,36 @@ class StoredAccountSignInTest {
             throw IllegalStateException("signed out")
         }
 
-        assertEquals(SignInAttempt.FAILED, signIn(generation))
+        assertEquals(SignInAttempt.FAILED, signIn(signIn))
 
+        assertEquals(emptyList<String>(), backend.endpoints())
+    }
+
+    /** The token the harvest brings back may be the next account's, and must not go as this one's. */
+    @Test
+    fun `a sign-out during a harvest that answered sends no login`() = runTest {
+        storedToken = null
+        val signIn = manager.session.signIns.current
+        harvest = {
+            manager.logout()
+            manager.session.open()
+            "next-account"
+        }
+
+        assertEquals(SignInAttempt.FAILED, signIn(signIn))
+
+        assertEquals(emptyList<String>(), backend.endpoints())
+    }
+
+    /** As while the session is closed, with a clearing that left the password behind. */
+    @Test
+    fun `a sign-in that has ended posts no password and sends nothing`() = runTest {
+        storedToken = null
+        val signIn = manager.session.signIns.end()
+
+        assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn(signIn))
+
+        assertEquals(0, harvests)
         assertEquals(emptyList<String>(), backend.endpoints())
     }
 
@@ -180,9 +209,8 @@ class StoredAccountSignInTest {
         assertEquals(0, afterSignIns)
     }
 
-    private suspend fun signIn(generation: Int = manager.signInGeneration): SignInAttempt = StoredAccountSignIn(
+    private suspend fun signIn(signIn: SignIn = manager.session.signIns.current): SignInAttempt = StoredAccountSignIn(
         tokens = manager,
-        isDemo = { demo },
         studentId = { studentId },
         password = { password },
         storedMoodleToken = { storedToken },
@@ -192,7 +220,7 @@ class StoredAccountSignInTest {
             harvest()
         },
         afterSignIn = { afterSignIns++ },
-    ).signIn(generation)
+    ).signIn(signIn)
 
     private companion object {
         const val LOGIN = "POST /auth/login"

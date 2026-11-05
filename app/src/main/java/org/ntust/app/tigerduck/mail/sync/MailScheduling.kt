@@ -30,8 +30,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.mail.MailDemoGate
+import org.ntust.app.tigerduck.di.MailAccountSession
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import java.util.concurrent.TimeUnit
@@ -101,7 +102,7 @@ class MailAlarmScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val credentials: MailCredentialStore,
     private val state: MailStateStore,
-    private val demoGate: MailDemoGate,
+    @param:MailAccountSession private val session: AccountSession,
 ) : MailBackgroundScheduler, ExactAlarmAccess {
     private val alarms get() = context.getSystemService(AlarmManager::class.java)
 
@@ -111,8 +112,8 @@ class MailAlarmScheduler @Inject constructor(
     override fun schedule() {
         val decision = MailSchedulePolicy.decide(
             signedIn = !credentials.mailStudentId.isNullOrBlank() && !credentials.mailPassword.isNullOrEmpty(),
-            // Same rule as MailAccount.isDemo: the app-wide demo never opens a socket either.
-            demo = state.demoMailbox || demoGate.appDemoActive,
+            // The app-wide demo never opens a socket either.
+            demo = session.isDemo,
             notificationsEnabled = state.notificationsEnabled,
             authFailed = state.authFailed,
             canExactAlarm = canScheduleExactAlarms(),

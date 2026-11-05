@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -36,7 +37,6 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.RefreshPolicy
@@ -119,8 +119,8 @@ class ClassTableViewModel @Inject constructor(
     private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
     private val authTokenManager: AuthTokenManager,
     @param:ApplicationScope private val appScope: CoroutineScope,
+    private val schoolUploads: org.ntust.app.tigerduck.sync.SchoolUploads,
 ) : ViewModel() {
-
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses
@@ -160,12 +160,13 @@ class ClassTableViewModel @Inject constructor(
 
     // A term's reset as far as files and the backend go; see resetCourses.
     private val termReset = ClassTableTermReset(dataCache)
+    private val termResets = org.ntust.app.tigerduck.sync.TermResets(pendingCourseAdds, schoolUploads)
 
     // The other terms' caches, filled after the first fetch; see warmTerms.
     private val termWarm = ClassTableTermWarm(
         terms = { semesterCatalog.availableSemesters() },
         isCached = { dataCache.loadCourses(it).isNotEmpty() },
-        mayFetch = { authService.authState.value && !debugFixtures.demoMode && networkChecker.isAvailable() },
+        mayFetch = { authService.canAskSchool && networkChecker.isAvailable() },
         shownTerm = { _currentSemester.value },
     )
     private var warmJob: Job? = null
@@ -198,23 +199,26 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * Puts [updated], an in-place edit of [semester]'s list, on screen: the edit counted, and the
-     * courses it changed noted unsaved until [saveEdit] is handed the id returned.
+     * courses it changed noted unsaved until [saveEdit] is handed the edit returned, which holds
+     * the sign-in the tap was made in and the list it was made of.
      */
-    private fun showEdit(updated: List<Course>, semester: String): Long {
-        val edited = ClassTableCourseMerge.editedNos(_courses.value, updated)
+    private fun showEdit(updated: List<Course>, semester: String): UnsavedEdit {
+        val edit = UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)
+        val edited = ClassTableCourseMerge.editedNos(edit.before, updated)
         _courses.value = updated
         noteTermEdit(semester)
-        val edit = nextUnsavedEdit++
-        unsavedEdits[edit] = semester to edited
+        unsavedEdits[edit.id] = semester to edited
         return edit
     }
 
-    /** Saves [updated], the list [edit] left, and lets the edit go once the save is done. */
-    private suspend fun saveEdit(updated: List<Course>, semester: String, edit: Long) {
+    private class UnsavedEdit(val id: Long, val signIn: SignIn, val before: List<Course>)
+
+    /** Saves what [updated], the list [edit] left, changed, onto the term as it stands, and lets the edit go once saved. */
+    private suspend fun saveEdit(updated: List<Course>, semester: String, edit: UnsavedEdit) {
         try {
-            dataCache.saveCourses(updated, semester)
+            dataCache.saveClassTableEdit(semester, edit.signIn, edit.before, updated)
         } finally {
-            unsavedEdits.remove(edit)
+            unsavedEdits.remove(edit.id)
         }
     }
 
@@ -338,7 +342,7 @@ class ClassTableViewModel @Inject constructor(
     // The catalogue can land after construction on a cold launch, so
     // followNewestSemesterIfUnpicked re-applies the rule once it does.
     private val _currentSemester = MutableStateFlow(
-        semesterCatalog.selectedSemester(appPreferences.classTableSelectedSemester)
+        semesterCatalog.selectedSemester(appPreferences.school.classTableSelectedSemester.get())
     )
     val currentSemester: StateFlow<String> = _currentSemester
 
@@ -536,13 +540,12 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
                 if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
+                val signIn = signInNow()
                 val semester = _currentSemester.value
                 val courses = dataCache.loadCourses(semester)
                 val assignments = dataCache.loadAssignments()
-                // Signed out, or in as someone else, while the files were
-                // read: what they held was the departing account's.
-                if (!authService.isStillSignedInAs(account)) return@collect
+                // Signed out while the files were read: what they held was the departing account's.
+                if (!signIn.isCurrent) return@collect
                 // Taken as-is, empty included: a sync can now prune the
                 // whole term (a reset made elsewhere), and holding on to
                 // the old list would keep showing courses that are gone.
@@ -557,13 +560,13 @@ class ClassTableViewModel @Inject constructor(
                 if (authService.authState.value) loadAssignmentMarks()
             }
         }
-        viewModelScope.launch {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             // Clear on logout, refresh on login — a login while the app is
-            // open, not the value replayed to this collector. load() fetches
-            // for a user signed in at launch; fetching on the replay as well
-            // ran the pipeline twice on every cold start.
+            // open, not the state this collector starts from. load() fetches
+            // for a user signed in at launch; fetching on that as well ran
+            // the pipeline twice on every cold start.
             var wasAuthed: Boolean? = null
-            authService.authState.collect { isAuthed ->
+            authTokenManager.session.changes.collect { isAuthed ->
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {
@@ -703,15 +706,17 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private suspend fun loadAssignmentMarks() {
-        val account = authService.storedStudentId
+        val signIn = signInNow()
         val readAt = dataCache.assignmentMarksVersion.value
         val ignored = dataCache.loadIgnoredAssignments()
         val marked = dataCache.loadMarkedCompletedAssignments()
         val courseKeys = dataCache.loadIgnoredCourses()
-        if (!authService.isStillSignedInAs(account)) return
-        _ignoredAssignmentIds.value = ignored
-        _markedCompletedIds.value = marked
-        ignoredCourses.reloaded(courseKeys, readAt)
+        if (!authService.authState.value) return
+        signIn.ifCurrent {
+            _ignoredAssignmentIds.value = ignored
+            _markedCompletedIds.value = marked
+            ignoredCourses.reloaded(courseKeys, readAt)
+        }
     }
 
     /** [edit]'s write is done, so the cache decides again; it may hold more by now. */
@@ -766,7 +771,7 @@ class ClassTableViewModel @Inject constructor(
      * to be newest at first launch.
      */
     private suspend fun followNewestSemesterIfUnpicked() {
-        if (appPreferences.classTableSelectedSemester != null) return
+        if (appPreferences.school.classTableSelectedSemester.get() != null) return
         val newest = semesterCatalog.availableSemesters().firstOrNull() ?: return
         if (newest == _currentSemester.value) return
         _currentSemester.value = newest
@@ -792,7 +797,7 @@ class ClassTableViewModel @Inject constructor(
             return
         }
         if (code == _currentSemester.value) return
-        appPreferences.classTableSelectedSemester = code
+        appPreferences.school.classTableSelectedSemester.set(code, signInNow())
         _currentSemester.value = code
         // A warm of this term in flight is overtaken by the fetch below.
         termWarm.supersede(code)
@@ -818,7 +823,7 @@ class ClassTableViewModel @Inject constructor(
         val shown = _courses.value
         val semesters = _availableSemesters.value
         viewModelScope.launch {
-            val account = authService.storedStudentId
+            val signIn = signInNow()
             val deleted = dataCache.loadDeletedCourseNos()
             val terms = semesters.mapNotNull { semester ->
                 val courses = if (semester == shownSemester) shown else dataCache.loadCourses(semester)
@@ -827,7 +832,7 @@ class ClassTableViewModel @Inject constructor(
                     ?.let { ClassTableShare.Term(semester, it) }
             }
             // Read for an account that has since signed out: none of it is the next one's.
-            _shareTerms.value = if (authService.isStillSignedInAs(account)) terms else emptyList()
+            _shareTerms.value = if (authService.authState.value && signIn.isCurrent) terms else emptyList()
         }
     }
 
@@ -1130,7 +1135,7 @@ class ClassTableViewModel @Inject constructor(
                     // Its hide lifted, and the add noted for every sync under way
                     // or begun before it is sent, whose older read must not prune
                     // it again; see DataCache.addCourseBack.
-                    dataCache.addCourseBack(course.courseNo, semester)
+                    dataCache.addCourseBack(course.courseNo, semester, signIn)
                 } finally {
                     tombstoneEdits.saved(tombstone)
                 }
@@ -1208,13 +1213,15 @@ class ClassTableViewModel @Inject constructor(
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, override)
         val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, override)
+        val kept = syncCourseOverride(course, semester, customName = trimmed.ifEmpty { "" }, locale = locale)
         viewModelScope.launch {
-            // Onto the names as they stand, not this screen's copy: a sync may have changed others since.
-            dataCache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, courseNo, locale, override) }
+            // The course, then its name once its change is kept: a pull between would take the name away (race 5).
             saveEdit(updated, _currentSemester.value, edit)
+            kept.await()
+            // Onto the names as they stand, not this screen's copy: a sync may have changed others since.
+            dataCache.updateCourseCustomNames(edit.signIn) { CourseNameOverrides.withOverride(it, courseNo, locale, override) }
             widgetUpdater.requestUpdate()
         }
-        syncCourseOverride(course, semester, customName = trimmed.ifEmpty { "" }, locale = locale)
         localEdits.noteEdit()
     }
 
@@ -1241,13 +1248,14 @@ class ClassTableViewModel @Inject constructor(
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, null)
         val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, null)
+        val kept = if (course != null && semester != null) syncCourseOverride(course, semester, customName = "", locale = locale) else null
         viewModelScope.launch {
-            // As setCustomCourseName: onto the names as they stand.
-            dataCache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, courseNo, locale, null) }
+            // As setCustomCourseName: the course, then the names as they stand once the change is kept.
             saveEdit(updated, _currentSemester.value, edit)
+            kept?.await()
+            dataCache.updateCourseCustomNames(edit.signIn) { CourseNameOverrides.withOverride(it, courseNo, locale, null) }
             widgetUpdater.requestUpdate()
         }
-        if (course != null && semester != null) syncCourseOverride(course, semester, customName = "", locale = locale)
         localEdits.noteEdit()
     }
 
@@ -1319,8 +1327,7 @@ class ClassTableViewModel @Inject constructor(
             null
         }
         viewModelScope.launch {
-            // First, as for an add: a re-add asked before this removal must
-            // not let its delete go, however long the writes below take.
+            // First, as for an add: a re-add asked before this removal must not let its delete go, however long the writes take.
             val queuedAt = pendingCourseDeletes.stamp()
             if (tombstoneEdit != null) {
                 try {
@@ -1328,7 +1335,7 @@ class ClassTableViewModel @Inject constructor(
                     // lifts only once no DELETE of the course is waiting; see
                     // DataCache.hideDeletedCourse.
                     pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn)
-                    dataCache.hideDeletedCourse(courseNo, semester, deletedCourse)
+                    dataCache.hideDeletedCourse(courseNo, semester, deletedCourse, signIn)
                 } finally {
                     tombstoneEdits.saved(tombstoneEdit)
                 }
@@ -1348,7 +1355,7 @@ class ClassTableViewModel @Inject constructor(
             } else {
                 pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)
             }
-            runCatching { pushApiClient.uploadCourses(updated, semester) }
+            runCatching { pushApiClient.uploadCourses(updated, semester, signIn) }
                 .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed: ${e.logSummary()}") }
         }
         localEdits.noteEdit()
@@ -1376,8 +1383,7 @@ class ClassTableViewModel @Inject constructor(
             saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
-        // A concrete hex each, a default included: the backend reads a
-        // missing one as "unchanged".
+        // A concrete hex each, a default included: the backend reads a missing one as "unchanged".
         for ((no, hex) in pick.toSync) {
             updated.firstOrNull { it.courseNo == no }?.let { syncCourseOverride(it, _currentSemester.value, colorHex = hex) }
         }
@@ -1395,7 +1401,7 @@ class ClassTableViewModel @Inject constructor(
      * from, for the outbox to tell a course that has since left this phone.
      * On the application scope, and started at once: leaving the table must
      * not cut the write short, and two changes in a row must reach the
-     * outbox in the order they were made.
+     * outbox in the order they were made. Returns what completes once the change is kept, or not.
      */
     private fun syncCourseOverride(
         course: Course,
@@ -1403,19 +1409,20 @@ class ClassTableViewModel @Inject constructor(
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
-    ) {
-        val moodleId = course.moodleIdNumber ?: return
+    ): CompletableDeferred<Unit> {
+        val kept = CompletableDeferred<Unit>()
+        val moodleId = course.moodleIdNumber ?: return kept.apply { complete(Unit) }
         appScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            pendingCourseOverrides.send(
-                moodleId,
-                colorHex = colorHex,
-                customName = customName,
-                locale = locale,
-                semester = semester,
-                courseNo = course.courseNo,
-                signIn = signInNow(),
-            )
+            try {
+                pendingCourseOverrides.send(
+                    moodleId, colorHex = colorHex, customName = customName, locale = locale, semester = semester,
+                    courseNo = course.courseNo, signIn = signInNow(), kept = kept,
+                )
+            } finally {
+                kept.complete(Unit)
+            }
         }
+        return kept
     }
 
     fun load() {
@@ -1564,12 +1571,11 @@ class ClassTableViewModel @Inject constructor(
         // still waiting to go up for its courses go with it below.
         val signIn = signInNow()
         val moodleIds = dataCache.loadCourses(semester).mapNotNull { it.moodleIdNumber }
-        // With no course add sent between the DELETE and the wipe; see PendingCourseAdds.removing.
-        val held = pendingCourseAdds.removing {
-            termReset.run(semester) { pushApiClient.deleteAllCourses(semester) }
-                // The wipe took the term's rows, queued single deletes included.
-                // Before the lock goes: a retry waiting behind the wipe would
-                // otherwise send one after the refetch re-uploads the roster.
+        // With no course add sent between the DELETE and the wipe, and the term's waiting school uploads let go with it; see TermResets.
+        val held = termResets.run(semester) {
+            termReset.run(semester, signIn) { pushApiClient.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null) }
+                // The wipe took the term's rows, queued single deletes included, before the lock goes:
+                // a retry waiting behind the wipe would otherwise send one after the refetch re-uploads the roster.
                 ?.also { pendingCourseDeletes.forgetTerm(semester, signIn) }
         } ?: return false
         if (_currentSemester.value == semester) _courses.value = emptyList()
@@ -1623,6 +1629,8 @@ class ClassTableViewModel @Inject constructor(
     private suspend fun fetchData() {
         // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
         refreshTriggers.fetchStarted()
+        // Before the student, and before the fetch: a sign-out while it runs drops what it brings.
+        val signIn = signInNow()
         val studentId = authService.storedStudentId ?: run { _isLoading.value = false; return }
         val password = authService.storedPassword ?: run { _isLoading.value = false; return }
         if (!networkChecker.isAvailable()) {
@@ -1659,10 +1667,10 @@ class ClassTableViewModel @Inject constructor(
             val transcript = ClassTableTranscript(
                 fetch = {
                     if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.SCORE_SYSTEM)
-                    scoreService.fetchScoreReport(studentId, password)
+                    scoreService.fetchScoreReport(studentId, password, signIn)
                 },
                 cached = { dataCache.loadScoreReport(studentId)?.report },
-                stillSignedIn = { authService.isStillSignedInAs(studentId) },
+                stillSignedIn = { signIn.isCurrent },
                 record = { ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM) },
             )
 
@@ -1673,9 +1681,6 @@ class ClassTableViewModel @Inject constructor(
             //             the assignments' courses. It adds no course to a term (tigerduck-app#890).
             //   Source 3: the transcript, once course selection gave nothing: past terms are built
             //             from it, and the open term falls back on it.
-            // Before the fetch: a sign-out while it runs drops its roster.
-            val generation = dataCache.writeGeneration()
-            val signIn = signInNow()
             val (selectionNos, moodleAll, report) = coroutineScope {
                 val selectionDef = async {
                     if (servesSelectionSemester) {
@@ -1703,7 +1708,7 @@ class ClassTableViewModel @Inject constructor(
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             // Before the merge below rewrites the cache — see
             // DataCache.recordSelectionRoster. The fetch's version of the term.
-            val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)
+            val recorded = dataCache.recordSelectionRoster(semester, selectionNos, signIn)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${
@@ -1720,7 +1725,7 @@ class ClassTableViewModel @Inject constructor(
             if (moodleAll.isNotEmpty()) {
                 val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
-                courseColorStore.saveMoodleIds(fresh, _courses.value)
+                courseColorStore.saveMoodleIds(fresh, _courses.value, signIn)
             }
 
             val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)
@@ -1742,7 +1747,7 @@ class ClassTableViewModel @Inject constructor(
             // soon as it lands.
             coroutineScope {
                 val coursesJob = launch {
-                    fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
+                    fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { signIn.isCurrent }
                 }
 
                 // Assignments are always "upcoming from now", so they belong to the active
@@ -1828,7 +1833,7 @@ class ClassTableViewModel @Inject constructor(
      * one, at the snapshot or before the upload ([DataCache.isLatestAnswer]):
      * that answer dropped what it no longer lists, and its fetch saves and
      * sends the term. One refused as it was recorded is not even looked up
-     * ([RecordedSelection.Refused]).
+     * ([RecordedSelection.Refused]). The upload waits for this process's first pull: see [SchoolUploads.term].
      *
      * Returns whether every query went through: false when one failed, which
      * [warmTerms] stops on — the Moodle metadata a failed lookup falls back
@@ -1848,8 +1853,6 @@ class ClassTableViewModel @Inject constructor(
         // A newer answer's fetch, or a wipe, has the term already: no failure for the warm to stop on.
         if (recorded == RecordedSelection.Refused) return true
         val answer = recorded?.answer
-        // Before the lookups: a sign-out while they run drops the rebuild's drops.
-        val generation = dataCache.writeGeneration()
         val answers = termFetch.lookUp(
             semester, source.rosterNos, moodleByNo, before = latestCourses(semester), atMost = source.lookupsAtOnce,
         )
@@ -1857,6 +1860,13 @@ class ClassTableViewModel @Inject constructor(
         if (answers.isEmpty && source !is ClassTableTermSource.Rebuild) return answers.answered
         // A rebuilt past term's roster, read off its final transcript as it is committed.
         var rebuiltRoster: List<String>? = null
+        // As the term's roster when this fetch's course selection answer or a past term's final
+        // transcript gave it, and the upload lists all of it; see CourseUpload.of.
+        fun roster(): List<String>? = when (source) {
+            is ClassTableTermSource.Selection -> source.rosterNos
+            is ClassTableTermSource.Rebuild -> rebuiltRoster
+            else -> null
+        }
         pendingCourseAdds.uploading {
             if (!mayCommit()) return@uploading
             val merged = termFetch.committed(
@@ -1867,16 +1877,15 @@ class ClassTableViewModel @Inject constructor(
                 droppedNos = { dataCache.fetchDropsIn(semester) },
                 recordFinalRoster = {
                     rebuiltRoster = it.roster
-                    dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)
+                    dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, signIn)
                 },
             ) { drawn ->
                 // Folded and saved under the courses' lock, onto the term as its cache holds it: a
                 // sync or the background fetch that took a course out of it lands wholly before.
                 var folded: List<Course>? = null
-                dataCache.updateCourses(semester) { current, _ ->
+                dataCache.updateCourses(semester, signIn) { current, _ ->
                     if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@updateCourses current
-                    // The reads that suspend first, the list chosen and folded
-                    // after them with nothing in between; the order is foldLatest's.
+                    // The reads that suspend first, the list chosen and folded after them with nothing in between; foldLatest's order.
                     folded = termFetch.foldLatest(
                         drawn, semester,
                         editGeneration = { termEdits[semester] ?: 0 },
@@ -1891,9 +1900,9 @@ class ClassTableViewModel @Inject constructor(
                         names = { courseCustomNames },
                         locale = currentCourseLocale,
                     )
-                    // Only apply if the user hasn't flipped to a different semester
-                    // mid-flight.
+                    // With the write, the roster it was committed as (DataCache.committedWith); shown if the picker is still on the term.
                     folded?.let { merged ->
+                        dataCache.committedWith(semester, roster(), signIn)
                         if (_currentSemester.value == semester) {
                             showCourses(merged, semester)
                             TigerDuckTheme.buildCourseColorMap(merged)
@@ -1903,31 +1912,21 @@ class ClassTableViewModel @Inject constructor(
                 }
                 folded
             } ?: run {
-                // Nothing to draw, edited throughout its reads, or a newer
-                // answer's: left as it is, for the next fetch.
+                // Nothing to draw, edited throughout its reads, or a newer answer's: left as it is, for the next fetch.
                 Log.w("ClassTableVM", "fetchTermCourses: $semester drew nothing, was edited throughout the snapshot or superseded, left as it is")
                 return@uploading
             }
-            // The class table loaded: a day of use towards the Play rating ask
-            // (issue #332).
+            // The class table loaded: a day of use towards the Play rating ask (issue #332).
             if (countsAsUse) reviewPrompt.classTableLoaded()
-            // Superseded during the save: the reset's wipe, or the newer
-            // fetch's save, takes the file, and these rows need not go up to
-            // be taken down again. A newer answer's roster would be undone.
+            // Superseded during the save: the reset's wipe, or the newer fetch's save, takes the file, and
+            // these rows need not go up to be taken down again. A newer answer's roster would be undone.
             if (!mayCommit()) return@uploading
             if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
-            // As the term's roster when this fetch's course selection answer or a past term's final
-            // transcript gave it, and the upload lists all of it; see CourseUpload.of.
-            val roster = when (source) {
-                is ClassTableTermSource.Selection -> source.rosterNos
-                is ClassTableTermSource.Rebuild -> rebuiltRoster
-                else -> null
+            // After this process's first pull; until then the term waits, as it stands once it opens.
+            schoolUploads.term(signIn, semester, merged, roster(), { pendingCourseAdds.uploading(it) }, mayCommit) { upload ->
+                runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }
+                    .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             }
-            val upload = CourseUpload.of(
-                merged, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
-            )
-            runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms) }
-                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             widgetUpdater.requestUpdate()
         }
         return answers.answered
@@ -1949,10 +1948,9 @@ class ClassTableViewModel @Inject constructor(
      * [moodleAll], Moodle's one answer for every term, and its [transcript],
      * which the terms' rosters come from: asked for here if the fetch had no
      * need of it. Without one, only the term course selection serves is
-     * warmed, and the rest wait for a later fetch. Both are [studentId]'s,
-     * and reach no term once that account has left. On a job
-     * of its own, not the fetch's: a pull must not wait on the other terms,
-     * and a sign-out cancels it.
+     * warmed, and the rest wait for a later fetch. Both are [studentId]'s, and reach no term
+     * once that account has left. On a job of its own, not the fetch's: a pull must not wait on
+     * the other terms, and a sign-out cancels it.
      */
     private fun warmTerms(
         studentId: String,
@@ -1965,7 +1963,7 @@ class ClassTableViewModel @Inject constructor(
         warmJob = viewModelScope.launch {
             try {
                 termWarm.run(
-                    stillSignedIn = { authService.isStillSignedInAs(studentId) },
+                    stillSignedIn = { signIn.isCurrent },
                     shared = { transcript.fetched() },
                 ) { term, report, isCurrent -> warmTerm(term, isCurrent, studentId, password, moodleAll, report, signIn) }
             } catch (e: CancellationException) {
@@ -2002,8 +2000,6 @@ class ClassTableViewModel @Inject constructor(
         // be the old one, kept. Its own refetch fills the term.
         if (semester in dataCache.resettingSemesters()) return true
         val servesSelection = semester == semesterCatalog.selectionSemesterCode()
-        // Before the fetch: a sign-out while it runs drops its roster.
-        val generation = dataCache.writeGeneration()
         val selectionNos = if (servesSelection) {
             try {
                 courseService.fetchEnrolledCourseNos(studentId, password)
@@ -2016,7 +2012,7 @@ class ClassTableViewModel @Inject constructor(
         } else {
             emptyList()
         }
-        val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)
+        val recorded = dataCache.recordSelectionRoster(semester, selectionNos, signIn)
         val moodleByNo = CourseRosterMerge.moodleCoursesFor(semester, moodleAll).associateBy { it.courseNo }
         val source = ClassTableTermSource.of(semester, selectionNos, report, servesSelection, cached = latestCourses(semester))
         Log.i("ClassTableVM", "warm: $semester $source")
@@ -2054,14 +2050,13 @@ class ClassTableViewModel @Inject constructor(
         val courseNos = ClassTableCourseMerge.nosWithoutRoom(_courses.value)
         if (courseNos.isEmpty() || !networkChecker.isAvailable()) return
         roomLookupsAtMs[semester] = now
-        val account = authService.storedStudentId
+        val signIn = signInNow()
         viewModelScope.launch {
             val found = courseNos.map { courseNo ->
-                // Without Moodle to fall back on: null for a query that failed
-                // or a course it does not know, which the row then waits out.
+                // Without Moodle to fall back on: null for a failed query or an unknown course, which the row waits out.
                 async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null).course }
             }.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
-            if (!authService.isStillSignedInAs(account) || coursesSemester != semester) return@launch
+            if (!authService.authState.value || !signIn.isCurrent || coursesSemester != semester) return@launch
             val updated = ClassTableCourseMerge.withRoomsFound(_courses.value, found) ?: return@launch
             val edit = showEdit(updated, semester)
             TigerDuckTheme.buildCourseColorMap(updated)

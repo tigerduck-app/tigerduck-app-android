@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AssignmentReminderPrefs
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -176,14 +177,14 @@ class AssignmentNotificationScheduler @Inject constructor(
      * no assignments takes the reminders of the ones it dropped with it, such
      * as those of a course the user TAs (issue #160).
      *
-     * With [generation], the cache's when the caller's work began, nothing is
-     * armed once the data has been wiped since: what it read may be the
-     * departing account's, and the next account's reminders stay as they are.
+     * With [signIn], the one the caller's work began under, nothing is armed
+     * once it has ended: what it read may be the departing account's, and the
+     * next account's reminders stay as they are.
      */
-    suspend fun rescheduleFromCache(dataCache: DataCache, prefs: AssignmentReminderPrefs, generation: Int? = null) {
+    suspend fun rescheduleFromCache(dataCache: DataCache, prefs: AssignmentReminderPrefs, signIn: SignIn? = null) {
         if (!prefs.notifyAssignments) return
         scheduleAll(dataCache.loadOutstandingAssignments(), prefs.notifyAssignmentOffsets) {
-            generation == null || generation == dataCache.userDataGeneration
+            signIn == null || signIn.isCurrent
         }
     }
 
@@ -191,19 +192,19 @@ class AssignmentNotificationScheduler @Inject constructor(
      * Arms [assignmentId]'s reminders again from the cache, and leaves every other assignment's
      * as they are. For a reminder check that learned one assignment's news: rebuilding them all
      * arms only times still ahead, so it would cancel another assignment's reminder that is due
-     * but not delivered yet, as Doze delivers a batch of them one by one. With [generation],
-     * nothing once the data has been wiped since; see [rescheduleFromCache].
+     * but not delivered yet, as Doze delivers a batch of them one by one. Nothing once [signIn]
+     * has ended; see [rescheduleFromCache].
      */
     suspend fun rescheduleOne(
         assignmentId: String,
         dataCache: DataCache,
         prefs: AssignmentReminderPrefs,
-        generation: Int? = null,
+        signIn: SignIn,
     ) {
         val assignment = dataCache.loadOutstandingAssignments().firstOrNull { it.assignmentId == assignmentId }
         val offsets = prefs.notifyAssignmentOffsets
         synchronized(schedulerLock) {
-            if (generation != null && generation != dataCache.userDataGeneration) return
+            if (!signIn.isCurrent) return
             cancel(assignmentId)
             if (!prefs.notifyAssignments || assignment == null) return
             val armed = pendingFor(assignment, offsets, AppClock.nowMillis()).map(::arm)
