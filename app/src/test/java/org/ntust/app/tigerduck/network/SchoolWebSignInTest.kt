@@ -3,7 +3,11 @@ package org.ntust.app.tigerduck.network
 import android.app.Application
 import android.content.Context
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import okhttp3.Cookie
@@ -63,6 +67,9 @@ class SchoolWebSignInTest {
 
     /** Whether the call the blocking page waits on saw its cancel. */
     @Volatile private var blockedCallCancelled = false
+
+    /** Counted down once the blocking page's request reaches the school. */
+    private val blockingRequested = CountDownLatch(1)
 
     private val school = OkHttpClient.Builder().cookieJar(appJar).addInterceptor { chain -> answer(chain) }.build()
 
@@ -214,11 +221,16 @@ class SchoolWebSignInTest {
     @Test
     fun `a cancelled run cancels the request it waits on, and lets go at once`() = runTest(UnconfinedTestDispatcher()) {
         appHoldsSsoSession()
+        val service = service()
+        val run = launch { service.signInForBrowser(BLOCKING_PAGE) }
+        // Cancelled once its request is out, as a timeout cancels a run that hangs. A run cancelled
+        // before its request goes out sends none, so there would be nothing to see cancelled.
+        assertTrue("the request went out", blockingRequested.await(5, TimeUnit.SECONDS))
         val started = System.nanoTime()
 
-        val session = kotlinx.coroutines.withTimeoutOrNull(500) { service().signInForBrowser(BLOCKING_PAGE) }
+        run.cancelAndJoin()
 
-        assertEquals(null, session)
+        assertTrue(run.isCancelled)
         val waited = (System.nanoTime() - started) / 1_000_000
         assertTrue("let go after $waited ms", waited < 4_000)
         val deadline = System.currentTimeMillis() + 3_000
@@ -245,6 +257,7 @@ class SchoolWebSignInTest {
         val holdsSso = jar.loadForRequest("https://$SSO_HOST/connect/authorize".toHttpUrl()).any { it.name == SSO_COOKIE }
         if (request.url.host == SITE_HOST) sentToSite += jar.loadForRequest(request.url).map { it.name }
         if (url == BLOCKING_PAGE) {
+            blockingRequested.countDown()
             // A page that never answers, as a stuck server does, till its call is cancelled.
             val until = System.currentTimeMillis() + 5_000
             while (System.currentTimeMillis() < until) {
