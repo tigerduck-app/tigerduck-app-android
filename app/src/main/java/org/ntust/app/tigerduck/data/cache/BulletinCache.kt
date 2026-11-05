@@ -254,7 +254,6 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
                 before?.await()
                 runCatching { clear() }
                     .onFailure { Log.w(TAG, "clear failed: ${it.logSummary()}") }
-                Unit
             }
         }
     }

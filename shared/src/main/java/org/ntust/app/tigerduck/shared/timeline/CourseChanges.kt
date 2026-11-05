@@ -124,7 +124,7 @@ class CourseChanges private constructor(
 
         /** Null for a row of the wrong shape, a kind this build does not know, or a row missing its kind's value. */
         private fun change(row: JSONObject): CourseChange? {
-            val id = when (val raw = row.opt("id")) {
+            val id = when (val raw: Any? = row.opt("id")) {
                 is Int -> raw
                 is Long -> raw.takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt()
                 else -> null

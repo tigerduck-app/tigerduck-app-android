@@ -229,7 +229,7 @@ internal fun SoloCourseCell(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     // Clear of the note mark in the opposite corner.
-                    .padding(start = 3.dp, top = 2.dp, end = if (change?.notes?.isNotEmpty() == true) 14.dp else 3.dp),
+                    .padding(start = 3.dp, top = 2.dp, end = if (change.notes.isNotEmpty()) 14.dp else 3.dp),
             ) {
                 Icon(
                     Icons.Filled.Schedule,
