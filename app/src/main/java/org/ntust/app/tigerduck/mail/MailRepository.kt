@@ -594,7 +594,7 @@ class MailRepository @Inject constructor(
     // [progress] of [owner]'s download, while the index is still its own and its student has not
     // left: a sign-in tells of the student leaving before it ends their sign-in, and a download of
     // theirs still running must not show progress in between.
-    private fun showProgress(owner: MailIndexer.Owner, progress: MailIndexProgress) = synchronized(progressLock) {
+    private fun showProgress(owner: MailIndexer.Owner, progress: MailIndexProgress): Unit = synchronized(progressLock) {
         if (!stillIndexOwner(owner) || account.hasLeft(owner.signIn)) return
         progressMailbox = owner.mailbox()
         _searchIndexProgress.value = progress
@@ -602,7 +602,7 @@ class MailRepository @Inject constructor(
 
     // [owner]'s progress, stopped, left on screen while mail is missing from search (#587):
     // unless the mailbox's progress was cleared since, by a sign-out or the mail's deletion.
-    private fun stopProgress(owner: MailIndexer.Owner) = synchronized(progressLock) {
+    private fun stopProgress(owner: MailIndexer.Owner): Unit = synchronized(progressLock) {
         if (progressMailbox != owner.mailbox()) return
         _searchIndexProgress.value = _searchIndexProgress.value?.copy(running = false)
     }
@@ -625,7 +625,7 @@ class MailRepository @Inject constructor(
     // A search found mail missing: the row says so, stopped, until a download gets through,
     // where it said OK; a download under way keeps its own. Under the lock the last pass's clear
     // asks [gapsFound] under, so it cannot clear past this gap.
-    private fun noteGap() = synchronized(progressLock) {
+    private fun noteGap(): Unit = synchronized(progressLock) {
         gapsFound.incrementAndGet()
         if (_searchIndexProgress.value != null) return
         val owner = indexOwnerNow() ?: return
@@ -633,7 +633,7 @@ class MailRepository @Inject constructor(
         _searchIndexProgress.value = MailIndexProgress.COUNTING.copy(running = false)
     }
 
-    private fun clearProgressWhere(mailbox: (Pair<String, Int>) -> Boolean) = synchronized(progressLock) {
+    private fun clearProgressWhere(mailbox: (Pair<String, Int>) -> Boolean): Unit = synchronized(progressLock) {
         val shown = progressMailbox ?: return
         if (!mailbox(shown)) return
         progressMailbox = null

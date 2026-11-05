@@ -131,7 +131,7 @@ class SubscriptionListSaves @Inject constructor(
     }
 
     /** The student has seen how [signIn]'s last save went, so a page opened again does not show it. */
-    fun outcomeSeen(signIn: SignIn) = synchronized(lock) {
+    fun outcomeSeen(signIn: SignIn): Unit = synchronized(lock) {
         val held = _ledger.value?.takeIf { it.signIn === signIn && it.save != SaveState.Saving } ?: return
         _ledger.value = held.copy(save = SaveState.Idle)
     }

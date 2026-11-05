@@ -1341,7 +1341,7 @@ class SchoolMailListViewModel @Inject constructor(
             // were, and run again as more mail comes. A failure that must stick is still shown.
             if (keepShown && failure != null) {
                 unfetchedMatches = shownUnfetched
-                failure?.takeIf { it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, signIn) }
+                failure.takeIf { it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, signIn) }
                 return
             }
             // Each row keeps the version of the folder its matches were read under.

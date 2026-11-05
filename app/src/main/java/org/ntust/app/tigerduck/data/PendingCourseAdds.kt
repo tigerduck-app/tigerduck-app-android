@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -195,6 +196,7 @@ class PendingCourseAdds internal constructor(
      * on the application scope, the lock held, so a caller's cancellation never cuts it short nor
      * lets an add or a DELETE start beside it (spec §5.3).
      */
+    @OptIn(DelicateCoroutinesApi::class)
     internal suspend fun <T> sendingOne(block: suspend () -> T, then: suspend (T) -> Unit = {}): T {
         sendMutex.lock()
         // ATOMIC: once the lock is taken, the block runs to give it back, whatever has been cancelled.
