@@ -256,7 +256,9 @@ The semester catalog is the school's own list of terms.
 ## Keys of `tigerduck_credentials`
 
 The encrypted store `CredentialManager` opens, with the backend's tokens (`V3TokenStore`) and the
-unregister a sign-out still owes (`PendingUnregisterPrefs`).
+unregisters still owed, one per backend, by a sign-out or a backend move (`PendingUnregisterPrefs`).
+The `departing_*` keys besides `departing_unregisters` are the single debt an older build kept,
+read once and moved into the list.
 
 | Store | Name | Scope | Cleared in |
 |---|---|---|---|
@@ -268,6 +270,7 @@ unregister a sign-out still owes (`PendingUnregisterPrefs`).
 | tigerduck_credentials | `departing_refresh_token` | owed | `PendingUnregisterPrefs.kt` `clear` |
 | tigerduck_credentials | `departing_student_id` | owed | `PendingUnregisterPrefs.kt` `clear` |
 | tigerduck_credentials | `departing_unanswered_refreshes` | owed | `PendingUnregisterPrefs.kt` `clear` |
+| tigerduck_credentials | `departing_unregisters` | owed | `PendingUnregisterPrefs.kt` `clear` |
 | tigerduck_credentials | `library_password` | library | `CredentialManager.kt` `clearLibraryCredentials` |
 | tigerduck_credentials | `library_password_refusals` | library | `CredentialManager.kt` `clearLibraryCredentials` |
 | tigerduck_credentials | `library_password_refused` | library | `CredentialManager.kt` `takeUpLibraryLatch` |

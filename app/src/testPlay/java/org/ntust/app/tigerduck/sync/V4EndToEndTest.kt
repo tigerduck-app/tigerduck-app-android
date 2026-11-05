@@ -155,7 +155,7 @@ class V4EndToEndTest {
 
         assertEquals(V4, departing.baseUrl)
         assertEquals(listOf("DELETE /v4/devices/device-1 | Bearer access-1"), sentSince(from))
-        assertEquals(null, OwedUnregister(w.credentials).store.load())
+        assertTrue(OwedUnregister(w.credentials).store.load().isEmpty())
         w.tokens.session.open()
     }
 

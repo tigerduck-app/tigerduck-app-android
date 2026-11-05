@@ -113,11 +113,16 @@ class BackendIssuerTest {
         assertEquals(true, fromV4.hasSessionAt("https://api.example.test/v3"))
     }
 
-    private class MemoryStore(var pending: PendingUnregister?) : PendingUnregisterStore {
-        override fun load() = pending
-        override fun save(pending: PendingUnregister): Boolean = true.also { this.pending = pending }
-        override fun clear() {
-            pending = null
+    private class MemoryStore(pending: PendingUnregister?) : PendingUnregisterStore {
+        private var entries = listOfNotNull(pending)
+        val pending get() = entries.singleOrNull()
+        override fun load() = entries.toList()
+        override fun save(pending: PendingUnregister): Boolean {
+            entries = entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, pending.session.baseUrl) } + pending
+            return true
+        }
+        override fun clear(base: String?) {
+            entries = if (base == null) emptyList() else entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, base) }
         }
     }
 

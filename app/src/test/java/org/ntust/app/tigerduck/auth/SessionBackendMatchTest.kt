@@ -11,6 +11,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.push.DepartingDeviceUnregister
 import org.ntust.app.tigerduck.push.OwedUnregister
 import org.ntust.app.tigerduck.push.PendingUnregister
@@ -31,7 +32,7 @@ class SessionBackendMatchTest {
 
     /** A session [issuer] issued, as a sign-in there stores it, and its access token as handed out. */
     private suspend fun signedInAt(issuer: String): Pair<AuthTokenManager, String> {
-        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://setting.example.test/v3" }
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = issuer }
         val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-$issuer", Context.MODE_PRIVATE))
         tokens.save("access-1", "refresh-1", Long.MAX_VALUE, issuedBy = issuer, studentId = STUDENT)
         val manager = AuthTokenManager(tokens, backend.client, prefs, "device-1").apply {
@@ -113,11 +114,16 @@ class SessionBackendMatchTest {
         answers.forEach { (base, held) -> assertEquals("held at $base", held, manager.hasSessionAt(base)) }
     }
 
-    private class MemoryStore(var pending: PendingUnregister?) : PendingUnregisterStore {
-        override fun load() = pending
-        override fun save(pending: PendingUnregister): Boolean = true.also { this.pending = pending }
-        override fun clear() {
-            pending = null
+    private class MemoryStore(pending: PendingUnregister?) : PendingUnregisterStore {
+        private var entries = listOfNotNull(pending)
+        val pending get() = entries.singleOrNull()
+        override fun load() = entries.toList()
+        override fun save(pending: PendingUnregister): Boolean {
+            entries = entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, pending.session.baseUrl) } + pending
+            return true
+        }
+        override fun clear(base: String?) {
+            entries = if (base == null) emptyList() else entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, base) }
         }
     }
 

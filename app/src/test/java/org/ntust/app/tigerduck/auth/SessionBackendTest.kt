@@ -5,8 +5,10 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -20,7 +22,6 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushTokenIn
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
-import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -68,19 +69,33 @@ class SessionBackendTest {
 
         val failures = requests.map { request -> runCatching { request() }.exceptionOrNull() }
 
-        assertTrue("got $failures", failures.all { it is IOException })
+        assertTrue("got $failures", failures.all { it is NotSignedInException })
         assertEquals(emptyList<String>(), backend.endpoints().filter { it != LOGIN })
     }
 
     @Test
-    fun `the refresh goes to the backend that issued the session`() = runTest {
+    fun `a moved session with no stored account gives no header and makes no refresh`() = runTest {
         val manager = signedInAtTheIssuer()
         prefs.announcementApiBaseUrlOverride = ELSEWHERE
         clock += 3_600_000
 
-        manager.authHeader()
+        assertNull(manager.authHeader())
 
-        assertEquals(listOf("127.0.0.1"), backend.received(REFRESH).map { it.host })
+        assertEquals(emptyList<String>(), backend.received(REFRESH).map { it.host })
+    }
+
+    @Test
+    fun `the guard still blocks an old header on a request built for the new backend`() = runTest {
+        val manager = signedInAtTheIssuer()
+        val header = manager.requireAuthHeader(manager.session.signIns.current)
+        prefs.announcementApiBaseUrlOverride = ELSEWHERE
+        val client = backend.client.newBuilder().guardedBy(manager).build()
+        val request = Request.Builder().url("$ELSEWHERE/sync/full").header("Authorization", header).build()
+
+        val failure = runCatching { client.newCall(request).execute().close() }.exceptionOrNull()
+
+        assertTrue("got $failure", failure is SessionNotForThisBackend)
+        assertEquals(listOf(LOGIN), backend.endpoints())
     }
 
     @Test

@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.di
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -16,6 +18,7 @@ import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.network.SyncClockInterceptor
 import org.ntust.app.tigerduck.network.tls.PinManager
+import org.ntust.app.tigerduck.push.DepartingUnregisterWorker
 import org.ntust.app.tigerduck.push.OwedUnregister
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.LibraryService
@@ -100,6 +103,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthTokenManager(
+        @ApplicationContext context: Context,
         credentials: CredentialManager,
         httpClient: OkHttpClient,
         identity: PushIdentity,
@@ -113,5 +117,6 @@ object NetworkModule {
         deviceUuid = identity.uuid(),
         owedUnregister = owedUnregister,
         session = sessions.school,
+        enqueueDepartingUnregister = { DepartingUnregisterWorker.enqueue(context) },
     )
 }

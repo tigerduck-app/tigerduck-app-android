@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.data.preferences.PendingUnregisterPrefs
 import org.ntust.app.tigerduck.data.preferences.clearAllButOwedUnregister
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.robolectric.RobolectricTestRunner
@@ -51,7 +52,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
-import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 
 /**
  * [PushRegistrationService] registering the device again after a registration failed:
@@ -131,14 +131,15 @@ class PushRegistrationServiceTest {
 
     /** The unregister a sign-out owes, kept in memory. */
     private val owed = object : PendingUnregisterStore {
-        var pending: PendingUnregister? = null
-        override fun load() = pending
+        private var entries = emptyList<PendingUnregister>()
+        val pending get() = entries.singleOrNull()
+        override fun load() = entries.toList()
         override fun save(pending: PendingUnregister): Boolean {
-            this.pending = pending
+            entries = entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, pending.session.baseUrl) } + pending
             return true
         }
-        override fun clear() {
-            pending = null
+        override fun clear(base: String?) {
+            entries = if (base == null) emptyList() else entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, base) }
         }
     }
 
@@ -523,7 +524,7 @@ class PushRegistrationServiceTest {
         BackgroundSyncWorker.cancel(context)
         clearAllButOwedUnregister(credentials)
 
-        assertEquals("access-1", store.load()?.session?.accessToken)
+        assertEquals("access-1", store.load().singleOrNull()?.session?.accessToken)
         assertEquals(listOf(WorkInfo.State.ENQUEUED), unregisterWork())
     }
 

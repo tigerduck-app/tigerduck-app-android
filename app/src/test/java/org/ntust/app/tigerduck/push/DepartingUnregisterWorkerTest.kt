@@ -11,6 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -21,13 +22,13 @@ class DepartingUnregisterWorkerTest {
 
     private var pending: PendingUnregister? = null
     private val store = object : PendingUnregisterStore {
-        override fun load() = pending
+        override fun load() = listOfNotNull(pending)
         override fun save(pending: PendingUnregister): Boolean {
             this@DepartingUnregisterWorkerTest.pending = pending
             return true
         }
-        override fun clear() {
-            pending = null
+        override fun clear(base: String?) {
+            if (base == null || pending?.let { ApiBase.sameBackend(it.session.baseUrl, base) } == true) pending = null
         }
     }
 

@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.DepartingRefresh
@@ -23,11 +22,92 @@ class PendingUnregisterPrefsTest {
         .getSharedPreferences("pending-unregister-test", Context.MODE_PRIVATE)
 
     @Test
+    fun `a legacy single-entry debt is read and sent after an upgrade`() = runTest {
+        legacyDebt()
+        val store = PendingUnregisterPrefs(prefs)
+        assertEquals(1, store.load().singleOrNull()?.unansweredRefreshes)
+        assertEquals("B11300001", store.load().singleOrNull()?.session?.studentId)
+        val sent = mutableListOf<String>()
+
+        assertEquals(DepartingDeviceUnregister.Outcome.DONE, sender(store, sent).send())
+        assertEquals(listOf("device-old access-old"), sent)
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
+    }
+
+    @Test
+    fun `a new backend's debt keeps the legacy debt across a restart and reset`() = runTest {
+        legacyDebt()
+        val store = PendingUnregisterPrefs(prefs)
+        store.save(PendingUnregister("device-new", DepartingSession("access-new", "refresh-new", Long.MAX_VALUE, "https://new.example/v4"), 2L))
+        clearAllButOwedUnregister(prefs)
+        val sent = mutableListOf<String>()
+
+        assertEquals(DepartingDeviceUnregister.Outcome.DONE, sender(PendingUnregisterPrefs(prefs), sent).send())
+        assertEquals(listOf("device-old access-old", "device-new access-new"), sent)
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
+    }
+
+    private fun legacyDebt() {
+        // The keys and values written by the single-entry build, without using today's writer.
+        prefs.edit()
+            .putString("departing_device_id", "device-old")
+            .putString("departing_access_token", "access-old")
+            .putString("departing_refresh_token", "refresh-old")
+            .putLong("departing_expires_at", Long.MAX_VALUE)
+            .putString("departing_base_url", "https://old.example/v3")
+            .putLong("departing_owed_at", 1L)
+            .putString("departing_student_id", "B11300001")
+            .putInt("departing_unanswered_refreshes", 1)
+            .commit()
+    }
+
+    private fun sender(store: PendingUnregisterPrefs, sent: MutableList<String>) = DepartingDeviceUnregister(
+        owed = OwedUnregister(store),
+        deleteDevice = { _, device, token, _ -> sent += "$device $token"; 204 },
+        refresh = { _, _, _ -> error("the access tokens still last") },
+        sessionAt = { false },
+        now = { 3L },
+        endpoint = { "https://new.example/v4" },
+    )
+
+    @Test
+    fun `replacing a legacy backend's debt keeps the other backend and uses the new debt's age`() = runTest {
+        legacyDebt()
+        val store = PendingUnregisterPrefs(prefs)
+        store.save(PendingUnregister("device-b", DepartingSession("access-b", "refresh-b", Long.MAX_VALUE, "https://new.example/v4"), 2L))
+        store.save(PendingUnregister("device-a-new", DepartingSession("access-a-new", "refresh-a-new", Long.MAX_VALUE, "https://OLD.example:443/v4/"), 3L))
+        val read = PendingUnregisterPrefs(prefs).load()
+        assertEquals(2, read.size)
+        val replacement = read.single { it.deviceId == "device-a-new" }
+        assertEquals(0, replacement.unansweredRefreshes)
+        assertEquals(null, replacement.session.studentId)
+        val sent = mutableListOf<String>()
+
+        assertEquals(DepartingDeviceUnregister.Outcome.DONE, sender(PendingUnregisterPrefs(prefs), sent).send())
+        assertEquals(listOf("device-b access-b", "device-a-new access-a-new"), sent)
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
+    }
+
+    @Test
+    fun `a sign-in removes only its backend from disk and leaves the legacy debt`() = runTest {
+        legacyDebt()
+        val store = PendingUnregisterPrefs(prefs)
+        store.save(PendingUnregister("device-b", DepartingSession("access-b", "refresh-b", Long.MAX_VALUE, "https://new.example/v3", "B11300002"), 2L))
+
+        OwedUnregister(store).signingIn("B11300002", "https://NEW.example:443/v4/") { Unit }
+
+        val sent = mutableListOf<String>()
+        assertEquals(DepartingDeviceUnregister.Outcome.DONE, sender(PendingUnregisterPrefs(prefs), sent).send())
+        assertEquals(listOf("device-old access-old"), sent)
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
+    }
+
+    @Test
     fun `what is owed reads back after a restart, and is gone once cleared`() {
         PendingUnregisterPrefs(prefs).save(PendingUnregister("device-1", DepartingSession("access-1", "refresh-1", 42L, "https://backend.example/v3"), 7L))
 
         // A new instance over the same file, as the next launch has.
-        val read = PendingUnregisterPrefs(prefs).load()
+        val read = PendingUnregisterPrefs(prefs).load().singleOrNull()
         assertEquals("device-1", read?.deviceId)
         assertEquals("access-1", read?.session?.accessToken)
         assertEquals("refresh-1", read?.session?.refreshToken)
@@ -36,7 +116,7 @@ class PendingUnregisterPrefsTest {
         assertEquals(7L, read?.owedAt)
 
         PendingUnregisterPrefs(prefs).clear()
-        assertNull(PendingUnregisterPrefs(prefs).load())
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
     }
 
     @Test
@@ -60,7 +140,7 @@ class PendingUnregisterPrefsTest {
 
         assertTrue(PendingUnregisterPrefs(prefs).save(pending))
         assertFalse(PendingUnregisterPrefs(refusing).save(pending.with(unansweredRefreshes = 1)))
-        assertEquals("the refused edit is what this process reads back", 1, PendingUnregisterPrefs(prefs).load()?.unansweredRefreshes)
+        assertEquals("the refused edit is what this process reads back", 1, PendingUnregisterPrefs(prefs).load().singleOrNull()?.unansweredRefreshes)
     }
 
     @Test
@@ -74,7 +154,7 @@ class PendingUnregisterPrefsTest {
             .remove(V3TokenStore.KEY_EXPIRES_AT)
             .commit()
 
-        assertEquals("refresh-1", PendingUnregisterPrefs(prefs).load()?.session?.refreshToken)
+        assertEquals("refresh-1", PendingUnregisterPrefs(prefs).load().singleOrNull()?.session?.refreshToken)
     }
 
     // The full reset signs out first, so an unregister that failed offline is owed while the
@@ -102,8 +182,8 @@ class PendingUnregisterPrefsTest {
         // What CredentialManager.clearAll() runs.
         clearAllButOwedUnregister(prefs)
 
-        assertEquals("refresh-1", PendingUnregisterPrefs(prefs).load()?.session?.refreshToken)
-        assertEquals(PendingUnregisterPrefs.KEYS, prefs.all.keys)
+        assertEquals("refresh-1", PendingUnregisterPrefs(prefs).load().singleOrNull()?.session?.refreshToken)
+        assertEquals(setOf(PendingUnregisterPrefs.KEY_DEBTS), prefs.all.keys)
     }
 
     @Test
@@ -125,7 +205,7 @@ class PendingUnregisterPrefsTest {
         tokens.save("access-2", "refresh-2", Long.MAX_VALUE)
         assertEquals(DepartingDeviceUnregister.Outcome.DONE, unregister().send())
         assertEquals(emptyList<String>(), deletes)
-        assertNull(PendingUnregisterPrefs(prefs).load())
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
 
         // Without one, the departing account's token goes out.
         tokens.clear()
@@ -133,7 +213,7 @@ class PendingUnregisterPrefsTest {
         clearAllButOwedUnregister(prefs)
         assertEquals(DepartingDeviceUnregister.Outcome.DONE, unregister().send())
         assertEquals(listOf("device-1 access-1"), deletes)
-        assertNull(PendingUnregisterPrefs(prefs).load())
+        assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
     }
 
     @Test

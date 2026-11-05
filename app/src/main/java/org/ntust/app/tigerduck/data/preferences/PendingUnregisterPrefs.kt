@@ -2,7 +2,10 @@ package org.ntust.app.tigerduck.data.preferences
 
 import android.content.SharedPreferences
 import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
 import org.ntust.app.tigerduck.auth.DepartingSession
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.push.PendingUnregister
 import org.ntust.app.tigerduck.push.PendingUnregisterStore
 import org.ntust.app.tigerduck.util.logSummary
@@ -14,7 +17,16 @@ import org.ntust.app.tigerduck.util.logSummary
  */
 class PendingUnregisterPrefs internal constructor(private val prefs: SharedPreferences) : PendingUnregisterStore {
 
-    override fun load(): PendingUnregister? {
+    @Synchronized
+    override fun load(): List<PendingUnregister> {
+        // A new key leaves the old shape readable on a direct upgrade. No Gson fields depend on
+        // constructor defaults or R8 names: every persisted field is read explicitly.
+        val stored = prefs.getString(KEY_DEBTS, null) ?: return listOfNotNull(legacy())
+        val entries = JSONArray(stored)
+        return List(entries.length()) { read(entries.getJSONObject(it)) }
+    }
+
+    private fun legacy(): PendingUnregister? {
         val deviceId = prefs.getString(KEY_DEVICE_ID, null) ?: return null
         val access = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
         val refresh = prefs.getString(KEY_REFRESH_TOKEN, null) ?: return null
@@ -30,23 +42,18 @@ class PendingUnregisterPrefs internal constructor(private val prefs: SharedPrefe
      * when the process dies would bring the replaced one back on the next try. Says whether the
      * disk took it, so a send whose count it refused is not made.
      */
-    override fun save(pending: PendingUnregister): Boolean {
-        val written = prefs.edit()
-            .putString(KEY_DEVICE_ID, pending.deviceId)
-            .putString(KEY_ACCESS_TOKEN, pending.session.accessToken)
-            .putString(KEY_REFRESH_TOKEN, pending.session.refreshToken)
-            .putLong(KEY_EXPIRES_AT, pending.session.accessExpiresAt)
-            .putString(KEY_BASE_URL, pending.session.baseUrl)
-            .putLong(KEY_OWED_AT, pending.owedAt)
-            .putInt(KEY_UNANSWERED, pending.unansweredRefreshes)
-            .apply { pending.session.studentId?.let { putString(KEY_STUDENT_ID, it) } ?: remove(KEY_STUDENT_ID) }
-            .commit()
-        if (!written) Log.w(TAG, "owed unregister not written to disk")
-        return written
-    }
+    @Synchronized
+    override fun save(pending: PendingUnregister): Boolean =
+        write(load().filterNot { ApiBase.sameBackend(it.session.baseUrl, pending.session.baseUrl) } + pending)
 
-    override fun clear() {
+    @Synchronized
+    override fun clear(base: String?) {
+        if (base != null) {
+            write(load().filterNot { ApiBase.sameBackend(it.session.baseUrl, base) })
+            return
+        }
         val written = prefs.edit()
+            .remove(KEY_DEBTS)
             .remove(KEY_DEVICE_ID)
             .remove(KEY_ACCESS_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
@@ -59,7 +66,43 @@ class PendingUnregisterPrefs internal constructor(private val prefs: SharedPrefe
         if (!written) Log.w(TAG, "owed unregister not removed from disk")
     }
 
+    private fun read(entry: JSONObject): PendingUnregister {
+        val session = DepartingSession(
+            entry.getString(KEY_ACCESS_TOKEN), entry.getString(KEY_REFRESH_TOKEN),
+            entry.optLong(KEY_EXPIRES_AT, 0L), entry.getString(KEY_BASE_URL),
+            if (entry.isNull(KEY_STUDENT_ID)) null else entry.getString(KEY_STUDENT_ID),
+        )
+        return PendingUnregister(
+            entry.getString(KEY_DEVICE_ID), session, entry.optLong(KEY_OWED_AT, 0L), entry.optInt(KEY_UNANSWERED, 0),
+        )
+    }
+
+    private fun write(pending: List<PendingUnregister>): Boolean {
+        val entries = JSONArray()
+        pending.forEach { debt ->
+            entries.put(
+                JSONObject()
+                    .put(KEY_DEVICE_ID, debt.deviceId)
+                    .put(KEY_ACCESS_TOKEN, debt.session.accessToken)
+                    .put(KEY_REFRESH_TOKEN, debt.session.refreshToken)
+                    .put(KEY_EXPIRES_AT, debt.session.accessExpiresAt)
+                    .put(KEY_BASE_URL, debt.session.baseUrl)
+                    .put(KEY_OWED_AT, debt.owedAt)
+                    .put(KEY_UNANSWERED, debt.unansweredRefreshes)
+                    .put(KEY_STUDENT_ID, debt.session.studentId),
+            )
+        }
+        // The collection and removal of the legacy entry land in the same committed edit. An
+        // empty collection also marks that entry as consumed, so it cannot reappear on restart.
+        val editor = prefs.edit().putString(KEY_DEBTS, entries.toString())
+        KEYS.filter { it != KEY_DEBTS }.forEach { editor.remove(it) }
+        val written = editor.commit()
+        if (!written) Log.w(TAG, "owed unregister not written to disk")
+        return written
+    }
+
     internal companion object {
+        const val KEY_DEBTS = "departing_unregisters"
         const val KEY_DEVICE_ID = "departing_device_id"
         const val KEY_ACCESS_TOKEN = "departing_access_token"
         const val KEY_REFRESH_TOKEN = "departing_refresh_token"
@@ -70,7 +113,7 @@ class PendingUnregisterPrefs internal constructor(private val prefs: SharedPrefe
         const val KEY_UNANSWERED = "departing_unanswered_refreshes"
         val KEYS = setOf(
             KEY_DEVICE_ID, KEY_ACCESS_TOKEN, KEY_REFRESH_TOKEN, KEY_EXPIRES_AT, KEY_BASE_URL, KEY_OWED_AT,
-            KEY_STUDENT_ID, KEY_UNANSWERED,
+            KEY_STUDENT_ID, KEY_UNANSWERED, KEY_DEBTS,
         )
         private const val TAG = "PendingUnregisterPrefs"
     }

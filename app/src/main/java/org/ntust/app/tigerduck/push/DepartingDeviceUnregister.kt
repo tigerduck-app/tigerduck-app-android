@@ -36,13 +36,15 @@ class PendingUnregister(
         PendingUnregister(deviceId, session, owedAt, unansweredRefreshes)
 }
 
-/** Keeps the owed unregister between launches. It holds tokens, so it is stored encrypted. */
+/** Keeps one owed unregister per backend between launches. It holds tokens, so it is stored encrypted. */
 interface PendingUnregisterStore {
-    fun load(): PendingUnregister?
+    fun load(): List<PendingUnregister>
 
-    /** Says whether the disk took it: a send counted in memory only is not made. */
+    /** Replaces only this backend's entry; says whether the disk took it before a counted send. */
     fun save(pending: PendingUnregister): Boolean
-    fun clear()
+
+    /** Clears only [base]'s backend, or every debt when null. */
+    fun clear(base: String? = null)
 }
 
 /**
@@ -108,7 +110,7 @@ class DepartingDeviceUnregister internal constructor(
     // Shared with a backend sign-in; see OwedUnregister.signingIn.
     private val mutex = owed.mutex
 
-    /** Keeps the unregister of [deviceId] as [session] until the server has it, in place of any owed before. */
+    /** Keeps [deviceId]'s unregister as [session], replacing only what its backend was owed before. */
     suspend fun owe(deviceId: String, session: DepartingSession) =
         mutex.withLock { store.save(PendingUnregister(deviceId, session, now(), session.sendsWithoutReply)) }
 
@@ -116,27 +118,35 @@ class DepartingDeviceUnregister internal constructor(
     suspend fun abandon() = mutex.withLock { drop() }
 
     suspend fun send(): Outcome = mutex.withLock {
-        val pending = try {
+        val pending = load() ?: return@withLock Outcome.RETRY
+        for (debt in pending.sortedBy { it.owedAt }) {
+            if (sendDebt(debt) == Outcome.DONE) drop(debt.session.baseUrl)
+        }
+        if (load()?.isEmpty() == true) Outcome.DONE else Outcome.RETRY
+    }
+
+    private fun load(): List<PendingUnregister>? =
+        try {
             store.load()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "owed unregister unreadable: ${e.javaClass.simpleName}")
-            return@withLock Outcome.RETRY
-        } ?: return@withLock Outcome.DONE
+            null
+        }
+
+    private suspend fun sendDebt(pending: PendingUnregister): Outcome {
         if (sessionAt(pending.session.baseUrl)) {
             // See the class comment: a sign-in since moved the device to its account.
-            drop()
-            return@withLock Outcome.DONE
+            return Outcome.DONE
         }
         if (now() - pending.owedAt >= OWED_AT_MOST_MS) {
             // Past the refresh token's lifetime nothing can go out as the account any more.
             Log.w(TAG, "the unregister was owed past the session's lifetime; it is dropped")
-            drop()
-            return@withLock Outcome.DONE
+            return Outcome.DONE
         }
-        if (heldBack(pending.session.baseUrl)) return@withLock Outcome.RETRY
-        val outcome = try {
+        if (heldBack(pending.session.baseUrl)) return Outcome.RETRY
+        return try {
             sendAs(pending)
         } catch (e: CancellationException) {
             throw e
@@ -152,8 +162,6 @@ class DepartingDeviceUnregister internal constructor(
             Log.w(TAG, "unregister failed: ${e.javaClass.simpleName}")
             Outcome.RETRY
         }
-        if (outcome == Outcome.DONE) drop()
-        outcome
     }
 
     /**
@@ -168,8 +176,8 @@ class DepartingDeviceUnregister internal constructor(
         base.startsWith("http://", ignoreCase = true) && !ApiBase.sameBackend(base, endpoint())
 
     // Under the mutex.
-    private fun drop() {
-        runCatching { store.clear() }
+    private fun drop(base: String? = null) {
+        runCatching { store.clear(base) }
             .onFailure { Log.w(TAG, "owed unregister not cleared: ${it.javaClass.simpleName}") }
     }
 
