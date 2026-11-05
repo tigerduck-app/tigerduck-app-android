@@ -51,9 +51,9 @@ class TimeSliderViewModelTest {
     fun `on a quiet day the slider points at the classes either side of it`() {
         val holiday = TimeSliderViewModel().apply { configure(listOf(everyDay)) { it == today } }
 
-        val state = holiday.currentCourseState as CourseState.Between
-        assertEquals(today.minusDays(1), state.previous?.localDate)
-        assertEquals(today.plusDays(1), state.next?.localDate)
+        val state = holiday.currentState as CourseState.Between
+        assertEquals(today.minusDays(1), state.previous?.slot?.localDate)
+        assertEquals(today.plusDays(1), state.next?.slot?.localDate)
     }
 
     // ---- a class is over from its end minute (D2: start <= now < end) ----
@@ -65,14 +65,14 @@ class TimeSliderViewModelTest {
     fun `the slider has a class in session in its last minute and not at its end minute`() {
         val slider = TimeSliderViewModel().apply { configure(listOf(everyDay)) }   // periods 3-4, 10:20-12:10
 
-        val last = slider.courseState(taipei(today, 12, 9))
-        assertEquals(listOf("CS101"), (last as CourseState.InClass).slots.map { it.course.courseNo })
+        val last = slider.state(taipei(today, 12, 9))
+        assertEquals(listOf("CS101"), (last as CourseState.InClass).slots.map { it.slot.course.courseNo })
 
-        val over = slider.courseState(taipei(today, 12, 10))
+        val over = slider.state(taipei(today, 12, 10))
         assertTrue(over is CourseState.Between)
         over as CourseState.Between
-        assertEquals(today, over.previous?.localDate)
-        assertEquals(today.plusDays(1), over.next?.localDate)
+        assertEquals(today, over.previous?.slot?.localDate)
+        assertEquals(today.plusDays(1), over.next?.slot?.localDate)
     }
 
     @Test
@@ -85,7 +85,7 @@ class TimeSliderViewModelTest {
         )
         val slider = TimeSliderViewModel().apply { configure(listOf(CourseChangeFixture.course()), changes) }
 
-        assertTrue(slider.courseState(taipei(thursday, 11, 44)) is CourseState.InClass)
-        assertTrue(slider.courseState(taipei(thursday, 11, 45)) is CourseState.Between)
+        assertTrue(slider.state(taipei(thursday, 11, 44)) is CourseState.InClass)
+        assertTrue(slider.state(taipei(thursday, 11, 45)) is CourseState.Between)
     }
 }

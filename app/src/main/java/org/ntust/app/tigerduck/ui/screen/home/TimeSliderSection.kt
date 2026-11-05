@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,19 +30,14 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -80,11 +74,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
@@ -95,13 +87,12 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
+import org.ntust.app.tigerduck.ui.screen.classtable.clubs.ClubActivityDetailSheet
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 // import java.text.SimpleDateFormat  // 翹課 (parked) — isSkippedFor's date key
-import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -165,16 +156,17 @@ fun TimeSliderSection(
             }
         }
 
-        if (viewModel.hasCourses) {
+        if (viewModel.hasItems) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 CourseTimeCard(
-                    state = viewModel.currentCourseState,
+                    state = viewModel.currentState,
                     // skippedDates = skippedDates,
                     // onSkipCourse = onSkipCourse,
-                    onSelect = onSelectCourse
+                    onSelect = onSelectCourse,
+                    onSelectClub = { viewModel.openedClub = it },
                 )
 
                 // Time label
@@ -190,190 +182,48 @@ fun TimeSliderSection(
             // Cache hasn't been consulted yet — don't flash "目前沒有課程"
             // while the on-disk cache is still being read.
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    if (isLoggedIn) Icons.Filled.CheckCircle else Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-                    modifier = Modifier.size(32.dp)
-                )
-                Text(
-                    if (isLoggedIn) {
-                        stringResource(R.string.home_time_slider_no_courses)
-                    } else {
-                        stringResource(R.string.common_sign_in_required_feature)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                )
-                if (!isLoggedIn) {
-                    Button(onClick = onSignIn) {
-                        Text(stringResource(R.string.onboarding_sign_in_button))
-                    }
-                }
-            }
+            EmptyState(isLoggedIn, onSignIn)
         }
     }
+    // A club card's tap opens the same details as the class table's.
+    viewModel.openedClub?.let { ClubActivityDetailSheet(it, onDismiss = { viewModel.openedClub = null }) }
 }
 
+/** Nothing to scrub: signed out, or no classes and no club activities. */
 @Composable
-private fun CourseTimeCard(
-    state: CourseState,
-    // skippedDates: Map<String, List<String>>,
-    // onSkipCourse: (Course, Date) -> Unit,
-    onSelect: (CourseTimeSlot) -> Unit
-) {
-    // val skipped = CourseMeetings.skipsFrom(skippedDates)
-    // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot -> skipped(slot.course, slot.localDate) }
-
-    // Pin the card area to the tallest height seen this session so the slider
-    // track below doesn't bob up and down as the user scrubs across states
-    // with different card layouts. `remember` resets on Home tab destruction.
-    var maxHeightPx by remember { mutableIntStateOf(0) }
-    val minHeightDp = with(LocalDensity.current) { maxHeightPx.toDp() }
-
-    Box(
+private fun EmptyState(isLoggedIn: Boolean, onSignIn: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = minHeightDp)
+            .padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        EqualHeightRow(
-            spacing = 8.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onSizeChanged {
-                    if (it.height > maxHeightPx) maxHeightPx = it.height
-                }
-        ) {
-            // 翹課 is parked, so every SlotCard below takes the `isSkipped =
-            // false` / `onSkipToggle = null` defaults: no red course name, no
-            // left-swipe gesture, nothing to discover. SlotCard itself still
-            // implements both — uncommenting the argument lines is what turns
-            // the feature back on. See HomeViewModel._skippedDates for when.
-            when (state) {
-                is CourseState.InClass -> {
-                    // 衝堂: render one card per overlapping slot so each
-                    // can be tapped individually for its own room/assignments.
-                    state.slots.forEach { slot ->
-                        SlotCard(
-                            slot = slot,
-                            muted = false,
-                            // isSkipped = isSkippedFor(slot),
-                            // onSkipToggle = { onSkipCourse(slot.course, slot.date) },
-                            onClick = { onSelect(slot) },
-                        )
-                    }
-                }
-
-                is CourseState.Between -> {
-                    state.previous?.let {
-                        SlotCard(
-                            slot = it, muted = true,
-                            // isSkipped = isSkippedFor(it),
-                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                            onClick = { onSelect(it) },
-                        )
-                    }
-                    state.next?.let {
-                        SlotCard(
-                            slot = it, muted = true,
-                            // isSkipped = isSkippedFor(it),
-                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                            onClick = { onSelect(it) },
-                        )
-                    }
-                }
-
-                is CourseState.BeforeFirst -> {
-                    SlotCard(
-                        slot = state.next, muted = true,
-                        // isSkipped = isSkippedFor(state.next),
-                        // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
-                        onClick = { onSelect(state.next) },
-                    )
-                }
-
-                is CourseState.AfterLast -> {
-                    SlotCard(
-                        slot = state.previous, muted = true,
-                        // isSkipped = isSkippedFor(state.previous),
-                        // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
-                        onClick = { onSelect(state.previous) },
-                    )
-                }
+        Icon(
+            if (isLoggedIn) Icons.Filled.CheckCircle else Icons.Filled.Lock,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+            modifier = Modifier.size(32.dp)
+        )
+        Text(
+            if (isLoggedIn) {
+                stringResource(R.string.home_time_slider_no_courses)
+            } else {
+                stringResource(R.string.common_sign_in_required_feature)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+        )
+        if (!isLoggedIn) {
+            Button(onClick = onSignIn) {
+                Text(stringResource(R.string.onboarding_sign_in_button))
             }
         }
     }
 }
 
-/**
- * Lays children out in a single row, splitting available width equally and
- * forcing every child to the tallest natural height in the group. Avoids
- * `Modifier.height(IntrinsicSize.Min)` which crashes for SubcomposeLayout
- * children (SlotCard contains FitOrStack / InlineOrStackText). Uses two
- * subcompositions — one to probe natural heights, one for placement —
- * because Compose only permits a single `measure()` call per Measurable.
- */
 @Composable
-private fun EqualHeightRow(
-    spacing: Dp,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    SubcomposeLayout(modifier) { constraints ->
-        val spacingPx = spacing.roundToPx()
-        val probeMeasurables = subcompose(EqualHeightSlot.Probe, content)
-        val n = probeMeasurables.size
-        if (n == 0) return@SubcomposeLayout layout(constraints.maxWidth, 0) {}
-        val totalSpacing = if (n > 1) spacingPx * (n - 1) else 0
-        val widthPerChild = ((constraints.maxWidth - totalSpacing) / n).coerceAtLeast(0)
-        val probeConstraints = Constraints(
-            minWidth = widthPerChild, maxWidth = widthPerChild,
-            minHeight = 0, maxHeight = Constraints.Infinity,
-        )
-        val maxH = probeMeasurables.maxOf { it.measure(probeConstraints).height }
-        val finalMeasurables = subcompose(EqualHeightSlot.Place, content)
-        val finalConstraints = Constraints(
-            minWidth = widthPerChild, maxWidth = widthPerChild,
-            minHeight = maxH, maxHeight = maxH,
-        )
-        val placeables = finalMeasurables.map { it.measure(finalConstraints) }
-        layout(constraints.maxWidth, maxH) {
-            var x = 0
-            placeables.forEach { p ->
-                p.place(x, 0)
-                x += p.width + spacingPx
-            }
-        }
-    }
-}
-
-private enum class EqualHeightSlot { Probe, Place }
-
-/**
- * Expands a child to its parent's max height only when the parent supplies a
- * bounded height constraint. Lets EqualHeightRow's place pass stretch the
- * Card to the equalized slot height while still allowing the probe pass
- * (unbounded max height) to measure natural content height without crashing.
- */
-private fun Modifier.fillBoundedHeight(): Modifier = layout { measurable, constraints ->
-    val adjusted = if (constraints.hasBoundedHeight) {
-        constraints.copy(minHeight = constraints.maxHeight)
-    } else {
-        constraints
-    }
-    val placeable = measurable.measure(adjusted)
-    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-}
-
-@Composable
-private fun SlotCard(
+internal fun SlotCard(
     slot: CourseTimeSlot,
     // Beside the class the slider is on, rather than on it: a fainter card.
     muted: Boolean,
@@ -383,14 +233,8 @@ private fun SlotCard(
     modifier: Modifier = Modifier
 ) {
     val color = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
-    val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
     val timeRange = "${formatClock(slot.start)} - ${formatClock(slot.end)}"
-
-    val isToday = AppClock.calendar().let {
-        val today = it.get(Calendar.DAY_OF_YEAR)
-        cal.time = slot.date
-        today == cal.get(Calendar.DAY_OF_YEAR) && it.get(Calendar.YEAR) == cal.get(Calendar.YEAR)
-    }
+    val strike = if (slot.isCancelled) TextDecoration.LineThrough else null
 
     val latestOnSkipToggle by rememberUpdatedState(onSkipToggle)
     val density = LocalDensity.current
@@ -483,80 +327,50 @@ private fun SlotCard(
                 .fillBoundedHeight()
         }
 
-        val style = LocalVisualStylePolicy.current
-        val isDark = TigerDuckTheme.isDarkMode
-        val slotContainer = style.courseCardFill(
-            courseColor = color,
-            tintAlpha = when {
-                isDark -> if (muted) 0.40f else 0.55f
-                else -> if (muted) 0.35f else 0.50f
-            },
+        TimeSliderCardSurface(
+            tint = color,
             muted = muted,
-            surface = MaterialTheme.colorScheme.surface,
-            isDark = isDark,
-        )
-        // Also the card's content colour, so its press ripple reads on the fill.
-        val nameColor = style.courseCardTextColor(LocalContentColor.current)
-        Card(
+            date = slot.date,
             onClick = onClick,
             modifier = cardModifier,
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = slotContainer, contentColor = nameColor)
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                val metaStyle = MaterialTheme.typography.labelSmall
-                val metaBoldStyle = metaStyle.copy(fontWeight = FontWeight.Bold)
-                val metaColor =
-                    style.courseCardSecondaryTextColor(MaterialTheme.colorScheme.onSurface)
-                val ink = courseChangeInk()
-                val strike = if (slot.isCancelled) TextDecoration.LineThrough else null
-                val time: @Composable () -> Unit = {
-                    if (slot.hasChangedTime && !slot.isCancelled) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Schedule, contentDescription = null, tint = ink, modifier = Modifier.size(11.dp))
-                            Spacer(Modifier.width(3.dp))
-                            Text(timeRange, style = metaBoldStyle, color = ink)
-                        }
-                    } else {
-                        Text(timeRange, style = metaBoldStyle, color = metaColor, textDecoration = strike)
+            time = { ink ->
+                val metaBoldStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                if (slot.hasChangedTime && !slot.isCancelled) {
+                    val changeInk = courseChangeInk()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Schedule, contentDescription = null, tint = changeInk, modifier = Modifier.size(11.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(timeRange, style = metaBoldStyle, color = changeInk)
                     }
-                }
-                if (isToday) {
-                    time()
                 } else {
-                    FitOrStack(
-                        modifier = Modifier.fillMaxWidth(),
-                        first = time,
-                        second = {
-                            Text(formatDateLabel(slot.date), style = metaStyle, color = metaColor)
-                        },
-                    )
+                    Text(timeRange, style = metaBoldStyle, color = ink.meta, textDecoration = strike)
                 }
-                Spacer(Modifier.height(4.dp))
+            },
+        ) { ink ->
+            val metaStyle = MaterialTheme.typography.labelSmall
+            Text(
+                courseNameForDisplay(slot.course.displayName, maxChars = 30),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = if (isSkipped) Color(0xFFFF2D55) else ink.name,
+                textDecoration = strike,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (slot.isCancelled) {
                 Text(
-                    courseNameForDisplay(slot.course.displayName, maxChars = 30),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (isSkipped) Color(0xFFFF2D55) else nameColor,
-                    textDecoration = strike,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    stringResource(R.string.course_card_cancelled),
+                    style = metaStyle,
+                    color = ink.meta,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
                 )
-                if (slot.isCancelled) {
-                    Text(
-                        stringResource(R.string.course_card_cancelled),
-                        style = metaStyle,
-                        color = metaColor,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
-                } else {
-                    InlineOrStackText(
-                        primary = if (slot.hasChangedRoom) movedRoomText(slot.classroom, ink) else AnnotatedString(slot.classroom),
-                        secondary = slot.course.instructor,
-                        style = metaStyle,
-                        color = metaColor,
-                    )
-                }
+            } else {
+                InlineOrStackText(
+                    primary = if (slot.hasChangedRoom) movedRoomText(slot.classroom, courseChangeInk()) else AnnotatedString(slot.classroom),
+                    secondary = slot.course.instructor,
+                    style = metaStyle,
+                    color = ink.meta,
+                )
             }
         }
     }
@@ -613,8 +427,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 val layouts = viewModel.slotLayouts
                 val cornerRadiusPx = 4f
 
-                // Draw course segments
-                for (slot in viewModel.timeSlots) {
+                // Draw the segments, a class's or a club's
+                for (slot in viewModel.items) {
                     val startOff = viewModel.xOffset(slot.start) * pxPerDp
                     val endOff = viewModel.xOffset(slot.end) * pxPerDp
                     val segW = maxOf(
@@ -625,8 +439,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                     val left = segCenterX - segW / 2
 
                     if (left + segW > -50 && left < size.width + 50) {
-                        val isActive = slot.isGoingOn(viewModel.selectedTime)
-                        val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
+                        val isActive = slot.isOn(viewModel.selectedTime)
+                        val courseColor = slot.tint
 
                         // 衝堂: lanes meet flush inside the same band, so the
                         // bar still reads as one block with stacked colours.
@@ -742,9 +556,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 )
 
                 // Glow dot
-                val glowColor = viewModel.thumbSlot?.let {
-                    style.timeSliderInClassDotColor(TigerDuckTheme.courseColorVibrant(it.course.courseNo))
-                } ?: Color.White
+                val glowColor = viewModel.thumbItem?.let { style.timeSliderInClassDotColor(it.tint) } ?: Color.White
                 val gs = TimeSliderViewModel.GLOW_DOT_SIZE
                 drawCircle(
                     color = glowColor,
@@ -756,14 +568,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 }
 
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-private fun appLocale(): Locale =
-    LocaleListCompat.getAdjustedDefault()[0] ?: Locale.getDefault()
-
 private fun dateTimeFmt() =
     java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", appLocale())
-
-private fun dateLabelFmt() =
-    java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", appLocale())
 
 private fun formatTimeLabel(date: Date): String {
     val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)
@@ -774,9 +580,6 @@ private fun formatTimeLabel(date: Date): String {
         dateTimeFmt().format(instant)
     }
 }
-
-private fun formatDateLabel(date: Date): String =
-    dateLabelFmt().format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
 
 private fun formatClock(date: Date): String = timeFmt.format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
 
@@ -790,38 +593,6 @@ private fun movedRoomText(room: String, ink: Color): AnnotatedString = buildAnno
 }
 
 private const val MOVED_ROOM_ICON = "moved-room"
-
-/**
- * Places [first] at the start and [second] at the end on a single row if both
- * fit; otherwise stacks them vertically with [first] above [second].
- */
-@Composable
-private fun FitOrStack(
-    first: @Composable () -> Unit,
-    second: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    minGap: Dp = 8.dp,
-) {
-    SubcomposeLayout(modifier) { constraints ->
-        val unbounded = Constraints()
-        val f = subcompose("first", first).first().measure(unbounded)
-        val s = subcompose("second", second).first().measure(unbounded)
-        val gap = minGap.roundToPx()
-        val width = constraints.maxWidth
-        if (f.width + gap + s.width <= width) {
-            val h = maxOf(f.height, s.height)
-            layout(width, h) {
-                f.place(0, (h - f.height) / 2)
-                s.place(width - s.width, (h - s.height) / 2)
-            }
-        } else {
-            layout(width, f.height + s.height) {
-                f.place(0, 0)
-                s.place(0, f.height)
-            }
-        }
-    }
-}
 
 /** The `⇄` of [movedRoomText], drawn as the class table draws it. */
 @Composable
