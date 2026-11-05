@@ -65,13 +65,13 @@ import kotlin.math.roundToInt
 /** The red of the Unsubscribe swipe, the iPhone's system red, as Home's swipes take the iPhone's colors. */
 private val UNSUBSCRIBE_RED = Color(0xFFFF3B30)
 
-/** [clubs] in priority order; [onReorder] gets their ids in the new order once a drag ends. */
+/** [clubs] in priority order; [onReorder] gets their ids in the new order and the one moved, once a drag ends. */
 @Composable
 internal fun SubscribedClubs(
     clubs: List<ClubCard>,
     name: (ClubCard) -> String,
     color: (Int) -> Int,
-    onReorder: (List<Int>) -> Unit,
+    onReorder: (shown: List<Int>, moved: Int) -> Unit,
     onUnsubscribe: (ClubCard) -> Unit,
     onPickColor: (ClubCard) -> Unit,
 ) {
@@ -107,7 +107,7 @@ internal fun SubscribedClubs(
                         color = Color(0xFF000000.toInt() or color(club.id)),
                         canMoveUp = index > 0,
                         canMoveDown = index < order.lastIndex,
-                        onMove = { step -> onReorder(moveBy(step, order, id)) },
+                        onMove = { step -> onReorder(moveBy(step, order, id), id) },
                         onUnsubscribe = { onUnsubscribe(club) },
                         onPickColor = { onPickColor(club) },
                         onDragStart = { draggingId = id; dragOffset = 0f; dragged = order },
@@ -123,7 +123,7 @@ internal fun SubscribedClubs(
                             }
                         },
                         onDragEnd = {
-                            dragged?.takeIf { it != clubs.map(ClubCard::id) }?.let(onReorder)
+                            dragged?.takeIf { it != clubs.map(ClubCard::id) }?.let { onReorder(it, id) }
                             dragged = null
                             draggingId = null
                             dragOffset = 0f

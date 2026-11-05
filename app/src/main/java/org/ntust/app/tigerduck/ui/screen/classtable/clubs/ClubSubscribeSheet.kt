@@ -121,7 +121,7 @@ private fun ClubSubscribeContent(
                             clubs = subscribed,
                             name = viewModel::displayName,
                             color = viewModel::color,
-                            onReorder = { shown -> viewModel.reorder(reorderedOrder(document.subscribedIds, shown)) },
+                            onReorder = { shown, moved -> viewModel.reorder(reorderedOrder(document.subscribedIds, shown, moved)) },
                             onUnsubscribe = { viewModel.unsubscribe(it.id) },
                             onPickColor = { onPickColor(ClubColorTarget(it.id, viewModel.displayName(it))) },
                         )
@@ -224,11 +224,22 @@ internal fun ClubNameLabel(name: String, tagline: String?, modifier: Modifier = 
 }
 
 /**
- * The subscriptions' order once the shown clubs moved to [shown]: a subscribed club the directory
- * no longer lists, and so the list leaves out, keeps its place among the rest.
+ * The subscriptions' order once a drag left the shown clubs as [shown], [moved] the one dragged,
+ * as the iPhone's `ClubSubscribeSheet.move`: [moved] goes in front of the shown club it now sits
+ * before in the old list, or last when it sits last. A subscribed club the directory no longer
+ * lists, and so the list leaves out, stays where it stands among the others.
  */
-internal fun reorderedOrder(order: List<Int>, shown: List<Int>): List<Int> {
-    val moved = shown.iterator()
-    val shownSet = shown.toSet()
-    return order.map { if (it in shownSet && moved.hasNext()) moved.next() else it }
+internal fun reorderedOrder(order: List<Int>, shown: List<Int>, moved: Int): List<Int> {
+    val before = order.filter { it in shown }
+    val from = before.indexOf(moved)
+    val to = shown.indexOf(moved)
+    if (from < 0 || to < 0 || from == to) return order
+    // The list's offset before the move, as SwiftUI's onMove reports it: past the moved club when it went down.
+    val destination = if (to > from) to + 1 else to
+    val at = before.getOrNull(destination)?.let(order::indexOf) ?: order.size
+    val index = order.indexOf(moved)
+    return order.toMutableList().apply {
+        removeAt(index)
+        add(if (index < at) at - 1 else at, moved)
+    }
 }
