@@ -760,7 +760,7 @@ class HomeViewModel @Inject constructor(
                     val written = remoteAssignments?.let {
                         moodleService.storeAssignments(it.assignments, it.answer)
                     }
-                    if (written != null && remoteAssignments != null) {
+                    if (written != null) {
                         assignments = written
                         // After this process's first pull. A sign-out cancels this fetch, and the
                         // cancellation goes on up: taken for a failed upload, the fetch would go on to

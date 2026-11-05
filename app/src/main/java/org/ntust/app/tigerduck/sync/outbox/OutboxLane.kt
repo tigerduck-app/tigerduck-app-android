@@ -4,6 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -216,6 +217,7 @@ class OutboxLane<E : Any>(
 
     // The next entry [drain] has not had, sent under [signIn] once no other request is in flight,
     // and its outcome stored; null when none is due or the sign-in has ended.
+    @OptIn(DelicateCoroutinesApi::class)
     private suspend fun sendNext(signIn: SignIn, fields: Set<String>?, drain: Drain<E>): SendResult? {
         inFlight.lock()
         // ATOMIC: once the lock is taken, the block runs to give it back, whatever has been cancelled.

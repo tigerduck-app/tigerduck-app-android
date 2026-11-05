@@ -63,7 +63,7 @@ data class CourseSyllabus(
             if (value is JSONObject && value.optString("ClassName") == "System.IndexOutOfRangeException") return null
             if (value !is JSONArray) throw JSONException("not a syllabus array")
             val row = value.optJSONObject(0) ?: return null
-            fun field(key: String): String? = when (val v = row.opt(key)) {
+            fun field(key: String): String? = when (val v: Any? = row.opt(key)) {
                 is String -> v
                 is Int, is Long -> v.toString()
                 is Double -> if (v.isFinite() && v == Math.rint(v) && kotlin.math.abs(v) < 1e15) v.toLong().toString() else v.toString()

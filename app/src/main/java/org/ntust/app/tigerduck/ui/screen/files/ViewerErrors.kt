@@ -1,10 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.files
 
 import androidx.annotation.OptIn
-import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlaybackException
 import java.util.Locale
 
@@ -45,7 +45,7 @@ internal object ViewerErrors {
         val renderer = (error as? ExoPlaybackException)?.takeIf { it.type == ExoPlaybackException.TYPE_RENDERER }
         if (error != null) lines += head(error)
         if (renderer != null) {
-            lines += "renderer: ${renderer.rendererName}, format support: ${C.getFormatSupportString(renderer.rendererFormatSupport)}"
+            lines += "renderer: ${renderer.rendererName}, format support: ${Util.getFormatSupportString(renderer.rendererFormatSupport)}"
         }
         (renderer?.rendererFormat ?: failure.track)?.let { lines += "track: ${track(it)}" }
         if (error != null) lines += causes(error)

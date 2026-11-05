@@ -62,8 +62,8 @@ object ClassTableCourseMerge {
                 customColorHex = prior?.customColorHex,
                 isManual = prior?.isManual == true,
                 customCourseName = CourseNameOverrides.overrideFor(names, course.courseNo, locale),
-                moodleIdNumber = if (addedHere) prior?.moodleIdNumber else course.moodleIdNumber,
-                moodleNumericCourseId = if (addedHere) prior?.moodleNumericCourseId else course.moodleNumericCourseId,
+                moodleIdNumber = if (addedHere) prior.moodleIdNumber else course.moodleIdNumber,
+                moodleNumericCourseId = if (addedHere) prior.moodleNumericCourseId else course.moodleNumericCourseId,
                 isUserAddedOnServer = if (prior?.isManual == true && !addedHere) false else course.isUserAddedOnServer,
             )
         }
