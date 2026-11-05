@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.clubs
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -88,7 +91,7 @@ class ClubRedirectTest {
         val server = Server { n ->
             if (n == 0) ok(envelope(club(9001, "測試棋藝社")), "Cache-Control: max-age=0\r\n") else redirect(away("clubs"))
         }.also { clubs = it }
-        val directory = ClubDirectory(JvmContext().getSharedPreferences("club_directory", 0), api(server), { true })
+        val directory = ClubDirectory(JvmContext().getSharedPreferences("club_directory", 0), api(server), { true }, emptyFlow(), CoroutineScope(Dispatchers.Unconfined))
 
         directory.refresh()
         directory.refresh()

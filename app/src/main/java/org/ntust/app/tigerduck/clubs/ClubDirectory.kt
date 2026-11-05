@@ -5,13 +5,19 @@ import android.content.SharedPreferences
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.util.logSummary
 import java.text.Collator
 import java.text.Normalizer
@@ -40,12 +46,22 @@ class ClubDirectory internal constructor(
     private val prefs: SharedPreferences,
     private val client: ClubApiClient,
     private val chinese: () -> Boolean,
+    languageChanges: Flow<Unit>,
+    scope: CoroutineScope,
     private val now: () -> Instant = Instant::now,
 ) {
-    @Inject constructor(@ApplicationContext context: Context, client: ClubApiClient, appPreferences: AppPreferences) : this(
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        client: ClubApiClient,
+        appPreferences: AppPreferences,
+        uiLanguage: UiLanguageMonitor,
+        @ApplicationScope scope: CoroutineScope,
+    ) : this(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE),
         client,
         { AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage) != "en" },
+        uiLanguage.changes,
+        scope,
     )
 
     private val _state = MutableStateFlow(ClubDirectoryState())
@@ -67,6 +83,17 @@ class ClubDirectory internal constructor(
             storedAtMs = runCatching { prefs.getLong(KEY_STORED_AT, 0L) }.getOrNull()
             maxAgeSeconds = storedLifetime(runCatching { prefs.getLong(KEY_MAX_AGE, 0L) }.getOrNull())
             _state.value = ClubDirectoryState(listed(read, chinese()))
+        }
+    }
+
+    init {
+        // The order is the interface's language's, and the directory outlives a switch of it (and
+        // the fetch that would sort it again waits out `max-age`): sort again, with no fetch. After a
+        // fetch in flight, not during it, which would put the new list in the language it began in.
+        scope.launch {
+            languageChanges.collect {
+                refreshLock.withLock { _state.update { state -> state.copy(clubs = listed(state.clubs, chinese())) } }
+            }
         }
     }
 

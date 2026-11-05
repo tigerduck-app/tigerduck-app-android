@@ -1,9 +1,13 @@
 package org.ntust.app.tigerduck.clubs
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.clubs.FakeClubServer.Answer
@@ -19,8 +23,11 @@ class ClubDirectoryTest {
     private val context = JvmContext()
     private var now = Instant.parse("2026-11-05T04:00:00Z")
 
-    private fun directory(chinese: Boolean = true) =
-        ClubDirectory(context.getSharedPreferences("club_directory", 0), server.api, { chinese }, { now })
+    private var chinese = true
+    private val languageChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    private fun directory() =
+        ClubDirectory(context.getSharedPreferences("club_directory", 0), server.api, { chinese }, languageChanged, CoroutineScope(Dispatchers.Unconfined)) { now }
 
     private fun card(id: Int, name: String, en: String? = null, attribute: String? = null) = ClubCard(id, name, en, attribute, null)
 
@@ -134,5 +141,27 @@ class ClubDirectoryTest {
         server.enqueue("clubs", Answer(body = "<html>not json</html>"))
         clubs.refresh()
         assertEquals(listOf(9001), directory().state.value.clubs.map { it.id })
+    }
+
+    @Test
+    fun `a language change sorts the stored clubs again with no fetch, and the failure and the maintenance stay`() = runBlocking {
+        // Same Chinese name, so Chinese order falls to the id; English names reverse it.
+        val stored = envelope(club(9001, "測試社", "Zeta Club") + "," + club(9002, "測試社", "Alpha Club"))
+        context.getSharedPreferences("club_directory", 0).edit()
+            .putString("payload", stored).putLong("stored_at", now.toEpochMilli()).putLong("max_age", 0L).apply()
+        val clubs = directory()
+        now = Instant.parse("2026-11-05T18:30:00Z") // 02:30 in Taipei
+        server.enqueue("clubs", Answer(code = 503, body = "<html></html>"))
+        clubs.refresh()
+        assertEquals(listOf(9001, 9002), clubs.state.value.clubs.map { it.id })
+        val failure = clubs.state.value.failure
+
+        chinese = false
+        languageChanged.tryEmit(Unit)
+
+        assertEquals(listOf(9002, 9001), clubs.state.value.clubs.map { it.id })
+        assertTrue(clubs.state.value.underMaintenance)
+        assertSame(failure, clubs.state.value.failure)
+        assertEquals(1, server.requests("clubs").size)
     }
 }
