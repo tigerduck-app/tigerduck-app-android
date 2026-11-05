@@ -2,14 +2,17 @@ package org.ntust.app.tigerduck.notification
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -33,6 +36,7 @@ import org.ntust.app.tigerduck.push.RosterRequestLog
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermReset
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The background's fetch of a term, the worker's and a roster request's, against a backend that
@@ -46,17 +50,19 @@ import org.ntust.app.tigerduck.util.JvmContext
 class TermCourseSyncTest {
 
     private val context = JvmContext()
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private lateinit var cache: DataCache
     private lateinit var api: PushApiClient
     private lateinit var tokens: V3TokenStore
     private lateinit var auth: AuthTokenManager
+    private lateinit var prefs: AppPreferences
 
     /** What course selection answers, or null for a fetch that fails. */
     private var answer: List<String>? = listOf(CS1, CS2)
     private val selectionAsks = mutableListOf<Boolean>()
     private var selectionTerm = TERM
     private var now = 1_800_000_000_000L
+    private var uploadFailures = 0
 
     private val sources = object : TermCourseSync.Sources {
         override fun servesSelection(semester: String) = semester == selectionTerm
@@ -74,12 +80,14 @@ class TermCourseSyncTest {
 
     private lateinit var sync: TermCourseSync
 
+    private val signIn get() = auth.session.signIns.current
+
     // Only its locks are used here: no add waits.
-    private val adds by lazy { PendingCourseAdds(cache, CourseUploader { _, _, _, _, _ -> null }, { auth.signInGeneration }) }
+    private val adds by lazy { PendingCourseAdds(cache, CourseUploader { _, _, _, _, _ -> null }) }
 
     @Before
     fun setUp() {
-        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
+        prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         // TigerSync is off for good on F-Droid, where no upload goes out at all.
@@ -96,17 +104,16 @@ class TermCourseSyncTest {
     private fun termSync(
         sources: TermCourseSync.Sources,
         uploader: TermCourseSync.Uploader = TermCourseSync.Uploader { courses, semester, resend, rosterTerms, signIn ->
-            api.uploadCourses(courses, semester, signIn = signIn, resend = resend, rosterTerms = rosterTerms)
+            api.uploadCourses(courses, semester, signIn, resend = resend, rosterTerms = rosterTerms)
         },
         uploading: suspend (suspend () -> Unit) -> Unit = { block -> adds.uploading(block) },
     ) = TermCourseSync(
         cache, sources,
         uploader = uploader,
-        signInGeneration = { auth.signInGeneration },
         waitingAdds = { emptySet() },
         uploading = uploading,
         courseLocale = { "zh" },
-        uploadFailed = {},
+        uploadFailed = { uploadFailures++ },
         clock = { now },
     )
 
@@ -121,8 +128,8 @@ class TermCourseSyncTest {
 
     @Test
     fun `course selection's answer goes up as the term's roster, and an unchanged one only once`() = runTest {
-        sync.sync(STUDENT, PASSWORD, TERM)
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
         assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM)), uploads())
         assertEquals(listOf(CS1, CS2), cache.loadCourses(TERM).map { it.courseNo })
@@ -131,9 +138,9 @@ class TermCourseSyncTest {
 
     @Test
     fun `a roster the backend asks for is fetched afresh and goes again unchanged, roster_terms and all`() = runTest {
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
-        sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true)
+        sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn)
 
         assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM), listOf(CS1, CS2) to listOf(TERM)), uploads())
         assertEquals(listOf(false, true), selectionAsks)
@@ -145,16 +152,16 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster request course selection does not answer sends nothing`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         for (failed in listOf(null, emptyList<String>())) {
             answer = failed
-            sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true)
+            sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn)
         }
         // A term course selection does not serve is not even asked.
         selectionTerm = OTHER_TERM
         answer = listOf(CS1)
-        sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true)
+        sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn)
 
         assertEquals(emptyList<Any>(), uploads())
         assertEquals(listOf(true, true), selectionAsks)
@@ -163,13 +170,13 @@ class TermCourseSyncTest {
 
     @Test
     fun `a term course selection does not answer goes up as no roster`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         // Not served: the term only gains the transcript's class.
         selectionTerm = OTHER_TERM
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         assertEquals(listOf(listOf(CS2, CS1) to null), uploads())
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
 
         // Served, but one course's lookup has nothing to stand in for it: no roster may drop it.
         selectionTerm = TERM
@@ -178,7 +185,7 @@ class TermCourseSyncTest {
             override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? =
                 if (courseNo == CS2) kept else sources.lookUp(semester, courseNo, moodle, kept)
         }
-        termSync(failing).sync(STUDENT, PASSWORD, TERM, rosterRequested = true)
+        termSync(failing).sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn)
 
         assertEquals(listOf(CS1) to null, uploads().last())
     }
@@ -188,11 +195,11 @@ class TermCourseSyncTest {
         val requests = listOf(TERM, TERM)
 
         val asked = listOf(
-            sync.answerRosterRequests(requests, STUDENT, PASSWORD),
-            sync.answerRosterRequests(requests, STUDENT, PASSWORD),
-            sync.answerRosterRequests(requests, STUDENT, PASSWORD).also { now += RosterRequestLog.RETRY_INTERVAL_MS },
-            sync.answerRosterRequests(requests, STUDENT, PASSWORD),
-            sync.answerRosterRequests(emptyList(), STUDENT, PASSWORD),
+            sync.answerRosterRequests(requests, STUDENT, PASSWORD, signIn),
+            sync.answerRosterRequests(requests, STUDENT, PASSWORD, signIn),
+            sync.answerRosterRequests(requests, STUDENT, PASSWORD, signIn).also { now += RosterRequestLog.RETRY_INTERVAL_MS },
+            sync.answerRosterRequests(requests, STUDENT, PASSWORD, signIn),
+            sync.answerRosterRequests(emptyList(), STUDENT, PASSWORD, signIn),
         )
 
         assertEquals(listOf(true, false, false, true, false), asked)
@@ -219,7 +226,7 @@ class TermCourseSyncTest {
                 return sources.lookUp(semester, courseNo, moodle, kept)
             }
         }
-        termSync(switching).sync(STUDENT, PASSWORD, TERM, rosterRequested = true)
+        termSync(switching).sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn)
 
         assertTrue(switched)
         assertEquals(emptyList<Any>(), uploads())
@@ -239,7 +246,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a sign-out and sign-in as the same student during a background sync writes nothing from the old run`() = runTest {
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         selectionTerm = OTHER_TERM
         var switched = false
         val switching = object : TermCourseSync.Sources by sources {
@@ -249,16 +256,47 @@ class TermCourseSyncTest {
                     auth.logout()
                     cache.clearAllUserData()
                     tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
-                    cache.saveCourses(listOf(Course(courseNo = HAND, courseName = HAND)), TERM)
+                    cache.saveCourses(listOf(Course(courseNo = HAND, courseName = HAND)), TERM, testSignIn())
                 }
                 return sources.lookUp(semester, courseNo, moodle, kept)
             }
         }
-        termSync(switching).sync(STUDENT, PASSWORD, TERM)
+        termSync(switching).sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
         assertTrue(switched)
         assertEquals(listOf(HAND), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptyList<Any>(), uploads())
+    }
+
+    /** Runs a term's sync with its upload held until the same student has signed out and back in. */
+    private suspend fun uploadAcrossSameStudentSignIn(answer: Int) = coroutineScope {
+        val held = backend.hold(UPLOAD)
+        val run = async(Dispatchers.Default) { sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn) }
+        held.arrived.await()
+        auth.logout()
+        cache.clearAllUserData()
+        auth.session.open()
+        tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
+        held.release(answer)
+        run.await()
+    }
+
+    /** What the upload's answer stamps is the old run's: none of it dates the new session's list. */
+    @Test
+    fun `the old run's stamps land nowhere`() = runTest {
+        uploadAcrossSameStudentSignIn(answer = 200)
+
+        assertEquals(1, uploads().size)
+        assertNull(prefs.coursesUploadFingerprint(TERM))
+        assertNull(prefs.coursesUploadRoster(TERM))
+    }
+
+    /** Not the new session's sync state: its own sync has not failed. */
+    @Test
+    fun `an old run's refused upload marks nothing as failed`() = runTest {
+        uploadAcrossSameStudentSignIn(answer = 500)
+
+        assertEquals(0, uploadFailures)
     }
 
     /**
@@ -268,7 +306,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a sync begun under an old sign-in fetches and writes nothing`() = runTest {
-        val old = auth.signInGeneration
+        val old = signIn
         auth.logout()
         tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
 
@@ -282,7 +320,7 @@ class TermCourseSyncTest {
     /** A full sync's roster requests, answered once its account has signed out and another signed in. */
     @Test
     fun `roster requests of a sign-in that has ended ask nothing and upload nothing`() = runTest {
-        val requestedIn = auth.signInGeneration
+        val requestedIn = signIn
         auth.logout()
         tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
 
@@ -300,15 +338,15 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster listing a course the server dropped since goes again unchanged`() = runTest {
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
         api.serverDropped(TERM, setOf(CS3))
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         assertEquals(1, uploads().size)
 
         api.serverDropped(TERM, setOf(CS2))
-        sync.sync(STUDENT, PASSWORD, TERM)
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
         assertEquals(List(2) { listOf(CS1, CS2) to listOf(TERM) }, uploads())
     }
@@ -320,7 +358,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster read before a newer course selection answer commits and uploads nothing`() = runTest {
-        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM)
+        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM, testSignIn())
         val waiting = CompletableDeferred<Unit>()
         val goOn = CompletableDeferred<Unit>()
         val holding = object : TermCourseSync.Sources by sources {
@@ -331,10 +369,10 @@ class TermCourseSyncTest {
         }
         val sync = termSync(holding)
 
-        val older = async { sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true) }
+        val older = async { sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn) }
         waiting.await()
         answer = listOf(CS1)
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         goOn.complete(Unit)
         older.await()
 
@@ -349,11 +387,11 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster refused for an answer kept newer commits and uploads nothing`() = runTest {
-        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM)
-        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), answeredAt = System.currentTimeMillis() + 3_600_000L)
+        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM, testSignIn())
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), testSignIn(), answeredAt = System.currentTimeMillis() + 3_600_000L)
         answer = listOf(CS1)
 
-        assertTrue(sync.sync(STUDENT, PASSWORD, TERM))
+        assertTrue(sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn))
 
         assertEquals(listOf(CS1, CS2), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptyList<Any>(), uploads())
@@ -367,7 +405,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a reset during the fetch leaves its hand-added course gone`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM, testSignIn())
         answer = listOf(CS1)
         // The backend's requests in order: "DELETE" for the reset, else an upload's course numbers.
         val sent = mutableListOf<Any>()
@@ -382,7 +420,7 @@ class TermCourseSyncTest {
                         adds.removing {
                             resetHolds.complete(Unit)
                             fetchReady.await()
-                            ClassTableTermReset(cache).run(TERM) { sent.add("DELETE") }
+                            ClassTableTermReset(cache).run(TERM, testSignIn()) { sent.add("DELETE") }
                         }
                     }
                     resetHolds.await()
@@ -403,7 +441,7 @@ class TermCourseSyncTest {
             },
         )
 
-        sync.sync(STUDENT, PASSWORD, TERM)
+        sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
         assertEquals(listOf("DELETE", listOf(CS1)), sent)
         assertEquals(listOf(CS1), cache.loadCourses(TERM).map { it.courseNo })
@@ -418,22 +456,22 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a term only gaining whose every drawn course was dropped during its lookups saves and uploads none of them`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM)
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM, testSignIn())
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         selectionTerm = OTHER_TERM
         var dropped = false
         val dropping = object : TermCourseSync.Sources by sources {
             override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
                 if (!dropped) {
                     dropped = true
-                    cache.recordServerDrops(TERM, mapOf(CS1 to null))
-                    cache.saveSelectionDroppedNos(mapOf(TERM to listOf(CS2)))
+                    cache.recordServerDrops(TERM, mapOf(CS1 to null), testSignIn())
+                    cache.saveSelectionDroppedNos(mapOf(TERM to listOf(CS2)), testSignIn())
                 }
                 return sources.lookUp(semester, courseNo, moodle, kept)
             }
         }
 
-        termSync(dropping).sync(STUDENT, PASSWORD, TERM)
+        termSync(dropping).sync(STUDENT, PASSWORD, TERM, signIn = signIn)
 
         assertTrue(dropped)
         assertEquals(listOf(HAND), cache.loadCourses(TERM).map { it.courseNo })

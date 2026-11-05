@@ -4,7 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.network.canonicalBackend
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,27 +31,29 @@ class OwedUnregister internal constructor(internal val store: PendingUnregisterS
      * still on its way finds it gone. A debt from before the student was recorded is taken for
      * the same student's. A login that fails leaves the debt: the server moved nothing, as far as
      * this phone can tell. A login at another backend than the debt's, [base] being the login's,
-     * moves nothing there: the debt stands, and the login does not wait for it.
+     * moves nothing there: the debt stands, and the login does not wait for it. A login at the
+     * debt's backend under another API version is at that backend ([ApiBase.sameBackend]).
      */
     suspend fun <T> signingIn(studentId: String, base: String, login: suspend () -> T): T {
-        val pending = runCatching { store.load() }.getOrNull()
-        if (pending != null && canonicalBackend(pending.session.baseUrl) != canonicalBackend(base)) return login()
+        val debts = runCatching { store.load() }.getOrNull()
+        val pending = debts?.firstOrNull { ApiBase.sameBackend(it.session.baseUrl, base) }
+        if (debts?.isNotEmpty() == true && pending == null) return login()
         val owedBy = pending?.session?.studentId
         if (owedBy != null && owedBy != studentId) {
             val result = login()
             // Not under the lock: an unregister on its way only finds the row gone.
-            clear()
+            clear(base)
             return result
         }
         return mutex.withLock {
             val result = login()
-            clear()
+            clear(base)
             result
         }
     }
 
-    private fun clear() {
-        runCatching { store.clear() }
+    private fun clear(base: String) {
+        runCatching { store.clear(base) }
             .onFailure { Log.w(TAG, "owed unregister not cleared after a sign-in: ${it.logSummary()}") }
     }
 

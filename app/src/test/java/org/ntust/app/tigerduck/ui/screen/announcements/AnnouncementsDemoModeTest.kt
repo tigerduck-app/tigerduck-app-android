@@ -72,7 +72,7 @@ class AnnouncementsDemoModeTest {
         val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
         return AnnouncementsViewModel(
             SavedStateHandle(), api, cache, BulletinRepository(), BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache, fixtures), testCredentials(context), AppReturns(now = { 0L }, register = {}),
+            testSessions(context), AppReturns(now = { 0L }, register = {}),
         )
     }
 

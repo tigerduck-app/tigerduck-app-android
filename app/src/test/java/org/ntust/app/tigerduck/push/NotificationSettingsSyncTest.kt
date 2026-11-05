@@ -30,6 +30,8 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
 /**
  * Covers [pushLiveActivitySettings] — the write half of the `notification`
@@ -931,11 +933,21 @@ class NotificationSettingsSyncTest {
         val syncAssignmentRemindersChanged =
             MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         /**
-         * Runs while a PUT resolves its bearer — `AuthTokenManager.authHeader()`,
+         * Runs while a PUT resolves its bearer — `AuthTokenManager.requireAuthHeader()`,
          * which can refresh the token or run a full relogin. Whichever account
          * holds the session once it returns is the one the PUT goes to.
          */
         var resolvingBearer: () -> Unit = {}
+
+        /**
+         * Runs once, the next time the sync reads the cloud sync switch, before it answers: for a
+         * push, right after it has read what it sends and its section's record.
+         */
+        var beforeNextGateRead: (() -> Unit)? = null
+        val signIns = SignInSeries()
+
+        /** The sign-in each request carried, in order. */
+        val requestsUnder = mutableListOf<SignIn>()
         private var signedInAs: String? = null
 
         /** The school account stored, which outlasts a lapsed backend session ([signedInAs]). */
@@ -952,25 +964,35 @@ class NotificationSettingsSyncTest {
         }
 
         val sync = NotificationSettingsSync(
-            transport = object : SettingsDocumentTransport {
-                override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? = session().read()
+            documents = { signIn ->
+                object : SettingsDocumentTransport {
+                    override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? {
+                        requestsUnder += signIn
+                        return session().read()
+                    }
 
-                override suspend fun write(
-                    document: JsonObject,
-                    baseRevision: Long?,
-                    isCurrent: () -> Boolean,
-                ): SettingsWriteResult<JsonObject> {
-                    resolvingBearer()
-                    return session().write(document, baseRevision, isCurrent)
+                    override suspend fun write(
+                        document: JsonObject,
+                        baseRevision: Long?,
+                        isCurrent: () -> Boolean,
+                    ): SettingsWriteResult<JsonObject> {
+                        requestsUnder += signIn
+                        resolvingBearer()
+                        return session().write(document, baseRevision, isCurrent)
+                    }
                 }
             },
+            currentSignIn = { signIns.current },
             liveActivityPreferences = prefs,
             assignmentStore = assignments,
             assignmentAlarms = alarms,
             classReminderStore = classReminders,
             lastSynced = lastSynced,
             lastSyncedSeed = seed,
-            cloudSyncEnabled = { cloudSync },
+            cloudSyncEnabled = {
+                beforeNextGateRead?.also { beforeNextGateRead = null }?.invoke()
+                cloudSync
+            },
             syncLiveActivity = { syncLiveActivity },
             syncAssignmentReminders = { syncAssignmentReminders },
             isLoggedIn = { signedInAs != null },
@@ -1007,6 +1029,7 @@ class NotificationSettingsSyncTest {
 
         /** Each of AuthService's sign-in paths: the v3 session exists, then the catch-up. */
         fun signIn(account: String) {
+            signIns.open()
             schoolAccount = account
             signedInAs = account
             sync.pushIfUnconfirmed()
@@ -1014,6 +1037,7 @@ class NotificationSettingsSyncTest {
 
         /** AuthService.logout(): the tokens are wiped, then the queue is cancelled. */
         fun logOut() {
+            signIns.end()
             schoolAccount = null
             signedInAs = null
             sync.cancelPendingPushes()
@@ -1222,7 +1246,7 @@ class NotificationSettingsSyncTest {
         val device = Device(backgroundScope)
         device.signIn("A")
         device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
-        // A lapsed refresh token sends AuthTokenManager.authHeader() into the
+        // A lapsed refresh token sends AuthTokenManager.requireAuthHeader() into the
         // automatic sign-in while the pull's own request is being built, and
         // the sign-in ends with the catch-up every sign-in makes.
         device.server("A").beforeRead = { device.sync.pushIfUnconfirmed() }
@@ -1275,6 +1299,37 @@ class NotificationSettingsSyncTest {
             logOut()
             signIn("B")
         }
+    }
+
+    /** The client refuses a request of a sign-in that ended: this is the one that says which. */
+    @Test
+    fun `a push carries the sign-in it began in, through a sign-out of the same student`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        val began = device.signIns.current
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.resolvingBearer = {
+            device.resolvingBearer = {}
+            device.logOut()
+            device.signIn("A")
+        }
+
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+
+        assertEquals("the read and the write", listOf(began, began), device.requestsUnder)
+    }
+
+    @Test
+    fun `a pull carries the sign-in it began in`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        runQueue()
+        device.requestsUnder.clear()
+
+        device.sync.pullNow()
+
+        assertEquals(listOf(device.signIns.current), device.requestsUnder)
     }
 
     @Test
@@ -3136,6 +3191,191 @@ class NotificationSettingsSyncTest {
             device.assignments.offsets,
         )
         assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    // ── T0.8's two windows parked to phase 3 (Codex on PR #620) ──
+    //
+    // A push reads what it sends, its record and the section's restart count in one step, then
+    // its gates: a switch turned on between the two restarted the record, which the push's base
+    // predates. And a push that lands after a restart clears its section's flag only while the
+    // values still equal what it sent, which an edit made after the turn-on can match.
+
+    @Test
+    fun `a live_activity push whose switch comes on after it read its record sends no edit made while it was off`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+
+        // The queued push has read what it sends and its record when the switch comes on.
+        var turnedOnWith: Int? = null
+        device.beforeNextGateRead = {
+            device.switchLiveActivitySync(true)
+            runCurrent()
+            turnedOnWith = device.recorded("live_activity").get("class_preparing_lead_seconds").asInt
+        }
+        runQueue()
+
+        assertEquals("the turn-on, within the push, records the values it finds", 1_800, turnedOnWith)
+        assertTrue("nothing stale is sent: ${device.server("A").writes}", device.server("A").writes.none { it.getAsJsonObject("live_activity")?.get("class_preparing_lead_seconds")?.asInt == 1_800 })
+        assertEquals("the edit made while it was off gives way", 900L, device.prefs.classPreparingLeadTimeSec)
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
+    fun `an assignments push whose switch comes on after it read its record sends no edit made while it was off`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+
+        var turnedOnWith: Boolean? = null
+        device.beforeNextGateRead = {
+            device.switchAssignmentReminderSync(true)
+            runCurrent()
+            turnedOnWith = device.recorded("assignments").get("enabled").asBoolean
+        }
+        runQueue()
+
+        assertEquals("the turn-on, within the push, records the values it finds", false, turnedOnWith)
+        assertTrue("nothing stale is sent: ${device.server("A").writes}", device.server("A").writes.none { it.getAsJsonObject("assignments")?.get("enabled")?.asBoolean == false })
+        assertTrue("the edit made while it was off gives way", device.assignments.enabled)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `an assignments edit made after the switch came on, matching what a push on the wire sent, still goes up`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+        device.server("A").anotherDeviceWrites("assignments") { addProperty("enabled", false) }
+
+        // This phone's offsets edit goes up, keeping the other device's switch-off, and is on the
+        // wire while sync goes off, reminders go off here, sync comes back on, and they go on again.
+        val landing = CompletableDeferred<Unit>()
+        device.server("A").holdWrite = landing
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+        device.switchAssignmentReminderSync(true)
+        runCurrent()
+        device.assignments.enabled = true
+        device.sync.markAssignmentUnconfirmedAndPush()
+
+        landing.complete(Unit)
+        runQueue()
+
+        assertTrue("the edit made after the switch came on stands", device.assignments.enabled)
+        assertTrue("and goes up", device.server("A").section("assignments").get("enabled").asBoolean)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `a live_activity edit made after the switch came on, matching what a push on the wire sent, still goes up`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+        device.server("A").anotherDeviceWrites("live_activity") { addProperty("show_assignment", false) }
+
+        val landing = CompletableDeferred<Unit>()
+        device.server("A").holdWrite = landing
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.prefs.showAssignment = false
+        device.sync.markUnconfirmedAndPush()
+        device.switchLiveActivitySync(true)
+        runCurrent()
+        device.prefs.showAssignment = true
+        device.sync.markUnconfirmedAndPush()
+
+        landing.complete(Unit)
+        runQueue()
+
+        assertTrue("the edit made after the switch came on stands", device.prefs.showAssignment)
+        assertTrue("and goes up", device.server("A").section("live_activity").get("show_assignment").asBoolean)
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    /** One section's edit for [crossingSignIns]: the value set, the push asked for, and what the document holds of it. */
+    private class SectionEdit(
+        val section: String,
+        val set: Device.(sent: Boolean) -> Unit,
+        val mark: Device.() -> Unit,
+        val held: JsonObject.() -> String,
+    )
+
+    private val crossingSignIns = listOf(
+        SectionEdit(
+            "live_activity",
+            set = { prefs.classPreparingLeadTimeSec = if (it) 1_800 else 900 },
+            mark = { sync.markUnconfirmedAndPush() },
+            held = { get("class_preparing_lead_seconds").asString },
+        ),
+        SectionEdit(
+            "assignments",
+            set = { assignments.enabled = !it },
+            mark = { sync.markAssignmentUnconfirmedAndPush() },
+            held = { get("enabled").asString },
+        ),
+        SectionEdit(
+            "courses",
+            set = { classReminders.enabled = !it },
+            mark = { sync.markClassReminderUnconfirmedAndPush() },
+            held = { get("enabled").asString },
+        ),
+    )
+
+    /**
+     * Codex on PR P (round 3): the departing student's push is on the wire through a sign-out and
+     * the next student's sign-in, and the next student then makes an edit matching what it sent.
+     * Its landing cleared that section's unconfirmed flag, the next student's by then: the clear
+     * checked the restart count, which a sign-out does not move, or nothing at all, and never the
+     * sign-in it was queued for. The next student's push then sent nothing, and a pull could take
+     * the edit back. Each section's flag is cleared only under the sign-in its push was queued for.
+     */
+    @Test
+    fun `a departing student's push landing after the next sign-in leaves the next student's matching edit to go up`() = runTest {
+        for (edit in crossingSignIns) {
+            val device = Device(backgroundScope)
+            device.signIn("A")
+            val landing = CompletableDeferred<Unit>()
+            device.server("A").holdWrite = landing
+            edit.set(device, true)
+            edit.mark(device)
+            runQueue()
+            device.logOut()
+            // Signed out, the value goes back; the next student signs in with it as their record.
+            edit.set(device, false)
+            device.signIn("B")
+            // Their own edit, which matches what the first student's push sent.
+            edit.set(device, true)
+            edit.mark(device)
+
+            landing.complete(Unit)
+            runQueue()
+
+            val sent = device.server("B").writes.map { it.getAsJsonObject(edit.section)?.let(edit.held) }
+            assertEquals("${edit.section}: the next student's edit goes up", listOf(if (edit.section == "live_activity") "1800" else "false"), sent)
+        }
     }
 
     @Test

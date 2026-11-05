@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
@@ -30,7 +31,14 @@ class MoodleColorStoreTest {
 
     private fun store(book: MoodleColorBook = MoodleColorBook()) = MoodleColorStore(file, cache, book) { student }
 
-    private fun waitForFile() = repeat(100) { if (!file.exists()) Thread.sleep(20) }
+    /** Writes are queued, and an earlier state can land first, so a test names what it's waiting for. */
+    private fun waitForFile(containing: String = "") {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!file.exists() || containing !in file.readText()) {
+            assertTrue("no file holding \"$containing\" yet", System.currentTimeMillis() < deadline)
+            Thread.sleep(20)
+        }
+    }
 
     @Before
     fun setUp() {
@@ -41,8 +49,8 @@ class MoodleColorStoreTest {
 
     @Test
     fun `an upgrade with a hand-added course cached still keeps what the first refresh brings`() = runBlocking {
-        cache.saveCourses(listOf(course("CS9").copy(isManual = true)), "1151")
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337))
+        cache.saveCourses(listOf(course("CS9").copy(isManual = true)), "1151", testSignIn())
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337), testSignIn())
         val book = MoodleColorBook()
 
         store(book).ensureLoaded()
@@ -53,7 +61,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `an upgrade with the cache evicted keeps what the first refresh brings`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337), testSignIn())
         val book = MoodleColorBook()
 
         store(book).ensureLoaded()
@@ -64,14 +72,14 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a color given is written, and read back by the next process`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1152CS2" to 5337))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1152CS2" to 5337), testSignIn())
         val later = Course(courseNo = "CS2", courseName = "CS2", moodleIdNumber = "1152CS2")
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
         // The upgrade's term is absorbed; a later term's course is new.
         first.reconcile(listOf(course("CS1"), later))
-        waitForFile()
+        waitForFile(containing = "CS2")
         assertTrue(file.exists())
 
         val second = MoodleColorBook()
@@ -85,7 +93,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a sign-out deletes the file and leaves the next account's courses new`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val book = MoodleColorBook()
         val store = store(book)
         store.ensureLoaded()
@@ -102,7 +110,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a sign-out before the first load still leaves the next session persisted`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val book = MoodleColorBook()
         val store = store(book)
         store.forgetAccount()
@@ -117,12 +125,12 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a file left by another student, or by a sign-out cut short, is not inherited`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
         first.reconcile(listOf(course("CS1"), course("CS2")))
-        waitForFile()
+        waitForFile(containing = "CS2")
 
         student = "B00015998"
         val second = MoodleColorBook()
@@ -135,11 +143,12 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a file found while signed out is deleted`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127), testSignIn())
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
-        waitForFile()
+        // The first store's last write: the load's own state can land first, and this one after the delete.
+        waitForFile(containing = "CS1")
 
         student = null
         store(MoodleColorBook()).ensureLoaded()
@@ -149,7 +158,7 @@ class MoodleColorStoreTest {
 
     @Test
     fun `after another student signs in over the first, the file is the new student's`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337, "1152CS3" to 902))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337, "1152CS3" to 902), testSignIn())
         val book = MoodleColorBook()
         val store = store(book)
         store.ensureLoaded()
@@ -160,7 +169,7 @@ class MoodleColorStoreTest {
         // The ids came back from the cache, and the new student's courses are new.
         val spring = Course(courseNo = "CS3", courseName = "CS3", moodleIdNumber = "1152CS3")
         assertTrue(book.reconcile(listOf(course("CS1"), spring)))
-        waitForFile()
+        waitForFile(containing = "CS3")
 
         student = "B00015998"
         val next = MoodleColorBook()

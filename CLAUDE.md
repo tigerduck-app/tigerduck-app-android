@@ -130,16 +130,97 @@ Each rule below lives in one place. A second copy fails
 `python3 tools/guardrails/check_guardrails.py --update-baseline` after fixing
 some. The same check fails a new Kotlin file over 400 lines or function over 80.
 
-- `TaipeiClock` (`shared/.../time/TaipeiClock.kt`, coming): the `"Asia/Taipei"`
+- `TaipeiClock` (`shared/.../time/TaipeiClock.kt`): the `"Asia/Taipei"`
   zone and Taipei's day and clock. No other file writes the literal.
-- `AcademicTerm` (`shared/.../time/AcademicTerm.kt`, coming): parsing and
+- `AcademicTerm` (`shared/.../time/AcademicTerm.kt`): parsing and
   ordering of term codes. No other file sorts by a semester or term string.
-- `ClassTimeline` (`shared/.../timeline/`, coming): which class is ongoing or
+- `ClassTimeline` (`shared/.../timeline/`): which class is ongoing or
   next, with D2's end rule (`start <= now < end`), for every screen.
 - `AppPreferences` reads `BuildConfig` for the `"fdroid"` flavor; no other file
   compares against the literal.
 - `PageScaffold` (`app/.../ui/component/PageScaffold.kt`): every page's shell, with
   its defaults in `PageDefaults`. No file outside `ui/component` calls a `TopAppBar`.
+- Who the account is, and whether the app is in the demo (ratchets, count lines):
+  `account-counter` counts hand-kept generation and epoch numbers, and
+  `demo-check` counts `isDemo`-style reads outside the demo's own homes. The
+  sign-in type replaces the first, one session answer the second.
+  `sign-in-read` fails any `StartsAccountWork` opt-in outside the layers that
+  start account work; every other layer is handed the `SignIn`. A new home is
+  a decision to name in the PR body. `check_guardrails.py --introduce KIND`
+  lets a ratchet land with its counts; a function whose parameter types
+  changed keeps its baseline entry.
+- `AccountSessions.events`: every account's sign-ins and sign-outs, one stream in
+  order, which every reactor reads, so a fast sign-out and sign-in can't be missed.
+  `AccountSession.changes` is that for a page. App-level reactors subscribe with
+  `CoroutineScope.follow`, never on `AccountSession.launch`, whose cancellation is
+  the sign-out they follow. The `sign-out-reactor` check fails watching `authState`
+  or a stream of an account's own for a sign-in or a sign-out. It takes no baseline
+  entries.
+- `AuthTokenManager.requireAuthHeader(SignIn)`: the only way to a backend request's
+  header, so a request of account data does not compile without its sign-in. The
+  `bearer-home` check fails a `"Bearer ` literal anywhere but there, the guard that
+  reads it (`SessionHostGuard`) and the departing unregister's one line in
+  `PushApiClient`, the only request with no sign-in. It takes no baseline entries.
+- `AccountSession` and `SignIn` (`app/.../auth/session/AccountSession.kt`,
+  `shared/.../account/SignIn.kt`): one session per account (school, mail, library)
+  for the life of the process, and one `SignIn` per sign-in, which answers
+  `isCurrent` itself. A store write or a backend request of account data takes the
+  `SignIn` it was read for, so it does not compile without one, and the store drops
+  a stale one. `sign-in-read` holds who may read one. `AccountSession.isDemo` is the
+  one answer to whether the account is the demo, which `demo-check` holds;
+  `DemoStaysOnTheDeviceTest` pins the safety nets behind it: `DemoModeInterceptor`
+  on every OkHttp client but the two it names, and `MailRepository`'s check, which
+  keeps IMAP and SMTP shut.
+- `AccountKey` (`app/.../data/preferences/AccountKey.kt`, the school's in
+  `SchoolKeys.kt`): a school preference writes only with a `SignIn`. Its stored
+  property is private, so a write without one does not compile.
+- `SchoolStores` (`app/.../auth/session/SchoolStores.kt`): the school's stores,
+  `AccountScoped` at once and `LateAccountScoped` late, in the order its sign-out
+  clears them, built only at a sign-out so a store unused this process is cleared
+  too. `AccountStateInventoryTest` fails on an account store on no list, and on a
+  school row whose clearer nothing the school's sign-out reaches.
+- `SignOutPlans` (`app/.../auth/session/SignOutPlans.kt`): every sign-out,
+  `signOut(reason)`, each account's in the order it always ran, the reason on each
+  `SignedOut` it tells. It is the only caller of each account's end: the
+  `sign-out-start` check fails the token manager's logout, School Mail's or the
+  library's sign-out, or a drop of the school's or the library's credentials
+  anywhere else. It takes no baseline entries.
+- `SyncCategory` (`app/.../sync/SyncCategory.kt`): the four sync categories,
+  each with today's stored string and the backend's `sync_*` name. A `when` on it has
+  no `else`, so a new category does not compile until every rule answers for it.
+- `SyncPolicy` (`app/.../sync/SyncPolicy.kt`): whether a category keeps,
+  sends or applies, from the master switch, the flavor, the category switches and the
+  re-enable hold, read once through `SyncPolicies.current`. The backend settles every
+  field by its stamp (last writer wins), so an edit is kept whatever its switches say
+  and sent once they are on. The `sync-switch-read` ratchet counts lines naming a switch
+  or the hold anywhere but there and the files that store or send them.
+- `SyncClock` (`app/.../sync/SyncClock.kt`): every edit's TigerSync stamp, in
+  whole milliseconds, capped by the backend clock it last heard (`tigersync-clock`).
+  `SyncClockTest` pins that spec's scenarios.
+- `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
+  base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
+  backend whatever its version segment says; and the backend's error code, read once
+  from either version. `api-version-literal` fails a `"v3"` or `"v4"` literal, or a
+  `/v3` or `/v4` path segment in one, outside `ApiBase.kt`, and takes no baseline
+  entries. `status-in-message` counts a status or error code searched for in a
+  message.
+- `Outbox` and `OutboxLane` (`app/.../sync/outbox/`): every unsent edit, one lane per
+  channel with one request in flight, each edit stamped by `SyncClock` and, written by an
+  older build with no time, by its old-entry time (`OldEntryTime`), and each answer's clock
+  kept as its field's acknowledgment (`AckClock`). The six queues (`UnsentMarks`,
+  `PendingHolidayOverrides`, `PendingCourseOverrides`, `CourseIgnoreQueue`,
+  `PendingCourseAdds`, `PendingCourseDeletes`) keep their own files and register as
+  channels from them (`@IntoSet`); `OutboxTest` holds the drain order. The `sync-write`
+  ratchet counts calls of a backend sync write, and references to one
+  (`client::deleteCourse`), outside `push/`, `sync/` and the queues.
+- `Synchronizer`, with `FirstPullGate`, `SchoolUploads` and `RefreshOrder`
+  (`app/.../sync/`): one full sync for Home and the background worker, its reconcilers in
+  the order `Reconcilers` pins, each taking the snapshot field by field but what this phone
+  keeps (`SyncPass.holds`, `PullHolds`, LWW D12); nothing derived from school data goes up
+  before a process's first pull; a refresh applies the pull before the school's data, then
+  pushes. The `full-sync-fetch` ratchet counts calls of and references to `fetchFullSync`
+  outside `SyncApiClient` and the `Synchronizer`, and `SynchronizerOrderTest` and
+  `RefreshOrderTest` hold the orders.
 
 ## Greptile
 

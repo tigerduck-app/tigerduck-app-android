@@ -65,7 +65,6 @@ import org.ntust.app.tigerduck.data.moodle.MoodleDiscussionPages
 import org.ntust.app.tigerduck.data.moodle.MoodleDiscussions
 import org.ntust.app.tigerduck.data.moodle.MoodlePersonName
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
-import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.NumberFormat
 
@@ -83,11 +82,10 @@ fun MoodleAnnouncementsScreen(
     MoodleSignedOutEffect(viewModel, onBack)
     val title = stringResource(R.string.feature_announcements)
     val news = store?.newsForum?.collectAsStateWithLifecycle()?.value
-    PageScaffold(
+    MoodleListScaffold(
         title = title,
         onBack = onBack,
-        oneLineTitle = true,
-        actions = { OpenInMoodleAction(news?.let { MoodlePage.forum(it.cmid) }) },
+        moodlePath = news?.let { MoodlePage.forum(it.cmid) },
     ) { padding ->
         val current = store
         Box(

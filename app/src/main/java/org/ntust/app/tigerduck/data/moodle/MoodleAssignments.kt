@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentSubmission
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /** What an assignment's page found of its assignment in the cache. */
 sealed interface MoodleAssignmentLookup {
@@ -43,8 +44,8 @@ class MoodleAccountAssignments(
     listed: Flow<List<Assignment>>,
     /** Takes the status a page fetched for the cached list. */
     private val takeStatus: suspend (SubmissionStatusAnswer) -> Unit,
-    /** The cache's generation now; see `DataCache.userDataGeneration`. */
-    private val generation: () -> Int,
+    /** The sign-in now, which a page's request goes out under. */
+    private val currentSignIn: () -> SignIn,
     /** A monotonic clock, which stamps each request before it goes out. */
     private val monotonicNowMs: () -> Long,
 ) {
@@ -110,7 +111,7 @@ class MoodleAccountAssignments(
         if (!force && !submissionRefreshDue(feed.state.value.fetchedAtMs, failedAt, context.now())) return
         feed.refresh(joinRunning = !force) {
             val functions = api.functions()
-            val generation = generation()
+            val signIn = currentSignIn()
             val askedAt = monotonicNowMs()
             var submission = api.submission(record.assignId)
             val id = submission.id
@@ -133,7 +134,7 @@ class MoodleAccountAssignments(
                     submitted = submission.isSubmitted,
                     submittedAtMs = submission.submittedAt?.let { it * 1000 },
                     askedAtMs = askedAt,
-                    generation = generation,
+                    signIn = signIn,
                     extensionDueMs = submission.extensionDue?.let { it * 1000 },
                 ),
             )

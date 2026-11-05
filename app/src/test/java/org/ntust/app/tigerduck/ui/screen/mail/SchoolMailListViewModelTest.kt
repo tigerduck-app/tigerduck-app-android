@@ -2,6 +2,7 @@
 
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.index.MailIndexProgress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,7 @@ import org.ntust.app.tigerduck.mail.model.FolderStatus
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailPage
+import org.ntust.app.tigerduck.mail.signInNow
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.CheckOutcome
 import org.ntust.app.tigerduck.mail.sync.CheckSource
@@ -82,7 +84,7 @@ class SchoolMailListViewModelTest {
         checker = MailChecker(account, state, server.factory(), RecordingNotifier(), MailCache(tmp.root)) { now }
         // What a write is told under, as the real repository reads it: the list takes only the
         // signed-in account's own.
-        repo.accountGeneration = { account.accountGeneration }
+        repo.currentSignIn = { account.signInNow }
         vm = SchoolMailListViewModel(
             repo, account, checker, schoolMailSite(),
             { main.dispatcher.scheduler.currentTime }, notices,
@@ -1094,7 +1096,7 @@ class SchoolMailListViewModelTest {
         repo.searchPageGate = gate
         repo.searchPageError = MailError.Network()
         vm.loadMoreIfNeeded(vm.state.value.displayed.last())
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         repo.searchPageGate = null
         gate.complete(Unit)
         val s = vm.state.value
@@ -1959,7 +1961,7 @@ class SchoolMailListViewModelTest {
     fun `a sent-copy notice outlives the reload after compose and goes only when dismissed`() {
         repo.add("INBOX", mailSummary(1))
         vm.load()
-        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.List, notices.accountGeneration)
+        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.List, account.signInNow)
         vm.refresh()
         vm.load()
         assertEquals(SentCopyNotice.NoFolder, vm.sentCopyNotice.value)
@@ -1969,14 +1971,14 @@ class SchoolMailListViewModelTest {
 
     @Test
     fun `a notice about a reply sent from a mail is that mail's, not the list's`() {
-        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 1), notices.accountGeneration)
+        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 1), account.signInNow)
         assertNull(vm.sentCopyNotice.value)
     }
 
     @Test
     fun `signing out takes the sent-copy notice with it`() {
-        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, notices.accountGeneration)
-        account.signOut()
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, account.signInNow)
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertNull(notices.posted)
         assertNull(vm.sentCopyNotice.value)
@@ -1987,7 +1989,7 @@ class SchoolMailListViewModelTest {
         repo.add("INBOX", mailSummary(1), mailSummary(2))
         vm.load()
         assertEquals(2, vm.state.value.displayed.size)
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
     }
@@ -2117,7 +2119,7 @@ class SchoolMailListViewModelTest {
         vm.selectFolder(FolderSelection.Real("INBOX"))
         assertEquals(5_000L, state.fetchedAt("INBOX"))
         // As the real repository: a page whose account moved while it was out is not cached.
-        repo.accountGeneration = { account.accountGeneration }
+        repo.currentSignIn = { account.signInNow }
         repo.dropCache("INBOX")
         repo.onLoaded = {
             repo.onLoaded = null
@@ -2308,7 +2310,7 @@ class SchoolMailListViewModelTest {
 
     /** The account leaves and another arrives, as Settings does it, in the middle of whatever is running. */
     private fun signOutAndSignInAnother() {
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         server.passwords["B10000002"] = "pw"
         runBlocking { account.signIn("b10000002", "pw") }
@@ -2431,7 +2433,7 @@ class SchoolMailListViewModelTest {
         vm.load()
         assertEquals(5_000L, vm.state.value.fetchedAt)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertEquals(0L, vm.state.value.fetchedAt)
         assertEquals(0L, state.fetchedAt("INBOX"))
@@ -2922,7 +2924,7 @@ class SchoolMailListViewModelTest {
         vm.load()
         val row = vm.state.value.displayed.first { it.uid == 2L }
         vm.delete(row)
-        assertEquals(SchoolMailListViewModel.PendingDelete(row, permanently = false, account.accountGeneration), vm.state.value.pendingDelete)
+        assertEquals(SchoolMailListViewModel.PendingDelete(row, permanently = false, account.signInNow), vm.state.value.pendingDelete)
 
         vm.confirmDelete(false)
         assertNull(vm.state.value.pendingDelete)
@@ -2944,7 +2946,7 @@ class SchoolMailListViewModelTest {
         vm.selectFolder(FolderSelection.Real(trash))
         val row = vm.state.value.displayed.first { it.uid == 8L }
         vm.delete(row)
-        assertEquals(SchoolMailListViewModel.PendingDelete(row, permanently = true, account.accountGeneration), vm.state.value.pendingDelete)
+        assertEquals(SchoolMailListViewModel.PendingDelete(row, permanently = true, account.signInNow), vm.state.value.pendingDelete)
 
         vm.confirmDelete(false)
         assertNull(vm.state.value.pendingDelete)
@@ -3290,6 +3292,54 @@ class SchoolMailListViewModelTest {
         vm.requestMove(vm.state.value.displayed.single())
         assertNull(vm.state.value.pendingMove)
         assertTrue(vm.state.value.actionError is MailError.Network)
+    }
+
+    /** The same student again: the sign-in ends, and nothing resets the screen, as a student change would. */
+    private fun typeThePasswordAgain() {
+        runBlocking { account.signIn("b10000001", "pw") }
+    }
+
+    @Test
+    fun `a write that ends once the sign-in this list loaded for has ended leaves the list as it is`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.loadIfNeeded()
+        val gate = CompletableDeferred<Unit>()
+        repo.writeGate = gate
+        vm.delete(vm.state.value.displayed.single())
+        vm.confirmDelete(true)
+        typeThePasswordAgain()
+        repo.writeGate = null
+        gate.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `a write under a later sign-in than this list loaded for leaves the list as it is`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.loadIfNeeded()
+        typeThePasswordAgain()
+        runBlocking { repo.delete("INBOX", 1L) }
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `a delete confirmed once the sign-in it was asked under has ended is never started`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.loadIfNeeded()
+        val row = vm.state.value.displayed.single()
+        vm.delete(row)
+        assertNotNull(vm.state.value.pendingDelete)
+        typeThePasswordAgain()
+        val gate = CompletableDeferred<Unit>()
+        repo.writeQueueGate = gate
+        vm.confirmDelete(true)
+        assertFalse("the write was started", row.key in vm.state.value.writing)
+        repo.writeQueueGate = null
+        gate.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(repo.deleted.isEmpty())
     }
 
     @Test

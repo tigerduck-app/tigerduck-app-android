@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.util.testSession
 
 /**
  * How a score row finds its class-table course, and how that course's schedule reads in the
@@ -41,12 +42,13 @@ class ScoreCourseRosterTest {
 
     private fun viewModel(rosterCourses: suspend (String) -> List<Course>) = ScoreViewModel(
         authState = MutableStateFlow(true),
+        accountChanges = MutableStateFlow(true),
         storedStudentId = { "B11300001" },
         storedPassword = { "password" },
         cachedSnapshot = { null },
         fetchReport = { _, _, _ -> error("not fetched here") },
         isOnline = { false },
-        isDemo = { false },
+        session = testSession(),
         strings = { "string $it" },
         rosterCourses = rosterCourses,
     )

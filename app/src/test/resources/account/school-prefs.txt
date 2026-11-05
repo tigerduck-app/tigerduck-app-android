@@ -1,0 +1,15 @@
+assignmentMarksSyncedOnce Boolean true
+assignmentsUploadFingerprint String fingerprint-1
+assignmentsUploadedAtMs Long 1700000000000
+backgroundCoursesSyncedAtMs Long 1700000001000
+backgroundCoursesTerm String 1141
+backgroundOverridesSyncedAtMs Long 1700000002000
+classTableSelectedSemester String 1141
+emptyClassroomBuilding String TR
+lastSeenCoursesResetAt String 2026-09-01T00:00:00Z
+pendingConflictCategories HashSet [courses]
+schoolDataSyncedAtMs Long 1700000003000
+ssoLoginTimestamp Long 1700000004000
+syncedCategories HashSet [assignments, courses]
+holidayNotifyOverrides HashSet [3, 5]
+holidayOverridesAwaitingUpload HashSet [5]

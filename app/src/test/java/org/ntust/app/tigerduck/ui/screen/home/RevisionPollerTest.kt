@@ -14,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.push.SyncChange
 import org.ntust.app.tigerduck.push.SyncChangesPage
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.screen.home.RevisionPollOutcome.CHANGED
 import org.ntust.app.tigerduck.ui.screen.home.RevisionPollOutcome.FAILED
 import org.ntust.app.tigerduck.ui.screen.home.RevisionPollOutcome.OFFLINE
@@ -374,28 +376,46 @@ class PollRevisionOnceTest {
     /** The change feed's answer; null as when the read failed or the changes are gone. */
     private var changes: suspend (Long) -> SyncChangesPage? = { null }
     private val feedReads = mutableListOf<Long>()
-    private var generation = 1
+    private val series = SignInSeries()
     private var retries = 0
     private var onRetry: () -> Unit = {}
+    private val retriedUnder = mutableListOf<SignIn>()
+
+    /** The sign-in the revision and the feed's requests carried, in order. */
+    private val requestsUnder = mutableListOf<SignIn>()
+
+    /** Runs as the poll makes sure of a session. */
+    private var onSignIn: () -> Unit = {}
+
+    private fun signOutAndBackIn() {
+        series.end()
+        series.open()
+    }
 
     private suspend fun poll() = pollRevisionOnce(
         syncEnabled = { syncOn },
         online = { online },
-        signIn = { signedIn },
-        fetchRevision = {
+        signIn = {
+            onSignIn()
+            signedIn
+        },
+        fetchRevision = { signIn ->
             fetches++
+            requestsUnder += signIn
             serverRevision()
         },
-        fetchChanges = { since ->
+        fetchChanges = { since, signIn ->
             feedReads += since
+            requestsUnder += signIn
             changes(since)
         },
         lastKnownRevision = { lastKnown },
-        setLastKnownRevision = { lastKnown = it },
-        signInGeneration = { generation },
+        setLastKnownRevision = { revision, _ -> lastKnown = revision },
+        currentSignIn = { series.current },
         fullSyncsInFlight = { inFlight },
-        retryUnsent = {
+        retryUnsent = { signIn ->
             retries++
+            retriedUnder += signIn
             onRetry()
         },
         fullSync = {
@@ -464,6 +484,16 @@ class PollRevisionOnceTest {
     }
 
     @Test
+    fun `a 401 that outlives the poll's sign-in says nothing of the one here now`() = kotlinx.coroutines.test.runTest {
+        serverRevision = {
+            signOutAndBackIn()
+            throw org.ntust.app.tigerduck.push.PushApiException("HTTP 401", 401)
+        }
+
+        assertEquals(UNCHANGED, poll())
+    }
+
+    @Test
     fun `changes to assignments and bulletins alone move the watermark once what waits is sent, with no full sync`() =
         kotlinx.coroutines.test.runTest {
             serverRevision = { 7L }
@@ -520,7 +550,7 @@ class PollRevisionOnceTest {
 
         lastKnown = 5
         changes = {
-            generation++
+            signOutAndBackIn()
             page(6L to "assignment", 7L to "assignment")
         }
         assertEquals(CHANGED, poll())
@@ -534,10 +564,24 @@ class PollRevisionOnceTest {
     fun `a sign-out while what waits is sent leaves the watermark alone`() = kotlinx.coroutines.test.runTest {
         serverRevision = { 7L }
         changes = { page(7L to "assignment") }
-        onRetry = { generation++ }
+        onRetry = { signOutAndBackIn() }
 
         assertEquals(CHANGED, poll())
         assertEquals(5L, lastKnown)
+    }
+
+    @Test
+    fun `a poll's requests go under the sign-in it began in`() = kotlinx.coroutines.test.runTest {
+        serverRevision = { 7L }
+        changes = {
+            page(7L to "assignment")
+        }
+        val began = series.current
+        onSignIn = { signOutAndBackIn() }
+
+        poll()
+
+        assertEquals(listOf(began, began), requestsUnder)
     }
 
     @Test

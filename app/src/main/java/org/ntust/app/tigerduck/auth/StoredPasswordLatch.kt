@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.auth.session.AccountScoped
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.shared.StoredPasswordSchedule
@@ -32,7 +33,7 @@ import javax.inject.Singleton
  * too. It holds a count, a time and the school's message, never the password or anything made
  * from it.
  */
-interface StoredPasswordLatch {
+interface StoredPasswordLatch : AccountScoped {
     /**
      * The first of the refusals in a row, for the banner, which shows while it holds; null once
      * the school takes the password again.
@@ -93,6 +94,12 @@ interface StoredPasswordLatch {
 
     /** When a sign-in the user made stores the password the school took, and on sign-out. */
     fun clear()
+
+    /**
+     * At the school's sign-out: a refusal belongs to the password leaving with the account, and an
+     * automatic sign-in of that account still waiting for its answer latches nothing for the next.
+     */
+    override fun forgetAccount() = clear()
 
     /** Whether [studentId] and [password] are the stored account's. */
     fun isStoredAccount(studentId: String, password: String): Boolean

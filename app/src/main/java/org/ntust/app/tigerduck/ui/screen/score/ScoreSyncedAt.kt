@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.score
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,7 @@ internal class ScoreSyncedAt(
 
     init {
         // The grades were the account's that left.
-        scope.launch { signedIn.collect { if (!it) _value.value = 0L } }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { signedIn.collect { if (!it) _value.value = 0L } }
     }
 
     /** The page opened on [cached], the snapshot it painted before asking the server. */

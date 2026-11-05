@@ -9,9 +9,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
-import okhttp3.Call
 import okhttp3.Cookie
-import okhttp3.EventListener
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -293,26 +291,6 @@ class MoodleTokenService internal constructor(
     }
 
     /**
-     * The calls one sign-in has started, to cancel together; one started after [cancelAll] is
-     * cancelled as it starts. Told of each as it starts ([callStart]), once the call is whole.
-     */
-    private class RunningCalls : EventListener() {
-        private val calls = mutableListOf<Call>()
-        private var cancelled = false
-
-        @Synchronized
-        override fun callStart(call: Call) {
-            if (cancelled) call.cancel() else calls += call
-        }
-
-        @Synchronized
-        fun cancelAll() {
-            cancelled = true
-            calls.forEach(Call::cancel)
-        }
-    }
-
-    /**
      * Whether [html] is Moodle's profile editor as a signed-in student gets it: the page Moodle names
      * `page-user-edit`, with its form back to the editor carrying the session key, and not marked
      * signed out. Anything else at the editor's address (a challenge, a gateway's page) is not.
@@ -377,7 +355,7 @@ class MoodleTokenService internal constructor(
             return walkOidc(client, nextHtml, nextUrl, studentId, password, posting, remainingSteps - 1, arrived)
         }
 
-        // SSO login step: we landed on ssoam2.ntust.edu.tw with a form.
+        // SSO login step: ssoam2.ntust.edu.tw's form. ssoam's NetIQ page takes a person (see HtmlParser.isSSOLoginPage).
         if (responseUrl.host.contains("ssoam2.ntust.edu.tw")) {
             val fields = parseSSOLoginFields(html)
             if (fields.antiforgery.isEmpty()) {

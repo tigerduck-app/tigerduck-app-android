@@ -53,7 +53,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -85,13 +84,11 @@ import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMe
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAssignmentScreen
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleRoutes
-import org.ntust.app.tigerduck.ui.screen.emptyclassroom.EmptyClassroomScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
-import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AccentColorScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
@@ -137,6 +134,7 @@ sealed class Screen(val route: String) {
     }
     object Library : Screen("library")
     object Score : Screen("score")
+    object InformationSystem : Screen("informationSystem")
     object EmptyClassroom : Screen("emptyClassroom")
     object More : Screen("more")
     object Settings : Screen("settings")
@@ -193,12 +191,15 @@ fun AppNavigation(
     if (appState.showOnboarding) {
         OnboardingScreen()
     } else {
-        MainNavigation(
-            appState = appState,
-            analyticsLogger = analyticsLogger,
-            widgetStartRoute = widgetStartRoute,
-            onStartRouteConsumed = onStartRouteConsumed,
-        )
+        PageSettingsHost { navController ->
+            MainNavigation(
+                navController = navController,
+                appState = appState,
+                analyticsLogger = analyticsLogger,
+                widgetStartRoute = widgetStartRoute,
+                onStartRouteConsumed = onStartRouteConsumed,
+            )
+        }
         PermissionWarningDialogHost(appState.systemPermissions)
         NtustSignInSheetHost()
     }
@@ -242,12 +243,12 @@ internal fun NavHostController.navigateToStartRoute(route: String): Boolean =
 
 @Composable
 fun MainNavigation(
+    navController: NavHostController,
     appState: AppState,
     analyticsLogger: AnalyticsLogger,
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
-    val navController = rememberNavController()
     FlipToLibraryEffect(
         navController = navController,
         appState = appState,
@@ -604,9 +605,6 @@ fun MainNavigation(
                     onOpenBulletin = { id ->
                         navController.navigate(Screen.AnnouncementDetail.route(id))
                     },
-                    onOpenSubscriptions = {
-                        navController.navigate(Screen.AnnouncementSubscriptions.route)
-                    },
                     signedIn = signedIn,
                 )
             }
@@ -665,12 +663,7 @@ fun MainNavigation(
                     leaveGuard = leaveGuard,
                 )
             }
-            page(Screen.Score.route) {
-                ScoreScreen(onOpenSignInSettings = openSignInSettings)
-            }
-            page(Screen.EmptyClassroom.route) {
-                EmptyClassroomScreen(onOpenSignInSettings = openSignInSettings)
-            }
+            schoolAccountPages(browserPreference = { appState.browserPreference }, onOpenSignInSettings = openSignInSettings)
             page(Screen.More.route) { MoreScreen(navController) }
             page(Screen.Settings.route) {
                 SettingsScreen(
@@ -1021,6 +1014,7 @@ fun AppFeature.toRoute(): String = when (this) {
     AppFeature.SCHOOL_MAIL -> Screen.SchoolMail.route
     AppFeature.LIBRARY -> Screen.Library.route
     AppFeature.SCORE -> Screen.Score.route
+    AppFeature.INFORMATION_SYSTEM -> Screen.InformationSystem.route
     AppFeature.EMPTY_CLASSROOM -> Screen.EmptyClassroom.route
     AppFeature.MORE -> Screen.More.route
     AppFeature.SETTINGS -> Screen.Settings.route

@@ -20,6 +20,8 @@ import org.ntust.app.tigerduck.push.PushApiException
 import java.io.File
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * Marks tapped here whose PATCH failed ([UnsentMarks]), over real files. A
@@ -54,35 +56,42 @@ class UnsentMarksTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = UnsentMarks(
         dataCache = cache,
-        sender = MarkSender { id, status, signIn, madeAtMs ->
+        writer = MarkWriter { id, status, signIn, madeAtMs ->
             signIns += signIn
             stamps += madeAtMs
             sent += id to status
             answer(id, status)
-            true
+            TOOK
         },
         records = { records },
         sends = { records && sends },
-        signInGeneration = { signInGeneration },
         clock = { now },
     )
 
     private var now = 1_000_000L
 
     /** The sign-in each PATCH was pinned to. */
-    private val signIns = mutableListOf<Int>()
-    private var signInGeneration = 1
+    private val signIns = mutableListOf<SignIn>()
+    private val series = SignInSeries()
+    private val signIn get() = series.current
+
+    // A whole sign-out: the sign-in ends, the data goes, and the next one opens.
+    private suspend fun signOut() {
+        series.end()
+        cache.clearAllUserData()
+        series.open()
+    }
 
     private suspend fun waiting() = cache.loadUnsentMarks().associate { it.assignmentId to it.status }
 
     @Test
     fun `a tap whose PATCH fails is kept, and the next sync sends it and lets it go`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "locally_completed")
+        marks.send("7", "locally_completed", signIn)
         assertEquals(setOf("7"), marks.ids())
 
         answer = { _, _ -> }
-        marks.retry()
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "locally_completed", 7 to "locally_completed"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -92,29 +101,16 @@ class UnsentMarksTest {
     fun `a tap sent after a newer one carries the time it was made`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
         now = 2_000L
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
         answer = { _, _ -> }
         now = 3_000L
-        marks.send("8", "locally_completed")
+        marks.send("8", "locally_completed", signIn)
         now = 4_000L
-        marks.retry()
+        marks.drain(signIn)
 
         // 7 failed at T1, 8 landed at T2, and the retry sent 7 again at its own time.
         assertEquals(listOf<Long?>(2_000L, 3_000L, 2_000L), stamps)
         assertEquals(emptySet<String>(), marks.ids())
-    }
-
-    @Test
-    fun `a mark stored by the build before has no time, and goes out without one`() = runTest {
-        File(context.filesDir, "TigerDuckData/unsent_marks.json").writeText(
-            """[{"assignmentId":"7","status":"ignored","attempts":0,"lastRefusedAtMs":0}]""",
-        )
-        assertEquals(null, cache.loadUnsentMarks().single().madeAtMs)
-
-        marks.retry()
-
-        assertEquals(listOf<Long?>(null), stamps)
-        assertEquals(listOf(7 to "ignored"), sent)
     }
 
     @Test
@@ -123,7 +119,7 @@ class UnsentMarksTest {
             """[{"status":"ignored","attempts":0},{"assignmentId":"7","status":"ignored","attempts":0}]""",
         )
 
-        marks.retry()
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         val file = File(context.filesDir, "TigerDuckData/unsent_marks.json").readText()
@@ -141,10 +137,10 @@ class UnsentMarksTest {
             gate.await()
         }
         now = 2_000L
-        val first = launch { marks.send("7", "ignored") }
+        val first = launch { marks.send("7", "ignored", signIn) }
         arrived.await()
         now = 3_000L
-        val second = launch { marks.send("7", "ignored") }
+        val second = launch { marks.send("7", "ignored", signIn) }
         // Until the second tap has replaced the first on disk, before the first one lands.
         withContext(Dispatchers.Default) {
             while (cache.loadUnsentMarks().singleOrNull()?.madeAtMs != 3_000L) delay(5)
@@ -160,7 +156,7 @@ class UnsentMarksTest {
 
     @Test
     fun `a tap that lands is not kept`() = runTest {
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -179,9 +175,9 @@ class UnsentMarksTest {
             }
         }
 
-        val older = launch { marks.send("7", "ignored") }
+        val older = launch { marks.send("7", "ignored", signIn) }
         first.await()
-        val newer = launch { marks.send("7", "none") }
+        val newer = launch { marks.send("7", "none", signIn) }
         testScheduler.runCurrent()
         release.complete(Unit)
         older.join()
@@ -193,11 +189,11 @@ class UnsentMarksTest {
     @Test
     fun `nothing is sent or kept with mark sync off, and what waits stays until it is on`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
         records = false
 
-        marks.send("8", "ignored")
-        marks.retry()
+        marks.send("8", "ignored", signIn)
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(setOf("7"), marks.ids())
@@ -206,7 +202,7 @@ class UnsentMarksTest {
     @Test
     fun `what waits survives a new process`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
 
         assertEquals(setOf("7"), newProcess().ids())
     }
@@ -214,9 +210,9 @@ class UnsentMarksTest {
     @Test
     fun `taking the server's marks drops what waits`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
 
-        marks.forget()
+        marks.forget(signIn)
 
         assertEquals(emptySet<String>(), marks.ids())
     }
@@ -224,9 +220,9 @@ class UnsentMarksTest {
     @Test
     fun `signing out drops what waits`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
 
-        cache.clearAllUserData()
+        signOut()
 
         assertEquals(emptySet<String>(), marks.ids())
     }
@@ -237,7 +233,7 @@ class UnsentMarksTest {
         // mark goes out; what Use Local failed to send must wait regardless.
         sends = false
 
-        marks.keep("7", "locally_completed", cache.userDataGeneration)
+        marks.keep("7", "locally_completed", signIn)
 
         assertEquals(mapOf("7" to "locally_completed"), waiting())
         assertEquals(emptyList<Pair<Int, String>>(), sent)
@@ -245,10 +241,10 @@ class UnsentMarksTest {
 
     @Test
     fun `a mark kept for an account that has signed out since is not written`() = runTest {
-        val generation = cache.userDataGeneration
-        cache.clearAllUserData()
+        val ended = signIn
+        signOut()
 
-        marks.keep("7", "ignored", generation)
+        marks.keep("7", "ignored", ended)
 
         assertEquals(emptySet<String>(), marks.ids())
     }
@@ -256,8 +252,8 @@ class UnsentMarksTest {
     @Test
     fun `a waiting mark a newer tap replaced is not sent over it`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("8", "ignored")
-        marks.send("7", "ignored")
+        marks.send("8", "ignored", signIn)
+        marks.send("7", "ignored", signIn)
         val eightOut = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         answer = { id, _ ->
@@ -269,10 +265,10 @@ class UnsentMarksTest {
         sent.clear()
 
         // A sync's retry reads both, and sends 8 first.
-        val retry = launch { marks.retry() }
+        val retry = launch { marks.drain(signIn) }
         eightOut.await()
         // The user unmarks 7 while 8 is out.
-        val tap = launch { marks.send("7", "none") }
+        val tap = launch { marks.send("7", "none", signIn) }
         testScheduler.runCurrent()
         release.complete(Unit)
         retry.join()
@@ -284,35 +280,51 @@ class UnsentMarksTest {
     @Test
     fun `a waiting mark is not sent once the account has signed out`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "ignored")
-        marks.send("8", "ignored")
+        marks.send("7", "ignored", signIn)
+        marks.send("8", "ignored", signIn)
         sent.clear()
         answer = { id, _ ->
             if (id == 7) {
                 // Signed out, and someone else signed in, while 7 was out.
-                cache.clearAllUserData()
-                signInGeneration++
+                signOut()
             }
         }
 
-        marks.retry()
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
     }
 
+    /** The gap between the sign-in's end and the wipe: the entry is still on disk, and stays as it is. */
+    @Test
+    fun `a mark read under an ended sign-in is neither sent nor rewritten`() = runTest {
+        answer = { _, _ -> throw IOException("offline") }
+        marks.send("7", "ignored", signIn)
+        sent.clear()
+        val waiting = cache.loadUnsentMarks()
+
+        val ended = series.end()
+        marks.drain(ended)
+        marks.send("7", "locally_completed", ended)
+        marks.send("8", "ignored", ended)
+        marks.keep("9", "ignored", ended)
+        marks.forget(ended)
+
+        assertEquals(emptyList<Pair<Int, String>>(), sent)
+        assertEquals(waiting, cache.loadUnsentMarks())
+    }
+
     @Test
     fun `every PATCH is pinned to the sign-in that was current when its mark was read`() = runTest {
-        signInGeneration = 4
+        marks.send("7", "ignored", signIn)
 
-        marks.send("7", "ignored")
-
-        assertEquals(listOf(4), signIns)
+        assertEquals(listOf(signIn), signIns)
     }
 
     @Test
     fun `two overlapping syncs send a waiting mark once`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
         sent.clear()
         val out = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
@@ -321,9 +333,9 @@ class UnsentMarksTest {
             release.await()
         }
 
-        val one = launch { marks.retry() }
+        val one = launch { marks.drain(signIn) }
         out.await()
-        val two = launch { marks.retry() }
+        val two = launch { marks.drain(signIn) }
         testScheduler.runCurrent()
         release.complete(Unit)
         one.join()
@@ -337,14 +349,14 @@ class UnsentMarksTest {
         // Marked done offline, then the Assignments switch went off, then the
         // mark was cleared: the clear is the newer choice.
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "locally_completed")
+        marks.send("7", "locally_completed", signIn)
         records = false
-        marks.send("7", "none")
+        marks.send("7", "none", signIn)
 
         records = true
         answer = { _, _ -> }
         sent.clear()
-        marks.retry()
+        marks.drain(signIn)
 
         assertEquals(emptyList<Pair<Int, String>>(), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -354,12 +366,12 @@ class UnsentMarksTest {
     fun `a tap made while the re-enable check holds the marks waits, and goes up once it ends`() = runTest {
         sends = false
 
-        marks.send("7", "ignored")
+        marks.send("7", "ignored", signIn)
         assertEquals(emptyList<Pair<Int, String>>(), sent)
         assertEquals(setOf("7"), marks.ids())
 
         sends = true
-        marks.retry()
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -369,8 +381,8 @@ class UnsentMarksTest {
     fun `a mark the backend keeps refusing is parked and left out of later syncs`() = runTest {
         // A 404: the backend has no such assignment for this account.
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
-        marks.send("7", "ignored")
-        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.retry() }
+        marks.send("7", "ignored", signIn)
+        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.drain(signIn) }
 
         assertEquals(UnsentMarks.MAX_ATTEMPTS, sent.size)
         assertEquals("still kept at this phone's value", setOf("7"), marks.ids())
@@ -379,13 +391,13 @@ class UnsentMarksTest {
     @Test
     fun `a parked mark gets one more try in a new process`() = runTest {
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
-        marks.send("7", "ignored")
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry() }
+        marks.send("7", "ignored", signIn)
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         sent.clear()
 
         val next = newProcess()
-        next.retry()
-        next.retry()
+        next.drain(signIn)
+        next.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
     }
@@ -393,10 +405,10 @@ class UnsentMarksTest {
     @Test
     fun `a server error or no network is not counted as a refusal`() = runTest {
         answer = { _, _ -> throw PushApiException("HTTP 503", 503) }
-        marks.send("7", "ignored")
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry() }
+        marks.send("7", "ignored", signIn)
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         answer = { _, _ -> throw IOException("offline") }
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry() }
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
 
         assertEquals(1 + 2 * UnsentMarks.MAX_ATTEMPTS, sent.size)
     }
@@ -404,12 +416,12 @@ class UnsentMarksTest {
     @Test
     fun `a new tap of a parked mark goes up at once`() = runTest {
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
-        marks.send("7", "ignored")
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry() }
+        marks.send("7", "ignored", signIn)
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         answer = { _, _ -> }
         sent.clear()
 
-        marks.send("7", "none")
+        marks.send("7", "none", signIn)
 
         assertEquals(listOf(7 to "none"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -419,10 +431,10 @@ class UnsentMarksTest {
     fun `Use Local's older reading does not replace a tap made during the hold`() = runTest {
         sends = false
         // Tapped on Home while Use Local's requests were going out.
-        marks.send("7", "none")
+        marks.send("7", "none", signIn)
 
         // Use Local read the mark before that tap, and its PATCH failed.
-        marks.keep("7", "ignored", cache.userDataGeneration)
+        marks.keep("7", "ignored", signIn)
 
         assertEquals(mapOf("7" to "none"), waiting())
     }
@@ -432,17 +444,17 @@ class UnsentMarksTest {
         // A 404 until the backend's own Moodle fetch creates the assignment's
         // row, which runs every eight hours; the app may stay open for days.
         answer = { _, _ -> throw PushApiException("HTTP 404", 404) }
-        marks.send("7", "ignored")
-        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.retry() }
+        marks.send("7", "ignored", signIn)
+        repeat(UnsentMarks.MAX_ATTEMPTS) { marks.drain(signIn) }
         sent.clear()
 
         now += 60 * 60 * 1000L
-        marks.retry()
+        marks.drain(signIn)
         assertEquals("parked for now", emptyList<Pair<Int, String>>(), sent)
 
         now += 7 * 60 * 60 * 1000L
         answer = { _, _ -> }
-        marks.retry()
+        marks.drain(signIn)
 
         assertEquals(listOf(7 to "ignored"), sent)
         assertEquals(emptySet<String>(), marks.ids())
@@ -451,8 +463,8 @@ class UnsentMarksTest {
     @Test
     fun `the status each waiting mark set is at hand for a sync to apply`() = runTest {
         answer = { _, _ -> throw IOException("offline") }
-        marks.send("7", "locally_completed")
-        marks.send("8", "none")
+        marks.send("7", "locally_completed", signIn)
+        marks.send("8", "none", signIn)
 
         assertEquals(mapOf("7" to "locally_completed", "8" to "none"), marks.statuses())
     }

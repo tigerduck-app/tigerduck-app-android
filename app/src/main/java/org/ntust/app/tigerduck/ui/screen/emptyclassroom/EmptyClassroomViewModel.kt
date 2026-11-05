@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,9 +119,6 @@ class EmptyClassroomViewModel internal constructor(
     private var tickerJob: Job? = null
     private var coursesJob: Job? = null
 
-    /** Moved by each account change, so a course read started for the account before shows nothing. */
-    private var accountEpoch = 0
-
     /** The day the load in flight reads, and which load it is. */
     private var running: Pair<LocalDate, Int>? = null
     private var loads = 0
@@ -128,7 +126,9 @@ class EmptyClassroomViewModel internal constructor(
     init {
         // A sign-out, or a sign-in on another account, while the screen exists: what it holds
         // belonged to the account before.
-        viewModelScope.launch { env.signedIn.drop(1).collect { accountChanged() } }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            env.accountChanges.drop(1).collect { accountChanged() }
+        }
         // A sync that rewrote the timetable while the screen is open; off screen, the next
         // appear() reads the courses anyway.
         viewModelScope.launch { env.coursesChanged.drop(1).collect { if (isStarted) reloadCourses() } }
@@ -176,7 +176,6 @@ class EmptyClassroomViewModel internal constructor(
      */
     fun accountChanged() {
         stopLoading()
-        accountEpoch++
         coursesJob?.cancel()
         coursesJob = null
         courses = emptyList()
@@ -202,11 +201,11 @@ class EmptyClassroomViewModel internal constructor(
      */
     fun reloadCourses() {
         coursesJob?.cancel()
-        val epoch = accountEpoch
+        val signIn = env.signIn()
         val account = env.account()
         coursesJob = viewModelScope.launch {
             val read = runCatching { env.courses() }.getOrElse { if (it is CancellationException) throw it else emptyList() }
-            if (epoch != accountEpoch || env.account() != account) return@launch
+            if (!signIn.isCurrent || env.account() != account) return@launch
             courses = read
             refreshClasses()
         }
@@ -304,9 +303,10 @@ class EmptyClassroomViewModel internal constructor(
         val isToday = day == _state.value.today
         val id = ++loads
         running = day to id
+        val signIn = env.signIn()
         loadJob = viewModelScope.launch {
             val outcome = try {
-                Result.success(service.usage(day, isToday, force, credentials))
+                Result.success(service.usage(day, isToday, force, credentials, signIn))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

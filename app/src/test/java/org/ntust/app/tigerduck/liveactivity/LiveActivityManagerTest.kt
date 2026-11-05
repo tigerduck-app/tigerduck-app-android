@@ -25,6 +25,8 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
@@ -38,6 +40,7 @@ import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -64,6 +67,9 @@ class LiveActivityManagerTest {
         /** What [scheduleAll] reports as the next class's start. */
         var nextClassStart: Long? = null
 
+        /** Runs as [scheduleAll] begins. */
+        var onScheduleAll: () -> Unit = {}
+
         override fun scheduleAll(
             coursesByTerm: Map<String, List<Course>>,
             skippedDates: Map<String, List<String>>,
@@ -72,6 +78,7 @@ class LiveActivityManagerTest {
             optedInHolidayIds: Set<Int>,
             startedFor: String?,
         ): Long? {
+            onScheduleAll()
             armedLeadSec = leadTimeSec
             armedCoursesByTerm = coursesByTerm
             return nextClassStart
@@ -92,7 +99,7 @@ class LiveActivityManagerTest {
     private val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher())
     private var signedIn = true
     private var storedId: String? = "B00015999"
-    private var demoSession = false
+    private val demoSession = AccountSession(SignInSeries(), scope)
     private var storedIdRead: () -> String? = { storedId }
 
     private val course = Course(courseNo = "CS3005301", courseName = "Data Structures", scheduleJson = """{"1":["2","3"]}""")
@@ -108,7 +115,7 @@ class LiveActivityManagerTest {
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
         storedStudentId = { storedIdRead() },
-        isDemoSession = { demoSession },
+        session = demoSession,
     )
 
     private val manager = managerWith(calendar)
@@ -116,7 +123,7 @@ class LiveActivityManagerTest {
     @Before
     fun setUp() {
         shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        runBlocking { dataCache.saveCourses(listOf(course)) }
+        runBlocking { dataCache.saveCourses(listOf(course), testSignIn()) }
     }
 
     @After
@@ -181,7 +188,7 @@ class LiveActivityManagerTest {
     @Test
     fun `the demo account, which has no stored student ID, still arms`() {
         storedId = null
-        demoSession = true
+        demoSession.signIns.startDemo()
         appPrefs.classReminderEnabled = true
 
         refresh()
@@ -245,8 +252,8 @@ class LiveActivityManagerTest {
         val oldCourse = course.copy(courseNo = "CS1001301")
         val newCourse = course.copy(courseNo = "CS2002301")
         runBlocking {
-            dataCache.saveCourses(listOf(oldCourse), "1142")
-            dataCache.saveCourses(listOf(newCourse), "1151")
+            dataCache.saveCourses(listOf(oldCourse), "1142", testSignIn())
+            dataCache.saveCourses(listOf(newCourse), "1151", testSignIn())
         }
 
         runBlocking { overTwoTerms(day = 12, hour = 7).refreshAndWait() }
@@ -286,6 +293,85 @@ class LiveActivityManagerTest {
         val at = ZonedDateTime.of(2026, 10, 12, 20, 0, 0, 0, AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
         val wake = refreshWakes().single()
         assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
+    }
+
+    private fun managerOn(session: AccountSession) = LiveActivityManager(
+        preferences = liveUpdate,
+        notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),
+        dataCache = dataCache,
+        isSignedIn = {
+            signInStateReads++
+            signedIn
+        },
+        appPrefs = appPrefs,
+        classPreparingScheduler = alarms,
+        academicCalendar = calendar,
+        boundaryScheduler = LiveActivityBoundaryScheduler(context),
+        appScope = liveScope,
+        storedStudentId = { storedIdRead() },
+        session = session,
+    )
+
+    private var signInStateReads = 0
+
+    @Test
+    fun `a sign-out stops a refresh that has yet to run`() {
+        val series = SignInSeries()
+        val session = AccountSession(series, liveScope)
+        val manager = managerOn(session)
+
+        manager.refresh()
+        series.end()
+        session.cancelWork()
+        liveDispatcher.scheduler.runCurrent()
+
+        assertEquals(0, signInStateReads)
+    }
+
+    @Test
+    fun `a refresh while the session is closed does not run, and the next sign-in's does`() {
+        val series = SignInSeries()
+        val session = AccountSession(series, liveScope)
+        val manager = managerOn(session)
+        series.end()
+
+        manager.refresh()
+        liveDispatcher.scheduler.runCurrent()
+        assertEquals(0, signInStateReads)
+
+        session.open()
+        manager.refresh()
+        awaitUntil { signInStateReads == 1 }
+    }
+
+    @Test
+    fun `the sign-out's stop takes everything down with the session closed`() {
+        val series = SignInSeries()
+        val session = AccountSession(series, liveScope)
+        val manager = managerOn(session)
+        series.end()
+
+        manager.stop()
+
+        assertEquals(1, alarms.cancels)
+    }
+
+    /** The sign-out's stop runs as this refresh arms what it worked out. */
+    @Test
+    fun `what a refresh arms past its sign-out's stop goes as it ends`() {
+        val series = SignInSeries()
+        val manager = managerOn(AccountSession(series, liveScope))
+        appPrefs.classReminderEnabled = true
+        alarms.nextClassStart = AppClock.nowMillis() + 60 * 60_000L
+        alarms.onScheduleAll = {
+            series.end()
+            manager.stop()
+        }
+
+        runBlocking { manager.refreshAndWait() }
+
+        assertNull(alarms.armedLeadSec)
+        assertEquals(emptyList<Long>(), refreshWakes())
     }
 
     @Test
@@ -331,7 +417,7 @@ class LiveActivityManagerTest {
         liveUpdate.classPreparingLeadTimeSec = 15 * 60
         appPrefs.classReminderEnabled = true
         appPrefs.classReminderLeadMinutes = 15
-        runBlocking { dataCache.saveCourses(listOf(CourseChangeFixture.course())) }
+        runBlocking { dataCache.saveCourses(listOf(CourseChangeFixture.course()), testSignIn()) }
         return LiveActivityManager(
             preferences = liveUpdate,
             notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),
@@ -345,7 +431,7 @@ class LiveActivityManagerTest {
             courseChanges = { feed.value },
             courseChangesUpdated = feed,
             // No account: the real scheduler here reads none either.
-            isDemoSession = { true },
+            session = AccountSession(SignInSeries(demo = true), liveScope),
         ).also {
             runBlocking { it.refreshAndWait() }
             // Past the feed it starts with, so the next one is a change.

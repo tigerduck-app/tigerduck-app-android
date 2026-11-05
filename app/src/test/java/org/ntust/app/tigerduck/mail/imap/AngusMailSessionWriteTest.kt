@@ -122,6 +122,26 @@ class AngusMailSessionWriteTest {
     }
 
     @Test
+    fun `one STORE marks every mail it names read and no other, and a moved UIDVALIDITY marks none`() {
+        repeat(4) { server.deliver("m$it") }
+        session().use { s ->
+            val page = s.fetchPage("INBOX", null, 10)
+            val uids = page.messages.map { it.uid }.sorted()
+            try {
+                s.setSeen("INBOX", uids, true, uidValidity = page.uidValidity + 1)
+                fail("a STORE went out under another UIDVALIDITY")
+            } catch (e: MailError.FolderChanged) {
+                // Nothing was sent.
+            }
+            assertTrue(s.refreshFlags("INBOX", uids).values.none { it.seen })
+
+            val named = listOf(uids[0], uids[2], uids[3])
+            s.setSeen("INBOX", named, true, uidValidity = page.uidValidity)
+            assertEquals(named.toSet(), s.refreshFlags("INBOX", uids).filterValues { it.seen }.keys)
+        }
+    }
+
+    @Test
     fun `setAnswered silently skips a uid that is already gone`() {
         server.deliver("a")
         session().use { s ->

@@ -7,15 +7,19 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
-import org.ntust.app.tigerduck.data.MarkSender
+import org.ntust.app.tigerduck.data.MarkWriter
+import org.ntust.app.tigerduck.data.TOOK
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_COMPLETED
 import org.ntust.app.tigerduck.ui.screen.settings.categoriesSwitchedOn
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Home's mark step as `HomeBackendSync` builds it ([AssignmentMarkStep.over]),
@@ -54,15 +58,14 @@ class HomeMarkSyncTest {
         // Sending as with TigerSync on, which the fdroid build never is.
         unsent = UnsentMarks(
             cache,
-            MarkSender { id, status, _, _ ->
+            MarkWriter { id, status, _, _ ->
                 send(id, status)
-                true
+                TOOK
             },
             records = { prefs.syncAssignments },
             sends = { prefs.syncAssignments },
-            signInGeneration = { 0 },
         )
-        step = AssignmentMarkStep.over(prefs, cache, unsent) { id, status, _ -> send(id, status) }
+        step = AssignmentMarkStep.over(prefs, cache)
     }
 
     private fun server(ignored: Set<String> = emptySet()) = BackendSyncResult(
@@ -75,14 +78,14 @@ class HomeMarkSyncTest {
 
     /** What `HomeBackendSync.pull` passes: the switch as read with the other categories. */
     private suspend fun fullSync(result: BackendSyncResult) =
-        step.pull(state, result, syncsMarks = "assignments" in categoriesSwitchedOn(prefs), signIn = 0, generation = cache.userDataGeneration)
+        step.pull(state, result, syncsMarks = "assignments" in categoriesSwitchedOn(prefs), signIn = testSignIn(), holds = PullHolds(1L, AckClock()))
 
     @Test
     fun `with the Assignments switch off a full sync leaves this phone's marks alone`() = runTest {
         // tigerduck-app-android#209: the switch keeps this phone's marks
         // apart from the server's, as on iOS.
         prefs.syncAssignments = false
-        cache.saveMarkedCompletedAssignments(setOf("1"))
+        cache.saveMarkedCompletedAssignments(setOf("1"), testSignIn())
 
         fullSync(server(ignored = setOf("2")))
 
@@ -92,21 +95,21 @@ class HomeMarkSyncTest {
 
     @Test
     fun `a mark tapped while its PATCH fails outlives the next sync and goes up after it`() = runTest {
-        prefs.assignmentMarksSyncedOnce = true
+        prefs.school.assignmentMarksSyncedOnce.set(true, testSignIn())
         backendUp = false
         // What HomeViewModel.toggleOverride does for a tap.
-        cache.saveMarkedCompletedAssignments(setOf("3"))
+        cache.saveMarkedCompletedAssignments(setOf("3"), testSignIn())
         state.markedCompletedIds.value = setOf("3")
-        unsent.send("3", STATUS_COMPLETED)
+        unsent.send("3", STATUS_COMPLETED, testSignIn())
 
         // The next sync: the retry fails too, and the server holds no marks.
-        unsent.retry()
+        unsent.drain(testSignIn())
         fullSync(server())
 
         assertEquals(setOf("3"), cache.loadMarkedCompletedAssignments())
 
         backendUp = true
-        unsent.retry()
+        unsent.drain(testSignIn())
 
         assertEquals(listOf(3 to STATUS_COMPLETED), sent)
         assertEquals(emptySet<String>(), unsent.ids())

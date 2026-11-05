@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.network.NtustScoreError
 import org.ntust.app.tigerduck.ui.screen.score.ScoreViewModel
+import org.ntust.app.tigerduck.util.testSession
 
 /**
  * The sources each page's sync dot lists, and which one the transcript's fetch reports to. As
@@ -52,12 +53,13 @@ class ServerStatusSourcesTest {
     private fun refresh(into: MutableMap<ServerKind, ServerStatus>, fetch: () -> ScoreReport) {
         ScoreViewModel(
             authState = MutableStateFlow(true),
+            accountChanges = MutableStateFlow(true),
             storedStudentId = { STUDENT },
             storedPassword = { "not-a-password" },
             cachedSnapshot = { null },
             fetchReport = { _, _, _ -> fetch() },
             isOnline = { true },
-            isDemo = { false },
+            session = testSession(),
             strings = { "string $it" },
             rosterCourses = { emptyList() },
             recordStatus = { server, status -> into[server] = status },

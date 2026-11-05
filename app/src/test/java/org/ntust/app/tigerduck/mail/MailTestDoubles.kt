@@ -7,6 +7,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailBody
@@ -15,6 +16,8 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -42,6 +45,13 @@ fun CoroutineScope.cancelAndJoinBlocking() {
     val job = coroutineContext.job
     runBlocking { withTimeout(10_000) { job.cancelAndJoin() } }
 }
+
+/** The sign-in a test acts under, read as the layers that start account work read it. */
+@OptIn(StartsAccountWork::class)
+val MailAccount.signInNow: SignIn get() = currentSignIn
+
+/** An open sign-in of no account's, for a store test that is not about whose it is. */
+fun openSignIn(): SignIn = SignInSeries().current
 
 class InMemoryMailDevServerStore(
     override var settings: MailDevServerSettings = MailDevServerSettings.OFF,
@@ -122,8 +132,8 @@ class RecordingNotifier : MailNotifier {
     }
 }
 
-class FakeDemoGate(override var appDemoActive: Boolean = false) : MailDemoGate {
-    val box = DemoMailbox(
+class FakeDemoGate : MailDemoGate {
+    var box = DemoMailbox(
         studentId = "B10000099", password = "demo", displayName = "示範同學",
         messages = listOf(
             DemoMail(

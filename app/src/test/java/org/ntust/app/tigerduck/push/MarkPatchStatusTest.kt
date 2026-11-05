@@ -9,20 +9,22 @@ import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
-import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A refused mark PATCH carries its HTTP status, so `UnsentMarks` parks only
  * a mark the backend refused (a 404 for an assignment it has no row for),
- * never one a busy or broken server could not take.
+ * never one a busy or broken server could not take ([SendResult.afterFailure]).
  */
 class MarkPatchStatusTest {
 
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
     private lateinit var prefs: AppPreferences
     private lateinit var api: PushApiClient
 
@@ -40,7 +42,7 @@ class MarkPatchStatusTest {
     }
 
     private suspend fun failure(): Exception =
-        runCatching { api.patchAssignmentOverride(7, "ignored") }.exceptionOrNull() as Exception
+        runCatching { api.patchAssignmentOverrideAnswered(7, "ignored", testSignIn(), madeAtMs = null) }.exceptionOrNull() as Exception
 
     @Test
     fun `a 404 is a refusal`() = runTest {
@@ -48,8 +50,8 @@ class MarkPatchStatusTest {
 
         val e = failure()
 
-        assertEquals(404, (e as PushApiException).statusCode)
-        assertTrue(CourseIgnoreSync.refuses(e))
+        assertEquals(404, e.backendError()?.status)
+        assertEquals(SendResult.Refused, SendResult.afterFailure(e))
     }
 
     @Test
@@ -58,8 +60,8 @@ class MarkPatchStatusTest {
 
         val e = failure()
 
-        assertEquals(503, (e as PushApiException).statusCode)
-        assertTrue(!CourseIgnoreSync.refuses(e))
+        assertEquals(503, e.backendError()?.status)
+        assertEquals(SendResult.Retry, SendResult.afterFailure(e))
     }
 
     private companion object {

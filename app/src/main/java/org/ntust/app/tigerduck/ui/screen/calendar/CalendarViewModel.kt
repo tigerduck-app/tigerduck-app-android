@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
@@ -21,6 +22,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
@@ -95,8 +98,8 @@ class CalendarViewModel @Inject constructor(
     private val widgetUpdater: WidgetUpdater,
     private val liveActivityManager: LiveActivityManager,
     private val notificationScheduler: org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler,
+    private val sessions: AccountSessions,
 ) : ViewModel() {
-
 
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events
@@ -123,12 +126,10 @@ class CalendarViewModel @Inject constructor(
     // construction.
     private val fetchFlight = SingleFlight(viewModelScope)
 
-    private val refreshTriggers =
-        RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
+    private val refreshTriggers = RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
 
     /**
-     * Semester boundaries and school holidays, from the published academic
-     * calendar.
+     * Semester boundaries and school holidays, from the published academic calendar.
      *
      * Rebuilt on every read rather than cached because the holiday name is
      * locale-dependent and the app language can change under us. Cheap —
@@ -139,14 +140,12 @@ class CalendarViewModel @Inject constructor(
      * the user can still use while logged out.
      */
     private fun academicEvents(): List<CalendarEvent> {
-        // Both the holiday name and the boundary titles are resolved against
-        // the language the user picked, not against `Locale.getDefault()` and
-        // the injected `@ApplicationContext`. Below API 33 AppCompat applies
-        // the in-app language to Activity configurations only, so those two
-        // keep reporting the *device* language: on a Taiwanese phone running
-        // the app in English or Japanese every holiday came back as its
-        // Chinese name and every term boundary as "115-1 開始", on a screen
-        // that was otherwise correctly translated. The tag comes from the
+        // Both the holiday name and the boundary titles are resolved against the language the user
+        // picked, not against `Locale.getDefault()` and the injected `@ApplicationContext`. Below
+        // API 33 AppCompat applies the in-app language to Activity configurations only, so those
+        // two keep reporting the *device* language: on a Taiwanese phone running the app in English
+        // or Japanese every holiday came back as its Chinese name and every term boundary as
+        // "115-1 開始", on a screen that was otherwise correctly translated. The tag comes from the
         // same context as the titles, so the two cannot disagree.
         val localized = AppLanguageManager.localizedContext(context, prefs.appLanguage)
         return org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
@@ -169,30 +168,31 @@ class CalendarViewModel @Inject constructor(
     private val _holidayOverrides =
         MutableStateFlow(academicCalendar.optedInHolidayIds)
 
-    /** Holidays the user has opted back into, as a flow so a row redraws the
-     *  moment its own toggle flips. */
+    /** Holidays the user has opted back into, as a flow so a row redraws as its toggle flips. */
     val holidayOverrides: StateFlow<Set<Int>> = _holidayOverrides
 
     /**
      * Flip the exception for one holiday.
      *
      * The local write is what makes the guard behave; the upload only makes
-     * the user's other devices agree, so a failure there is not rolled back —
-     * the setting the user just made on this device stands either way. It
-     * waits in [org.ntust.app.tigerduck.data.PendingHolidayOverrides] until the
-     * backend has it, marked as this launch runs up to its first suspension
-     * (Main.immediate), so a sync meanwhile keeps it.
+     * the user's other devices agree, so a failure there is not rolled back.
+     * It waits in [org.ntust.app.tigerduck.data.PendingHolidayOverrides] until
+     * the backend has it, marked as this launch runs up to its first
+     * suspension (Main.immediate), so a sync meanwhile keeps it.
      */
     fun setNotifyOnHoliday(holidayId: Int, notify: Boolean) {
         if (!academicCalendar.setNotifyOnHoliday(holidayId, notify)) return
         _holidayOverrides.value = academicCalendar.optedInHolidayIds
-        // The widgets, the Live Update and the class reminders go quiet on a
-        // holiday the user has not opted back into. Without these they keep
-        // the old answer until their next class boundary or 30-minute refresh.
+        // The widgets, the Live Update and the class reminders go quiet on a holiday the user has
+        // not opted back into. Without these they keep the old answer until their next class
+        // boundary or 30-minute refresh.
         widgetUpdater.requestUpdate()
         liveActivityManager.refresh()
-        viewModelScope.launch { pendingHolidayOverrides.send(holidayId) }
+        viewModelScope.launch { pendingHolidayOverrides.send(holidayId, signInNow()) }
     }
+
+    @OptIn(StartsAccountWork::class)
+    private fun signInNow() = sessions.school.current
 
     /** Replaces the academic rows in [base] with freshly-built ones. */
     private fun withAcademicEvents(base: List<CalendarEvent>): List<CalendarEvent> =
@@ -239,23 +239,20 @@ class CalendarViewModel @Inject constructor(
             // most new assignments reach the calendar.
             dataCache.backgroundSyncVersion.drop(1).collect {
                 if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
+                val signIn = signInNow()
                 val assignments = dataCache.loadAssignments()
-                // Signed out, or in as someone else, while the file was read:
-                // the rows are the departing account's.
-                if (!authService.isStillSignedInAs(account)) return@collect
-                // The other rows as they are after the read, not before: a
-                // fetch of this screen's own can land while the file is read.
-                _events.value = withMoodleRows(_events.value, assignments)
+                // Signed out while the file was read: the rows are the departing account's.
+                // The other rows as they are after the read, not before: a fetch of this
+                // screen's own can land while the file is read.
+                signIn.ifCurrent { _events.value = withMoodleRows(_events.value, assignments) }
             }
         }
-        viewModelScope.launch {
-            // Clear / refresh in sync with auth changes — a sign-in while the
-            // app is open, not the value replayed to this collector. load()
-            // fetches for a user signed in at launch; fetching on the replay
-            // as well fetched twice on every cold start.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // Clear / refresh in sync with auth changes — a sign-in while the app is open, not
+            // the state this collector starts from. load() fetches for a user signed in at
+            // launch; fetching on that as well fetched twice on every cold start.
             var wasAuthed: Boolean? = null
-            authService.authState.collect { isAuthed ->
+            sessions.school.changes.collect { isAuthed ->
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {
@@ -402,6 +399,7 @@ class CalendarViewModel @Inject constructor(
     }
 
     private suspend fun fetchData() {
+        val signIn = signInNow()
         // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
         refreshTriggers.fetchStarted()
         _isLoading.value = true
@@ -421,7 +419,7 @@ class CalendarViewModel @Inject constructor(
             }
             if (schoolEvents.isNotEmpty() || assignments.isNotEmpty() || hadMoodleRows) {
                 _events.value = withAcademicEvents(current)
-                dataCache.saveCalendarEvents(current)
+                dataCache.saveCalendarEvents(current, signIn)
                 _syncCompleteEvent.tryEmit(Unit)
             }
         } catch (e: Exception) {

@@ -20,7 +20,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 class BackendLoginRequestTest {
 
     private lateinit var manager: AuthTokenManager
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
 
     @Before
     fun setUp() {
@@ -35,7 +35,7 @@ class BackendLoginRequestTest {
 
     @Test
     fun `a sign-in sends the student ID and the Moodle token, and no password`() = runTest {
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
 
         val sent = JSONObject(backend.received(LOGIN).single().body)
         assertEquals("B00000000", sent.getString("student_id"))
@@ -45,14 +45,14 @@ class BackendLoginRequestTest {
 
     @Test
     fun `a sign-in body is sent once, so a redirect does not send the token on`() = runTest {
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private")
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private", signIn = manager.session.signIns.current)
 
         assertTrue(backend.received(LOGIN).single().sentOnce)
     }
 
     @Test
     fun `a sign-in to a backend of the user's own leaves the private token out`() = runTest {
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private")
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private", signIn = manager.session.signIns.current)
 
         val sent = JSONObject(backend.received(LOGIN).single().body)
         assertEquals("moodle", sent.getString("moodle_token"))
@@ -68,7 +68,7 @@ class BackendLoginRequestTest {
         tokens.clear()
 
         AuthTokenManager(tokens, backend.client, defaults, "device-1")
-            .login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private")
+            .run { login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private", signIn = session.signIns.current) }
 
         val sent = JSONObject(backend.received(LOGIN).single().body)
         assertEquals("private", sent.getString("moodle_private_token"))
@@ -77,7 +77,7 @@ class BackendLoginRequestTest {
     @Test
     fun `a sign-in without a Moodle token sends nothing`() = runTest {
         val failure = runCatching {
-            manager.login("B00000000", moodleToken = "", moodlePrivateToken = null)
+            manager.login("B00000000", moodleToken = "", moodlePrivateToken = null, signIn = manager.session.signIns.current)
         }.exceptionOrNull()
 
         assertTrue("got $failure", failure is AuthTokenManager.AuthException)

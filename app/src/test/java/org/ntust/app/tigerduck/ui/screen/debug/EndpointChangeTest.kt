@@ -6,6 +6,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.session.AccountPlan
+import org.ntust.app.tigerduck.auth.session.NoSchool
+import org.ntust.app.tigerduck.auth.session.SchoolPlan
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss
 import java.io.File
 
@@ -21,25 +26,41 @@ class EndpointChangeTest {
     private var mail = false
     private val events = mutableListOf<String>()
 
-    private fun change(movedBackend: () -> Unit = {}) = EndpointChange(
+    /** The sign-out the change runs, its accounts held as the fields above say. */
+    private fun plans(
+        signOutSchool: () -> Unit = {
+            school = false
+            events += "school"
+        },
+    ) = SignOutPlans(
+        school = object : SchoolPlan by NoSchool {
+            override val held: Boolean get() = school
+
+            override fun signOut(reason: SignOutReason) {
+                assertEquals(SignOutReason.ENDPOINT_CHANGE, reason)
+                signOutSchool()
+            }
+        },
+        mail = AccountPlan({ mail }) { reason ->
+            assertEquals(SignOutReason.ENDPOINT_CHANGE, reason)
+            mail = false
+            events += "mail"
+        },
+        library = AccountPlan({ library }) { reason ->
+            assertEquals(SignOutReason.ENDPOINT_CHANGE, reason)
+            library = false
+            events += "library"
+        },
+        readLibraryAgain = {},
+        leaveDemoLibrary = {},
+    )
+
+    private fun change(movedBackend: () -> Unit = {}, plans: SignOutPlans = plans()) = EndpointChange(
         stored = { stored },
         store = { stored = it; events += "store $it" },
         holdsSchoolAccount = { school },
         signOutLosses = { events += "losses read"; setOf(SignOutLoss.IMPORTED_CLASS_TABLES) },
-        signOutSchool = {
-            school = false
-            events += "school"
-        },
-        holdsLibraryAccount = { library },
-        signOutLibrary = {
-            library = false
-            events += "library"
-        },
-        holdsMailAccount = { mail },
-        signOutMail = {
-            mail = false
-            events += "mail"
-        },
+        signOutAccounts = { plans.signOut(SignOutReason.ENDPOINT_CHANGE) },
         registerAgain = { events += "register" },
         forgetBackendData = { events += "forget" },
         movedBackend = movedBackend,
@@ -102,22 +123,14 @@ class EndpointChangeTest {
     fun `an account the school sign-out took with it is not signed out again`() {
         school = true
         library = true
-        val change = EndpointChange(
-            stored = { stored },
-            store = { stored = it; events += "store $it" },
-            holdsSchoolAccount = { school },
-            signOutLosses = { emptySet() },
-            signOutSchool = {
-                school = false
-                library = false
-                events += "school"
-            },
-            holdsLibraryAccount = { library },
-            signOutLibrary = { events += "library" },
-            holdsMailAccount = { false },
-            signOutMail = { events += "mail" },
-            registerAgain = { events += "register" },
-            forgetBackendData = { events += "forget" },
+        val change = change(
+            plans = plans(
+                signOutSchool = {
+                    school = false
+                    library = false
+                    events += "school"
+                },
+            ),
         )
 
         change.apply(OTHER)
@@ -154,6 +167,20 @@ class EndpointChangeTest {
         change().apply(OTHER)
 
         assertEquals(listOf("store $OTHER", "register"), events)
+    }
+
+    @Test
+    fun `a setting changed by hand between v3 and v4 of one backend is no move, and signs nothing out`() {
+        // The app speaks /v4 to a setting ending in /v3: the same backend, the same session.
+        stored = OTHER
+        school = true
+        assertFalse(change().asks("https://other.example/v4"))
+
+        change().apply("https://other.example/v4")
+        // And back.
+        change().apply(OTHER)
+
+        assertEquals(listOf("store https://other.example/v4", "register", "store $OTHER", "register"), events)
     }
 
     // What it lets go of

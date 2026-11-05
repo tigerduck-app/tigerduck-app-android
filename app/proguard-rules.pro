@@ -8,6 +8,10 @@
 # on the first open after upgrade.
 -keep class org.ntust.app.tigerduck.shared.** { *; }
 -keep class org.ntust.app.tigerduck.data.cache.DataCache$* { *; }
+# Information-system portal snapshot, Gson-persisted to filesDir/portal. Lives
+# outside the kept model packages, so without this R8 could rename its fields
+# between releases and every snapshot on disk would stop matching after upgrade.
+-keep class org.ntust.app.tigerduck.data.cache.PortalLinksSnapshot { *; }
 # Wire DTO Gson-serializes to the watch. Unannotated fields, so R8 must
 # not rename them — otherwise the phone sends obfuscated JSON keys the
 # watch-side CourseWire can't recognize.

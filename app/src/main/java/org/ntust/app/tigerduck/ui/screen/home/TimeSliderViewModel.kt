@@ -2,11 +2,15 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.clubs.ClubOccurrence
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
@@ -19,17 +23,18 @@ import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
-/** Layout info for a single [CourseTimeSlot] inside a 衝堂 overlap cluster. */
+/** Layout info for a single [TimeSliderItem] inside a 衝堂 overlap cluster. */
 data class SlotLayout(val lane: Int, val laneCount: Int)
 
-class TimeSliderViewModel {
+/** The time machine: the classes of [Course]s and, from [clubs], the subscribed clubs' activities. */
+class TimeSliderViewModel(private val clubs: HomeClubs = HomeClubs.None) {
 
-    var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
+    var items by mutableStateOf<List<TimeSliderItem>>(emptyList())
         private set
 
     /**
-     * Per-slot lane assignment for vertical stacking when courses 衝堂.
-     * Keyed by [CourseTimeSlot.id]; missing entries mean a solo slot
+     * Per-item lane assignment for vertical stacking when courses 衝堂.
+     * Keyed by [TimeSliderItem.id]; missing entries mean a solo item
      * (laneCount = 1).
      */
     var slotLayouts by mutableStateOf<Map<String, SlotLayout>>(emptyMap())
@@ -38,7 +43,14 @@ class TimeSliderViewModel {
     var isUserDragging by mutableStateOf(false)
         private set
 
-    val hasCourses: Boolean get() = timeSlots.isNotEmpty()
+    val hasItems: Boolean get() = items.isNotEmpty()
+
+    /** The club activity whose details are open over Home. */
+    var openedClub by mutableStateOf<ClubOccurrence?>(null)
+
+    /** Counts the times the clubs changed, for what Home reads of them. */
+    var clubsRevision by mutableIntStateOf(0)
+        private set
 
     private var allCourses: List<Course> = emptyList()
     private var changes: CourseChanges = CourseChanges.EMPTY
@@ -46,7 +58,6 @@ class TimeSliderViewModel {
     private var isQuietDay: (LocalDate) -> Boolean = { false }
     private var timelineCenterDate: Date = Date(AppClock.nowMillis())
     private var lastHapticSlot: Int = 0
-
     // Compressed position cache
     private var anchors: List<Pair<Date, Float>> = emptyList()
 
@@ -74,9 +85,13 @@ class TimeSliderViewModel {
 
     private fun rebuildTimeline(center: Date) {
         timelineCenterDate = center
-        timeSlots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS, changes)
+        val slots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS, changes)
             .filterNot { isQuietDay(it.localDate) || skipped(it.course, it.localDate) }
-        slotLayouts = computeSlotLayouts(timeSlots)
+        val found = clubs.around(center, TIMELINE_DAY_RADIUS)
+        items = TimeSliderItem.timeline(slots, found)
+        // The open activity as it is now, or closed once the clubs lack it.
+        openedClub = openedClub?.let { open -> found.firstOrNull { it.id == open.id && it.day == open.day } }
+        slotLayouts = computeSlotLayouts(items)
         rebuildAnchors()
     }
 
@@ -88,11 +103,11 @@ class TimeSliderViewModel {
      * x-range and the renderer stacks them on separate lanes.
      */
     private fun rebuildAnchors() {
-        if (timeSlots.isEmpty()) {
+        if (items.isEmpty()) {
             anchors = emptyList(); return
         }
 
-        val clusters = buildClusters(timeSlots)
+        val clusters = buildClusters(items, mergeTouching = true)
         val result = mutableListOf<Pair<Date, Float>>()
         var x = 0f
 
@@ -131,16 +146,17 @@ class TimeSliderViewModel {
     }
 
     /**
-     * Groups time-sorted slots into overlap clusters. A new cluster starts
-     * once a slot begins at or after the current cluster's running max-end.
+     * Groups time-sorted slots into overlap clusters: a new one starts at or after the running
+     * max-end, or with [mergeTouching] only after it, so a club's piece starting where a class
+     * ends sits flush against it, as on iOS.
      */
-    private fun buildClusters(slots: List<CourseTimeSlot>): List<TimeCluster> {
+    private fun buildClusters(slots: List<TimeSliderItem>, mergeTouching: Boolean = false): List<TimeCluster> {
         val out = mutableListOf<TimeCluster>()
         var members = mutableListOf(slots[0])
         var curEnd = slots[0].end
         for (i in 1 until slots.size) {
             val s = slots[i]
-            if (s.start.time >= curEnd.time) {
+            if (if (mergeTouching) s.start.time > curEnd.time else s.start.time >= curEnd.time) {
                 out.add(TimeCluster(members[0].start, curEnd, members[0].date, members))
                 members = mutableListOf(s)
                 curEnd = s.end
@@ -159,7 +175,7 @@ class TimeSliderViewModel {
      * Solo slots (clusters of size 1) are omitted — callers treat a
      * missing entry as `SlotLayout(0, 1)`.
      */
-    private fun computeSlotLayouts(slots: List<CourseTimeSlot>): Map<String, SlotLayout> {
+    private fun computeSlotLayouts(slots: List<TimeSliderItem>): Map<String, SlotLayout> {
         if (slots.isEmpty()) return emptyMap()
         val out = mutableMapOf<String, SlotLayout>()
         for (cluster in buildClusters(slots)) {
@@ -193,7 +209,7 @@ class TimeSliderViewModel {
         val start: Date,
         val end: Date,
         val date: Date,
-        val slots: List<CourseTimeSlot>,
+        val slots: List<TimeSliderItem>,
     )
 
     private fun compressedGapWidth(minutes: Double): Float {
@@ -218,16 +234,14 @@ class TimeSliderViewModel {
         }
     }
 
-    fun courseState(at: Date): CourseState {
-        // Collect every slot currently containing `at` so 衝堂 overlaps
-        // surface all active courses, not just the first match. timeSlots
-        // is sorted by start, so the resulting list mirrors lane order.
-        val active = timeSlots.filter { it.isGoingOn(at) }
+    fun state(at: Date): CourseState<TimeSliderItem> {
+        // Every item containing `at`, so 衝堂 shows all of them, in lane order (items are sorted by start).
+        val active = items.filter { it.isOn(at) }
         if (active.isNotEmpty()) {
             return CourseState.InClass(active)
         }
-        val previous = timeSlots.lastOrNull { it.end <= at }
-        val next = timeSlots.firstOrNull { it.start > at }
+        val previous = items.lastOrNull { it.end <= at }
+        val next = items.firstOrNull { it.start > at }
 
         return when {
             previous == null && next != null -> CourseState.BeforeFirst(next)
@@ -236,14 +250,23 @@ class TimeSliderViewModel {
         }
     }
 
-    val currentCourseState: CourseState get() = courseState(selectedTime)
+    val currentState: CourseState<TimeSliderItem> get() = state(selectedTime)
 
     /**
-     * The class whose color the thumb takes: the first in session that is not cancelled. As iOS
+     * The item whose color the thumb takes: the first in session that is not cancelled. As iOS
      * `FluidGlassTrackView.thumbGlowColor`.
      */
-    val thumbSlot: CourseTimeSlot?
-        get() = (currentCourseState as? CourseState.InClass)?.slots?.firstOrNull { !it.isCancelled }
+    val thumbItem: TimeSliderItem?
+        get() = (currentState as? CourseState.InClass)?.slots?.firstOrNull { !it.isCancelled }
+
+    /** Rebuilds the timeline each time the clubs change, and closes the open activity at a sign-out. */
+    suspend fun followClubs() = coroutineScope {
+        launch { clubs.accountChanges.collect { openedClub = null } }
+        clubs.changes.collect { rebuildTimeline(timelineCenterDate); clubsRevision++ }
+    }
+
+    /** Whether a subscribed club has an activity from [now]'s day on, within the timeline's reach. */
+    fun hasClubActivities(now: Date): Boolean = clubs.hasActivities(now, TIMELINE_DAY_RADIUS)
 
     // Compressed X offset
     fun xOffset(time: Date): Float {

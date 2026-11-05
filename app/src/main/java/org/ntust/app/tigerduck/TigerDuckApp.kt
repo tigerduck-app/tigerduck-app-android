@@ -17,6 +17,9 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AccountSessionEffects
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.StoredPasswordRetry
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -55,6 +58,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var dataMigration: DataMigration
 
+    // Injected so it exists from launch: built, it records this build's first run, before anything
+    // can write a queue (an edit an older build queued with no time is sent with that bound).
+    @Inject
+    lateinit var oldEntryTime: org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+
     @Inject
     lateinit var dataCache: DataCache
 
@@ -63,6 +71,12 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var authService: AuthService
+
+    @Inject
+    lateinit var sessions: AccountSessions
+
+    @Inject
+    lateinit var signOutPlans: org.ntust.app.tigerduck.auth.session.SignOutPlans
 
     @Inject
     lateinit var wearBridge: WearScheduleBridge
@@ -75,6 +89,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var courseChangeStore: CourseChangeStore
+
+    @Inject
+    lateinit var clubFeeds: org.ntust.app.tigerduck.clubs.ClubFeeds
 
     @Inject
     lateinit var analyticsLogger: AnalyticsLogger
@@ -128,36 +145,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
             .setWorkerFactory(workerFactory)
             .build()
 
-    override fun onCreate() {
-        super.onCreate()
-        // The theme reads it on its first frame: start loading it from disk now.
-        preloadKeptCjkCorrections(this)
-        // Debug builds: the developer settings' "pretend an app is missing" switches.
-        PretendMissingApps.init(this)
-        // First, before anything can read or write DataCache. BootReceiver and
-        // BackgroundSyncWorker both run without an Activity, so leaving this
-        // to AppState let WorkManager's persisted periodic sync fire on the
-        // upgrade launch and rebuild caches that a pending migration step then
-        // deleted. AppState re-reads the cached outcome for the reset prompt.
-        dataMigration.run()
-        // Next, while the Live Update settings are still as the previous
-        // build left them: the class reminder takes its settings from them
-        // once, before anything can arm a reminder or pull the settings
-        // document.
-        ClassReminders.migrateIfNeeded(appPreferences, liveActivityPreferences)
-        analyticsLogger.setEnabled(appPreferences.analyticsEnabled)
-        // Seeded here so a cold launch with cloud sync off does not show the
-        // status dot's backend row as "unknown" until the first sync guard
-        // runs — which, sync being off, may be never.
-        ServerStatusTracker.setCloudSyncEnabled(appPreferences.cloudSyncEnabled)
-        analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
-        debugClockController.bootstrap()
-        AppLanguageManager.apply(appPreferences.appLanguage)
-        notificationChannels.register()
-        uiLanguage.onLocales(resources.configuration.locales.toLanguageTags())
-        fcmBootstrap.start()
-        warnIfPinsNearExpiry()
-
+    private fun startTlsPins() {
         // TLS pins (TLS pins spec, A5, A6 and A8): TigerSync's document on coming to the
         // foreground and every 6 hours while the app stays there; the watch told of every new
         // document and acceptance; and after a Continue, a sync, as after a network error.
@@ -171,7 +159,57 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 withContext(Dispatchers.IO) { BackgroundSyncWorker.requestSync(this@TigerDuckApp) }
             }
         }
+    }
 
+    /**
+     * The subscribed clubs' activities and the club list, on the first load and on every return to
+     * the foreground, as the iPhone's scene activation fetches them: nothing while the account has
+     * no subscription ([ClubFeeds]).
+     */
+    @OptIn(StartsAccountWork::class)
+    private fun startClubFeeds() {
+        appScope.launch(Dispatchers.Main) {
+            ProcessLifecycleOwner.get().lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                clubFeeds.refresh(sessions.school.current)
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        val signOutCutShort = signOutPlans.finishOwedSignOut() // before anything acts on the account
+        // The theme reads it on its first frame: start loading it from disk now.
+        preloadKeptCjkCorrections(this)
+        // Debug builds: the developer settings' "pretend an app is missing" switches.
+        PretendMissingApps.init(this)
+        // First, before anything can read or write DataCache. BootReceiver and
+        // BackgroundSyncWorker both run without an Activity, so leaving this
+        // to AppState let WorkManager's persisted periodic sync fire on the
+        // upgrade launch and rebuild caches that a pending migration step then
+        // deleted. AppState re-reads the cached outcome for the reset prompt.
+        dataMigration.run()
+        // Then its wipe, after which the school session opens (SignOutWipe).
+        if (signOutCutShort) signOutPlans.finishOwedWipe()
+        // Next, while the Live Update settings are still as the previous
+        // build left them: the class reminder takes its settings from them
+        // once, before anything can arm a reminder or pull the settings
+        // document.
+        ClassReminders.migrateIfNeeded(appPreferences, liveActivityPreferences)
+        analyticsLogger.setEnabled(appPreferences.analyticsEnabled)
+        // Seeded here so a cold launch with cloud sync off does not show the
+        // status dot's backend row as "unknown" until the first sync guard
+        // runs — which, sync being off, may be never.
+        ServerStatusTracker.setCloudSyncEnabled(org.ntust.app.tigerduck.sync.SyncPolicies(appPreferences).current.tigerSyncOn)
+        analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
+        debugClockController.bootstrap()
+        AppLanguageManager.apply(appPreferences.appLanguage)
+        notificationChannels.register()
+        uiLanguage.onLocales(resources.configuration.locales.toLanguageTags())
+        fcmBootstrap.start()
+        warnIfPinsNearExpiry()
+
+        startTlsPins()
+        startClubFeeds()
         // Wear OS bridge — publish to paired watch on schedule/auth/accent changes.
         // On fdroid the bridge is a no-op stub; these calls are still safe.
         dataCache.setOnCoursesSavedListener {
@@ -185,34 +223,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
             merge(appPreferences.visualPresetChanged, moodleColorStore.colorsChanged).collect { wearBridge.publish() }
         }
         // The background sync, reminders, notifications and Live Update follow the sign-in from every page.
-        accountSessionEffects.start(appScope)
+        accountSessionEffects.start(appScope, signOutCutShort)
         // A stored password the school or the library refused goes again once its wait is over.
         storedPasswordRetry.start(appScope)
         libraryPasswordRetry.start(appScope)
-        // The dot hides itself while signed out, but the tracker is
-        // process-wide: a status written before logout would still be here
-        // for the next account to inherit, green from the moment the dot
-        // comes back. Clearing on the auth signal rather than inside
-        // AuthService.logout() keeps a UI singleton out of the auth layer.
-        appScope.launch {
-            authService.authState.collect { signedIn ->
-                ServerStatusTracker.setSignedIn(signedIn)
-                if (!signedIn) ServerStatusTracker.reset()
-            }
-        }
-        appScope.launch {
-            authService.authState.collect {
-                // A school sign-in can sign in to the library too, and a
-                // school sign-out can take the library account with it.
-                librarySession.refresh()
-                wearBridge.publish()
-                // Auth state flips when SSO + library login finishes (or
-                // when logout clears creds), so this is also the right
-                // moment to (re)mirror the library credentials onto the
-                // paired watch.
-                wearBridge.publishLibraryCredentials()
-            }
-        }
+        followSchoolAccount()
         // A sign-in with the stored library credentials, at a return to the app
         // or behind the Library page, changes what Settings and the flip read.
         // A refusal also takes the password off the watch, until the library takes it again.
@@ -266,6 +281,35 @@ class TigerDuckApp : Application(), Configuration.Provider {
         super.onConfigurationChanged(newConfig)
         // What a change of locales here stands for is in UiLanguageMonitor.
         uiLanguage.onLocales(newConfig.locales.toLanguageTags())
+    }
+
+    /**
+     * What follows the school account's every change at this level, from the state it starts in,
+     * which runs where [onCreate] does until the first thing that hops off it.
+     */
+    private fun followSchoolAccount() {
+        // The dot hides itself while signed out, but the tracker is
+        // process-wide: a status written before logout would still be here
+        // for the next account to inherit, green from the moment the dot
+        // comes back. Clearing on the auth signal rather than inside
+        // the sign-out (SignOutPlans) keeps a UI singleton out of the auth layer.
+        appScope.follow(sessions.school.changes) { signedIn ->
+            ServerStatusTracker.setSignedIn(signedIn)
+            if (!signedIn) ServerStatusTracker.reset()
+        }
+        appScope.follow(sessions.school.changes) {
+            // Off the main thread: the stores behind these are encrypted.
+            withContext(Dispatchers.Default) {
+                // Neither way touches the library account, which signs in and
+                // out by itself: only a moment to read its state again.
+                librarySession.refresh()
+                wearBridge.publish()
+                // Auth state flips when a sign-in finishes or a logout
+                // clears the credentials, so this is also a moment to
+                // (re)mirror the library credentials onto the paired watch.
+                wearBridge.publishLibraryCredentials()
+            }
+        }
     }
 
     /**

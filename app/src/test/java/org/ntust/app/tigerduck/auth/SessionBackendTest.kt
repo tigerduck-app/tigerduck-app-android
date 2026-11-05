@@ -5,8 +5,10 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -20,7 +22,6 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushTokenIn
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
-import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -34,7 +35,7 @@ class SessionBackendTest {
     private lateinit var prefs: AppPreferences
     private lateinit var tokens: V3TokenStore
     private var clock = 1_800_000_000_000L
-    private val backend = ScriptedBackend()
+    private val backend = ScriptedBackend(under = "/v4")
 
     @Before
     fun setUp() {
@@ -51,41 +52,56 @@ class SessionBackendTest {
     }
 
     private suspend fun signedInAtTheIssuer(): AuthTokenManager = manager().also {
-        it.login("B00015999", moodleToken = "moodle", moodlePrivateToken = null)
+        it.login("B00015999", moodleToken = "moodle", moodlePrivateToken = null, signIn = it.session.signIns.current)
     }
 
     @Test
     fun `no client presents a session to another backend than the one that issued it`() = runTest {
         val manager = signedInAtTheIssuer()
         prefs.announcementApiBaseUrlOverride = ELSEWHERE
+        val signIn = manager.session.signIns.current
         val requests: List<suspend () -> Unit> = listOf(
-            { PushApiClient(backend.client, prefs, manager).register(DeviceRegisterRequest(clientDeviceId = "device-1", pushToken = PushTokenIn(tokenValue = "fcm-1"))) },
-            { BulletinApiClient(backend.client, prefs, manager).fetchSubscriptions() },
-            { SettingsDocumentApiClient(backend.client, prefs, manager).read<JsonObject>("notification") },
-            { SyncApiClient(manager, prefs, backend.client).fetchFullSync() },
+            { PushApiClient(backend.client, prefs, manager).register(DeviceRegisterRequest(clientDeviceId = "device-1", pushToken = PushTokenIn(tokenValue = "fcm-1")), signIn) },
+            { BulletinApiClient(backend.client, prefs, manager).fetchSubscriptions(signIn) },
+            { SettingsDocumentApiClient(backend.client, prefs, manager).read<JsonObject>("notification", signIn) },
+            { SyncApiClient(manager, prefs, backend.client).fetchFullSync(signIn) },
         )
 
         val failures = requests.map { request -> runCatching { request() }.exceptionOrNull() }
 
-        assertTrue("got $failures", failures.all { it is IOException })
+        assertTrue("got $failures", failures.all { it is NotSignedInException })
         assertEquals(emptyList<String>(), backend.endpoints().filter { it != LOGIN })
     }
 
     @Test
-    fun `the refresh goes to the backend that issued the session`() = runTest {
+    fun `a moved session with no stored account gives no header and makes no refresh`() = runTest {
         val manager = signedInAtTheIssuer()
         prefs.announcementApiBaseUrlOverride = ELSEWHERE
         clock += 3_600_000
 
-        manager.authHeader()
+        assertNull(manager.authHeader())
 
-        assertEquals(listOf("127.0.0.1"), backend.received(REFRESH).map { it.host })
+        assertEquals(emptyList<String>(), backend.received(REFRESH).map { it.host })
+    }
+
+    @Test
+    fun `the guard still blocks an old header on a request built for the new backend`() = runTest {
+        val manager = signedInAtTheIssuer()
+        val header = manager.requireAuthHeader(manager.session.signIns.current)
+        prefs.announcementApiBaseUrlOverride = ELSEWHERE
+        val client = backend.client.newBuilder().guardedBy(manager).build()
+        val request = Request.Builder().url("$ELSEWHERE/sync/full").header("Authorization", header).build()
+
+        val failure = runCatching { client.newCall(request).execute().close() }.exceptionOrNull()
+
+        assertTrue("got $failure", failure is SessionNotForThisBackend)
+        assertEquals(listOf(LOGIN), backend.endpoints())
     }
 
     @Test
     fun `an access token goes only to the backend that issued it, also after a sign-out`() = runTest {
         val manager = signedInAtTheIssuer()
-        val header = manager.requireAuthHeader().removePrefix("Bearer ")
+        val header = manager.requireAuthHeader(manager.session.signIns.current).removePrefix("Bearer ")
 
         assertTrue(manager.mayPresent(header, "$ISSUER/sync/full".toHttpUrl()))
         assertFalse(manager.mayPresent(header, "$ELSEWHERE/sync/full".toHttpUrl()))
@@ -101,7 +117,7 @@ class SessionBackendTest {
         val manager = signedInAtTheIssuer()
         clock += 3_600_000
         backend.answer(REFRESH, 200, """{"access_token":"access-3","refresh_token":"refresh-3","expires_in":900}""")
-        val header = manager.requireAuthHeader().removePrefix("Bearer ")
+        val header = manager.requireAuthHeader(manager.session.signIns.current).removePrefix("Bearer ")
         assertEquals("access-3", header)
 
         manager.logout()
@@ -119,7 +135,7 @@ class SessionBackendTest {
     @Test
     fun `an address that only starts like the issuer's is another backend`() = runTest {
         val manager = signedInAtTheIssuer()
-        val header = manager.requireAuthHeader().removePrefix("Bearer ")
+        val header = manager.requireAuthHeader(manager.session.signIns.current).removePrefix("Bearer ")
 
         assertFalse(manager.mayPresent(header, "http://127.0.0.1:9/v3x/sync/full".toHttpUrl()))
         assertFalse(manager.mayPresent(header, "http://127.0.0.1:99/v3/sync/full".toHttpUrl()))

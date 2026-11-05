@@ -1,22 +1,19 @@
 package org.ntust.app.tigerduck.network
 
 import okhttp3.Call
-import okhttp3.RequestBody
-import org.ntust.app.tigerduck.network.model.SubscriptionRuleRequest
+import org.ntust.app.tigerduck.network.model.SubscriptionListRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.HTTP
 import retrofit2.http.Header
-import retrofit2.http.PATCH
-import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
  * The backend's bulletins and bulletin subscriptions, relative to its base
- * (`…/v3`), for [BulletinApiClient]. A subscription's device is the Bearer
- * token's; a DELETE carries an empty body ([EmptyBody]), as OkHttp's
- * `delete()` did.
+ * (`…/v4`), for [BulletinApiClient]. A subscription's device is the Bearer
+ * token's; the rules are saved as a whole list in one PUT ([subscriptionList]),
+ * as `/v4` mounts no per-rule route.
  */
 internal interface BulletinApi {
 
@@ -37,20 +34,7 @@ internal interface BulletinApi {
     @GET("bulletin-subscriptions")
     fun subscriptions(@Header("Authorization") auth: String): Call
 
-    @POST("bulletin-subscriptions")
-    fun newSubscription(@Header("Authorization") auth: String, @Body rule: SubscriptionRuleRequest): Call
-
-    @PATCH("bulletin-subscriptions/{id}")
-    fun subscription(
-        @Header("Authorization") auth: String,
-        @Path("id", encoded = true) id: Int,
-        @Body rule: SubscriptionRuleRequest,
-    ): Call
-
-    @HTTP(method = "DELETE", path = "bulletin-subscriptions/{id}", hasBody = true)
-    fun removeSubscription(
-        @Header("Authorization") auth: String,
-        @Path("id", encoded = true) id: Int,
-        @Body empty: RequestBody,
-    ): Call
+    /** This device's rules become [list], each kept by its `client_id`. */
+    @PUT("bulletin-subscriptions")
+    fun subscriptionList(@Header("Authorization") auth: String, @Body list: SubscriptionListRequest): Call
 }

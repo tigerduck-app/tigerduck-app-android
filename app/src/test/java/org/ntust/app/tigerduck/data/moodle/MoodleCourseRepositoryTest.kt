@@ -2,10 +2,13 @@ package org.ntust.app.tigerduck.data.moodle
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,11 +17,19 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSession
 import java.lang.reflect.Type
 
 /** One store per account and course, dropped at sign-out, on the demo account's Moodle in demo mode. */
@@ -44,34 +55,57 @@ class MoodleCourseRepositoryTest {
 
     private val authState = MutableStateFlow(true)
     private var account: String? = "B11300001"
-    private var demo = false
+    private val session = testSession()
     private val live = Api("live")
     private var demoGrade = "demo"
     private val languageChanges = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val cachedFor = mutableListOf<String>()
+    private val series = SignInSeries()
+    private val cachedUnder = mutableListOf<SignIn>()
 
     private val noCache = object : MoodleCachePort {
         override suspend fun <T> load(type: Type, name: String): Pair<T, Long>? = null
         override suspend fun save(value: Any, fetchedAtMs: Long, name: String) = Unit
     }
 
-    private fun TestScope.repository(liveApi: MoodleCourseApi = live) = MoodleCourseRepository(
+    private fun TestScope.repository(
+        liveApi: MoodleCourseApi = live,
+        accountChanges: Flow<Boolean> = authState,
+    ) = MoodleCourseRepository(
         signedIn = { authState.value },
         account = { account },
-        isDemo = { demo },
+        session = session,
         liveApi = liveApi,
         demoApi = { Api(demoGrade) },
         idMap = { mapOf("1151CS3005301" to 5) },
-        cachePort = { account -> cachedFor += account; noCache },
+        cachePort = { account, signIn -> cachedFor += account; cachedUnder += signIn; noCache },
         picturesDir = { null },
         downloads = null,
         downloadsDir = { null },
         decode = { null },
-        authState = authState,
+        accountChanges = accountChanges,
         appScope = backgroundScope,
         newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         languageChanges = languageChanges,
+        currentSignIn = { series.current },
     )
+
+    @Test
+    fun `a store's copies are kept under the sign-in it was built in, and the next one's under its own`() = runTest(UnconfinedTestDispatcher()) {
+        val repository = repository()
+        repository.store(5)
+        val first = series.current
+
+        series.end()
+        authState.value = false
+        series.open()
+        authState.value = true
+        repository.store(5)
+
+        assertEquals(listOf(first, series.current), cachedUnder)
+        assertFalse(first.isCurrent)
+        assertTrue(cachedUnder.last().isCurrent)
+    }
 
     @Test
     fun `one store per account and course`() = runTest(UnconfinedTestDispatcher()) {
@@ -122,8 +156,47 @@ class MoodleCourseRepositoryTest {
     }
 
     @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() = runTest {
+        val session = AccountSession(SignInSeries(), backgroundScope)
+        val state = SignedInState(true).also { session.signedInFrom(it.signedIn) }
+        val repository = repository(accountChanges = session.changes.drop(1))
+        runCurrent()
+        val before = repository.store(5)!!
+
+        state.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, session.signIns.current, null)) }
+        state.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
+        runCurrent()
+
+        assertNotSame("the sign-out dropped it, though the state reads the same", before, repository.store(5))
+    }
+
+    @Test
+    fun `a sign-in drops nothing built as it lands`() = runTest {
+        authState.value = false
+        val repository = repository()
+        runCurrent()
+
+        authState.value = true
+        val built = repository.store(5)
+        runCurrent()
+
+        assertSame(built, repository.store(5))
+    }
+
+    @Test
+    fun `the state the account starts in clears nothing`() = runTest {
+        val session = AccountSession(SignInSeries(), backgroundScope)
+        session.signedInFrom(MutableStateFlow(false))
+        val repository = repository(accountChanges = session.changes.drop(1))
+        val before = repository.store(5)!!
+        runCurrent()
+
+        assertSame(before, repository.store(5))
+    }
+
+    @Test
     fun `the demo account's stores answer from the demo Moodle`() = runTest(UnconfinedTestDispatcher()) {
-        demo = true
+        session.signIns.startDemo()
         val store = repository().store(5)!!
 
         store.refreshGrades()
@@ -145,7 +218,9 @@ class MoodleCourseRepositoryTest {
         val repository = repository()
         val before = repository.store(5)!!
 
+        series.end()
         authState.value = false
+        series.open()
         authState.value = true
 
         assertFalse("its fetches were stopped with the sign-out", before.isCurrent())
@@ -154,7 +229,7 @@ class MoodleCourseRepositoryTest {
 
     @Test
     fun `the demo account's Moodle follows a change of language, in stores already built`() = runTest(UnconfinedTestDispatcher()) {
-        demo = true
+        session.signIns.startDemo()
         val repository = repository()
         val store = repository.store(5)!!
         store.refreshGrades()
@@ -170,12 +245,12 @@ class MoodleCourseRepositoryTest {
 
     @Test
     fun `the demo account's copies stay in memory, so a restart shows the language the app has then`() = runTest(UnconfinedTestDispatcher()) {
-        demo = true
+        session.signIns.startDemo()
         repository().store(5)
 
         assertTrue("nothing kept on disk for the demo account", cachedFor.isEmpty())
 
-        demo = false
+        session.signIns.leaveDemo()
         repository().store(5)
         assertEquals(listOf("B11300001"), cachedFor)
     }
@@ -190,16 +265,16 @@ class MoodleCourseRepositoryTest {
         val repository = MoodleCourseRepository(
             signedIn = { authState.value },
             account = { account },
-            isDemo = { false },
+            session = session,
             liveApi = live,
             demoApi = { null },
             idMap = { emptyMap() },
-            cachePort = { noCache },
+            cachePort = { _, _ -> noCache },
             picturesDir = { null },
             downloads = downloads,
             downloadsDir = { java.io.File(tmp.root, "account") },
             decode = { null },
-            authState = authState,
+            accountChanges = authState,
             appScope = backgroundScope,
             newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         )
@@ -233,16 +308,16 @@ class MoodleCourseRepositoryTest {
         val repository = MoodleCourseRepository(
             signedIn = { authState.value },
             account = { account },
-            isDemo = { false },
+            session = session,
             liveApi = live,
             demoApi = { null },
             idMap = { emptyMap() },
-            cachePort = { noCache },
+            cachePort = { _, _ -> noCache },
             picturesDir = { null },
             downloads = downloads,
             downloadsDir = { java.io.File(tmp.root, "account") },
             decode = { null },
-            authState = authState,
+            accountChanges = authState,
             appScope = backgroundScope,
             newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         )

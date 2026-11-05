@@ -12,7 +12,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * The backend's device and sync endpoints, relative to its base (`…/v3`), for
+ * The backend's device and sync endpoints, relative to its base, for
  * [PushApiClient]. `Authorization` is the Bearer header the client resolves
  * before the call. Paths and queries are given already encoded, as the
  * client wrote its URLs before Retrofit. A DELETE carries an empty body
@@ -58,18 +58,19 @@ internal interface PushApi {
         @Body override: Map<String, Any>,
     ): Call
 
-    @PATCH("sync/courses/{courseId}/override")
+    /** [courseKey], `client:{semester}:{course_no}`, raw, as it may hold a `/`. */
+    @PATCH("sync/courses/{courseKey}/override")
     fun courseOverride(
         @Header("Authorization") auth: String,
-        @Path("courseId", encoded = true) courseId: String,
+        @Path("courseKey", encoded = true) courseKey: String,
         @Body override: Map<String, Any?>,
     ): Call
 
     /** The same override as [courseOverride], whose answer says whether the backend kept the field. */
-    @PATCH("sync/courses/{moodleId}/override")
+    @PATCH("sync/courses/{courseKey}/override")
     fun courseIgnore(
         @Header("Authorization") auth: String,
-        @Path("moodleId", encoded = true) moodleId: String,
+        @Path("courseKey", encoded = true) courseKey: String,
         @Body override: Map<String, Any>,
     ): Call
 
@@ -77,28 +78,24 @@ internal interface PushApi {
     @POST("sync/assignments/upload")
     fun assignmentsUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
 
-    /** [protocol] "2" for an upload whose adds carry their time; null leaves the header out. */
     @POST("sync/courses/upload")
-    fun coursesUpload(
-        @Header("Authorization") auth: String,
-        @Body body: RequestBody,
-        @Header("X-TigerSync-Protocol") protocol: String?,
-    ): Call
+    fun coursesUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
 
-    /** [hlc] the hide's time, in microseconds since the epoch; null sends none. */
+    /** [hlc] the hide's time, in microseconds since the epoch; no kind, as the backend decides from its row. */
     @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
     fun removeCourse(
         @Header("Authorization") auth: String,
         @Path("courseKey", encoded = true) courseKey: String,
         @Body empty: RequestBody,
-        @Query("hlc") hlc: Long?,
+        @Query("hlc") hlc: Long,
     ): Call
 
-    /** [semester] form-encoded already (`URLEncoder`), or null for every term. */
+    /** [semester] form-encoded already (`URLEncoder`), or null for every term; [hlc] the reset's. */
     @HTTP(method = "DELETE", path = "sync/courses", hasBody = true)
     fun removeCourses(
         @Header("Authorization") auth: String,
         @Query("semester", encoded = true) semester: String?,
         @Body empty: RequestBody,
+        @Query("hlc") hlc: Long,
     ): Call
 }

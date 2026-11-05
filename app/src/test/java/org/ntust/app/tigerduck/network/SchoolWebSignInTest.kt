@@ -1,0 +1,360 @@
+package org.ntust.app.tigerduck.network
+
+import android.app.Application
+import android.content.Context
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.connection.RealCall
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.PersistedStoredPasswordLatch
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.debug.DemoModeInterceptor
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+
+/**
+ * [SsoLoginService.signInForBrowser]: a school site signed in for the TigerDuck browser with the
+ * SSO session the app already holds, against hand-made SSO and site pages. OkHttp's own cookie
+ * handling is played by the fake school, which reads and keeps cookies in the jar of the client
+ * that made the call, as OkHttp's bridge does.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class)
+@OptIn(ExperimentalCoroutinesApi::class, OkHttpInternalApi::class)
+class SchoolWebSignInTest {
+
+    /** Every request the school got, as "METHOD url". */
+    private val requests = CopyOnWriteArrayList<String>()
+
+    /** Password posts to SSO, which a sign-in for the browser never makes. */
+    private val passwordPosts = CopyOnWriteArrayList<String>()
+
+    /** The app's shared jar, where its SSO session is kept. */
+    private val appJar = SignInCookieJar()
+
+    /** The jars the service made, one per run. */
+    private val jars = mutableListOf<SignInCookieJar>()
+
+    /** Where SSO's bridge form posts, for a browser that holds its session. */
+    private var bridgeAction = CALLBACK
+
+    /** The cookies each request to the site carried, by name. */
+    private val sentToSite = CopyOnWriteArrayList<List<String>>()
+
+    /** Cookies of the whole domain that SSO's authorize and the site's callback set on the way. */
+    private var domainCookiesOnTheWay = false
+
+    /** Whether the call the blocking page waits on saw its cancel. */
+    @Volatile private var blockedCallCancelled = false
+
+    /** Counted down once the blocking page's request reaches the school. */
+    private val blockingRequested = CountDownLatch(1)
+
+    private val school = OkHttpClient.Builder().cookieJar(appJar).addInterceptor { chain -> answer(chain) }.build()
+
+    private fun sessionManager(): NtustSessionManager {
+        val context = RuntimeEnvironment.getApplication()
+        return NtustSessionManager(AppPreferences(context), DemoModeInterceptor(DebugFixtureStore(context)))
+    }
+
+    private fun service(sessionManager: NtustSessionManager = sessionManager(), client: OkHttpClient = school): SsoLoginService {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("school-web-sign-in-test", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val latch = PersistedStoredPasswordLatch(prefs, now = { NOW }) { STUDENT to PASSWORD }
+        return SsoLoginService(sessionManager, latch, newCookieJar = { SignInCookieJar().also { jars += it } }) { client }
+    }
+
+    /**
+     * The app signed in to SSO earlier, for another school site: its jar holds SSO's session, which
+     * ssoam2 sets as `AuthServer` on the whole school domain rather than its own host, a cookie of
+     * ssoam2's own, and another site's on its own host.
+     */
+    private fun appHoldsSsoSession() {
+        val sso = "https://$SSO_HOST/account/login".toHttpUrl()
+        appJar.saveFromResponse(sso, listOf(domainCookie(SSO_COOKIE)))
+        appJar.saveFromResponse(sso, listOfNotNull(Cookie.parse(sso, "$SSO_OWN_COOKIE=sso-made-up; Path=/; Secure; HttpOnly")))
+        val other = "https://$OTHER_HOST/".toHttpUrl()
+        appJar.saveFromResponse(other, listOfNotNull(Cookie.parse(other, "$OTHER_COOKIE=other-made-up; Path=/; Secure")))
+    }
+
+    @Test
+    fun `with the app's SSO session it posts no password and hands back the site's cookies alone`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+
+        val session = service().signInForBrowser(SITE_PAGE)
+
+        assertEquals(listOf(SITE_COOKIE), session.cookies.map { it.name })
+        assertTrue(session.cookies.all { it.domain == SITE_HOST })
+        assertTrue("through SSO", session.signedIn)
+        assertEquals("no password posted", emptyList<String>(), passwordPosts)
+        assertEquals("POST $CALLBACK", requests.single { it.startsWith("POST") })
+    }
+
+    @Test
+    fun `it hands back the app's SSO session for the browser, the school domain's with it, and nothing met on the way`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        domainCookiesOnTheWay = true
+
+        val session = service().signInForBrowser(SITE_PAGE)
+
+        assertEquals(setOf(SSO_COOKIE, SSO_OWN_COOKIE), session.sso.map { it.name }.toSet())
+        assertEquals("ntust.edu.tw", session.sso.single { it.name == SSO_COOKIE }.domain)
+    }
+
+    @Test
+    fun `a renewal for the browser goes through SSO even while the app holds the site's own session`() = runTest(UnconfinedTestDispatcher()) {
+        val manager = sessionManager()
+        val client = OkHttpClient.Builder().cookieJar(manager.client.cookieJar).addInterceptor { chain -> answer(chain) }.build()
+        val site = SITE_PAGE.toHttpUrl()
+        manager.client.cookieJar.saveFromResponse(site, listOfNotNull(Cookie.parse(site, "$SITE_COOKIE=site-made-up; Path=/; Secure")))
+
+        // The fake SSO keeps every password on its form: what counts is that the stored one went there.
+        expectFailure(SsoLoginError.LoginFailed::class.java) {
+            service(manager, client).renewForBrowser(SITE_PAGE, STUDENT, PASSWORD) { true }
+        }
+        assertEquals(1, passwordPosts.size)
+    }
+
+    @Test
+    fun `a renewal no longer wanted asks for nothing`() = runTest(UnconfinedTestDispatcher()) {
+        assertEquals(false, service().renewForBrowser(SITE_PAGE, STUDENT, PASSWORD) { false })
+        assertTrue(requests.isEmpty())
+    }
+
+    @Test
+    fun `with no SSO session held, SSO's sign-in form ends it and nothing is posted`() = runTest(UnconfinedTestDispatcher()) {
+        expectFailure(SsoLoginError.SessionMissing::class.java) { service().signInForBrowser(SITE_PAGE) }
+
+        assertTrue(requests.none { it.startsWith("POST") })
+    }
+
+    @Test
+    fun `each run keeps its cookies in a jar of its own, and the app's jar gets nothing of them`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        val service = service()
+        service.signInForBrowser(SITE_PAGE)
+        service.signInForBrowser(SITE_PAGE)
+
+        assertEquals(2, jars.size)
+        assertTrue(jars[0] !== jars[1])
+        assertTrue(appJar.loadForRequest(SITE_PAGE.toHttpUrl()).none { it.name == SITE_COOKIE })
+    }
+
+    @Test
+    fun `a page the site serves with no sign-in hands back the site's own cookies`() = runTest(UnconfinedTestDispatcher()) {
+        val session = service().signInForBrowser(PUBLIC_PAGE)
+
+        assertEquals(listOf("ASP.NET_SessionId"), session.cookies.map { it.name })
+        assertTrue("no sign-in", !session.signedIn)
+        assertTrue(requests.none { SSO_HOST in it })
+    }
+
+    @Test
+    fun `ssoam's NetIQ page is one the student signs in to, with nothing posted`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+
+        expectFailure(SsoLoginError.InteractiveLoginRequired::class.java) { service().signInForBrowser(NETIQ_SITE) }
+        assertTrue(requests.none { it.startsWith("POST") })
+    }
+
+    @Test
+    fun `a bridge off the school's hosts is never posted`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        bridgeAction = "https://example.com/signin-oidc"
+
+        expectFailure(SsoLoginError.InvalidResponse::class.java) { service().signInForBrowser(SITE_PAGE) }
+        assertTrue(requests.none { it.startsWith("POST") })
+    }
+
+    @Test
+    fun `nothing the run started with, SSO's or the domain's, is handed back`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+
+        val names = service().signInForBrowser(SITE_PAGE).cookies.map { it.name }
+
+        assertTrue(names.none { it == SSO_COOKIE || it == SSO_OWN_COOKIE })
+    }
+
+    @Test
+    fun `a cookie of the whole domain set on the way, SSO's or the site's, is not handed back`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        domainCookiesOnTheWay = true
+
+        val names = service().signInForBrowser(SITE_PAGE).cookies.map { it.name }
+
+        assertEquals(listOf(SITE_COOKIE), names)
+    }
+
+    @Test
+    fun `the run takes SSO's cookies alone from the app's jar, another site's staying there`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+
+        service().signInForBrowser(SITE_PAGE)
+
+        val started = jars.single().loadForRequest("https://$SSO_HOST/connect/authorize".toHttpUrl()).map { it.name }
+        assertTrue(started.toString(), SSO_COOKIE in started && SSO_OWN_COOKIE in started)
+        assertTrue(jars.single().loadForRequest("https://$OTHER_HOST/".toHttpUrl()).none { it.name == OTHER_COOKIE })
+        assertTrue(sentToSite.toString(), sentToSite.none { OTHER_COOKIE in it })
+    }
+
+    @Test
+    fun `a cancelled run cancels the request it waits on, and lets go at once`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        val service = service()
+        val run = launch { service.signInForBrowser(BLOCKING_PAGE) }
+        // Cancelled once its request is out, as a timeout cancels a run that hangs. A run cancelled
+        // before its request goes out sends none, so there would be nothing to see cancelled.
+        assertTrue("the request went out", blockingRequested.await(5, TimeUnit.SECONDS))
+        val started = System.nanoTime()
+
+        run.cancelAndJoin()
+
+        assertTrue(run.isCancelled)
+        val waited = (System.nanoTime() - started) / 1_000_000
+        assertTrue("let go after $waited ms", waited < 4_000)
+        val deadline = System.currentTimeMillis() + 3_000
+        while (!blockedCallCancelled && System.currentTimeMillis() < deadline) Thread.sleep(20)
+        assertTrue(blockedCallCancelled)
+    }
+
+    private suspend fun expectFailure(type: Class<out Throwable>, block: suspend () -> Unit) {
+        try {
+            block()
+            fail("expected ${type.simpleName}")
+        } catch (e: Throwable) {
+            if (!type.isInstance(e)) throw e
+        }
+    }
+
+    private fun callersJar(chain: okhttp3.Interceptor.Chain): CookieJar = (chain.call() as RealCall).client.cookieJar
+
+    private fun answer(chain: okhttp3.Interceptor.Chain): Response {
+        val request = chain.request()
+        val url = request.url.toString()
+        requests += "${request.method} $url"
+        val jar = callersJar(chain)
+        val holdsSso = jar.loadForRequest("https://$SSO_HOST/connect/authorize".toHttpUrl()).any { it.name == SSO_COOKIE }
+        if (request.url.host == SITE_HOST) sentToSite += jar.loadForRequest(request.url).map { it.name }
+        if (url == BLOCKING_PAGE) {
+            blockingRequested.countDown()
+            // A page that never answers, as a stuck server does, till its call is cancelled.
+            val until = System.currentTimeMillis() + 5_000
+            while (System.currentTimeMillis() < until) {
+                if (chain.call().isCanceled()) {
+                    blockedCallCancelled = true
+                    throw java.io.IOException("Canceled")
+                }
+                Thread.sleep(20)
+            }
+            error("never cancelled")
+        }
+        val (landed, html, sets) = when {
+            request.method == "POST" && request.url.host == SSO_HOST -> {
+                passwordPosts += url
+                Triple(SSO_LOGIN, LOGIN_PAGE, emptyList())
+            }
+            request.method == "POST" && url == CALLBACK -> {
+                if (domainCookiesOnTheWay) jar.saveFromResponse(request.url, listOf(domainCookie("site-wide")))
+                Triple(SITE_PAGE, "<html><body>Student record</body></html>", listOf("$SITE_COOKIE=site-made-up; Path=/; Secure; HttpOnly"))
+            }
+            // The site sends a signed-out visitor to SSO's authorize, which skips its form for a browser holding its session.
+            url == SITE_PAGE ->
+                if (jar.loadForRequest(request.url).any { it.name == SITE_COOKIE }) {
+                    Triple(SITE_PAGE, "<html><body>Student record</body></html>", emptyList())
+                } else if (holdsSso) {
+                    if (domainCookiesOnTheWay) {
+                        jar.saveFromResponse("https://$SSO_HOST/connect/authorize".toHttpUrl(), listOf(domainCookie("sso-wide")))
+                    }
+                    Triple("https://$SSO_HOST/connect/authorize/callback", bridgePage(bridgeAction), emptyList())
+                } else {
+                    Triple(SSO_LOGIN, LOGIN_PAGE, emptyList())
+                }
+            url == PUBLIC_PAGE -> Triple(PUBLIC_PAGE, "<html><body>Course search</body></html>", listOf("ASP.NET_SessionId=anon-made-up; Path=/; Secure"))
+            url == NETIQ_SITE -> Triple(NETIQ_LOGIN, NETIQ_PAGE, emptyList())
+            else -> error("unexpected $url")
+        }
+        val landedUrl = landed.toHttpUrl()
+        jar.saveFromResponse(landedUrl, sets.mapNotNull { Cookie.parse(landedUrl, it) })
+        return Response.Builder()
+            .request(request.newBuilder().url(landedUrl).build())
+            .protocol(Protocol.HTTP_1_1)
+            .code(200)
+            .message("OK")
+            .body(html.toResponseBody("text/html; charset=utf-8".toMediaType()))
+            .build()
+    }
+
+    /** Built, not parsed: a Domain attribute sends OkHttp's parser to the public suffix list, which tests lack. */
+    private fun domainCookie(name: String) = Cookie.Builder().name(name).value("made-up").domain("ntust.edu.tw").path("/").secure().build()
+
+    private companion object {
+        const val NOW = 1_800_000_000_000L
+        const val BLOCKING_PAGE = "https://stuck.ntust.edu.tw/"
+        const val STUDENT = "B00015999"
+        const val PASSWORD = "made-up-password"
+        const val SSO_HOST = "ssoam2.ntust.edu.tw"
+        /** SSO's session, on the whole school domain. */
+        const val SSO_COOKIE = "AuthServer"
+        const val SSO_OWN_COOKIE = ".AspNetCore.Antiforgery.made-up"
+        const val OTHER_HOST = "cour01.ntust.edu.tw"
+        const val OTHER_COOKIE = "ASP.NET_SessionId"
+        const val SSO_LOGIN = "https://$SSO_HOST/account/login?ReturnUrl=%2Fconnect"
+        const val SITE_HOST = "stuinfosys.ntust.edu.tw"
+        const val SITE_PAGE = "https://$SITE_HOST/StudentInformation"
+        const val CALLBACK = "https://$SITE_HOST/signin-oidc"
+        const val SITE_COOKIE = ".AspNetCore.Cookies"
+        const val PUBLIC_PAGE = "https://querycourse.ntust.edu.tw/QueryCourse/"
+        const val NETIQ_SITE = "https://netiq-service.ntust.edu.tw/"
+        const val NETIQ_LOGIN = "https://ssoam.ntust.edu.tw/nidp/app/login"
+
+        fun bridgePage(action: String) = """
+            <html><body onload="document.forms[0].submit()">
+            <form method="post" action="$action">
+              <input type="hidden" name="id_token" value="made-up-token" />
+              <input type="hidden" name="state" value="made-up-state" />
+            </form>
+            </body></html>
+        """.trimIndent()
+
+        val LOGIN_PAGE = """
+            <html><body>
+            <form id="loginForm" action="/account/login" method="post">
+              <input type="hidden" name="__RequestVerificationToken" value="made-up-antiforgery" />
+              <input type="text" name="Username" />
+              <input type="password" name="Password" />
+            </form>
+            </body></html>
+        """.trimIndent()
+
+        val NETIQ_PAGE = """
+            <html><body>
+            <form id="IDPLogin" action="/nidp/app/login" method="post">
+              <input type="text" name="Ecom_User_ID" />
+              <input type="password" name="Ecom_Password" />
+              <button data-bind="loginButton2">Sign in</button>
+            </form>
+            </body></html>
+        """.trimIndent()
+    }
+}

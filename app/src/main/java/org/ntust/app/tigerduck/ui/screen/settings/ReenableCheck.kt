@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -65,6 +67,7 @@ class ReenableCheck @Inject constructor(
     private val semesterCatalog: SemesterCatalog,
     private val courseIgnoreSync: CourseIgnoreSync,
     private val authService: AuthService,
+    private val sessions: AccountSessions,
     @param:ApplicationScope private val appScope: CoroutineScope,
     @param:ApplicationContext private val context: Context,
 ) {
@@ -75,7 +78,7 @@ class ReenableCheck @Inject constructor(
 
     /** After a full sync or a revision poll reached the server: runs the check if it is owed. */
     fun runIfOwed() {
-        if (!owed.due(prefs.pendingConflictCategories, prefs.cloudSyncEnabled)) return
+        if (!owed.due(prefs.school.pendingConflictCategories.get(), prefs.cloudSyncEnabled)) return
         Log.i(TAG, "[reenable] running the owed check")
         // Not while an answer is applied: that one settles the hold itself,
         // and a Settings screen's check waiting for it must stay the one
@@ -89,29 +92,27 @@ class ReenableCheck @Inject constructor(
      * Settings would keep "assignments" pending, and the marks held, until
      * TigerSync is opened again. On Main, like the view models' work.
      */
+    @OptIn(StartsAccountWork::class)
     fun check(waitForAnswers: Boolean = true, onConflict: (SettingsViewModel.ReenableConflict) -> Unit) {
-        val pending = prefs.pendingConflictCategories
+        val pending = prefs.school.pendingConflictCategories.get()
         if (pending.isEmpty()) {
             Log.d(TAG, "[reenable] checkPendingConflicts skip: pending is empty")
             return
         }
         val token = resolutions.checkStarting(waits = waitForAnswers) { check(onConflict = onConflict) } ?: return
         Log.i(TAG, "[reenable] checkPendingConflicts start: pending=$pending")
-        val account = authService.storedStudentId
-        val generation = dataCache.userDataGeneration
+        val signIn = sessions.school.current
         owed.started()
         appScope.launch(Dispatchers.Main) {
             var verdict = false
             try {
-                val result = syncApiClient.fetchFullSync()
+                val result = syncApiClient.fetchFullSync(signIn)
                 val diffs = differences(pending, result)
                 Log.i(TAG, "[reenable] result: ${diffs.size} diffs → ${if (diffs.isEmpty()) "no conflict" else "SHOW POPUP"}")
                 // An answer given since this check began changed what it
                 // compared, and settles the pending set itself. After a
                 // sign-out the result is the departed account's.
-                val stillApplies = resolutions.isCurrent(token) &&
-                    authService.isStillSignedInAs(account) &&
-                    dataCache.userDataGeneration == generation
+                val stillApplies = resolutions.isCurrent(token) && signIn.isCurrent
                 if (!stillApplies) return@launch
                 verdict = true
                 if (diffs.isNotEmpty()) {
@@ -125,9 +126,9 @@ class ReenableCheck @Inject constructor(
                 } else {
                     // Only what this check compared: one started later may
                     // still hold "assignments" for its own dialog.
-                    prefs.pendingConflictCategories = prefs.pendingConflictCategories - pending
+                    prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - pending, signIn)
                     // The course ignores it held go out now, not at the next sync.
-                    if ("assignments" in pending) courseIgnoreSync.retryPending()
+                    if ("assignments" in pending) courseIgnoreSync.retryPending(signIn)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "[reenable] checkPendingConflicts FAILED — pending kept for retry: ${e.logSummary()}")

@@ -25,6 +25,47 @@ Offense kinds (counts in the baseline):
   top-app-bar     a call to one of Material's top app bars outside ui/component.
                   A page's bar is PageScaffold's. The baseline has no entries of
                   this kind and takes none.
+  account-counter lines that compare an account by a hand-kept number: a
+                  generation or epoch counter, DataCache.Generation, or a
+                  "generation: Int" or "signIn: Int" parameter. The sign-in
+                  type replaces them.
+  demo-check      lines that ask whether the app is in the demo, outside the
+                  demo's own homes. One place answers it.
+  sign-in-read    lines that name StartsAccountWork outside the layers that may
+                  start account work. Every other layer is handed the sign-in.
+                  The baseline has no entries of this kind and takes none.
+  bearer-home     lines that write a "Bearer " header outside the token manager,
+                  the guard that reads it, and the one line of the departing
+                  unregister, the only request with no sign-in. Takes no
+                  baseline entries either.
+  sign-out-reactor lines that follow a sign-in or a sign-out by watching state or
+                  a stream of the account's own. Every reactor reads one stream
+                  of account events, so a fast sign-out and sign-in can't be
+                  missed. Takes no baseline entries either.
+  sign-out-start  lines that start an account's sign-out outside its plan: the
+                  token manager's logout, School Mail's or the library's
+                  sign-out, or the school's or the library's credentials
+                  dropped, anywhere but SignOutPlans.kt and those accounts'
+                  own homes. One plan runs every sign-out, in order. Takes no
+                  baseline entries either.
+  sync-switch-read lines that name a sync switch or the re-enable hold
+                  (cloudSyncEnabled, syncCourses, syncCourseColors,
+                  syncCourseNames, syncAssignments, pendingConflictCategories)
+                  outside SyncPolicy and the files that store or send them.
+                  SyncPolicy answers whether a category keeps, sends or applies.
+  sync-write      calls of a backend sync write (the override PATCHes, the
+                  holiday PUT, the course deletes and uploads, the assignment
+                  upload, and their ...Answered forms), and references to one
+                  (client::deleteCourse), outside push/, sync/ and the queues.
+                  A declaration is not a call. A write leaves through its
+                  channel's outbox.
+  status-in-message contains() of a status code or a backend error code on a
+                  message. BackendError reads the code once. It has no home.
+  full-sync-fetch calls of fetchFullSync, and references to it, outside
+                  SyncApiClient and the Synchronizer, which runs every full sync.
+  api-version-literal string literals that are "v3" or "v4", or hold /v3 or
+                  /v4 as a path segment, outside ApiBase, which turns a base
+                  from one version to the other. Takes no baseline entries.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -36,6 +77,16 @@ Stdlib only, and it must run on Python 3.9.
 --against-ref REF also fails when the working baseline has an entry that
 REF's baseline lacks or a count above REF's, so a PR cannot raise its own
 limit. A REF with no baseline file (the PR that adds it) skips that check.
+A kind that REF's check_guardrails.py does not name is skipped too: it is the
+PR that introduces the kind, and from the next PR on it is held like the rest.
+
+--introduce KIND records today's counts for a kind the baseline has no entries
+of, so a new ratchet can land with offenses already in the tree. It refuses a
+kind that already has entries; --update-baseline stays downward only.
+
+A baselined function whose parameter types changed is still the same function
+when its file holds one function of that name on each side; its lines may not
+grow.
 """
 import argparse
 import json
@@ -49,6 +100,7 @@ MAX_FILE_LINES = 400
 MAX_FUNCTION_LINES = 80
 BASELINE_IN_REPO = "tools/guardrails/baseline.json"
 
+PUSH_API = "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt"
 TAIPEI_HOME = "shared/src/main/java/org/ntust/app/tigerduck/shared/time/TaipeiClock.kt"
 TERM_HOME = "shared/src/main/java/org/ntust/app/tigerduck/shared/time/AcademicTerm.kt"
 PREFERENCES = "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt"
@@ -78,6 +130,111 @@ def top_app_bar_calls(code):
     return count
 
 
+ACCOUNT_COUNTER = re.compile(
+    r"\b(?:signInGeneration|userDataGeneration|writeGeneration|accountGeneration"
+    r"|libraryAccountGeneration|schoolAccountGeneration|currentGeneration"
+    r"|cacheGeneration|accountEpoch|isStillSignedInAs)\b"
+    r"|DataCache\.Generation|\b(?:generation|signIn): Int\b")
+DEMO_CHECK = re.compile(
+    r"\b(?:isDemo|isDemoSession|appDemoActive|demoMailbox|demoFromElsewhere)\b"
+    r"|\b(?:demoAccount|demo)\.isActive\b|\.demoMode\b")
+STARTS_ACCOUNT_WORK = re.compile(r"\bStartsAccountWork\b")
+APP_PACKAGE = "/org/ntust/app/tigerduck/"
+
+# Homes are regexes on the path under the app's package. A file inside one is
+# where that rule is allowed to live.
+DEMO_HOMES = re.compile(
+    r"(?:auth/session/AccountSessions?\.kt$|shared/account/SignIn\.kt$"
+    r"|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
+    r"|demo/|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
+SIGN_IN_HOMES = re.compile(
+    r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|ShareCodeLink\.kt$|demo/|liveactivity/"
+    r"|notification/.*(?:Worker|Receiver)\.kt$|push/PushRegistrationService\.kt$"
+    r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/MailRepository\.kt$"
+    r"|mail/sync/MailChecker\.kt$"
+    r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/CourseService\.kt$|network/moodle/"
+    r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
+SIGN_OUT_REACTOR = re.compile(
+    r"\b(?:authState|accountState|signOuts|studentChanges|signIns)\.collect\b|\bauthState\.first\b")
+# A call, or a reference handed on to run it later. LibraryAccountGate's own signOut { } is not one.
+SIGN_OUT_START = re.compile(
+    r"\b(?:authTokenManager\.logout|(?:mailAccount|account|librarySession)\.signOut"
+    r"|credentials\.signOutSchoolAccount|clearLibraryCredentials)\s*\("
+    r"|\b(?:authTokenManager::logout|(?:mailAccount|account|librarySession)::signOut"
+    r"|credentials::signOutSchoolAccount)\b|::clearLibraryCredentials\b")
+SIGN_OUT_HOMES = re.compile(
+    r"(?:auth/session/SignOutPlans\.kt$|mail/MailAccount\.kt$|library/LibrarySession\.kt$"
+    r"|data/preferences/CredentialManager\.kt$)")
+BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
+SYNC_SWITCH = re.compile(
+    r"\b(?:cloudSyncEnabled|syncCourses|syncCourseColors|syncCourseNames|syncAssignments"
+    r"|pendingConflictCategories)\b")
+SYNC_SWITCH_HOMES = re.compile(
+    r"(?:sync/SyncPolicy\.kt$|data/preferences/AppPreferences\.kt$|data/preferences/SchoolKeys\.kt$"
+    r"|push/PushApiModels\.kt$)")
+# A call, or a reference (client::deleteCourse) handed on to make it later. A name that
+# merely starts with one (deleteCourseCaches) is not one of the writes, and a declaration
+# of one is not a call: see calls().
+SYNC_WRITES = (r"(?:patchAssignmentOverride|patchCourseOverride|patchCourseIgnore|putHolidayOverride"
+               r"|deleteCourse|deleteAllCourses|uploadCourses|uploadAssignments)(?:Answered)?")
+SYNC_WRITE = re.compile(r"\b" + SYNC_WRITES + r"\s*\(|::\s*" + SYNC_WRITES + r"\b")
+QUEUES = r"(?:UnsentMarks|PendingHolidayOverrides|PendingCourseOverrides|CourseIgnoreSync" \
+         r"|PendingCourseAdds|PendingCourseDeletes|CourseIgnoreQueue)"
+SYNC_WRITE_HOMES = re.compile(r"(?:push/|sync/|data/" + QUEUES + r"\.kt$)")
+# Positional or named: contains("401"), contains(other = "401"), and either after a
+# named ignoreCase.
+STATUS_IN_MESSAGE = re.compile(
+    r'\bcontains\s*\(\s*(?:ignoreCase\s*=\s*\w+\s*,\s*)?(?:other\s*=\s*)?'
+    r'"(?:\d{3}|session_revoked|clock_ahead|hlc_required)"')
+FULL_SYNC_FETCH = re.compile(r"\bfetchFullSync\s*\(|::\s*fetchFullSync\b")
+# What stands between "fun" and the name it declares on that line: modifiers come before
+# "fun", and after it only type parameters and a receiver type (Foo<T>?.), comments blanked.
+DECLARES = re.compile(r"\bfun\b[\s\w.<>,?*:`]*$")
+FULL_SYNC_HOMES = re.compile(r"(?:push/SyncApiClient\.kt$|sync/Synchronizer\.kt$)")
+# On a literal's own text, a template standing as TEMPLATE: "v3" itself, or v3 or v4
+# as a whole path segment, "/v4", "https://h/v3/", "$base/v4?x" or "${base}/v3".
+TEMPLATE = "\x00"
+API_VERSION = re.compile(r"(?:^|/)v[34](?=$|[/?#$\x00])")
+API_VERSION_HOMES = re.compile(r"network/backend/ApiBase\.kt$")
+BEARER_LITERAL = '"Bearer '
+UNREGISTER_BEARER = 'removeDevice("Bearer '
+# Kinds that are counts of lines or calls and, apart from these, take no baseline entry
+# the flag cannot record.
+INTRODUCIBLE = ("account-counter", "demo-check", "sync-switch-read", "sync-write",
+                "status-in-message", "full-sync-fetch")
+
+
+def in_home(rel, homes):
+    """True when rel sits under the app package at a path the homes allow."""
+    at = rel.find(APP_PACKAGE)
+    return at >= 0 and homes.match(rel[at + len(APP_PACKAGE):]) is not None
+
+
+def matching_lines(code, pattern):
+    return sum(1 for line in code.split("\n") if pattern.search(line))
+
+
+def calls(code, pattern):
+    """Calls and callable references the pattern finds in lexed code, declarations left out.
+
+    A match is a declaration when its line reads "fun" before it with nothing between but
+    type parameters and a receiver type: fun deleteCourse(, fun <T> Foo<T>.deleteCourse(.
+    Python's lookbehind is fixed-width, so the line before the match is read instead.
+    """
+    count = 0
+    for m in pattern.finditer(code):
+        line_start = code.rfind("\n", 0, m.start()) + 1
+        if not DECLARES.search(code, line_start, m.start()):
+            count += 1
+    return count
+
+
+def sign_in_reads(code):
+    """Lines that name StartsAccountWork, apart from the import."""
+    return sum(1 for line in code.split("\n")
+               if STARTS_ACCOUNT_WORK.search(line) and not line.lstrip().startswith("import "))
+
+
 # By directory rather than whole path, so the check still holds once ui/component
 # moves into a module of its own.
 SHARED_UI = "/ui/component/"
@@ -91,6 +248,16 @@ DEFAULT_BASELINE = os.path.join(HERE, "baseline.json")
 
 
 # ---------------------------------------------------------------- lexing
+
+def string_literals(text):
+    """The text of every string literal in text, a template in it standing as TEMPLATE.
+
+    A literal inside a template is a literal of its own. Comments hold none.
+    """
+    found = []
+    _code(text, 0, False, [], False, found)
+    return found
+
 
 def lex(text, keep_strings=False):
     """Returns text with comments and string text blanked, same length.
@@ -110,7 +277,7 @@ def _blank(chunk, raw):
     return "".join(("\r" if raw else "\n") if c == "\n" else " " for c in chunk)
 
 
-def _code(text, i, keep, out, in_template):
+def _code(text, i, keep, out, in_template, literals=None):
     n, depth = len(text), 0
     while i < n:
         c = text[i]
@@ -133,9 +300,9 @@ def _code(text, i, keep, out, in_template):
             out.append(_blank(text[i:j], False))
             i = j
         elif text.startswith('"""', i):
-            i = _string(text, i, keep, out, True)
+            i = _string(text, i, keep, out, True, literals)
         elif c == '"':
-            i = _string(text, i, keep, out, False)
+            i = _string(text, i, keep, out, False, literals)
         elif c == "'":
             m = re.match(r"'(\\.[^']*|[^\\'])'", text[i:i + 12])
             if m:
@@ -160,30 +327,40 @@ def _code(text, i, keep, out, in_template):
     return i
 
 
-def _string(text, i, keep, out, raw):
+def _string(text, i, keep, out, raw, literals=None):
     quote = '"""' if raw else '"'
     out.append(quote)
     i += len(quote)
     n = len(text)
+    own = []
+
+    def done(at):
+        if literals is not None:
+            literals.append("".join(own))
+        return at
+
     while i < n:
         if text.startswith(quote, i):
             out.append(quote)
-            return i + len(quote)
+            return done(i + len(quote))
         c = text[i]
         if not raw and c == "\n":
-            return i  # unterminated; let the code go on
+            return done(i)  # unterminated; let the code go on
         if not raw and c == "\\":
             out.append(text[i:i + 2] if keep else "  ")
+            own.append(text[i:i + 2])
             i += 2
         elif text.startswith("${", i):
             out.append("${" if keep else "  ")
-            i = _code(text, i + 2, keep, out, True)
+            own.append(TEMPLATE)
+            i = _code(text, i + 2, keep, out, True, literals)
             out.append("}" if keep else " ")
             i += 1
         else:
             out.append(c if keep else _blank(c, raw) if c == "\n" else " ")
+            own.append(c)
             i += 1
-    return i
+    return done(i)
 
 
 # ---------------------------------------------------------------- scanning helpers
@@ -469,6 +646,12 @@ def term_sorts(code):
 
 # ---------------------------------------------------------------- scan
 
+KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
+         "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home",
+         "sign-out-reactor", "sign-out-start", "sync-switch-read", "sync-write",
+         "status-in-message", "full-sync-fetch", "api-version-literal")
+
+
 def is_test_set(name):
     return name.startswith(("test", "androidTest"))
 
@@ -488,13 +671,21 @@ def source_files(root):
                         yield os.path.relpath(full, root).replace(os.sep, "/"), full
 
 
+class Found(dict):
+    """The offenses, and how many functions of each name each file holds (names), long or not."""
+
+    def __init__(self):
+        super().__init__()
+        self.names = {}
+
+
 def scan(root):
     """Returns {(path, kind, name): n} for every offense under root.
 
     n is a count, a file's line count (long-file) or a function's line count
     (long-function, the only kind with a name).
     """
-    found = {}
+    found = Found()
 
     def add(path, kind, count, name=""):
         if count > 0:
@@ -509,12 +700,32 @@ def scan(root):
 
         code = lex(text)
         for name, lines in long_functions(text, code):
+            base = SIGNATURE.match(name)
+            if base:
+                found.names[(rel, base.group(1))] = found.names.get((rel, base.group(1)), 0) + 1
             if lines > MAX_FUNCTION_LINES:
                 add(rel, "long-function", lines, name)
         if rel != TERM_HOME:
             add(rel, "term-sort", term_sorts(code))
         if SHARED_UI not in rel:
             add(rel, "top-app-bar", top_app_bar_calls(code))
+        add(rel, "account-counter", matching_lines(code, ACCOUNT_COUNTER))
+        add(rel, "sign-out-reactor", matching_lines(code, SIGN_OUT_REACTOR))
+        if not in_home(rel, SIGN_OUT_HOMES):
+            add(rel, "sign-out-start", matching_lines(code, SIGN_OUT_START))
+        if not in_home(rel, DEMO_HOMES):
+            add(rel, "demo-check", matching_lines(code, DEMO_CHECK))
+        if not in_home(rel, SIGN_IN_HOMES):
+            add(rel, "sign-in-read", sign_in_reads(code))
+        if not in_home(rel, SYNC_SWITCH_HOMES):
+            add(rel, "sync-switch-read", matching_lines(code, SYNC_SWITCH))
+        if not in_home(rel, SYNC_WRITE_HOMES):
+            add(rel, "sync-write", calls(code, SYNC_WRITE))
+        if not in_home(rel, FULL_SYNC_HOMES):
+            add(rel, "full-sync-fetch", calls(code, FULL_SYNC_FETCH))
+        if not in_home(rel, API_VERSION_HOMES):
+            add(rel, "api-version-literal",
+                sum(1 for literal in string_literals(text) if API_VERSION.search(literal)))
 
         # Literals are matched with strings kept and comments blanked, so a
         # KDoc that mentions the zone does not count.
@@ -524,6 +735,11 @@ def scan(root):
         add(rel, "fdroid-literal", sum(
             line.count('"fdroid"') for line in kept.split("\n")
             if not (rel == PREFERENCES and "BuildConfig" in line)))
+        if not in_home(rel, BEARER_HOMES):
+            # One call there: the unregister, which holds its session and no sign-in.
+            rest = kept.replace(UNREGISTER_BEARER, "", 1) if rel == PUSH_API else kept
+            add(rel, "bearer-home", rest.count(BEARER_LITERAL))
+        add(rel, "status-in-message", len(STATUS_IN_MESSAGE.findall(kept)))
     return found
 
 
@@ -553,10 +769,89 @@ def write_baseline(path, counts):
         f.write("\n")
 
 
-def worse(found, baseline):
+SIGNATURE = re.compile(r"^(.*?)\((.*)\)(#\d+)?$")
+
+
+def without_parameters(name):
+    """A function's identity minus its parameter types, or None for a non-function."""
+    m = SIGNATURE.match(name)
+    return (m.group(1) + (m.group(3) or "")) if m else None
+
+
+def same_function(path, name, found, baseline):
+    """The baseline's key for a function whose parameter types changed, or None.
+
+    It matches only when the file holds one function of that name on each side,
+    long or short, so overloads still tell each other apart: a short overload
+    beside a new long one stops the long one inheriting the old allowance.
+    """
+    bare = without_parameters(name)
+    if bare is None:
+        return None
+    names = getattr(found, "names", None)
+    if names is not None:
+        if names.get((path, SIGNATURE.match(name).group(1)), 0) != 1:
+            return None
+        ours = [k for k in found if k[0] == path and k[1] == "long-function"
+                and without_parameters(k[2]) == bare]
+    else:
+        ours = [k for k in found if k[0] == path and k[1] == "long-function"
+                and without_parameters(k[2]) == bare]
+    theirs = [k for k in baseline if k[0] == path and k[1] == "long-function"
+              and without_parameters(k[2]) == bare]
+    return theirs[0] if len(ours) == 1 and len(theirs) == 1 else None
+
+
+def overloads_at_ref(root, ref, path, name):
+    """How many functions called name the file held at REF; 0 when it wasn't there."""
+    shown = subprocess.run(["git", "-C", root, "show", "%s:%s" % (ref, path)],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if shown.returncode != 0:
+        return 0
+    text = shown.stdout
+    names = (SIGNATURE.match(n) for n, _ in long_functions(text, lex(text)))
+    return sum(1 for m in names if m and m.group(1) == name)
+
+
+def borrowed(found, baseline, root, ref):
+    """Long functions matched by name alone in a file that held overloads of that name at REF.
+
+    The baseline names only long functions, so a deleted overload's allowance would
+    pass to a short one that grew. Only the old source can tell the two apart.
+    """
+    bad = []
+    for key, lines in sorted(found.items()):
+        if key[1] != "long-function" or key in baseline:
+            continue
+        renamed = same_function(key[0], key[2], found, baseline)
+        if renamed and overloads_at_ref(root, ref, key[0], SIGNATURE.match(key[2]).group(1)) > 1:
+            bad.append((key, lines, 0))
+    return bad
+
+
+def worse(found, baseline, skip_kinds=()):
     """Offenses above the baseline: new entries and counts that grew."""
-    return [(key, count, baseline.get(key, 0))
-            for key, count in sorted(found.items()) if count > baseline.get(key, 0)]
+    bad = []
+    for key, count in sorted(found.items()):
+        if key[1] in skip_kinds:
+            continue
+        allowed = baseline.get(key)
+        if allowed is None and key[1] == "long-function":
+            renamed = same_function(key[0], key[2], found, baseline)
+            allowed = baseline.get(renamed) if renamed else None
+        allowed = allowed or 0
+        if count > allowed:
+            bad.append((key, count, allowed))
+    return bad
+
+
+def kinds_ref_lacks(root, ref):
+    """Kinds that REF's check_guardrails.py does not name; none when it has no script."""
+    shown = subprocess.run(["git", "-C", root, "show", "%s:tools/guardrails/check_guardrails.py" % ref],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if shown.returncode != 0:
+        return ()
+    return tuple(k for k in KINDS if '"%s"' % k not in shown.stdout)
 
 
 def baseline_at_ref(root, ref):
@@ -583,6 +878,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--update-baseline", action="store_true",
                         help="rewrite the baseline downward; never adds or raises an entry")
+    parser.add_argument("--introduce", metavar="KIND",
+                        help="record today's counts for a kind the baseline has no entries of")
     parser.add_argument("--against-ref", metavar="REF",
                         help="also fail when the baseline is above REF's baseline")
     parser.add_argument("--root", default=DEFAULT_ROOT)
@@ -591,6 +888,20 @@ def main(argv=None):
 
     found = scan(args.root)
     baseline = load_baseline(args.baseline)
+
+    if args.introduce:
+        kind = args.introduce
+        if kind not in INTRODUCIBLE:
+            print("Cannot introduce %s: only %s." % (kind, ", ".join(INTRODUCIBLE)))
+            return 1
+        if any(k[1] == kind for k in (baseline or {})):
+            print("The baseline already has %s entries; --update-baseline lowers them." % kind)
+            return 1
+        merged = dict(baseline or {})
+        merged.update({k: n for k, n in found.items() if k[1] == kind})
+        write_baseline(args.baseline, merged)
+        print("Recorded %d %s entries." % (len(merged) - len(baseline or {}), kind))
+        return 0
 
     if args.update_baseline:
         if baseline is None:
@@ -621,11 +932,17 @@ def main(argv=None):
         if where == "no-file":
             print("%s has no baseline; skipping the comparison." % args.against_ref)
         else:
-            raised = worse(baseline or {}, theirs)
+            raised = worse(baseline or {}, theirs, kinds_ref_lacks(args.root, args.against_ref))
             if raised:
                 report(raised)
                 print("The baseline is above %s's: it may only shrink." % args.against_ref)
                 status = 1
+        overloads = borrowed(found, baseline or {}, args.root, args.against_ref)
+        if where == "ok":
+            overloads += borrowed(baseline or {}, theirs, args.root, args.against_ref)
+        if overloads:
+            report(overloads)
+            status = 1
 
     if status == 0:
         print("Guardrails ok: %d baselined offenses, none new." % len(found))

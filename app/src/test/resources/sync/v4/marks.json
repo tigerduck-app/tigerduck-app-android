@@ -1,0 +1,29 @@
+{
+  "current_revision": 61,
+  "server_hlc": 1792800000001000,
+  "courses_reset_at": null,
+  "course_tombstones": [],
+  "courses_reset_hlc": null,
+  "term_resets": {},
+  "holiday_overrides": [],
+  "courses": [],
+  "course_overrides": [],
+  "course_skipped_dates": [],
+  "assignments": [
+    {"id": 601, "user_course_id": null, "moodle_course_id": 4321, "moodle_assignment_id": 9101, "course_no": "XA0000001", "course_name": "Fake Course One", "title": "Fake Homework 101", "due_at": null, "cutoff_at": null, "allow_from_at": null, "moodle_url": null, "intro_html": null, "provider_is_submitted": false, "provider_submitted_at": null, "provider_grading_status": null, "provider_grade": null, "deleted_at": null, "updated_at": null},
+    {"id": 602, "user_course_id": null, "moodle_course_id": 4321, "moodle_assignment_id": 9102, "course_no": "XA0000001", "course_name": "Fake Course One", "title": "Fake Homework 102", "due_at": null, "cutoff_at": null, "allow_from_at": null, "moodle_url": null, "intro_html": null, "provider_is_submitted": false, "provider_submitted_at": null, "provider_grading_status": null, "provider_grade": null, "deleted_at": null, "updated_at": null}
+  ],
+  "assignment_overrides": [
+    {"user_assignment_id": 601, "moodle_assignment_id": 9101, "local_status": "ignored", "local_status_updated_at": null, "local_status_hlc": 1792800000000100, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 611, "moodle_assignment_id": 9101, "local_status": "none", "local_status_updated_at": null, "local_status_hlc": 1792800000000200, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 612, "moodle_assignment_id": 9102, "local_status": "locally_completed", "local_status_updated_at": null, "local_status_hlc": 1792800000000300, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 602, "moodle_assignment_id": null, "local_status": "ignored", "local_status_updated_at": null, "local_status_hlc": 1792800000000250, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 613, "moodle_assignment_id": 9103, "local_status": "archived", "local_status_updated_at": null, "local_status_hlc": null, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 614, "moodle_assignment_id": 9104, "local_status": "none", "local_status_updated_at": null, "local_status_hlc": 1792800000000400, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 615, "moodle_assignment_id": 9105, "local_status": "ignored", "local_status_updated_at": null, "local_status_hlc": null, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 616, "moodle_assignment_id": 9105, "local_status": "none", "local_status_updated_at": null, "local_status_hlc": null, "note": null, "note_updated_at": null, "note_hlc": null},
+    {"user_assignment_id": 617, "moodle_assignment_id": null, "local_status": "ignored", "local_status_updated_at": null, "local_status_hlc": 1792800000000900, "note": null, "note_updated_at": null, "note_hlc": null}
+  ],
+  "settings_documents": [],
+  "roster_requests": []
+}

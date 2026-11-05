@@ -98,7 +98,7 @@ class ImportedClassTableStore internal constructor(
     locateFile: () -> File,
     private val signedInStudentId: () -> String?,
     private val ioDispatcher: CoroutineDispatcher,
-) {
+) : org.ntust.app.tigerduck.auth.session.LateAccountScoped {
     @Inject
     constructor(
         @ApplicationContext context: Context,
@@ -153,16 +153,18 @@ class ImportedClassTableStore internal constructor(
 
     /**
      * Adds the person [code] is from, each term with its course details from [courses], keyed by
-     * semester. A student ID already here keeps its entry, place and nickname, and takes the
-     * code's terms, its share time and [importedAt]. Null when a new person's nickname is blank, or
-     * when the file could not be written: nothing changes then, in memory or on disk.
+     * semester. A student ID already here keeps its entry, place and nickname, and takes the code's
+     * terms, its share time and [importedAt]. Null, with nothing changed, for a blank new nickname,
+     * a file not written, or once [stillCurrent], asked under [clearForSignOut]'s lock, says no.
      */
     suspend fun add(
         code: ClassTableShareCode,
         nickname: String,
         courses: Map<String, List<Course>>,
         importedAt: Instant = AppClock.instant(),
+        stillCurrent: () -> Boolean = { true },
     ): ImportedPerson? = locked {
+        if (!stillCurrent()) return@locked null
         loadIfNeeded()
         val account = signedInStudentId()
         if (account != null) accountDidSignInLocked(account)
@@ -296,10 +298,10 @@ class ImportedClassTableStore internal constructor(
         _tables.update { it.copy(shownPersonId = id) }
     }
 
+    override suspend fun forgetAccount() = clearForSignOut()
+
     /** For the user's own sign-out: a renewed session or a relogin in the background must not call it. */
-    suspend fun clearForSignOut() {
-        locked { clear() }
-    }
+    suspend fun clearForSignOut() = locked { clear() }
 
     /**
      * Another student ID than the one the people were imported under empties the store; a store
@@ -339,8 +341,6 @@ class ImportedClassTableStore internal constructor(
         // A write a process death cut short leaves its temporary file, with the tables it held.
         unfinishedWrite().delete()
     }
-
-    // --- File ---
 
     private fun loadIfNeeded() {
         if (loaded) return

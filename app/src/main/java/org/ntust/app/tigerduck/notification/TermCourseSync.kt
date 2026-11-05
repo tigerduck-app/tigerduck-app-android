@@ -10,9 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.CourseRosterMerge
-import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.TranscriptTerms
@@ -27,6 +25,8 @@ import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RosterRequestLog
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
 import org.ntust.app.tigerduck.util.logSummary
@@ -38,14 +38,14 @@ class TermCourseSync internal constructor(
     private val dataCache: DataCache,
     private val sources: Sources,
     private val uploader: Uploader,
-    /** `AuthTokenManager.signInGeneration`, which a sign-out moves on. */
-    private val signInGeneration: () -> Int,
     private val waitingAdds: suspend (semester: String) -> Set<String>,
     /** `PendingCourseAdds.uploading`: [block] run with no course taken off the backend meanwhile. */
     private val uploading: suspend (block: suspend () -> Unit) -> Unit,
     private val courseLocale: () -> String,
     private val uploadFailed: () -> Unit,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** When a fetched term goes up: after this process's first pull in the app, at once unless a test says. */
+    private val uploads: SchoolUploads = SchoolUploads.atOnce(dataCache),
 ) {
     @Inject constructor(
         courseService: CourseService,
@@ -53,9 +53,9 @@ class TermCourseSync internal constructor(
         semesterCatalog: SemesterCatalog,
         dataCache: DataCache,
         pushApiClient: PushApiClient,
-        authTokenManager: AuthTokenManager,
         pendingCourseAdds: PendingCourseAdds,
         prefs: AppPreferences,
+        schoolUploads: SchoolUploads,
     ) : this(
         dataCache = dataCache,
         sources = object : Sources {
@@ -77,13 +77,13 @@ class TermCourseSync internal constructor(
                 courseService.lookupOrFallback(semester, courseNo, moodle, kept = kept).course
         },
         uploader = Uploader { courses, semester, resend, rosterTerms, signIn ->
-            pushApiClient.uploadCourses(courses, semester, signIn = signIn, resend = resend, rosterTerms = rosterTerms)
+            pushApiClient.uploadCourses(courses, semester, signIn, resend = resend, rosterTerms = rosterTerms)
         },
-        signInGeneration = { authTokenManager.signInGeneration },
         waitingAdds = pendingCourseAdds::waitingIn,
         uploading = { block -> pendingCourseAdds.uploading(block) },
         courseLocale = { AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage) },
         uploadFailed = { prefs.setLastSyncSource(SyncSource.LOCAL) },
+        uploads = schoolUploads,
     )
 
     /** What a term's fetch reads from the school; the services in the app. */
@@ -106,7 +106,7 @@ class TermCourseSync internal constructor(
      * `PushApiClient.uploadCourses`.
      */
     internal fun interface Uploader {
-        suspend fun upload(courses: List<Course>, semester: String, resend: Boolean, rosterTerms: List<String>, signIn: Int)
+        suspend fun upload(courses: List<Course>, semester: String, resend: Boolean, rosterTerms: List<String>, signIn: SignIn)
     }
 
     // One for the process, Home's full syncs and the worker's alike.
@@ -125,10 +125,10 @@ class TermCourseSync internal constructor(
         requests: List<String>,
         studentId: String,
         password: String,
-        signIn: Int = signInGeneration(),
+        signIn: SignIn,
     ): Boolean {
-        if (signInGeneration() != signIn) return false
-        val terms = rosterRequestLog.termsToAsk(requests, dataCache.userDataGeneration, clock())
+        if (!signIn.isCurrent) return false
+        val terms = rosterRequestLog.termsToAsk(requests, signIn, clock())
         for (term in terms) {
             Log.i(TAG, "roster requested for $term")
             sync(studentId, password, term, rosterRequested = true, signIn = signIn)
@@ -145,7 +145,9 @@ class TermCourseSync internal constructor(
      * reached, and nothing stands in for it.
      *
      * The upload goes as the term's roster when course selection answered it, and lists every
-     * course of the answer that is not hidden here; see [CourseUpload.of].
+     * course of the answer that is not hidden here; see [CourseUpload.of]. It goes once this
+     * process has pulled under [signIn], as everything a school fetch derives does, and waits
+     * for that pull until then ([SchoolUploads.term]).
      *
      * [rosterRequested] is the answer to the backend's request for the term's roster: course
      * selection is asked afresh, and the upload goes past the ledger, as the backend asks
@@ -166,14 +168,12 @@ class TermCourseSync internal constructor(
         password: String,
         semester: String,
         rosterRequested: Boolean = false,
-        signIn: Int = signInGeneration(),
+        signIn: SignIn,
     ): Boolean {
         // A run that outlived its sign-in fetches nothing, and has nothing to retry.
-        if (signInGeneration() != signIn) return true
+        if (!signIn.isCurrent) return true
         val servesSelection = sources.servesSelection(semester)
         if (rosterRequested && !servesSelection) return true
-        // Before the fetch: a sign-out while it runs drops its roster.
-        val generation = dataCache.writeGeneration()
         val (selectionNos, moodleAll) = coroutineScope {
             val selectionDef = async {
                 if (!servesSelection) return@async emptyList()
@@ -203,7 +203,7 @@ class TermCourseSync internal constructor(
 
         // Before the merge below rewrites the cache — see DataCache.recordSelectionRoster. The
         // fetch's version of the term: a newer answer recorded meanwhile supersedes its rows.
-        val recorded = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        val recorded = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }
         // A newer answer's fetch, or a wipe, has the term already: nothing to commit or send, and nothing to retry.
         if (recorded == RecordedSelection.Refused) return true
         val answer = recorded?.answer
@@ -243,13 +243,13 @@ class TermCourseSync internal constructor(
         // undone by the list committed before it, its hand-added courses back on the backend.
         uploading {
             // Signed out during the fetch, or while the lock was waited for: the rows are the account's that left.
-            if (signInGeneration() != signIn) return@uploading
+            if (!signIn.isCurrent) return@uploading
             // A reset takes the names of the term's courses with it.
             val names = dataCache.loadCourseCustomNames()
             val locale = courseLocale()
             // Uploaded as written: what the commit left out stays off the server too.
             val merged = commitFetchedTerm(
-                dataCache, semester, fetched, term.onlyGains, answer,
+                dataCache, semester, fetched, term.onlyGains, answer, signIn,
                 waitingAdds = { waitingAdds(semester) },
             ) { rows, current, hidden ->
                 ClassTableCourseMerge.mergeFetched(
@@ -264,21 +264,19 @@ class TermCourseSync internal constructor(
                     alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
                 )
             } ?: return@uploading
-            val upload = CourseUpload.of(
-                merged, semester, roster = term.roster,
-                hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
-            )
             // Superseded since the commit: the newer answer's fetch sends the term's roster.
             if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
-            try {
-                // Past the ledger only as the roster asked for; anything less goes as any fetch's.
-                uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Not the next account's sync state: its own sync has not failed.
-                if (signInGeneration() == signIn) uploadFailed()
-                Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
+            uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested) { upload ->
+                try {
+                    // Past the ledger only as the roster asked for; anything less goes as any fetch's.
+                    uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Not the next account's sync state: its own sync has not failed.
+                    if (signIn.isCurrent) uploadFailed()
+                    Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
+                }
             }
         }
         return true

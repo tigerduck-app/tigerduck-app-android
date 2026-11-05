@@ -74,25 +74,25 @@ class SyncWiringTest {
     @Test
     fun `Home's sync and the worker hold colours and names for their re-enable checks`() {
         assertCalls(
-            "ui/screen/home/HomeBackendSync.kt", "pull",
-            "CourseSyncReconciler.syncsCourseColors(", "CourseSyncReconciler.syncsCourseNames(",
+            "sync/reconcile/OverridesReconciler.kt", "reconcile",
+            "pass.policy.applies(SyncCategory.COURSE_COLORS)", "pass.policy.applies(SyncCategory.COURSE_NAMES)",
         )
-        assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "CourseSyncReconciler.syncsCourseColors(")
+        // The worker's: read at its step, after the ignores step (SynchronizerBackgroundTest).
+        assertCalls(
+            "sync/reconcile/OverridesReconciler.kt", "reconcileCachedTerm",
+            "val policy = syncPolicies.current", "policy.applies(SyncCategory.COURSE_COLORS)", "policy.applies(SyncCategory.COURSE_NAMES)",
+        )
     }
 
     /**
-     * tigerduck-app#727's Android side: a course added back is kept while its add waits, but not
-     * past a course reset made on another device, which takes the hand-added courses.
+     * tigerduck-app#727's Android side: a course added back is kept while its add waits, a reset
+     * elsewhere's tombstone included (CourseMembershipTest): its add, or its delete, waiting is one
+     * this phone keeps, read at the term's step.
      */
     @Test
     fun `Home's sync and the worker keep a course whose add still waits`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "syncCourseList", "pendingAddNos = pendingCourseAdds.waitingIn(semester)")
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseReset", "pendingCourseAdds.forgetAll()")
-        assertCalls(
-            "notification/BackgroundSyncWorker.kt", "reconcileCurrentSemester",
-            "CourseSyncReconciler.coursesReset(",
-            "pendingAddNos = if (resetElsewhere) emptySet() else pendingCourseAdds.waitingIn(semester)",
-        )
+        assertCalls("sync/reconcile/RosterReconciler.kt", "stampedTerm", "pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)")
+        assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)")
     }
 
     /**
@@ -104,70 +104,114 @@ class SyncWiringTest {
     fun `Home's sync and the worker hold their read for the add-backs made while they run`() {
         assertCalls(
             "ui/screen/classtable/ClassTableViewModel.kt", "addCourse",
-            "dataCache.addCourseBack(course.courseNo, semester)",
+            "dataCache.addCourseBack(course.courseNo, semester, signIn)",
             "} finally {\n                dataCache.courseAddSent(course.courseNo, semester)",
         )
-        for ((rel, name) in listOf(
-            "ui/screen/home/HomeBackendSync.kt" to "pull",
-            "notification/BackgroundSyncWorker.kt" to "syncOverridesFromBackend",
-        )) {
-            val body = body(rel, name)
-            val begin = body.indexOf("val courseSync = dataCache.beginCourseSync()")
-            val fetching = body.indexOf("courseSync.fetching()")
-            val fetch = body.indexOf("syncApiClient.fetchFullSync()")
-            assertTrue("$rel $name no longer begins its course sync before the fetch", begin in 0 until fetch)
-            assertTrue("$rel $name no longer marks its course sync's fetch", fetching in begin until fetch)
-            assertTrue("$rel $name no longer ends its course sync", "} finally {\n            dataCache.endCourseSync(courseSync)" in body)
+        // Both modes' pass, Home's and the worker's, whoever joins it.
+        val sync = body("sync/Synchronizer.kt", "pass")
+        val begin = sync.indexOf("val courseSync = steps.beginCourseSync()")
+        val fetch = sync.indexOf("steps.fetch(signIn, courseSync)")
+        assertTrue("the synchronizer no longer begins its course sync before the fetch", begin in 0 until fetch)
+        assertTrue("the synchronizer no longer ends its course sync", "} finally {\n            steps.endCourseSync(courseSync)" in sync)
+        // Each mode's steps are the cache's window and the snapshot's fetch, its fetch marked.
+        for (rel in listOf("sync/ForegroundSteps.kt", "sync/BackgroundSteps.kt")) {
+            val steps = source(rel).joinToString("\n")
+            for (call in listOf(
+                "beginCourseSync(): DataCache.CourseSync = dataCache.beginCourseSync()",
+                "endCourseSync(courseSync: DataCache.CourseSync) = dataCache.endCourseSync(courseSync)",
+            )) assertTrue("$rel no longer makes $call", call in steps)
+            val fetching = body(rel, "fetch")
+            assertTrue("$rel no longer marks its course sync's fetch", fetching.indexOf("courseSync.fetching()") in 0 until fetching.indexOf("fetchSnapshot("))
         }
-        // Marked for the fetch the snapshot comes from, a retry after a relogin included.
-        val worker = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
+        assertTrue("the synchronizer no longer hands out the snapshot's fetch", "syncApiClient::fetchFullSync" in source("sync/Synchronizer.kt").joinToString("\n"))
+        // Marked for the fetch the snapshot comes from, a retry after a relogin included
+        // (SynchronizerBackgroundTest). The retry is the same request: the replay goes under the
+        // sign-in the run began with.
+        val background = body("sync/BackgroundSteps.kt", "fetch")
         assertTrue(
-            "the worker no longer marks each attempt's fetch",
-            worker.indexOf("retryingAfterRelogin(") in 0 until worker.indexOf("courseSync.fetching()"),
+            "the worker's pass no longer marks each attempt's fetch",
+            background.indexOf("retryingAfterRelogin(signIn, relogin) { pinned ->") in 0 until background.indexOf("courseSync.fetching()"),
         )
-        // A course reset elsewhere takes the hand-added courses and their adds, those under way too.
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseReset", "courseSync.supersedeAddsBack()")
-        assertCalls("notification/BackgroundSyncWorker.kt", "reconcileCurrentSemester", "if (resetElsewhere) courseSync.supersedeAddsBack()")
+        assertTrue("the worker's pass no longer fetches as the sign-in it began with", "fetchSnapshot(pinned)" in background)
+        assertTrue("the worker's pass no longer signs in again through AuthService", "authService::attemptRelogin" in source("sync/Synchronizer.kt").joinToString("\n"))
+        // What a run its sign-out overtook says of the backend, it says for the next account.
+        assertTrue("a pass past its sign-out reports a failure again", sync.indexOf("if (!signIn.isCurrent) return SyncOutcome.SKIPPED") in 0 until sync.indexOf("steps.failed()"))
+        assertCalls("sync/BackgroundSteps.kt", "failed", "prefs.setLastSyncSource(SyncSource.LOCAL)")
     }
 
     /**
-     * A background run that outlived its sign-in stops, a same-student one included: it asks
-     * [org.ntust.app.tigerduck.notification.BackgroundRunAccount] after each phase, before the
-     * stamps that date the data as fetched, and never compares the student ID alone.
+     * A background run that outlived its sign-in stops, a same-student one included: it asks the
+     * sign-in after each phase and before the stamps that date the data as fetched, and never
+     * compares the student ID alone.
      */
     @Test
     fun `the worker stops a run whose sign-in ended before it stamps or refreshes`() {
         val rel = "notification/BackgroundSyncWorker.kt"
         val worker = body(rel, "doWork")
-        assertTrue("the worker no longer captures the sign-in", "authTokenManager.signInGeneration" in worker)
+        assertTrue("the worker no longer captures the sign-in", "authTokenManager.session.current" in worker)
         assertTrue("the worker compares the student ID alone again", "storedStudentId != studentId" !in worker)
-        // Each stamp is written inside the sign-in lock, so a sign-out cannot clear it between the check and the write.
-        for (stamp in listOf("prefs.backgroundOverridesSyncedAtMs = now", "prefs.backgroundCoursesSyncedAtMs = now", "prefs.backgroundCoursesTerm = term.code")) {
+        // Each stamp is written in a step a sign-out waits for, so it cannot clear it between the check and the write.
+        assertTrue("the worker no longer stops on a refused stamp", "if (!prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn)) return" in worker)
+        for (stamp in listOf("prefs.school.backgroundCoursesSyncedAtMs.set(now, signIn)", "prefs.school.backgroundCoursesTerm.set(term.code, signIn)")) {
             val at = worker.indexOf(stamp)
             assertTrue("the worker no longer writes $stamp", at >= 0)
-            assertTrue("the worker writes $stamp outside run.writeIfCurrent", insideBlock(worker, "run.writeIfCurrent {", at))
+            assertTrue("the worker writes $stamp outside the sign-in's step", insideBlock(worker, "signIn.ifCurrent {", at))
         }
-        assertTrue("run.writeIfCurrent no longer runs under the sign-in lock", "runIfSignedIn = authTokenManager::runIfSignedIn" in worker)
         // The courses phase ends the run before the assignments, and passes its sign-in to the fetch.
         val fetch = worker.indexOf("syncCourses(studentId, password, signIn)")
         val assignments = worker.indexOf("val assignmentsOk")
         assertTrue("the worker no longer passes its sign-in to the course fetch", fetch >= 0)
-        assertTrue("the worker no longer checks run.ended() right after the course fetch", "run.ended()" in worker.substring(fetch, assignments))
-        assertTrue("the worker does not check after the assignments", worker.indexOf("run.ended()", worker.indexOf("syncAssignments()")) >= 0)
-        assertTrue("the worker no longer checks before the refreshes", worker.lastIndexOf("run.ended()", worker.indexOf("liveActivityManager.refreshAndWait()")) > worker.indexOf("syncAssignments()"))
+        assertTrue("the worker no longer checks right after the course fetch", "!signIn.isCurrent" in worker.substring(fetch, assignments))
+        assertTrue("the worker does not check after the assignments", worker.indexOf("!signIn.isCurrent", worker.indexOf("syncAssignments()")) >= 0)
+        assertTrue("the worker no longer checks before the refreshes", worker.lastIndexOf("!signIn.isCurrent", worker.indexOf("liveActivityManager.refreshAndWait()")) > worker.indexOf("syncAssignments()"))
         assertCalls(rel, "syncCourses", "termCourseSync.sync(studentId, password, courseService.currentSemesterCode(), signIn = signIn)")
     }
 
     @Test
     fun `Home's sync records only the categories it took`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "categoriesTaken(", "categoriesSynced(switchedOn, took, prefs)")
+        assertCalls("sync/Synchronizer.kt", "taken", "categoriesTaken(")
+        assertCalls("sync/ForegroundSteps.kt", "recordTaken", "categoriesSynced(switchedOn, took, prefs)")
+    }
+
+    /** The worker cannot be built here. */
+    @Test
+    fun `the worker's settings pull runs on the session and arms nothing past its sign-in`() {
+        val rel = "notification/BackgroundSyncWorker.kt"
+        val body = body(rel, "pullSettings")
+        assertTrue("the pull left the session", "authTokenManager.session.launch(signIn) {" in body)
+        assertTrue("the run no longer waits for the pull", "}.join()" in body)
+        assertTrue("the pull is on the application scope again", "appScope" !in source(rel).joinToString("\n"))
+        assertCalls(
+            rel, "syncWithBackend",
+            "synchronizer.sync(SyncMode.BACKGROUND, signIn, afterSync = { pass ->",
+            "pullSettings(pass.result.currentRevision, signIn)",
+            "if (pass.marksChanged && prefs.notifyAssignments && signIn.isCurrent) {",
+        )
+    }
+
+    /** The notifier cannot be held open here: one step with the sign-in's end, by reading it. */
+    @Test
+    fun `the Live Update's post lands in one step with the sign-in's end`() {
+        assertCalls("liveactivity/LiveActivityManager.kt", "refreshLocked", "signIn.ifCurrent { notifier.apply(snapshot, quiet) }")
+    }
+
+    /** What a push it queues would do takes a running queue: nothing starts for a login that landed nothing. */
+    @Test
+    fun `a login cut off starts the copy only with a session`() {
+        assertCalls("auth/AuthService.kt", "login", "if (authTokenManager.isLoggedIn) notificationSettingsSync.pushIfUnconfirmed()")
+    }
+
+    /** What stops them is RunRefreshesTest's; the worker cannot be built here. */
+    @Test
+    fun `the worker's refreshes stop with its sign-in`() {
+        assertCalls("notification/BackgroundSyncWorker.kt", "doWork", "refreshAfterRun(signIn,")
     }
 
     @Test
     fun `an answered re-enable dialog holds colours and names until applied`() {
         assertCalls(
             "ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict",
-            "heldUntilAnswered(", "prefs.pendingConflictCategories = held", "prefs.pendingConflictCategories - held",
+            "heldUntilAnswered(", "prefs.school.pendingConflictCategories.set(held", "prefs.school.pendingConflictCategories.get() - held",
         )
     }
 
@@ -175,8 +219,8 @@ class SyncWiringTest {
     fun `an answered re-enable dialog keeps what it did not cover pending and checks it after`() {
         assertCalls(
             "ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict",
-            "unanswered(prefs.pendingConflictCategories, conflict.categories)",
-            "prefs.pendingConflictCategories = held + left",
+            "unanswered(prefs.school.pendingConflictCategories.get(), conflict.categories)",
+            "prefs.school.pendingConflictCategories.set(held + left, signIn)",
             "if (left.isNotEmpty()) checkPendingConflicts()",
         )
     }
@@ -186,36 +230,88 @@ class SyncWiringTest {
         assertCalls("push/PushRegistrationService.kt", "endRegistration", "leftSwitchBehind(appPreferences.cloudSyncEnabled)")
         assertCalls(
             "push/PushRegistrationService.kt", "updateCloudSyncEnabled",
-            "switchPatches.send(request, enabled)", "leftSwitchBehind(appPreferences.cloudSyncEnabled)",
+            "switchPatches.send(request, enabled, signIn)", "leftSwitchBehind(appPreferences.cloudSyncEnabled)",
         )
     }
 
     @Test
     fun `the assignment upload goes through the ledger`() {
         assertCalls("push/PushApiClient.kt", "uploadAssignments", "assignmentUploads.sendIfDue(")
+        // The fingerprint and its time in one step a sign-out waits for: a clear between the two
+        // would leave half a record for the next account's upload to read.
+        val upload = body("push/PushApiClient.kt", "uploadAssignments")
+        assertTrue("the upload's record is no longer one step", Regex("""signIn\.ifCurrent \{\s*prefs\.school\.assignmentsUploadFingerprint\.set""").containsMatchIn(upload))
     }
 
     @Test
     fun `a full sync and a poll that reaches the server run an owed re-enable check`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "reenableCheck.runIfOwed()")
+        assertCalls("sync/ForegroundSteps.kt", "afterSync", "reenableCheck.runIfOwed()")
         assertCalls("ui/screen/home/HomeViewModel.kt", "pollRevision", "reenableCheck.runIfOwed()")
+    }
+
+    /**
+     * The club document syncs after every full sync, Home's and the worker's, and a run of it that
+     * did not land goes again at a poll that finds nothing new, or moves the watermark without a
+     * full sync, as on the iPhone.
+     */
+    @Test
+    fun `a full sync runs the club document's sync, and a poll runs one that is owed`() {
+        for (rel in listOf("sync/ForegroundSteps.kt", "sync/BackgroundSteps.kt")) {
+            assertCalls(rel, "afterSync", "clubs?.afterFullSync(pass.signIn, pass.result.currentRevision)")
+        }
+        assertCalls("ui/screen/home/HomeViewModel.kt", "pollRevision", "backendSync.retryOwedSettings(signInNow())")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "sendWhatWaits", "retryOwedSettings(signIn)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "retryOwedSettings", "clubSubscriptionsSync?.retryIfOwed(signIn)")
+        val synchronizer = source("sync/Synchronizer.kt").joinToString("\n")
+        assertTrue("the synchronizer no longer hands the steps the club sync", "notificationSettingsSync, appScope, clubs," in synchronizer)
+        assertTrue("the synchronizer no longer hands the worker's steps the club sync", "pendingCourseAdds, firstPullGate, clubs," in synchronizer)
+    }
+
+    /**
+     * A full sync that lands proves a session and a network: a notification-settings edit whose
+     * push never landed goes again, and another device's change is picked up, on the application
+     * scope and on Main, never awaited. Both go to scopes the JVM tests leave idle.
+     */
+    @Test
+    fun `a full sync that lands sends the settings edit that waits and pulls the settings`() {
+        assertCalls("sync/ForegroundSteps.kt", "afterSync", "notificationSettingsSync.pushIfUnconfirmed()", "pullSettings(pass.result.currentRevision)")
+        assertCalls(
+            "sync/ForegroundSteps.kt", "pullSettings",
+            "appScope.launch(Dispatchers.Main) {", "notificationSettingsSync.pullNow(knownRevision = knownRevision)",
+        )
     }
 
     @Test
     fun `a hand-added course's upload is kept until it lands, and every full sync sends what waits first`() {
         assertCalls("ui/screen/classtable/ClassTableViewModel.kt", "addCourse", "pendingCourseAdds.send(")
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "retryUnsent", "pendingCourseAdds.retry()")
-        for ((rel, name, sends) in listOf(
-            Triple("ui/screen/home/HomeBackendSync.kt", "pull", "retryUnsent()"),
-            Triple("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "pendingCourseAdds.retry()"),
-        )) {
-            val body = body(rel, name)
-            val retry = body.indexOf(sends)
-            val fetch = body.indexOf("syncApiClient.fetchFullSync()")
-            val listed = body.indexOf("pendingCourseAdds.listed(result.serverCourses)")
-            assertTrue("$rel $name no longer sends the waiting course adds before the snapshot", retry in 0 until fetch)
-            assertTrue("$rel $name no longer lets go of the course adds the snapshot lists", listed > fetch)
+        // Sent by the outbox's drain, the course adds one of its channels (OutboxDrainWiringTest).
+        assertTrue("the course adds are no longer an outbox channel", "OutboxChannelId.COURSE_ADDS" in source("data/PendingCourseAdds.kt").joinToString("\n"))
+        for (rel in listOf("sync/ForegroundSteps.kt", "sync/BackgroundSteps.kt")) {
+            assertCalls(rel, "listed", "pendingCourseAdds.listed(result.serverCourses, signIn)")
         }
+        // Both modes' order is SynchronizerOrderTest's.
+        val body = body("sync/Synchronizer.kt", "pass")
+        val retry = body.indexOf("drain(signIn)")
+        val fetch = body.indexOf("steps.fetch(")
+        val listed = body.indexOf("steps.listed(result, signIn)")
+        assertTrue("the synchronizer no longer sends the waiting course adds before the snapshot", retry in 0 until fetch)
+        assertTrue("the synchronizer no longer lets go of the course adds the snapshot lists", listed > fetch)
+    }
+
+    /**
+     * A refused session gets one relogin, and the whole sync runs again, from where the failed one
+     * has reported itself, its course window still open: the Synchronizer runs Home's failure step
+     * there (SynchronizerOrderTest). A relogin that still gets a 401 gives up.
+     */
+    @Test
+    fun `Home's sync signs in again once on a refused session and runs again`() {
+        val pull = body("ui/screen/home/HomeBackendSync.kt", "pull")
+        assertTrue("Home's pull is no longer the synchronizer's foreground sync", "synchronizer.sync(SyncMode.FOREGROUND, signIn, state) { e ->" in pull)
+        assertTrue(
+            "Home's pull no longer signs in again once on a refused session",
+            Regex("""if \(!retried && e\.isSessionRefused\(\)\) \{[^}]*if \(authService\.attemptRelogin\(signIn\)\) \{\s*pull\(state, signIn, retried = true\)""")
+                .containsMatchIn(pull),
+        )
     }
 
     /** tigerduck-app-android#120: a revision move ran a full sync, whatever moved it. */
@@ -224,75 +320,108 @@ class SyncWiringTest {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "pollRevision",
             "fetchChanges = syncApiClient::fetchChanges", "retryUnsent = backendSync::sendWhatWaits",
-            "setLastKnownRevision = { syncState.lastKnownRevision = it }",
+            "setLastKnownRevision = syncState.lastKnownRevision::set",
         )
-        assertCalls(
-            "ui/screen/home/HomeBackendSync.kt", "retryUnsent",
-            "courseIgnoreSync.retryPending()", "unsentMarks.retry()", "pendingCourseAdds.retry()",
-            "pendingCourseDeletes.retry()", "pendingCourseOverrides.retry()", "pendingHolidayOverrides.retry()",
-        )
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "retryUnsent", "synchronizer.retryUnsent(signIn)")
+        // The outbox's one drain, every full sync's too; its order is OutboxDrainWiringTest's.
+        assertCalls("sync/Synchronizer.kt", "retryUnsent", "drain(signIn)")
+        assertTrue("the synchronizer's drain is no longer the outbox's", "drain = outbox::drain," in source("sync/Synchronizer.kt").joinToString("\n"))
+        // Each of the six queues is one of its channels, the course ignores' and overrides' too.
+        for ((rel, registration) in listOf(
+            "data/CourseIgnoreQueue.kt" to "fun channel(ignores: CourseIgnoreSync): OutboxChannel = ignores.channel",
+            "data/UnsentMarks.kt" to "fun channel(marks: UnsentMarks): OutboxChannel = marks",
+            "data/PendingCourseAdds.kt" to "fun channel(adds: PendingCourseAdds): OutboxChannel = adds",
+            "data/PendingCourseDeletes.kt" to "fun channel(deletes: PendingCourseDeletes): OutboxChannel = deletes",
+            "data/PendingCourseOverrides.kt" to "fun channel(overrides: PendingCourseOverrides): OutboxChannel = overrides",
+            "data/PendingHolidayOverrides.kt" to "fun channel(holidays: PendingHolidayOverrides): OutboxChannel = holidays",
+        )) assertTrue("$rel is no longer an outbox channel", registration in source(rel).joinToString("\n"))
         // And the notification-settings repair a full sync makes once it lands.
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "sendWhatWaits", "retryUnsent()", "notificationSettingsSync.pushIfUnconfirmed()")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "sendWhatWaits", "retryUnsent(signIn)", "notificationSettingsSync.pushIfUnconfirmed()")
     }
 
     /** tigerduck-app-android#120: the departing account's watermark let the next one's feed read skip its own data. */
     @Test
     fun `the watermark is the signed-in account's alone`() {
-        val home = source("ui/screen/home/HomeViewModel.kt").joinToString("\n")
-        val signedOut = home.indexOf("if (!isAuthed) {")
-        val reset = home.indexOf("syncState.lastKnownRevision = 0", signedOut)
-        assertTrue("Home no longer forgets the watermark at a sign-out", signedOut >= 0 && reset in signedOut until home.indexOf("} else if (signedIn)", signedOut))
+        // A SignInBound reads empty once its sign-in has ended, whoever saw the sign-out or not:
+        // the next account's feed read from the watermark would skip that account's own changes,
+        // and from 0 the poll runs a full sync until one lands for the account that signs in.
+        val state = source("ui/screen/home/HomeBackendSync.kt").joinToString("\n")
+        assertTrue("the watermark no longer goes with its sign-in", "val lastKnownRevision = org.ntust.app.tigerduck.shared.account.SignInBound(0L)" in state)
         assertTrue(
-            "Home's sync no longer sets the watermark only under the sign-in it fetched with",
-            Regex("""authTokenManager\.runIfSignedIn\(signIn\) \{\s*state\.lastKnownRevision = result\.currentRevision""")
-                .containsMatchIn(body("ui/screen/home/HomeBackendSync.kt", "pull")),
+            "Home's sync no longer sets the watermark under the sign-in it fetched with",
+            "pass.home.lastKnownRevision.set(pass.result.currentRevision, pass.signIn)" in body("sync/ForegroundSteps.kt", "noteRevision"),
         )
+    }
+
+    /**
+     * The student ID passes a sign-out and a sign-in as the same student, so a run that outlived
+     * its sign-in would mark the new session's marks as synced, which then reads an empty server
+     * as the truth. Home's is driven in `HomePullAcrossSignInTest`; the worker cannot be built here.
+     */
+    @Test
+    fun `the worker records marks taken only under the sign-in it began with`() {
+        val body = body("sync/reconcile/MarksReconciler.kt", "reconcile")
+        assertTrue(
+            "the worker's pass no longer records the marks under its sign-in",
+            "SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn," in body &&
+                "prefs.school.assignmentMarksSyncedOnce.set(true, signIn)" in body,
+        )
+    }
+
+    /**
+     * A re-enable check and Use Local run on the application scope, past the Settings screen that
+     * began them. Each stops at the sign-out, which the student ID alone would not see for the same
+     * student. Read from the source: both take a screen's worth of collaborators.
+     */
+    @Test
+    fun `the re-enable check and Use Local stop when their sign-in ends`() {
+        assertCalls("ui/screen/settings/ReenableCheck.kt", "check", "val signIn = sessions.school.current", "signIn.isCurrent")
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "sendLocalCourses", "isCurrent = { signIn.isCurrent }")
     }
 
     /** tigerduck-app-android#404. */
     @Test
     fun `a holiday choice whose PUT failed is kept, and Home's sync sends what waits first and keeps it over the snapshot`() {
         assertCalls("ui/screen/calendar/CalendarViewModel.kt", "setNotifyOnHoliday", "pendingHolidayOverrides.send(")
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "retryUnsent", "pendingHolidayOverrides.retry()")
-        val body = body("ui/screen/home/HomeBackendSync.kt", "pull")
-        val retry = body.indexOf("retryUnsent()")
-        val fetch = body.indexOf("syncApiClient.fetchFullSync()")
-        val merged = body.indexOf("HolidayOverrideApply.apply(")
-        assertTrue("Home's sync no longer sends the waiting holiday choices before the snapshot", retry in 0 until fetch)
-        assertTrue("Home's sync no longer keeps the waiting holiday choices over the snapshot", merged > fetch)
-        assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "pendingHolidayOverrides.retry()")
+        // Sent by the outbox's drain, the holidays one of its channels (OutboxDrainWiringTest).
+        assertTrue("the holiday choices are no longer an outbox channel", "OutboxChannelId.HOLIDAYS" in source("data/PendingHolidayOverrides.kt").joinToString("\n"))
+        // Before the fetch, and the snapshot applied after it, keeping what waits: SynchronizerOrderTest.
+        assertCalls("sync/reconcile/HolidaysReconciler.kt", "apply", "HolidayOverrideApply.applyStamped(")
+        assertCalls("data/HolidayOverrideApply.kt", "applyStamped", "pending.keptOver(serverHlc)")
     }
 
     /** tigerduck-app-android#404: applied after the sign-out cleared them, the departing account's choices came back. */
     @Test
     fun `Home's sync and the worker apply the holiday snapshot through the one apply, under the sign-in it fetched with`() {
-        for ((rel, name) in listOf("ui/screen/home/HomeBackendSync.kt" to "pull", "notification/BackgroundSyncWorker.kt" to "syncOverridesFromBackend")) {
-            assertCalls(rel, name, "HolidayOverrideApply.apply(", "signIn, pendingHolidayOverrides, academicCalendar")
-        }
+        val reconcile = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
+        assertEquals("each mode no longer applies through the one apply", 2, Regex("""apply\(pass, holds, stamped\)""").findAll(reconcile).count())
+        // The snapshot's choices field by field (LWW D12), under the pass's sign-in.
+        val holidays = body("sync/reconcile/HolidaysReconciler.kt", "apply")
+        assertTrue("pass.signIn, pendingHolidayOverrides, academicCalendar,\n" in holidays)
         val apply = source("data/HolidayOverrideApply.kt").joinToString("\n")
         assertTrue(
-            "the holiday snapshot is no longer applied under runIfSignedIn(signIn)",
-            Regex("""runIfSignedIn\(signIn\) \{\s*pending\.merged\(""").containsMatchIn(apply),
+            "the holiday snapshot is no longer applied under signIn.ifCurrent",
+            Regex("""signIn\.ifCurrent \{\s*val local = calendar\.optedInHolidayIds\s*val kept = pending\.keptOver""").containsMatchIn(apply),
         )
     }
 
     /** Calendar's toggle handler runs on Main; an apply off it can erase a toggle made after the merge's check. */
     @Test
     fun `the worker applies the holiday snapshot on the main thread`() {
-        val body = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
+        val body = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
         assertTrue(
-            "the worker no longer applies the holiday snapshot inside withContext(Dispatchers.Main)",
-            Regex("""withContext\(Dispatchers\.Main\) \{\s*HolidayOverrideApply\.apply\(""").containsMatchIn(body),
+            "the worker's pass no longer applies the holiday snapshot inside withContext(Dispatchers.Main)",
+            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{ apply\(pass, holds, stamped\) \}""").containsMatchIn(body),
         )
     }
 
     /** Names go through the one apply, with the same re-enable hold as colours. */
     @Test
     fun `Home's sync and the worker apply custom names through the one apply, held for the re-enable check`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseOverrides", "CourseSyncReconciler.applyNameOverrides(")
-        assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "BackgroundCourseOverrides.apply(")
-        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "CourseSyncReconciler.applyNameOverrides(")
-        assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "CourseSyncReconciler.syncsCourseNames(")
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "applyStamped", "BackgroundCourseOverrides.apply(")
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "reconcileCachedTerm", "BackgroundCourseOverrides.apply(")
+        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "stamped.names(current)")
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "reconcileCachedTerm", "val policy = syncPolicies.current", "policy.applies(SyncCategory.COURSE_NAMES)")
         // The cached courses are what the widgets read.
         assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "CourseNameOverrides.stamp(")
     }
@@ -304,24 +433,21 @@ class SyncWiringTest {
      */
     @Test
     fun `the syncs apply names and colours as one update of the names and courses as they stand`() {
-        val names = body("ui/screen/home/CourseSyncReconciler.kt", "applyNameOverrides")
+        val names = body("notification/BackgroundCourseOverrides.kt", "apply")
         assertTrue(
-            "the names are no longer merged inside one update, with the held keys read there",
-            Regex("""dataCache\.updateCourseCustomNames \{[^}]*held = held\(\)""").containsMatchIn(names),
+            "the names are no longer merged inside one update, with what waits read there",
+            Regex("""dataCache\.updateCourseCustomNames\(signIn\) \{ current -> stamped\.names\(current\)""").containsMatchIn(names),
         )
         for (call in listOf("dataCache.loadCourseCustomNames(", "dataCache.saveCourseCustomNames(")) {
-            assertFalse("applyNameOverrides reads or saves the names outside the update", call in names)
+            assertFalse("the apply reads or saves the names outside the update", call in names)
         }
-        // Read where the names are merged, not before the pass.
-        for ((rel, name) in listOf("ui/screen/home/HomeBackendSync.kt" to "pull", "notification/BackgroundSyncWorker.kt" to "syncOverridesFromBackend")) {
-            assertCalls(rel, name, "{ pendingCourseOverrides.held(result.fetchedAtMs) }")
-        }
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseOverrides", "applyNameOverrides(dataCache, overrides, syncNames, held)")
+        // What waits is read where the names are merged, not before the pass.
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "stamped", "pendingCourseOverrides::heldFields")
 
-        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "dataCache.updateCoursesIfChanged(semester) { cached ->")
+        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "dataCache.updateCoursesIfChanged(semester, signIn) { cached ->")
         for ((rel, name) in listOf(
             "notification/BackgroundCourseOverrides.kt" to "apply",
-            "notification/BackgroundSyncWorker.kt" to "applyCourseOverridesBackground",
+            "sync/reconcile/OverridesReconciler.kt" to "reconcileCachedTerm",
         )) {
             val body = body(rel, name)
             for (call in listOf("dataCache.loadCourses(", "dataCache.saveCourses(", "dataCache.loadCourseCustomNames(")) {
@@ -338,7 +464,7 @@ class SyncWiringTest {
             "ui/screen/classtable/ClassTableViewModel.kt" to "revertCourseName",
             "ui/screen/classtable/ClassTableTermReset.kt" to "run",
         )) {
-            assertCalls(rel, name, "dataCache.updateCourseCustomNames {")
+            assertCalls(rel, name, "dataCache.updateCourseCustomNames(")
         }
         var root: File? = File("").absoluteFile
         while (root != null && !File(root, "app/src/main/java").isDirectory && !File(root, "src/main/java").isDirectory) {
@@ -351,7 +477,7 @@ class SyncWiringTest {
             .filter { it.isFile && it.extension == "kt" && it.name != "DataCache.kt" }
             .flatMap { file -> file.readLines().filter { ".saveCourseCustomNames(" in it }.map { "${file.name}: ${it.trim()}" } }
             .toList()
-        assertEquals(listOf("SettingsViewModel.kt: dataCache.saveCourseCustomNames(emptyMap())"), saves)
+        assertEquals(listOf("SettingsViewModel.kt: dataCache.saveCourseCustomNames(emptyMap(), signIn)"), saves)
     }
 
     /** tigerduck-app-android#404: the switches kept the set they were built with. */
@@ -373,8 +499,8 @@ class SyncWiringTest {
             root = root.parentFile
         }
         val main = File(root ?: throw AssertionError("no :app module"), if (File(root, "app").isDirectory) "app/src/main/java" else "src/main/java")
-        // A call or a reference, outside comments.
-        val use = Regex("""(?:\.|::)putHolidayOverride\b""")
+        // A call or a reference, outside comments, of either form: the answered one too.
+        val use = Regex("""(?:\.|::)putHolidayOverride(?:Answered)?\b""")
         val callers = main.walk().filter { it.isFile && it.extension == "kt" }
             .filter { file -> file.readLines().any { line -> !line.trimStart().startsWith("*") && !line.trimStart().startsWith("//") && use.containsMatchIn(line) } }
             .map { it.name }.toSet()
@@ -385,18 +511,18 @@ class SyncWiringTest {
     @Test
     fun `a colour or name whose PATCH failed is kept, and every full sync sends what waits first and holds it against the snapshot`() {
         assertCalls("ui/screen/classtable/ClassTableViewModel.kt", "syncCourseOverride", "pendingCourseOverrides.send(")
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "retryUnsent", "pendingCourseOverrides.retry()")
-        for ((rel, name, sends) in listOf(
-            Triple("ui/screen/home/HomeBackendSync.kt", "pull", "retryUnsent()"),
-            Triple("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "pendingCourseOverrides.retry()"),
-        )) {
-            val body = body(rel, name)
-            val retry = body.indexOf(sends)
-            val fetch = body.indexOf("syncApiClient.fetchFullSync()")
-            val held = body.indexOf("pendingCourseOverrides.held(result.fetchedAtMs)")
-            assertTrue("$rel $name no longer sends the waiting colours and names before the snapshot", retry in 0 until fetch)
-            assertTrue("$rel $name no longer holds the waiting colours and names against the snapshot", held > fetch)
+        // Sent by the outbox's drain, the course overrides one of its channels (OutboxDrainWiringTest).
+        val overrides = source("data/PendingCourseOverrides.kt").joinToString("\n")
+        assertTrue(
+            "the waiting colours and names are no longer an outbox channel",
+            "OutboxChannelId.COURSE_OVERRIDES" in overrides && "fun channel(overrides: PendingCourseOverrides): OutboxChannel = overrides" in overrides,
+        )
+        // Both modes: sent before the fetch, held in a step after it (SynchronizerOrderTest), by
+        // what waits as each merge runs.
+        for (name in listOf("applyStamped", "reconcileCachedTerm")) {
+            assertCalls("sync/reconcile/OverridesReconciler.kt", name, "stamped(result, holds, term)")
         }
+        assertCalls("sync/reconcile/OverridesReconciler.kt", "stamped", "pendingCourseOverrides::heldFields")
     }
 
     /** tigerduck-app-android#380: sent directly, a reset's or a sync's colour races the outbox, and an older queued one lands over it. */
@@ -408,11 +534,14 @@ class SyncWiringTest {
         }
         val main = root?.let { listOf(File(it, "app/src/main/java"), File(it, "src/main/java")).first(File::isDirectory) }
             ?: throw AssertionError("Could not locate app/src/main/java from ${File("").absolutePath}")
+        // Either form, the answered one too. Use Local's stamped override on /v4 goes by itself
+        // until the re-enable hold goes (PR Q).
+        val use = Regex("""\.patchCourseOverride(?:Answered)?\(""")
         val callers = main.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" && ".patchCourseOverride(" in it.readText() }
+            .filter { it.isFile && it.extension == "kt" && use.containsMatchIn(it.readText()) }
             .map { it.name }
             .toSortedSet()
-        assertEquals(setOf("PendingCourseOverrides.kt"), callers)
+        assertEquals(setOf("KeepLocalCourses.kt", "PendingCourseOverrides.kt"), callers)
     }
 
     /** tigerduck-app-android#380: queued one by one as each is sent, a reset's older colour replaced a pick made meanwhile. */
@@ -422,8 +551,8 @@ class SyncWiringTest {
         val reserved = body.indexOf("val version = pendingCourseOverrides.reserveVersion()")
         val read = body.indexOf("dataCache.loadCourses()")
         val queued = body.indexOf("pendingCourseOverrides.queue(")
-        val saved = body.indexOf("dataCache.saveCourses(updated)")
-        val sent = body.indexOf("pendingCourseOverrides.retry()")
+        val saved = body.indexOf("dataCache.saveCourses(updated, signIn)")
+        val sent = body.indexOf("pendingCourseOverrides.drain(signIn)")
         assertTrue("resetAllColors no longer reserves the batch's version before reading the colours", reserved in 0 until read)
         assertTrue("resetAllColors no longer queues every colour before saving them", queued in read until saved)
         assertTrue("resetAllColors no longer sends the queued colours after saving them", sent > saved)
@@ -439,25 +568,44 @@ class SyncWiringTest {
         assertTrue("resolve no longer reserves the batch's version before reading what Use Local sends", reserved in 0 until read)
         // The read is the queue call's first argument, so it sits inside the call: what is pinned
         // is that the batch goes in at the version reserved above.
-        assertTrue("resolve no longer queues what Use Local sends at the reserved version", queued > reserved && "version,\n" in body)
+        assertTrue("resolve no longer queues what Use Local sends at the reserved version", queued > reserved && "version, signIn,\n" in body)
+    }
+
+    /**
+     * Codex on round 3 (P2): Use Local tells each copy merged down what its row is from the rows the
+     * re-enable check compared, before it decides its adds.
+     */
+    @Test
+    fun `Use Local for courses is handed the snapshot the re-enable check compared`() {
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "resolve", "sendLocalCourses(signIn, latch, conflict.checked)")
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "sendLocalCourses", "checked = checked,")
+    }
+
+    /** A name Use Local queues on v4 behind the names hold must not replace a rename made while it ran. */
+    @Test
+    fun `Use Local for courses reserves the names' version before reading them, and hands it to its backend`() {
+        val body = body("ui/screen/settings/SettingsViewModel.kt", "sendLocalCourses")
+        val reserved = body.indexOf("val version = pendingCourseOverrides.reserveVersion()")
+        val read = body.indexOf("dataCache.loadCourseCustomNames()")
+        assertTrue("sendLocalCourses no longer reserves the names' version before reading them", reserved in 0 until read)
+        assertTrue("sendLocalCourses no longer hands the version to its backend", "pendingCourseOverrides, signIn, version, dataCache, termResets)" in body)
     }
 
     /** tigerduck-app-android#380: a course gone from this phone would be PATCHed, and refused, at every sync. */
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {
         // The term's commit hands the courses it took out to the forget (commitReconciledTerm).
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "syncCourseList", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides,\n")
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseReset", "pendingCourseOverrides.forget(")
-        assertCalls("notification/BackgroundSyncWorker.kt", "reconcileCurrentSemester", "pendingCourseOverrides,\n")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership.gone,\n")
+        assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "pendingCourseOverrides, signIn,\n")
     }
 
     /** tigerduck-app-android#380: the answer decides the waiting colours and names too. */
     @Test
     fun `Use Server drops the waiting colours and names of its categories, and Use Local sends its own once the hold is lifted`() {
-        assertCalls("ui/screen/settings/SettingsViewModel.kt", "resolve", "pendingCourseOverrides.adoptServer(conflict.categories)")
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "resolve", "pendingCourseOverrides.adoptServer(conflict.categories, signIn)")
         val body = body("ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict")
-        val lifted = body.indexOf("prefs.pendingConflictCategories - held")
-        val retry = body.indexOf("pendingCourseOverrides.retry()")
+        val lifted = body.indexOf("prefs.school.pendingConflictCategories.get() - held")
+        val retry = body.indexOf("pendingCourseOverrides.drain(signIn)")
         assertTrue("resolveReenableConflict no longer sends the queued colours and names once the hold is lifted", retry > lifted && lifted >= 0)
     }
 
@@ -466,7 +614,7 @@ class SyncWiringTest {
         val body = body("network/MoodleService.kt", "fetchAssignmentsRound")
         // The same check also guards the assignment records' write, inside it after this one.
         val guard = body.indexOf("if (tokenService.currentToken() == askedWith) {")
-        val save = body.indexOf("if (closedNow != closedBefore) dataCache.saveClosedAssignments(closedNow)")
+        val save = body.indexOf("if (closedNow != closedBefore) dataCache.saveClosedAssignments(closedNow, signIn)")
         assertTrue("the closed assignments are no longer written behind the token check", guard in 0 until save)
         assertTrue(
             "nothing else between the check and the write",
@@ -476,13 +624,72 @@ class SyncWiringTest {
 
     /**
      * A full sync still out when the user signs out comes back after the wipe. Its cache writes
-     * run under the data generation it began with, so they drop rather than put the departing
-     * account's courses, deletions and marks into the files the next account starts from.
+     * carry the sign-in it began under, so they drop rather than put the departing account's
+     * courses, deletions and marks into the files the next account starts from.
      */
     @Test
     fun `Home's sync and the worker write nothing once a sign-out has wiped the data`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "DataCache.Generation(dataCache.userDataGeneration)")
-        assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "DataCache.Generation(dataCache.userDataGeneration)")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcile", "syncCourseList(result, takesCourseList, pass.courseSync, signIn, pass.holds())")
+        assertCalls(
+            "sync/reconcile/RosterReconciler.kt", "reconcile",
+            "SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES)", "currentTerm.reconcile(result, pass.courseSync, signIn,",
+        )
+    }
+
+    /**
+     * A read that copies an old install's hand-added courses to the durable folder holds no
+     * sign-in. It holds the cache's lock from its read to its write instead, and the wipe takes
+     * that lock first: between two locks of its own, the wipe could run wholly in the gap, and
+     * the copy land after it. No test can stand in that gap: nothing suspends there.
+     */
+    @Test
+    fun `a read's copy of a hand-added course holds the cache's lock from its read to its write`() {
+        val copy = body("data/cache/DataCache.kt", "migrateManualCoursesToUserData")
+        val lock = copy.indexOf("cacheMutex.withLock {")
+        val read = copy.indexOf("readJson<List<Course>>(File(cacheDir")
+        val write = copy.indexOf("userDataMutex.withLock { atomicWrite(")
+        assertTrue("the copy no longer reads and writes under the cache's lock", lock in 0 until read && read < write)
+    }
+
+    /**
+     * A screen reads the cache, which suspends, and shows what it read only while the sign-in it
+     * read it under stands. The student ID would pass the same student signing back in meanwhile.
+     * Signed out with nothing stored, these screens leave their lists as they are, as they did.
+     * Home's is driven in HomeViewModelTest; the class table and the calendar take a screen's
+     * worth of collaborators.
+     */
+    @Test
+    fun `the class table and the calendar show a read only while its sign-in stands`() {
+        val table = "ui/screen/classtable/ClassTableViewModel.kt"
+        assertCalls(table, "loadAssignmentMarks", "val signIn = signInNow()", "if (!authService.authState.value) return", "signIn.ifCurrent {")
+        assertCalls(table, "refreshShareTerms", "val signIn = signInNow()", "if (authService.authState.value && signIn.isCurrent) terms else emptyList()")
+        assertCalls(table, "lookUpMissingRooms", "val signIn = signInNow()", "if (!authService.authState.value || !signIn.isCurrent ||")
+        val tableText = source(table).joinToString("\n")
+        assertTrue("the class table's reload no longer stops on an ended sign-in", "if (!signIn.isCurrent) return@collect" in tableText)
+        val calendar = source("ui/screen/calendar/CalendarViewModel.kt").joinToString("\n")
+        assertTrue(
+            "the calendar's reload no longer asks the sign-in it read under",
+            "signIn.ifCurrent { _events.value = withMoodleRows(_events.value, assignments) }" in calendar,
+        )
+    }
+
+    /**
+     * What a write carries is read where its work starts: a tap's at the tap, though its save
+     * waits its turn on a channel or a coroutine, and a lookup's before its request goes out.
+     * Read as the write lands, each would pass for the next account's.
+     */
+    @Test
+    fun `a tap's save and a lookup's write hold the sign-in of their start`() {
+        val tap = body("ui/screen/home/HomeViewModel.kt", "toggleOverride")
+        assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("markSaves.trySend"))
+        assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "markSaves.trySend(Triple(id, status, signIn))", "unsentMarks.send(id, status, signIn)")
+        val edit = body("ui/screen/classtable/ClassTableViewModel.kt", "showEdit")
+        assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)" in edit)
+        val lookup = body("network/CourseService.kt", "fetchLookup")
+        assertTrue(
+            "a lookup no longer reads its sign-in before the request",
+            lookup.indexOf("val signIn = sessions.school.current") in 0 until lookup.indexOf("client.newCall(request)"),
+        )
     }
 
     /**
@@ -493,8 +700,8 @@ class SyncWiringTest {
     @Test
     fun `Home's fetch lets a sign-out's cancellation through its assignment upload`() {
         val body = body("ui/screen/home/HomeViewModel.kt", "fetchData")
-        assertTrue("fetchData no longer uploads the assignments", "pushApiClient.uploadAssignments(written)" in body)
-        assertTrue("fetchData catches the upload's cancellation", "runCatching { pushApiClient.uploadAssignments" !in body)
+        assertTrue("fetchData no longer uploads the assignments", "schoolUploads.assignments(written, remoteAssignments.answer.signIn)" in body)
+        assertTrue("fetchData catches the upload's cancellation", "runCatching { schoolUploads.assignments" !in body)
     }
 
     /**
@@ -561,14 +768,14 @@ class SyncWiringTest {
     fun `Home and the background sync commit a fetch against the drop list as it stands, and the sync uploads what was committed`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "fetchData",
-            "courses = commitFetchedTerm(",
+            "commitFetchedTerm(",
             "waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) }",
         )
         assertCalls(
             "notification/TermCourseSync.kt", "sync",
             "val merged = commitFetchedTerm(",
             "waitingAdds = { waitingAdds(semester) }",
-            "merged, semester, roster = term.roster,",
+            "uploads.term(signIn, semester, merged, term.roster, uploading,",
             "uploader.upload(upload.courses, semester,",
         )
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
@@ -589,18 +796,36 @@ class SyncWiringTest {
     fun `Home and the background sync commit an answer only while it is the term's latest, and the sync uploads under the adds lock`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments",
-            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }",
+            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn, answeredAt) }",
             "answer = recorded?.answer,",
         )
-        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer,")
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer, remote.signIn,")
         val body = body("notification/TermCourseSync.kt", "sync")
         val lock = body.indexOf("uploading {")
         val commit = body.indexOf("commitFetchedTerm(")
         val upload = body.indexOf("uploader.upload(")
         assertTrue("TermCourseSync no longer commits and uploads under the adds lock", lock in 0 until commit && commit < upload)
-        assertTrue("TermCourseSync no longer commits against its answer", "term.onlyGains, answer," in body)
+        assertTrue("TermCourseSync no longer commits against its answer", "term.onlyGains, answer, signIn," in body)
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
         assertTrue("TermCourseSync no longer wires the adds lock", "uploading = { block -> pendingCourseAdds.uploading(block) }" in sync)
+    }
+
+    /**
+     * V's parked race (round 7): Home's school fetch committed its term without the lock a full
+     * sync's upload of a term the snapshot holds nothing of reads and sends under
+     * (`RosterReconciler`, `PendingCourseAdds.uploading`), so it could land between that upload's
+     * read and its request, and the upload went as read: a copy the fetch made the school's, named
+     * as an add at 0. Home commits under the lock now, as the background sync and the class table
+     * commit theirs, so the commit comes before the upload's read or after its request.
+     * `V4MergedCoursesTest` holds the upload's side of the lock.
+     */
+    @Test
+    fun `Home's fetch commits its term under the lock a sync's upload of the term goes under`() {
+        val body = body("ui/screen/home/HomeViewModel.kt", "fetchData")
+        val lock = body.indexOf("courses = pendingCourseAdds.uploading {")
+        val commit = body.indexOf("commitFetchedTerm(")
+        assertTrue("Home's fetch no longer commits its term under the adds lock", lock >= 0 && lock < commit)
+        assertTrue("Home's fetch no longer commits inside the lock", insideBlock(body, "pendingCourseAdds.uploading {", body.indexOf("HomeCourseMerge.mergeRemote(")))
     }
 
     /**
@@ -636,7 +861,7 @@ class SyncWiringTest {
     /**
      * `/v3/sync/full`'s `roster_requests` (backend 3.10.1, tigerduck-app-android#595) are answered
      * from both full syncs, Home's and the worker's, only with the course list synced, and through
-     * TermCourseSync, under TermCourseSyncTest. Home's runs pinned to the data its sync began with.
+     * TermCourseSync, under TermCourseSyncTest. Home's runs pinned to the sign-in its sync began under.
      *
      * Both answer as the sign-in read before the snapshot's fetch, and TermCourseSync's upload
      * goes with that sign-in's token alone: Home's runs on the application scope, and a sign-out
@@ -645,24 +870,23 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker's answer the backend's roster requests`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcile", "if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)")
         assertCalls(
-            "ui/screen/home/HomeBackendSync.kt", "answerRosterRequests",
-            "currentCoroutineContext()[DataCache.Generation]", "appScope.launch(pinned)",
+            "sync/reconcile/RosterReconciler.kt", "answerRosterRequests",
+            "appScope.launch {",
             "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)",
         )
-        val worker = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
-        val reconcile = worker.indexOf("reconcileCurrentSemester(result, courseSync)")
-        val answer = worker.indexOf("answerRosterRequests(result.rosterRequests, signIn)")
-        assertTrue("the worker no longer answers roster requests after its reconcile", reconcile in 0 until answer)
-        val pinned = worker.indexOf("val signIn = authTokenManager.signInGeneration")
-        assertTrue("the worker no longer reads the sign-in before the snapshot", pinned in 0 until worker.indexOf("syncApiClient.fetchFullSync()"))
-        assertCalls("notification/BackgroundSyncWorker.kt", "answerRosterRequests", "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)")
+        val worker = body("sync/reconcile/RosterReconciler.kt", "reconcile")
+        val reconcile = worker.indexOf("currentTerm.reconcile(result, pass.courseSync, signIn,")
+        val answer = worker.indexOf("answerRosterRequestsNow(result.rosterRequests, signIn)")
+        assertTrue("the worker's pass no longer answers roster requests after its reconcile", reconcile in 0 until answer)
+        val run = body("notification/BackgroundSyncWorker.kt", "doWork")
+        val pinned = run.indexOf("val signIn = authTokenManager.session.current")
+        assertTrue("the worker no longer reads the sign-in before the snapshot", pinned in 0 until run.indexOf("syncWithBackend(signIn)"))
+        assertCalls("sync/reconcile/RosterReconciler.kt", "answerRosterRequestsNow", "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)")
         assertCalls("push/SyncApiClient.kt", "fetchFullSync", "rosterRequests = parseRosterRequests(json)")
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
-        for (wired in listOf("signInGeneration = { authTokenManager.signInGeneration }", "pushApiClient.uploadCourses(courses, semester, signIn = signIn,")) {
-            assertTrue("TermCourseSync no longer wires $wired", wired in sync)
-        }
+        assertTrue("TermCourseSync no longer pins its upload", "pushApiClient.uploadCourses(courses, semester, signIn," in sync)
     }
 
     /**
@@ -672,22 +896,36 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker's read the answer's time and record the server drops`() {
+        // Home's term: the answer read for the membership, the drops recorded as it commits.
+        assertCalls("sync/reconcile/RosterReconciler.kt", "stampedTerm", "answer = dataCache.selectionAnswerIn(semester)", "fetchedAtMs = run.result.fetchedAtMs")
         for ((rel, name) in listOf(
-            "ui/screen/home/HomeBackendSync.kt" to "syncCourseList",
-            "notification/BackgroundSyncWorker.kt" to "reconcileCurrentSemester",
+            "sync/reconcile/RosterReconciler.kt" to "reconcileTerm",
+            "sync/reconcile/CurrentTermCourses.kt" to "reconcile",
         )) {
             assertCalls(
                 rel, name,
-                "answer = dataCache.selectionAnswerIn(semester)",
-                "fetchedAtMs = result.fetchedAtMs",
-                "dataCache.recordServerDrops(semester, outcome.serverDrops)",
+                "dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)",
                 // A roster from here listing one goes again unchanged; see TermCourseSyncTest.
                 "pushApiClient.serverDropped(semester, outcome.serverDrops.keys)",
             )
         }
+        assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "answer = dataCache.selectionAnswerIn(semester)", "fetchedAtMs = result.fetchedAtMs")
         val commit = source("ui/screen/home/HomeBackendSync.kt").joinToString("\n").substringAfter("internal suspend fun commitReconciledTerm(")
         assertTrue("the commit no longer reads the term's answer with its time", "dataCache.selectionAnswerIn(semester)" in commit)
         val fetched = source("ui/screen/home/FetchedTermCommit.kt").joinToString("\n")
         assertTrue("a fetch only gaining no longer leaves out the server drops", "dataCache.fetchDropsIn(semester)" in fetched)
+    }
+
+    /**
+     * The synchronizer Hilt builds runs a category's first sync, first, and reads the outbox's held
+     * fields and the acknowledgments every pull keeps a field by (LWW D12, D13). Read from the
+     * source: the synchronizer takes a dozen collaborators, and the rigs build it without the first sync.
+     */
+    @Test
+    fun `the synchronizer runs the first sync first and reads the outbox and the acknowledgments`() {
+        val source = source("sync/Synchronizer.kt").joinToString("\n")
+        assertTrue("firstSync ?: NO_FIRST_SYNC, ack," in source)
+        assertTrue("Reconcilers.inOrder(firstSync, marks, ignores, overrides, holidays, roster)" in source)
+        assertTrue("steps.syncedBefore(), ack)" in source)
     }
 }

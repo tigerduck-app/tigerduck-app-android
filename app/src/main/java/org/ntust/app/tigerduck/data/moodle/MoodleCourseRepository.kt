@@ -9,12 +9,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
@@ -25,6 +30,8 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterial
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.io.File
 import java.lang.reflect.Type
 import javax.inject.Inject
@@ -42,18 +49,21 @@ class MoodleCourseRepository internal constructor(
     private val signedIn: () -> Boolean,
     /** The account the stores are for; null with none. */
     private val account: () -> String?,
-    private val isDemo: () -> Boolean,
+    /** The school's session, which says whether the stores are the demo's. */
+    private val session: AccountSession,
     private val liveApi: MoodleCourseApi,
     private val demoApi: () -> MoodleCourseApi?,
     private val idMap: suspend () -> Map<String, Int>,
-    private val cachePort: (account: String) -> MoodleCachePort,
+    /** The account's copies on the device, written under [SignIn], the sign-in they were fetched in. */
+    private val cachePort: (account: String, signIn: SignIn) -> MoodleCachePort,
     private val picturesDir: (account: String) -> File?,
     /** The files downloaded on the device; null downloads nothing. */
     private val downloads: MoodleFileDownloads?,
     /** The account's folder of downloaded files, found off the main thread: it reads a salt from disk. */
     private val downloadsDir: (account: String) -> File?,
     private val decode: (ByteArray) -> ImageBitmap?,
-    authState: Flow<Boolean>,
+    /** The school account's changes after the state it started in; each false is a sign-out. */
+    accountChanges: Flow<Boolean>,
     appScope: CoroutineScope,
     private val newScope: () -> CoroutineScope = { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) },
     /** Fires when the language the app shows has changed, which the demo account's Moodle follows. */
@@ -64,10 +74,11 @@ class MoodleCourseRepository internal constructor(
     private val listedAssignments: () -> Flow<List<Assignment>> = { kotlinx.coroutines.flow.emptyFlow() },
     /** Where a page's submission status goes, for the cached list; see [AssignmentStatusWriter]. */
     private val takeStatus: suspend (SubmissionStatusAnswer) -> Unit = {},
-    /** The cache's generation now, which a page's request goes out under. */
-    private val cacheGeneration: () -> Int = { 0 },
+    /** The sign-in now, which a page's request goes out under. */
+    private val currentSignIn: () -> SignIn = SignInSeries().let { series -> { series.current } },
     private val monotonicNowMs: () -> Long = SystemClock::elapsedRealtime,
 ) {
+    @OptIn(StartsAccountWork::class)
     @Inject
     constructor(
         live: LiveMoodleCourseApi,
@@ -77,6 +88,7 @@ class MoodleCourseRepository internal constructor(
         authService: AuthService,
         uiLanguage: UiLanguageMonitor,
         statusWriter: AssignmentStatusWriter,
+        sessions: AccountSessions,
         @ApplicationScope appScope: CoroutineScope,
     ) : this(
         signedIn = { authService.authState.value },
@@ -84,24 +96,24 @@ class MoodleCourseRepository internal constructor(
         // the same.
         account = {
             authService.storedStudentId?.takeIf { it.isNotBlank() }
-                ?: if (demoAccount.isActive) DEMO_ACCOUNT else null
+                ?: if (sessions.school.isDemo) DEMO_ACCOUNT else null
         },
-        isDemo = { demoAccount.isActive },
+        session = sessions.school,
         liveApi = live,
         demoApi = demoAccount::moodleApi,
         idMap = dataCache::loadMoodleCourseIds,
-        cachePort = { account -> DataCachePort(dataCache, account) },
+        cachePort = { account, signIn -> DataCachePort(dataCache, account, signIn) },
         picturesDir = { account -> File(dataCache.moodleFilesDir(account), "pictures") },
         downloads = downloads,
         downloadsDir = dataCache::moodleDownloadsDir,
         decode = ::decodeBitmap,
-        authState = authService.authState,
+        accountChanges = sessions.school.changes.drop(1),
         appScope = appScope,
         languageChanges = uiLanguage.changes,
         assignmentRecords = { dataCache.assignmentRecordsVersion.map { dataCache.loadAssignmentRecords() } },
         listedAssignments = { dataCache.assignmentsVersion.map { dataCache.loadAssignments() } },
         takeStatus = { answer -> statusWriter.take(answer) },
-        cacheGeneration = { dataCache.userDataGeneration },
+        currentSignIn = { sessions.school.current },
     )
 
     private val lock = Mutex()
@@ -113,18 +125,8 @@ class MoodleCourseRepository internal constructor(
     /** The demo account's copies, held for the session; never written to the device. */
     private var demoCache = MemoryCachePort()
 
-    /**
-     * Bumped at every sign-out. A store holds the one it was built in, so one left on a page
-     * further down the back stack is not current after signing back in, even as the same account:
-     * its scope was cancelled with the sign-out.
-     */
-    @Volatile
-    private var generation = 0
-
     init {
-        appScope.launch {
-            authState.collect { signedIn -> if (!signedIn) clear() }
-        }
+        appScope.follow(accountChanges) { signedIn -> if (!signedIn) clear() }
         appScope.launch {
             languageChanges.collect { reloadDemo() }
         }
@@ -180,25 +182,29 @@ class MoodleCourseRepository internal constructor(
                 records = assignmentRecords(),
                 listed = listedAssignments(),
                 takeStatus = takeStatus,
-                generation = cacheGeneration,
+                currentSignIn = currentSignIn,
                 monotonicNowMs = monotonicNowMs,
             )
         }
 
     /** The Moodle the account's stores ask: the demo account's own, else the live site; null when the demo has none. */
-    private fun apiLocked(): MoodleCourseApi? = if (isDemo()) {
+    private fun apiLocked(): MoodleCourseApi? = if (session.isDemo) {
         demo ?: demoApi()?.let(::SwitchableApi)?.also { demo = it }
     } else {
         liveApi
     }
 
-    /** One per account and sign-in, shared by its stores and its assignments. */
+    /**
+     * One per account and sign-in, shared by its stores and its assignments. A store holds the
+     * sign-in it was built in, so one left on a page further down the back stack is not current
+     * after signing back in, even as the same account: its scope was cancelled with the sign-out.
+     */
     private fun contextLocked(account: String): MoodleCacheContext = contexts.getOrPut(account) {
-        val built = generation
+        val signIn = currentSignIn()
         MoodleCacheContext(
             account = account,
-            cache = if (isDemo()) demoCache else cachePort(account),
-            isCurrent = { generation == built && signedIn() && account() == account },
+            cache = if (session.isDemo) demoCache else cachePort(account, signIn),
+            isCurrent = { signIn.isCurrent && signedIn() && account() == account },
         )
     }
 
@@ -218,7 +224,6 @@ class MoodleCourseRepository internal constructor(
     }
 
     private suspend fun clear() = lock.withLock {
-        generation++
         downloads?.clear()
         scope.cancel()
         scope = newScope()
@@ -235,7 +240,7 @@ class MoodleCourseRepository internal constructor(
      */
     private suspend fun reloadDemo() = lock.withLock {
         val switchable = demo ?: return@withLock
-        if (!isDemo()) return@withLock
+        if (!session.isDemo) return@withLock
         switchable.api = demoApi() ?: return@withLock
         stores.values.forEach { it.reloadAll() }
     }
@@ -272,12 +277,16 @@ class MoodleCourseRepository internal constructor(
         }
     }
 
-    private class DataCachePort(private val dataCache: DataCache, private val account: String) : MoodleCachePort {
+    private class DataCachePort(
+        private val dataCache: DataCache,
+        private val account: String,
+        private val signIn: SignIn,
+    ) : MoodleCachePort {
         override suspend fun <T> load(type: Type, name: String): Pair<T, Long>? =
             dataCache.loadMoodleData<T>(type, name, account)?.let { it.value to it.fetchedAtMs }
 
         override suspend fun save(value: Any, fetchedAtMs: Long, name: String) =
-            dataCache.saveMoodleData(value, fetchedAtMs, name, account)
+            dataCache.saveMoodleData(value, fetchedAtMs, name, account, signIn)
     }
 
     private companion object {

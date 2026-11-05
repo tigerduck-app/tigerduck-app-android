@@ -67,10 +67,10 @@ class AddCourseTakeBackTest {
         // The mark a course selection answer lifts comes once the DELETE is kept, and before it is
         // sent: lifted before it is kept, the course would go up with the roster and the DELETE
         // take it off again; marked after the send, a process killed during it would leave none.
-        val mark = delete.indexOfFirst { "dataCache.hideDeletedCourse(courseNo, semester, deletedCourse)" in it }
-        val kept = delete.indexOfFirst { "pendingCourseDeletes.keep(semester, courseNo, queuedAt)" in it }
+        val mark = delete.indexOfFirst { "dataCache.hideDeletedCourse(courseNo, semester, deletedCourse, signIn)" in it }
+        val kept = delete.indexOfFirst { "pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn)" in it }
         // Sent as kept, not queued again: a full sync's retry may have sent it meanwhile.
-        val sent = delete.indexOfFirst { "pendingCourseDeletes.sendKept(semester, courseNo)" in it }
+        val sent = delete.indexOfFirst { "pendingCourseDeletes.sendKept(semester, courseNo, signIn)" in it }
         assertTrue("the delete's hide is marked between keeping its DELETE and sending it", kept in 0 until mark && mark < sent)
         assertTrue(
             "the edit a fetch reads is made under `if (tombstone)`",

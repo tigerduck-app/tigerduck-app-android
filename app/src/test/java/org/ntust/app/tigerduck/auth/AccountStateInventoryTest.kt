@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.auth
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * `docs/account-state.md` lists every store the app keeps, with the account it belongs to and
@@ -85,10 +86,21 @@ class AccountStateInventoryTest {
 
     @Test
     fun `a school key the sign-out stops clearing fails`() {
-        val problems = edited("AuthService.kt", "prefs.classTableSelectedSemester = null\n", "").problems()
+        val problems = edited("AppPreferences.kt", "school.classTableSelectedSemester.clear()", "").problems()
         assertTrue(
             problems.toString(),
-            "tigerduck_prefs `classTableSelectedSemester`: `logout` in AuthService.kt does not clear it" in problems,
+            "tigerduck_prefs `classTableSelectedSemester`: `forgetSchoolChoices` in AppPreferences.kt does not clear it" in problems,
+        )
+    }
+
+    @Test
+    fun `the clear of another key does not stand for a key's own`() {
+        val problems = edited(
+            "AppPreferences.kt", "school.classTableSelectedSemester.clear()", "school.emptyClassroomBuilding.clear()",
+        ).problems()
+        assertTrue(
+            problems.toString(),
+            "tigerduck_prefs `classTableSelectedSemester`: `forgetSchoolChoices` in AppPreferences.kt does not clear it" in problems,
         )
     }
 
@@ -135,7 +147,7 @@ class AccountStateInventoryTest {
     @Test
     fun `an account's row that names nothing that clears it fails`() {
         val problems = listed(
-            "| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `logout` |",
+            "| tigerduck_prefs | `classTableSelectedSemester` | school | `AppPreferences.kt` `forgetSchoolChoices` |",
             "| tigerduck_prefs | `classTableSelectedSemester` | school | |",
         ).problems()
         assertTrue(
@@ -374,6 +386,72 @@ class AccountStateInventoryTest {
             "        clearCount++\n        prefs.edit().remove(K_NAME).apply()",
         ).problems()
         assertTrue(problems.toString(), "prefs `school_mail_state`: `clear` in MailStateStore.kt does not clear it" in problems)
+    }
+
+    // A store of an account's data is cleared by name, from a list, so one this process never
+    // built is cleared too.
+    @Test
+    fun `an account store in no list fails`() {
+        val problems = edited(
+            "BulletinReadStateStore.kt",
+            "@Singleton\nclass BulletinReadStateStore",
+            "class ExamSeats : org.ntust.app.tigerduck.auth.session.AccountScoped {\n" +
+                "    override fun forgetAccount() {}\n}\n\n@Singleton\nclass BulletinReadStateStore",
+        ).problems()
+        assertTrue(problems.toString(), "`ExamSeats` is an account store on no list of SchoolStores" in problems)
+    }
+
+    @Test
+    fun `a store taken off its list leaves the rows it clears to no list`() {
+        val problems = edited(
+            "SchoolStores.kt",
+            "listOf(bulletinReadStateStore.get(), prefs.get(), ",
+            "listOf(prefs.get(), ",
+        ).problems()
+        assertTrue(problems.toString(), "`BulletinReadStateStore` is an account store on no list of SchoolStores" in problems)
+        assertTrue(
+            problems.toString(),
+            "prefs `bulletin_read_state`: `clear` in BulletinReadStateStore.kt is reached by no list of the school's sign-out" in problems,
+        )
+    }
+
+    @Test
+    fun `a late store taken off its list leaves its files to no list`() {
+        val problems = edited(
+            "SchoolStores.kt",
+            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), outbox.get())",
+        )
+            .problems()
+        assertTrue(problems.toString(), "`DataCache` is an account store on no list of SchoolStores" in problems)
+        assertTrue(
+            problems.toString(),
+            "cache `courses.json`: `clearAllUserData` in DataCache.kt is reached by no list of the school's sign-out" in problems,
+        )
+    }
+
+    @Test
+    fun `the outbox taken off the late list fails`() {
+        val problems = edited(
+            "SchoolStores.kt",
+            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), dataCache.get())",
+        ).problems()
+        assertEquals(listOf("`Outbox` is an account store on no list of SchoolStores"), problems)
+    }
+
+    // A clearer that still clears, but that nothing the sign-out runs calls any more.
+    @Test
+    fun `a school row no list reaches fails`() {
+        val problems = edited(
+            "NtustSessionManager.kt",
+            "prefs.clearSsoTimestamp()\n        cookieStore.clear()",
+            "cookieStore.clear()",
+        ).problems()
+        assertTrue(
+            problems.toString(),
+            "tigerduck_prefs `ssoLoginTimestamp`: `clearSsoTimestamp` in AppPreferences.kt is reached by no list of the school's sign-out" in problems,
+        )
     }
 
     @Test

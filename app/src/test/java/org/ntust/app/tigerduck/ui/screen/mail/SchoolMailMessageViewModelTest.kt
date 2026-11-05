@@ -11,6 +11,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.FakeSchoolMailRepository
@@ -33,6 +34,7 @@ import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.sanitize.MailLink
+import org.ntust.app.tigerduck.mail.signInNow
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.mail.warning.MailWarning
@@ -255,7 +257,7 @@ class SchoolMailMessageViewModelTest {
     @Test
     fun `a mail refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5))
-        repo.onBody = { account.signOut() }
+        repo.onBody = { account.signOut(SignOutReason.MAIL) }
         repo.bodyError = MailError.AuthFailed()
 
         vm().load()
@@ -267,7 +269,7 @@ class SchoolMailMessageViewModelTest {
     fun `a source refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
-        repo.onRawSource = { account.signOut() }
+        repo.onRawSource = { account.signOut(SignOutReason.MAIL) }
         repo.rawSourceError = MailError.AuthFailed()
         val vm = vm()
         vm.load()
@@ -281,7 +283,7 @@ class SchoolMailMessageViewModelTest {
     fun `a delete refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
-        repo.onDelete = { account.signOut() }
+        repo.onDelete = { account.signOut(SignOutReason.MAIL) }
         repo.deleteError = MailError.AuthFailed()
         val vm = vm()
         vm.load()
@@ -1279,12 +1281,12 @@ class SchoolMailMessageViewModelTest {
     @Test
     fun `a sent-copy notice shows on the mail it was a reply to, and on no other`() {
         val vm = vm("INBOX", 5)
-        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 5), notices.accountGeneration)
+        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 5), account.signInNow)
         assertEquals(SentCopyNotice.NoFolder, vm.sentCopyNotice.value)
         val other = vm("INBOX", 6)
         assertNull(other.sentCopyNotice.value)
         // A new mail from the list is the list's to say.
-        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, notices.accountGeneration)
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, account.signInNow)
         assertNull(vm.sentCopyNotice.value)
     }
 }

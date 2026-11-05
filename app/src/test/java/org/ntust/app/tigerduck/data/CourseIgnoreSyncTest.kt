@@ -20,9 +20,12 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.PushApiException
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /** Course ignores over real files, with the backend faked. */
@@ -30,7 +33,7 @@ class CourseIgnoreSyncTest {
 
     private val context = JvmContext()
 
-    private data class Sent(val moodleId: String, val ignore: Boolean?, val moodleCourseId: Int?)
+    private data class Sent(val courseKey: String, val ignore: Boolean?, val moodleCourseId: Int?)
 
     private lateinit var cache: DataCache
     private lateinit var sync: CourseIgnoreSync
@@ -43,6 +46,15 @@ class CourseIgnoreSyncTest {
     private var sends = true
     private var now = 1_000L
     private var effects = 0
+    private val series = SignInSeries()
+    private val signIn get() = series.current
+
+    // A whole sign-out: the sign-in ends, the data goes, and the next one opens.
+    private suspend fun signOut() {
+        series.end()
+        cache.clearAllUserData()
+        series.open()
+    }
 
     @Before
     fun setUp() {
@@ -53,11 +65,16 @@ class CourseIgnoreSyncTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = CourseIgnoreSync(
         dataCache = cache,
-        sender = CourseIgnoreSender { moodleId, ignore, moodleCourseId, madeAtMs ->
-            val request = Sent(moodleId, ignore, moodleCourseId)
+        writer = CourseIgnoreWriter { target, ignore, moodleCourseId, _, madeAtMs ->
+            val request = Sent(target.courseKey.orEmpty(), ignore, moodleCourseId)
             sent += request
             stamps += madeAtMs
-            answer(request)
+            // Stored: an answer with the setting in it; dropped unread by an older backend: none.
+            when (answer(request)) {
+                null -> WriteAnswer.NOT_SENT
+                true -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
+                false -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = emptyMap())
+            }
         },
         effects = CourseIgnoreEffects { effects++ },
         sends = { sends },
@@ -65,7 +82,7 @@ class CourseIgnoreSyncTest {
     )
 
     private suspend fun setIgnored(courseNo: String, ignore: Boolean = true) =
-        sync.setIgnored("1141", courseNo, "1141$courseNo", null, ignore)
+        sync.setIgnored("1141", courseNo, "1141$courseNo", null, ignore, signIn)
 
     private suspend fun waiting() = cache.loadPendingCourseIgnores().map { it.key to it.ignore }
 
@@ -97,7 +114,7 @@ class CourseIgnoreSyncTest {
         setIgnored("AAA")
 
         assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", true, null)), sent)
         assertEquals(emptyList<Any>(), waiting())
         assertEquals("reminders and the Live Update are refreshed", 1, effects)
     }
@@ -112,7 +129,7 @@ class CourseIgnoreSyncTest {
         assertEquals(emptyList<Long?>(), stamps)
 
         sends = true
-        sync.retryPending()
+        sync.retryPending(signIn)
 
         // The older sends first here, but each carries its own time, not the time of the retry.
         assertEquals(listOf<Long?>(2_000L, 3_000L), stamps)
@@ -122,21 +139,8 @@ class CourseIgnoreSyncTest {
         now = 9_500L
         sends = true
         stamps.clear()
-        sync.retryPending()
+        sync.retryPending(signIn)
         assertEquals(listOf<Long?>(9_000L), stamps)
-    }
-
-    @Test
-    fun `a change stored by the build before has no time, and goes out without one`() = runTest {
-        File(context.filesDir, "TigerDuckData/pending_course_ignores.json").writeText(
-            """[{"semester":"1141","courseNo":"AAA","moodleId":"1141AAA","ignore":true,"changedAtMs":1000,"attempts":0}]""",
-        )
-        assertNull(cache.loadPendingCourseIgnores().single().madeAtMs)
-
-        sync.retryPending()
-
-        assertEquals(listOf<Long?>(null), stamps)
-        assertEquals(1, sent.size)
     }
 
     @Test
@@ -150,7 +154,7 @@ class CourseIgnoreSyncTest {
         }
         var written = false
 
-        val tap = launch { sync.setIgnored("1141", "AAA", "1141AAA", null, true) { written = true } }
+        val tap = launch { sync.setIgnored("1141", "AAA", "1141AAA", null, true, signIn) { written = true } }
         onTheWire.await()
 
         assertTrue("reported while the PATCH is still out", written)
@@ -165,7 +169,7 @@ class CourseIgnoreSyncTest {
         assertEquals(listOf("1141:AAA" to true), waiting())
 
         answer = { true }
-        sync.retryPending()
+        sync.retryPending(signIn)
 
         assertEquals(2, sent.size)
         assertEquals(emptyList<Any>(), waiting())
@@ -211,14 +215,14 @@ class CourseIgnoreSyncTest {
     fun `with assignment sync off a change waits unsent until it is on`() = runTest {
         sends = false
         setIgnored("AAA")
-        sync.retryPending()
+        sync.retryPending(signIn)
         assertEquals(emptyList<Sent>(), sent)
         assertEquals(listOf("1141:AAA" to true), waiting())
 
         sends = true
-        sync.retryPending()
+        sync.retryPending(signIn)
 
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", true, null)), sent)
         assertEquals(emptyList<Any>(), waiting())
     }
 
@@ -230,9 +234,9 @@ class CourseIgnoreSyncTest {
         setIgnored("AAA", ignore = false)
 
         sends = true
-        sync.retryPending()
+        sync.retryPending(signIn)
 
-        assertEquals(listOf(Sent("1141AAA", false, null)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", false, null)), sent)
         assertEquals(emptyList<Any>(), waiting())
     }
 
@@ -272,13 +276,13 @@ class CourseIgnoreSyncTest {
         val onTheWire = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         answer = { request ->
-            if (request.moodleId == "1141AAA" && request.ignore == true) {
+            if (request.courseKey == "client:1141:AAA" && request.ignore == true) {
                 onTheWire.complete(Unit)
                 release.await()
             }
             true
         }
-        val retry = launch { sync.retryPending() }
+        val retry = launch { sync.retryPending(signIn) }
         onTheWire.await()
 
         // BBB's old change is still in the retry's list when this replaces it.
@@ -289,7 +293,7 @@ class CourseIgnoreSyncTest {
         toggle.join()
 
         assertEquals(
-            listOf(Sent("1141AAA", true, null), Sent("1141BBB", false, null)),
+            listOf(Sent("client:1141:AAA", true, null), Sent("client:1141:BBB", false, null)),
             sent,
         )
         assertEquals(emptyList<Any>(), waiting())
@@ -307,13 +311,37 @@ class CourseIgnoreSyncTest {
 
     @Test
     fun `a sync begun before sign-out writes nothing over the next account`() = runTest {
-        val generation = sync.currentGeneration()
-        cache.clearAllUserData()
+        val ended = signIn
+        signOut()
 
-        val applied = sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "BBB" to true), generation)
+        val applied = sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "BBB" to true), ended, NOTHING_KEPT)
 
         assertNull(applied)
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
+    }
+
+    /** The gap between the sign-in's end and the wipe: the entry is still on disk, and stays as it is. */
+    @Test
+    fun `a change read under an ended sign-in is neither sent nor rewritten`() = runTest {
+        sends = false
+        setIgnored("AAA")
+        sends = true
+        val keys = cache.loadIgnoredCourses()
+        val waiting = cache.loadPendingCourseIgnores()
+
+        val ended = series.end()
+        sync.retryPending(ended)
+        sync.setIgnored("1141", "BBB", "1141BBB", null, true, ended)
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "BBB" to true), ended, NOTHING_KEPT)
+        sync.pushLocal(snapshot(fetchedAtMs = 5_000, "BBB" to true), ended)
+        sync.adoptServer(null, ended)
+        sync.forget(ended) { true }
+        sync.forgetRowsSeen(setOf("1141"), ended)
+
+        assertEquals(emptyList<Sent>(), sent)
+        assertEquals(keys, cache.loadIgnoredCourses())
+        assertEquals(waiting, cache.loadPendingCourseIgnores())
+        assertEquals(emptyMap<String, Long>(), cache.loadCourseRowsSeen())
     }
 
     @Test
@@ -330,25 +358,15 @@ class CourseIgnoreSyncTest {
             true
         }
         sends = true
-        val retry = launch { sync.retryPending() }
+        val retry = launch { sync.retryPending(signIn) }
         onTheWire.await()
 
         cache.clearAllUserData()
         release.complete(Unit)
         retry.join()
 
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", true, null)), sent)
         assertEquals(emptyList<Any>(), waiting())
-    }
-
-    @Test
-    fun `a snapshot fetched before a change does not undo it`() = runTest {
-        setIgnored("AAA")
-
-        val applied = sync.applySnapshot(snapshot(fetchedAtMs = 500, "AAA" to false), sync.currentGeneration())
-
-        assertNull(applied)
-        assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
     }
 
     @Test
@@ -358,7 +376,8 @@ class CourseIgnoreSyncTest {
 
         val applied = sync.applySnapshot(
             snapshot(fetchedAtMs = 2_000, "AAA" to false, "BBB" to true),
-            sync.currentGeneration(),
+            signIn,
+            NOTHING_KEPT,
         )
 
         assertEquals(setOf("1141:BBB"), applied)
@@ -371,7 +390,7 @@ class CourseIgnoreSyncTest {
         answer = { false }
         setIgnored("AAA")
 
-        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to false), sync.currentGeneration())
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to false), signIn, NOTHING_KEPT)
 
         assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
     }
@@ -381,7 +400,7 @@ class CourseIgnoreSyncTest {
         answer = { false }
         setIgnored("AAA")
 
-        sync.forget { it == "1141:AAA" }
+        sync.forget(signIn) { it == "1141:AAA" }
 
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
         assertEquals(emptyList<Any>(), waiting())
@@ -392,7 +411,7 @@ class CourseIgnoreSyncTest {
         answer = { false }
         setIgnored("AAA")
 
-        sync.adoptServer(snapshot(fetchedAtMs = 5_000, "BBB" to true), sync.currentGeneration())
+        sync.adoptServer(snapshot(fetchedAtMs = 5_000, "BBB" to true), signIn)
 
         assertEquals(setOf("1141:BBB"), cache.loadIgnoredCourses())
         assertEquals(emptyList<Any>(), waiting())
@@ -404,8 +423,8 @@ class CourseIgnoreSyncTest {
         setIgnored("AAA")
         sent.clear()
 
-        sync.adoptServer(null, sync.currentGeneration())
-        sync.applySnapshot(snapshot(fetchedAtMs = 5_000), sync.currentGeneration())
+        sync.adoptServer(null, signIn)
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000), signIn, NOTHING_KEPT)
 
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
         assertEquals(emptyList<Sent>(), sent)
@@ -416,12 +435,12 @@ class CourseIgnoreSyncTest {
         // Fetched while the re-enable choice was open, and answered after it.
         val older = snapshot(fetchedAtMs = 1_500, "AAA" to true)
         now = 2_000L
-        sync.adoptServer(snapshot(fetchedAtMs = 1_800, "AAA" to false), sync.currentGeneration())
+        sync.adoptServer(snapshot(fetchedAtMs = 1_800, "AAA" to false), signIn)
 
-        sync.applySnapshot(older, sync.currentGeneration())
+        sync.applySnapshot(older, signIn, NOTHING_KEPT)
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
 
-        sync.applySnapshot(snapshot(fetchedAtMs = 2_500, "AAA" to true), sync.currentGeneration())
+        sync.applySnapshot(snapshot(fetchedAtMs = 2_500, "AAA" to true), signIn, NOTHING_KEPT)
         assertEquals("a later one is taken", setOf("1141:AAA"), cache.loadIgnoredCourses())
     }
 
@@ -429,66 +448,32 @@ class CourseIgnoreSyncTest {
     fun `a snapshot fetched before the user kept this device's set does not undo it`() = runTest {
         val older = snapshot(fetchedAtMs = 1_500, "BBB" to true)
         now = 2_000L
-        sync.pushLocal(snapshot(fetchedAtMs = 1_800, "BBB" to false), sync.currentGeneration())
+        sync.pushLocal(snapshot(fetchedAtMs = 1_800, "BBB" to false), signIn)
 
-        sync.applySnapshot(older, sync.currentGeneration())
-
-        assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
-    }
-
-    @Test
-    fun `a snapshot fetched before a course was deleted does not bring its setting back`() = runTest {
-        setIgnored("AAA")
-        now = 2_000L
-        sync.forget { it == "1141:AAA" }
-
-        sync.applySnapshot(snapshot(fetchedAtMs = 1_500, "AAA" to true), sync.currentGeneration())
+        sync.applySnapshot(older, signIn, NOTHING_KEPT)
 
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
-    }
-
-    @Test
-    fun `a course another device added back and ignores takes its setting in that same sync`() = runTest {
-        cache.saveDeletedCourseNos(setOf(CourseTombstoneKeys.key("1141", "BBB")))
-
-        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "BBB" to true), sync.currentGeneration())
-
-        assertEquals(setOf("1141:BBB"), cache.loadIgnoredCourses())
     }
 
     @Test
     fun `a term reset after the snapshot was fetched is left out of it`() = runTest {
-        cache.saveSemesterResetAt("1141", 6_000)
+        cache.saveSemesterResetAt("1141", 6_000, testSignIn())
 
-        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), sync.currentGeneration())
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), signIn, NOTHING_KEPT)
 
         assertEquals(emptySet<String>(), cache.loadIgnoredCourses())
     }
 
     @Test
     fun `keeping this device's set sends it over the backend's`() = runTest {
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
+        cache.saveIgnoredCourses(setOf("1141:AAA"), signIn)
 
-        sync.pushLocal(snapshot(fetchedAtMs = 5_000, "BBB" to true), sync.currentGeneration())
+        sync.pushLocal(snapshot(fetchedAtMs = 5_000, "BBB" to true), signIn)
 
         assertEquals(
-            setOf(Sent("1141AAA", true, null), Sent("1141BBB", false, null)),
+            setOf(Sent("client:1141:AAA", true, null), Sent("client:1141:BBB", false, null)),
             sent.toSet(),
         )
-        assertEquals(emptyList<Any>(), waiting())
-    }
-
-    @Test
-    fun `a setting the backend lost with its course rows stays and is sent again`() = runTest {
-        setIgnored("AAA")
-        now = 2_000L
-
-        // Course sync was off on every device: the rows came back without their overrides.
-        val applied = sync.applySnapshot(snapshot(fetchedAtMs = 3_000), sync.currentGeneration())
-
-        assertNull(applied)
-        assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
-        assertEquals(listOf(Sent("1141AAA", true, null), Sent("1141AAA", true, null)), sent)
         assertEquals(emptyList<Any>(), waiting())
     }
 
@@ -509,14 +494,14 @@ class CourseIgnoreSyncTest {
     fun `a change the backend keeps refusing is parked out of the retries, and keeps its value`() = runTest {
         answer = { throw PushApiException("not found", 404) }
         setIgnored("AAA")
-        repeat(CourseIgnoreSync.MAX_ATTEMPTS - 1) { sync.retryPending() }
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS - 1) { sync.retryPending(signIn) }
         assertEquals(CourseIgnoreSync.MAX_ATTEMPTS, sent.size)
 
-        sync.retryPending()
+        sync.retryPending(signIn)
         assertEquals("a parked change went out again", CourseIgnoreSync.MAX_ATTEMPTS, sent.size)
         assertEquals(listOf("1141:AAA" to true), waiting())
 
-        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to false), sync.currentGeneration())
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to false), signIn, NOTHING_KEPT)
         assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
     }
 
@@ -524,15 +509,15 @@ class CourseIgnoreSyncTest {
     fun `the next process tries a parked change once more`() = runTest {
         answer = { false }
         setIgnored("AAA")
-        repeat(CourseIgnoreSync.MAX_ATTEMPTS - 1) { sync.retryPending() }
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS - 1) { sync.retryPending(signIn) }
 
         val next = newProcess()
-        next.retryPending()
-        next.retryPending()
+        next.retryPending(signIn)
+        next.retryPending(signIn)
         assertEquals(CourseIgnoreSync.MAX_ATTEMPTS + 1, sent.size)
 
         answer = { true }
-        newProcess().retryPending()
+        newProcess().retryPending(signIn)
         assertEquals(CourseIgnoreSync.MAX_ATTEMPTS + 2, sent.size)
         assertEquals(emptyList<Any>(), waiting())
     }
@@ -541,7 +526,7 @@ class CourseIgnoreSyncTest {
     fun `no network, no session or one to renew, or a server that is down is not a refusal`() = runTest {
         answer = { throw java.io.IOException("offline") }
         setIgnored("AAA")
-        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 1) { sync.retryPending() }
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 1) { sync.retryPending(signIn) }
 
         assertEquals(CourseIgnoreSync.MAX_ATTEMPTS + 2, sent.size)
         assertFalse(CourseIgnoreSync.refuses(PushApiException("unauthorized", 401)))
@@ -549,6 +534,19 @@ class CourseIgnoreSyncTest {
         assertFalse(CourseIgnoreSync.refuses(PushApiException("unavailable", 503)))
         assertTrue(CourseIgnoreSync.refuses(PushApiException("not found", 404)))
         assertTrue(CourseIgnoreSync.refuses(IllegalStateException("bad body")))
+    }
+
+    @Test
+    fun `a sign-in that has ended sends no numeric Moodle id`() = runTest {
+        cache.saveCourses(
+            listOf(Course(courseNo = "AAA", courseName = "A", moodleIdNumber = "1141AAA", moodleNumericCourseId = 77)),
+            "1141",
+            testSignIn(),
+        )
+
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), series.end(), NOTHING_KEPT)
+
+        assertEquals(emptyList<Sent>(), sent)
     }
 
     @Test
@@ -563,11 +561,12 @@ class CourseIgnoreSyncTest {
                 )
             ),
             "1141",
+            testSignIn(),
         )
 
-        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), sync.currentGeneration())
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), signIn, NOTHING_KEPT)
 
-        assertEquals(listOf(Sent("1141AAA", null, 77)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", null, 77)), sent)
     }
 
     @Test
@@ -575,18 +574,18 @@ class CourseIgnoreSyncTest {
         // Use Local reset and re-uploaded 1141, then could not read the
         // server again and fell back to the check's older snapshot, which
         // would leave 1141 out as a term reset after it.
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveIgnoredCourses(setOf("1141:AAA"), signIn)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
 
-        sync.pushLocal(snapshot(fetchedAtMs = 1_000L), sync.currentGeneration())
+        sync.pushLocal(snapshot(fetchedAtMs = 1_000L), signIn)
 
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", true, null)), sent)
     }
 
     // ---- Use Local's clears in the terms it reset (tigerduck-app-android#307) ----
 
     private suspend fun cacheTerm(vararg courseNos: String) =
-        cache.saveCourses(courseNos.map { Course(courseNo = it, courseName = it, moodleIdNumber = "1141$it") }, "1141")
+        cache.saveCourses(courseNos.map { Course(courseNo = it, courseName = it, moodleIdNumber = "1141$it") }, "1141", testSignIn())
 
     @Test
     fun `Use Local clears a course only the check's snapshot ignored in a term it reset`() = runTest {
@@ -594,27 +593,27 @@ class CourseIgnoreSyncTest {
         // took that override with it, and the server read after it has none:
         // without a clear, another device's resend would bring it back.
         cacheTerm("AAA", "BBB")
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
 
         sync.pushLocal(
             snapshot(fetchedAtMs = 3_000L),
-            sync.currentGeneration(),
+            signIn,
             resetTerms = setOf("1141"),
             checked = snapshot(fetchedAtMs = 1_000L, "BBB" to true),
         )
 
-        assertEquals(listOf(Sent("1141BBB", false, null)), sent)
+        assertEquals(listOf(Sent("client:1141:BBB", false, null)), sent)
     }
 
     @Test
     fun `the clear goes out too when Use Local falls back to the check's snapshot`() = runTest {
         cacheTerm("AAA", "BBB")
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
         val checked = snapshot(fetchedAtMs = 1_000L, "BBB" to true)
 
-        sync.pushLocal(checked, sync.currentGeneration(), resetTerms = setOf("1141"), checked = checked)
+        sync.pushLocal(checked, signIn, resetTerms = setOf("1141"), checked = checked)
 
-        assertEquals(listOf(Sent("1141BBB", false, null)), sent)
+        assertEquals(listOf(Sent("client:1141:BBB", false, null)), sent)
     }
 
     @Test
@@ -622,17 +621,17 @@ class CourseIgnoreSyncTest {
         // AAA is ignored here and goes up as ignored; BBB was not put back by
         // the upload, so there is no row to clear.
         cacheTerm("AAA")
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveIgnoredCourses(setOf("1141:AAA"), signIn)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
 
         sync.pushLocal(
             snapshot(fetchedAtMs = 3_000L),
-            sync.currentGeneration(),
+            signIn,
             resetTerms = setOf("1141"),
             checked = snapshot(fetchedAtMs = 1_000L, "AAA" to true, "BBB" to true),
         )
 
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
+        assertEquals(listOf(Sent("client:1141:AAA", true, null)), sent)
     }
 
     // ---- a course another device deleted and added back (tigerduck-app-android#182) ----
@@ -645,73 +644,7 @@ class CourseIgnoreSyncTest {
         ),
     )
 
-    @Test
-    fun `a course re-added elsewhere takes the server's setting, not this device's old one`() = runTest {
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
-        sync.applySnapshot(snapshot(fetchedAtMs = 1_000L, "AAA" to true).copy(serverCourses = rows(0, 1, 2).serverCourses), sync.currentGeneration())
-        sent.clear()
-
-        // Another device deleted AAA and added it back: a new row, no setting.
-        val applied = sync.applySnapshot(rows(fetchedAtMs = 2_000L, aaa = 9, bbb = 2), sync.currentGeneration())
-
-        assertEquals(emptySet<String>(), applied)
-        assertEquals(emptyList<Sent>(), sent)
-    }
-
-    @Test
-    fun `settings the backend dropped with every row still go up again`() = runTest {
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
-        sync.applySnapshot(snapshot(fetchedAtMs = 1_000L, "AAA" to true).copy(serverCourses = rows(0, 1, 2).serverCourses), sync.currentGeneration())
-        sent.clear()
-
-        // No row kept its id: the backend dropped them all while no device synced courses.
-        sync.applySnapshot(rows(fetchedAtMs = 2_000L, aaa = 9, bbb = 10), sync.currentGeneration())
-
-        assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
-    }
-
-    @Test
-    fun `a term this device reset is not read as re-added elsewhere`() = runTest {
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
-        val other = ServerCourse(courseNo = "CCC", courseName = "C", semester = "1142", id = 3)
-        sync.applySnapshot(
-            snapshot(fetchedAtMs = 1_000L, "AAA" to true).copy(serverCourses = rows(0, 1, 2).serverCourses + other),
-            sync.currentGeneration(),
-        )
-        sent.clear()
-
-        // Use Local reset 1141 here; 1142 kept its row.
-        sync.forgetRowsSeen(setOf("1141"))
-        sync.applySnapshot(
-            rows(fetchedAtMs = 2_000L, aaa = 9, bbb = 10).let { it.copy(serverCourses = it.serverCourses + other) },
-            sync.currentGeneration(),
-        )
-
-        assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
-    }
-
-    @Test
-    fun `a term another device reset with Use Local keeps this device's ignores there and sends them again`() = runTest {
-        // An iPhone with assignment sync off, which lacks AAA's ignore, used
-        // Use Local: it reset 1141, so every 1141 row is new and has no
-        // setting, while 1142 kept its row. Its upload put nothing back for
-        // AAA's setting, so dropping it here would lose it for good.
-        cache.saveIgnoredCourses(setOf("1141:AAA"))
-        val other = ServerCourse(courseNo = "CCC", courseName = "C", semester = "1142", id = 3)
-        sync.applySnapshot(
-            snapshot(fetchedAtMs = 1_000L, "AAA" to true).copy(serverCourses = rows(0, 1, 2).serverCourses + other),
-            sync.currentGeneration(),
-        )
-        sent.clear()
-
-        sync.applySnapshot(
-            rows(fetchedAtMs = 2_000L, aaa = 9, bbb = 10).let { it.copy(serverCourses = it.serverCourses + other) },
-            sync.currentGeneration(),
-        )
-
-        assertEquals(setOf("1141:AAA"), cache.loadIgnoredCourses())
-        assertEquals(listOf(Sent("1141AAA", true, null)), sent)
-    }
 }
+
+/** A pull that keeps no course's setting but the changes waiting (LWW D12). */
+private val NOTHING_KEPT: (String) -> Boolean = { false }

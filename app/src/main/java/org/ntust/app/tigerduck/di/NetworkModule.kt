@@ -1,23 +1,30 @@
 package org.ntust.app.tigerduck.di
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
+import org.ntust.app.tigerduck.network.SyncClockInterceptor
 import org.ntust.app.tigerduck.network.tls.PinManager
+import org.ntust.app.tigerduck.push.DepartingUnregisterWorker
 import org.ntust.app.tigerduck.push.OwedUnregister
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
 import org.ntust.app.tigerduck.shared.tls.pinnedClientBuilder
+import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.ui.component.ServerFailureInterceptor
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import java.util.concurrent.TimeUnit
@@ -28,12 +35,6 @@ import javax.inject.Singleton
 object NetworkModule {
 
     /**
-     * The [ApiVersionInterceptor] sits on the shared client so every call to
-     * our backend is seen, whichever service made it. It filters by host, so
-     * the NTUST / Moodle / library traffic that shares this client is
-     * unaffected.
-     */
-    /**
      * The trust every HTTPS client of the app's uses, the library's and School Mail's among
      * them: the platform's system trust with [PinManager]'s pins on top (TLS pins spec, A9).
      */
@@ -41,12 +42,20 @@ object NetworkModule {
     @Singleton
     fun providePinnedTls(pins: PinManager): PinnedTls = PinnedTls.forPlatform(pins.state, pins::onMismatch, pins)
 
+    /**
+     * The [ApiVersionInterceptor] sits on the shared client so every call to
+     * our backend is seen, whichever service made it. It filters by host, so
+     * the NTUST / Moodle / library traffic that shares this client is
+     * unaffected. So does the [SyncClockInterceptor], inside it, which hears
+     * the backend's clock on each of those calls for [SyncClock].
+     */
     @Provides
     @Singleton
     fun provideOkHttpClient(
         prefs: AppPreferences,
         demoMode: DemoModeInterceptor,
         tls: PinnedTls,
+        clock: SyncClock,
     ): OkHttpClient =
         pinnedClientBuilder(tls)
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -57,6 +66,7 @@ object NetworkModule {
             // going anywhere.
             .addInterceptor(demoMode)
             .addInterceptor(ApiVersionInterceptor(prefs))
+            .addInterceptor(SyncClockInterceptor(prefs, clock))
             .build()
 
     /**
@@ -86,19 +96,27 @@ object NetworkModule {
     internal fun libraryInterceptors(demoMode: Interceptor, debug: Boolean): List<Interceptor> =
         listOfNotNull(demoMode, if (debug) ServerFailureInterceptor(ServerKind.LIBRARY) else null)
 
+    /** The school's: mail and library sessions are handed out by name, from [AccountSessions]. */
+    @Provides
+    fun provideSchoolSession(sessions: AccountSessions): AccountSession = sessions.school
+
     @Provides
     @Singleton
     fun provideAuthTokenManager(
+        @ApplicationContext context: Context,
         credentials: CredentialManager,
         httpClient: OkHttpClient,
         identity: PushIdentity,
         prefs: AppPreferences,
         owedUnregister: OwedUnregister,
+        sessions: AccountSessions,
     ): AuthTokenManager = AuthTokenManager(
         tokens = credentials.v3Tokens,
         httpClient = httpClient,
         prefs = prefs,
         deviceUuid = identity.uuid(),
         owedUnregister = owedUnregister,
+        session = sessions.school,
+        enqueueDepartingUnregister = { DepartingUnregisterWorker.enqueue(context) },
     )
 }

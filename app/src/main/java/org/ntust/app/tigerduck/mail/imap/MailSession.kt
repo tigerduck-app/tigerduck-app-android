@@ -44,7 +44,11 @@ interface MailSession : Closeable {
     fun fetchBody(folder: String, uid: Long): MailBody
     fun writeRawSource(folder: String, uid: Long, out: OutputStream)
     fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream)
-    fun setSeen(folder: String, uids: List<Long>, seen: Boolean)
+    /**
+     * One `UID STORE` of [uids] in [folder], `+FLAGS (\Seen)` or `-FLAGS (\Seen)`: a UID gone
+     * since is skipped by the server. [uidValidity] as on [move]: under another, nothing is sent.
+     */
+    fun setSeen(folder: String, uids: List<Long>, seen: Boolean, uidValidity: Long? = null)
     fun setAnswered(folder: String, uid: Long)
 
     /**

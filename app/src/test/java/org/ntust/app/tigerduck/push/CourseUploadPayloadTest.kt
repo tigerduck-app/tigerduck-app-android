@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.push
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
 
@@ -30,9 +29,8 @@ class CourseUploadPayloadTest {
     private fun items(payload: Map<String, Any>) =
         payload["courses"] as List<Map<String, Any?>>
 
-    @Suppress("UNCHECKED_CAST")
-    private fun overrides(payload: Map<String, Any>) =
-        payload["course_overrides"] as List<Map<String, Any?>>
+    private fun build(courses: List<Course>, rosterTerms: List<String> = emptyList(), adds: Map<String, Long> = emptyMap()) =
+        CourseUploadPayload.build(courses, semester = "1141", rosterTerms = rosterTerms, adds = adds)
 
     /**
      * The one that matters. `course_name` is the shared default the whole
@@ -43,57 +41,24 @@ class CourseUploadPayloadTest {
      */
     @Test
     fun `course_name carries the derived name, never the user's rename`() {
-        val payload = CourseUploadPayload.build(
-            listOf(course(courseName = "微積分", customCourseName = "早八地獄")),
-            semester = "1141",
-        )
+        val payload = build(listOf(course(courseName = "微積分", customCourseName = "早八地獄")))
         assertEquals("微積分", items(payload).single()["course_name"])
     }
 
     /**
-     * The colour half of the same contract: the upload route's upsert is
-     * create-only, so a generated colour sent once is pinned server-side for
-     * good. Only a course the user actually picked a colour for belongs here.
+     * A color goes only as its course's override PATCH, which its switch gates: the backend
+     * refuses an upload that carries `course_overrides` (422 `invalid_request`), and it takes an
+     * add's stamp, not `force_keys`, past a tombstone.
      */
     @Test
-    fun `only courses with a picked colour produce an override`() {
-        val payload = CourseUploadPayload.build(
-            listOf(
-                course(courseNo = "CS101", customColorHex = null),
-                course(courseNo = "CS202", customColorHex = "#112233"),
-            ),
-            semester = "1141",
+    fun `no color and no force key rides an upload, a picked color or a forced add's alike`() {
+        val payload = build(
+            listOf(course(courseNo = "CS101", customColorHex = "#112233")),
+            adds = mapOf(CourseUploadPayload.key("1141", "CS101") to 1_790_000_000_000L),
         )
-        val single = overrides(payload).single()
-        assertEquals("client:1141:CS202", single["course_key"])
-        assertEquals("#112233", single["color_hex"])
-    }
-
-    /** An override keyed anything but `client:{semester}:{no}` is dropped server-side. */
-    @Test
-    fun `override keys match the keys the upload route derives`() {
-        val payload = CourseUploadPayload.build(
-            listOf(course(courseNo = "CS101", customColorHex = "#ABCDEF")),
-            semester = "1141",
-        )
-        val uploadedKeys = items(payload).map { "client:1141:${it["course_no"]}" }
-        assertTrue(overrides(payload).all { it["course_key"] in uploadedKeys })
-    }
-
-    /**
-     * `force_keys` clears a server-side tombstone. A routine upload that sent
-     * it would undo a delete the user made on another device, so the key is
-     * absent — not empty — unless a caller passes one.
-     */
-    @Test
-    fun `force_keys is omitted unless the caller asks for it`() {
-        val plain = CourseUploadPayload.build(listOf(course()), semester = "1141")
-        assertFalse(plain.containsKey("force_keys"))
-
-        val forced = CourseUploadPayload.build(
-            listOf(course()), semester = "1141", forceKeys = listOf("client:1141:CS101"),
-        )
-        assertEquals(listOf("client:1141:CS101"), forced["force_keys"])
+        assertFalse(payload.containsKey("course_overrides"))
+        assertFalse(payload.containsKey("force_keys"))
+        assertEquals(listOf(mapOf("course_key" to "client:1141:CS101", "hlc" to 1_790_000_000_000_000L)), payload["adds"])
     }
 
     /**
@@ -103,24 +68,24 @@ class CourseUploadPayloadTest {
      */
     @Test
     fun `roster_terms goes only with an upload that is a roster`() {
-        val plain = CourseUploadPayload.build(listOf(course()), semester = "1141")
+        val plain = build(listOf(course()))
         assertFalse(plain.containsKey("roster_terms"))
 
-        val roster = CourseUploadPayload.build(listOf(course()), semester = "1141", rosterTerms = listOf("1141"))
+        val roster = build(listOf(course()), rosterTerms = listOf("1141"))
         assertEquals(listOf("1141"), roster["roster_terms"])
     }
 
     /** Instructors are split on all three separators the portal mixes. */
     @Test
     fun `instructors split on ascii, fullwidth and ideographic commas`() {
-        val payload = CourseUploadPayload.build(listOf(course()), semester = "1141")
+        val payload = build(listOf(course()))
         assertEquals(listOf("Ada", "Grace", "Alan"), items(payload).single()["instructors"])
     }
 
     /** Schedule keys go out as strings; the server's schema reads a JSON object. */
     @Test
     fun `schedule weekday keys are stringified`() {
-        val payload = CourseUploadPayload.build(listOf(course()), semester = "1141")
+        val payload = build(listOf(course()))
         assertEquals(
             mapOf("1" to listOf("3", "4")),
             items(payload).single()["schedule_json"],

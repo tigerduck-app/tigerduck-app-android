@@ -13,13 +13,16 @@ import androidx.work.testing.WorkManagerTestInitHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.SignOutReason
+import org.ntust.app.tigerduck.auth.session.accountEventStream
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
@@ -29,6 +32,7 @@ import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.NotificationGroup
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -50,13 +54,18 @@ class AccountSessionEffectsTest {
     private lateinit var workManager: WorkManager
     private lateinit var assignmentReminders: AssignmentNotificationScheduler
     private val scope = CoroutineScope(UnconfinedTestDispatcher())
-    /** The account's state as AuthService keeps it: each change counted. */
-    private class SignedIn {
-        val flow = MutableStateFlow(AccountState(false, changes = 0))
-        var value: Boolean
-            get() = flow.value.signedIn
+    private val events = accountEventStream()
+
+    /** The account's state as AuthService keeps it: each change told. */
+    private inner class SignedIn {
+        var value = false
             set(signedIn) {
-                if (signedIn != flow.value.signedIn) flow.value = AccountState(signedIn, flow.value.changes + 1)
+                if (signedIn == field) return
+                field = signedIn
+                events.tryEmit(
+                    if (signedIn) AccountEvent.SignedIn(Account.SCHOOL, byHand = false)
+                    else AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, testSignIn(), address = null),
+                )
             }
     }
 
@@ -68,7 +77,6 @@ class AccountSessionEffectsTest {
 
     /** Holds each browser clearing until it is completed: a slow one, as a real deletion can be. */
     private var clearingGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
-    private val signIns = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     @Before
     fun setUp() {
@@ -84,12 +92,13 @@ class AccountSessionEffectsTest {
     @After
     fun tearDown() = scope.cancel()
 
-    private fun effects(startSignedIn: Boolean): AccountSessionEffects {
-        signedIn.flow.value = AccountState(startSignedIn, changes = 0)
+    private fun effects(startSignedIn: Boolean, signOutCutShort: Boolean = false): AccountSessionEffects {
+        // Where the account starts is no change: nothing follows it yet.
+        signedIn.value = startSignedIn
         return AccountSessionEffects(
             context = context,
-            accountState = signedIn.flow,
-            signIns = signIns,
+            events = events,
+            signedIn = { signedIn.value },
             assignmentReminders = assignmentReminders,
             refreshLiveUpdates = { liveUpdates += "refresh" },
             stopLiveUpdates = { liveUpdates += "stop" },
@@ -99,7 +108,7 @@ class AccountSessionEffectsTest {
             },
             browserClearingOwed = { clearingOwed },
             forgetMoodleColors = { moodleColorsForgotten++ },
-        ).also { it.start(scope) }
+        ).also { it.start(scope, signOutCutShort) }
     }
 
     private fun backgroundSync(): List<WorkInfo.State> =
@@ -161,9 +170,34 @@ class AccountSessionEffectsTest {
     fun `a student signing in over another clears the in-app browser though it never signs out`() {
         effects(startSignedIn = true)
 
-        signIns.tryEmit(Unit)
+        events.tryEmit(AccountEvent.SignedIn(Account.SCHOOL, byHand = true))
 
         assertEquals(listOf(true), browserClears)
+    }
+
+    @Test
+    fun `a sign-in by hand clears the browser and starts nothing else`() {
+        effects(startSignedIn = true)
+
+        events.tryEmit(AccountEvent.SignedIn(Account.SCHOOL, byHand = true))
+
+        assertEquals(emptyList<String>(), liveUpdates)
+        assertEquals(emptyList<WorkInfo.State>(), backgroundSync())
+    }
+
+    @Test
+    fun `another account's sign-in and sign-out leave all of this alone`() {
+        effects(startSignedIn = true)
+        BackgroundSyncWorker.schedule(context)
+
+        events.tryEmit(AccountEvent.SignedOut(Account.MAIL, SignOutReason.MAIL, testSignIn(), "someone"))
+        events.tryEmit(AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, testSignIn(), null))
+        events.tryEmit(AccountEvent.SignedIn(Account.MAIL, byHand = false))
+        events.tryEmit(AccountEvent.SignedIn(Account.MAIL, byHand = true))
+
+        assertEquals(emptyList<String>(), liveUpdates)
+        assertEquals(emptyList<Boolean>(), browserClears)
+        assertEquals(listOf(WorkInfo.State.ENQUEUED), backgroundSync())
     }
 
     @Test
@@ -172,6 +206,42 @@ class AccountSessionEffectsTest {
         effects(startSignedIn = true)
 
         assertEquals(listOf(true), browserClears)
+    }
+
+    @Test
+    fun `a sign-out the start finished, which it never saw change, is followed all the same`() {
+        // Scheduled and armed by the student whose sign-out a process death cut short. The start
+        // signed them out before this watcher began, or found them gone already.
+        BackgroundSyncWorker.schedule(context)
+        val due = Assignment(
+            assignmentId = "a1",
+            courseNo = "CS1001301",
+            courseName = "Course",
+            title = "Task",
+            dueDate = Date(AppClock.nowMillis() + 3 * 86_400_000L),
+        )
+        assignmentReminders.scheduleAll(listOf(due), setOf(AssignmentReminderOffset.HR24))
+        val alarms = shadowOf(context.getSystemService(AlarmManager::class.java))
+        assertEquals(1, alarms.scheduledAlarms.size)
+
+        effects(startSignedIn = false, signOutCutShort = true)
+
+        assertEquals(listOf(WorkInfo.State.CANCELLED), backgroundSync())
+        assertEquals(listOf("stop"), liveUpdates)
+        assertEquals(0, alarms.scheduledAlarms.size)
+        assertEquals(listOf(false), browserClears)
+        assertEquals(1, moodleColorsForgotten)
+    }
+
+    @Test
+    fun `a start that finished no sign-out leaves all of that alone`() {
+        BackgroundSyncWorker.schedule(context)
+
+        effects(startSignedIn = false)
+
+        assertEquals(listOf(WorkInfo.State.ENQUEUED), backgroundSync())
+        assertEquals(emptyList<String>(), liveUpdates)
+        assertEquals(0, moodleColorsForgotten)
     }
 
     @Test
@@ -195,11 +265,11 @@ class AccountSessionEffectsTest {
     fun `a sign-out and sign-in the watcher sees only once, as the same value, still count as both`() {
         val scheduler = kotlinx.coroutines.test.TestCoroutineScheduler()
         val late = CoroutineScope(kotlinx.coroutines.test.StandardTestDispatcher(scheduler))
-        signedIn.flow.value = AccountState(true, changes = 0)
+        signedIn.value = true
         AccountSessionEffects(
             context = context,
-            accountState = signedIn.flow,
-            signIns = signIns,
+            events = events,
+            signedIn = { signedIn.value },
             assignmentReminders = assignmentReminders,
             refreshLiveUpdates = { liveUpdates += "refresh" },
             stopLiveUpdates = { liveUpdates += "stop" },
@@ -232,11 +302,11 @@ class AccountSessionEffectsTest {
     fun `a sign-out before the watcher first runs is not taken for where it started`() {
         val scheduler = kotlinx.coroutines.test.TestCoroutineScheduler()
         val late = CoroutineScope(kotlinx.coroutines.test.StandardTestDispatcher(scheduler))
-        signedIn.flow.value = AccountState(true, changes = 0)
+        signedIn.value = true
         AccountSessionEffects(
             context = context,
-            accountState = signedIn.flow,
-            signIns = signIns,
+            events = events,
+            signedIn = { signedIn.value },
             assignmentReminders = assignmentReminders,
             refreshLiveUpdates = { liveUpdates += "refresh" },
             stopLiveUpdates = { liveUpdates += "stop" },

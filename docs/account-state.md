@@ -2,10 +2,20 @@
 
 What the phone app keeps on the device, by account, and what clears it when that account signs
 out. The school account, School Mail and the library account each sign in and out on their own
-(decided for Android on 2026-10-22), so a school sign-out leaves the other two. The school
-account's device-side clearing is `AuthService.logout()`, together with
-`AccountSessionEffects.onSignedOut`, which follows every school sign-out wherever it came from.
-School Mail's is `MailAccount.signOut()`, and the library's is `SettingsViewModel.logoutLibrary()`.
+(decided for Android on 2026-10-22), so a school sign-out leaves the other two. Every sign-out is
+`SignOutPlans.signOut(reason)`. The school's plan clears at once in `clearAccount`, with the
+stores `SchoolStores.atOnce` lists, then leaves `SchoolStores.late` and the widgets to the wipe in
+`SignOutWipe`; `AccountSessionEffects.onSignedOut` follows every school sign-out wherever it came
+from. A sign-out a process death cut short is finished at the next start by
+`SignOutPlans.finishOwedSignOut()`, which runs the same `clearAccount`, so what a sign-out clears
+has one list. A typed sign-in as another student runs that sign-out once the school accepts, and
+stores nothing until its wipe is done. School Mail's sign-out is `MailAccount.signOut()`, and the
+library's is `LibrarySession.signOut()`, each run only by `SignOutPlans`.
+
+The school account's edits that have yet to reach the backend wait in the outbox (`Outbox`), one
+channel per queue, each in its queue's own file or keys: their rows below say what clears them. The
+outbox is one of `SchoolStores.late`, so the school's sign-out also clears what its channels hold in
+memory, before DataCache's clearing takes the queue files.
 
 `AccountStateInventoryTest` reads the tables of stored state below and fails in these cases:
 
@@ -18,12 +28,20 @@ School Mail's is `MailAccount.signOut()`, and the library's is `SettingsViewMode
   `keys`), so a key of an account added to it later gets a row of its own;
 - a row of an account names nothing that clears it, or the function it names no longer clears
   it:
-  - a key is cleared by a `remove` of it or by setting it to an empty value, named directly,
-    through a constant that holds it, or through a function or property declared with it;
+  - a key is cleared by a `remove` of it, by setting it to an empty value, or by the `clear()` of
+    its `AccountKey`, named directly, through a constant that holds it, or through a function or
+    property declared with it;
   - a DataCache file is cleared by a statement that names it and deletes;
   - a file an account owns whole is cleared by a function of a source that opens it, which
     clears the file or removes each of its keys;
-  - with `via`, the function must make that call instead.
+  - with `via`, the function must make that call instead;
+- a school row's clearer is reached by nothing the school's sign-out runs: its own steps, each
+  store on a list of `SchoolStores` (at its `forgetAccount`) and what follows every school sign-out
+  (`AccountSessionEffects.onSignedOut`), each call followed to the type it is made on. A key of a
+  build before, which its store takes up as it opens and nothing writes again, counts as cleared;
+- a store of an account's data, a type that is `AccountScoped` or `LateAccountScoped`, is on no
+  list of `SchoolStores`. A store is cleared by name, from a list, so one this process never built
+  is cleared too.
 
 The check reads a key passed through a parameter at its constant: a source of one file names
 those `KEY_…`, `K_…` or `…_KEY`.
@@ -35,7 +53,7 @@ those `KEY_…`, `K_…` or `…_KEY`.
 - a bulletin snapshot and an imported class table, each with a write cut short beside it, and
   the in-app browser's data.
 
-It then signs that student out with the real `AuthService.logout()` and `AccountSessionEffects`.
+It then signs that student out with the real school plan of `SignOutPlans` and `AccountSessionEffects`.
 It signs a second student in through `AuthService.login()`, against hand-made school pages, and
 checks that nothing of the first is left. The first student's School Mail and library account
 stay.
@@ -55,23 +73,27 @@ Scopes:
 
 | Store | Cleared by |
 |---|---|
-| The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.logout()` |
-| Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.logout()` |
-| Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.logout()` |
-| Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()` in `AuthService.logout()`; another student's sign-in empties it too (`accountDidSignIn`) |
+| The sign-out a process death may cut short: `tigerduck_account_wipe` `owed`, set before anything is cleared, with a hash of the student who left in `who`, and taken off when the session opens after the last wipe, a full reset's own wipe among them. While it is set the school session stays closed. A start that finds it finishes the sign-out (`clearAccount`, `AccountSessionEffects.onSignedOut` and the wipe) when that student is still stored or nobody is, and drops the marker, clearing nothing, for anyone else. A clearing with a step that failed still wipes, but leaves the marker on and the session closed for the next start to try again; `tries` counts those, and the third failure ends the sign-out as far as it got and opens the session | `SignOutWipe` |
+| The school session's cookies, in memory | `NtustSessionManager.signOut()` in `SignOutPlans`' school `clearAccount` |
+| Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days. No `SignInBound`: the first two are fetches a sign-out must also stop, and a day is a map a read adds to, which keeps only under its sign-in | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `SignOutPlans`' school `clearAccount` |
+| Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()`, which `SignOutPlans`' school `clearAccount` starts after the demo's exit |
+| The information system's portal links, `filesDir/portal/`, and what a write a process death cut short left there | `PortalLinksCache.clearIn()`, which `SignOutPlans`' school `clearAccount` starts after the demo's exit; every read and write waits for the clear, and one a process death cut short is redone at the next start |
+| Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()`, first of `SchoolStores.late`, in the wipe the school's sign-out starts; another student's sign-in empties it too (`accountDidSignIn`) |
 | Which courses take Moodle's default color, `noBackupFilesDir/moodle_course_colors.json`, and the `.tmp` a write a process death cut short left beside it | `MoodleColorStore.forgetAccount()` in `AccountSessionEffects.onSignedOut`; a sign-out a process death cut short is caught at the next load, which deletes a file whose owner (a hash of the student ID kept in it) is not the student signed in, or any file while signed out (`MoodleColorStore.ensureLoaded()`) |
-| A share link held for a sign-in, in memory | `HeldShareLink.drop()` in `AuthService.logout()` |
-| The demo account | `DemoAccount.exit()` in `AuthService.logout()` |
+| What the outbox and the pull hold in memory for the account: a parked edit's one more try in this process, and the attempts counted for this process where a queue keeps none on disk; the courses the last course upload left out as tombstoned, for the course overrides' parked changes (`CourseOverrideMemory`); each field's last acknowledged write, by the backend's clock, which a pull keeps this phone's value of over an older snapshot (`AckClock`, LWW D12); and whether this process has pulled for the sign-in (`FirstPullGate`). The edits themselves are in each queue's own file or keys, which their rows clear | `Outbox.forgetAccount()`, on `SchoolStores.late` before DataCache, whose clearing takes the queue files. The skipped courses, the acknowledgments and the gate are each in a `SignInBound`, which reads empty once its sign-in has ended |
+| A share link held for a sign-in, in memory | Nothing: `HeldShareLink` keeps it in a `SignInBound`, which reads empty once its sign-in has ended. So does `HomeSyncState.lastKnownRevision`, the watermark of the backend's change feed |
+| An upload a school or Moodle fetch derived, waiting in memory for this process's first pull | Nothing: `SchoolUploads` waits on `FirstPullGate`, which lets go of it at the sign-out's event, its sign-in ended, and the upload is dropped. The upload ledger never recorded it, so the next sign-in's fetch sends its own |
+| The demo account | `DemoAccount.exit()` in `SignOutPlans`' school `clearAccount`, after everything that must still see the demo |
 | The in-app browser's WebView data, cookies, downloads and photo uploads (`cacheDir/browser_uploads/`) | `BrowserDataCleaner.clear()`, which `AccountSessionEffects` runs after each sign-out and sign-in; `BrowserCleanup` keeps it owed across a process death |
 | Delivered notifications of the school account | `AccountNotifications.cancelAll()` in `AccountSessionEffects.onSignedOut` |
 | Assignment reminders' alarms | `AssignmentNotificationScheduler.cancelAllTracked()` in `AccountSessionEffects.onSignedOut` |
 | Class-preparing alarms and the Live Update | `LiveActivityManager.stop()` in `AccountSessionEffects.onSignedOut` |
 | Background sync work, WorkManager's `homework_refresh_periodic` and `sync_trigger` | `BackgroundSyncWorker.cancel()` in `AccountSessionEffects.onSignedOut` |
-| The backend's device registration | `PushRegistrationService.unregister()` in `AuthService.logout()`, sent with the departing session until it lands: WorkManager's `departing_device_unregister` and the `owed` rows below |
-| Widgets | `WidgetUpdater.updateAll()`, the last step of `AuthService.logout()`'s clearing |
+| The backend's device registration | `PushRegistrationService.unregister()` in `SignOutPlans`' school `clearAccount`, sent with the departing session until it lands: WorkManager's `departing_device_unregister` and the `owed` rows below |
+| Widgets | `WidgetUpdater.updateAll()`, the last step of the wipe the school's sign-out starts |
 | The watch's schedule | `WearScheduleBridge.publish()`, which `TigerDuckApp` runs at each sign-in and sign-out and which sends no courses while no one is signed in; the library account on the watch follows the library's own sign-out |
 | School Mail's cache (`cacheDir/mail/`), the mail held to send (`noBackupFilesDir/mail_held_sends/`), its checks (WorkManager) and its notifications | `MailAccount.signOut()` |
-| The library's pass code, in memory | `LibrarySession.refresh()`, which `SettingsViewModel.logoutLibrary()` calls |
+| The library's pass code, in memory | `LibrarySession.refresh()`, which `LibrarySession.signOut()` calls |
 | Entries taken out of an opened archive, `cacheDir/archive_entries/` | deleted when the viewer closes; a folder a process death left goes once it is a day old, when the next archive opens; not at a sign-out |
 | Exported class table images, `cacheDir/class_table_export/` | kept a day so a share target can still read one, then swept by the next export; not at a sign-out |
 | The TLS pin document, `noBackupFilesDir/tls/` | device |
@@ -84,6 +106,9 @@ Scopes:
 | prefs | `academic_calendar` | keys | |
 | prefs | `bulletin_read_state` | school | `BulletinReadStateStore.kt` `clear` |
 | prefs | `cjk_centering` | keys | |
+| prefs | `club_activities` | school | `ClubActivities.kt` `clear` |
+| prefs | `club_directory` | keys | |
+| prefs | `club_subscriptions` | school | `ClubSubscriptions.kt` `clear` |
 | prefs | `course_changes` | keys | |
 | prefs | `class_preparing_tracker` | keys | |
 | prefs | `debug_clock` | keys | |
@@ -96,24 +121,35 @@ Scopes:
 | prefs | `school_mail_state` | mail | `MailStateStore.kt` `clear` |
 | prefs | `server_push` | keys | |
 | prefs | `server_push_intent` | keys | |
+| prefs | `tigerduck_account_wipe` | keys | |
 | prefs | `tigerduck_auth` | keys | |
 | prefs | `tigerduck_browser_allowlist` | keys | |
 | prefs | `tigerduck_browser_cleanup` | keys | |
 | prefs | `tigerduck_browser_settings` | keys | |
 | prefs | `tigerduck_credentials` | keys | |
 | prefs | `tigerduck_live_activity` | keys | |
+| prefs | `tigerduck_outbox` | keys | |
 | prefs | `tigerduck_permissions` | keys | |
 | prefs | `tigerduck_prefs` | keys | |
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
+| prefs | `tigerduck_sync_clock` | keys | |
 | prefs | `tls_pin_acceptances` | keys | |
 | prefs | `wear_bridge_state` | keys | |
 
 A file listed with an account's scope is cleared whole, and its keys have no rows.
 
+The club subscriptions (`club_subscriptions`: the `club_subscriptions` settings document as this
+phone holds it, and whether a change of it has yet to reach the backend) and the club activity
+feed fetched for them (`club_activities`, with its ETag) are the school account's, and its sign-out
+drops both, as one of `SchoolStores.atOnce`. The club directory (`club_directory`, with when it
+was fetched and its `max-age`) is the school's public list of clubs, the same for every student,
+so it is the device's, as on iOS.
+
 ## Keys of `tigerduck_prefs`
 
-`AppPreferences`, with the display sizes `DisplayScale` names and the device ID `PushIdentity`
-keeps through `getOrCreateString`.
+`AppPreferences`, with the school account's keys in `SchoolKeys`, which write only with a `SignIn`,
+the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps through
+`getOrCreateString`.
 
 | Store | Name | Scope | Cleared in |
 |---|---|---|---|
@@ -137,7 +173,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `classReminderEnabled` | device | |
 | tigerduck_prefs | `classReminderLeadMinutes` | device | |
 | tigerduck_prefs | `classReminderSettingsMigrated` | device | |
-| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `logout` |
+| tigerduck_prefs | `classTableSelectedSemester` | school | `AppPreferences.kt` `forgetSchoolChoices` |
 | tigerduck_prefs | `classroomMandarinDisplay` | device | |
 | tigerduck_prefs | `cloudSyncEnabled` | device | |
 | tigerduck_prefs | `configuredTabs` | device | |
@@ -181,7 +217,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `notifyAssignments` | device | |
 | tigerduck_prefs | `onboardingVersion` | device | |
 | tigerduck_prefs | `outlineRequiredCourses` | device | |
-| tigerduck_prefs | `pendingConflictCategories` | school | `AuthService.kt` `logout` |
+| tigerduck_prefs | `pendingConflictCategories` | school | `AppPreferences.kt` `forgetSchoolChoices` |
 | tigerduck_prefs | `pinTodayCoursesOnClassTable` | device | |
 | tigerduck_prefs | `previousDefaultTabsChecked` | device | |
 | tigerduck_prefs | `push.device_uuid` | device | |
@@ -221,7 +257,9 @@ The semester catalog is the school's own list of terms.
 ## Keys of `tigerduck_credentials`
 
 The encrypted store `CredentialManager` opens, with the backend's tokens (`V3TokenStore`) and the
-unregister a sign-out still owes (`PendingUnregisterPrefs`).
+unregisters still owed, one per backend, by a sign-out or a backend move (`PendingUnregisterPrefs`).
+The `departing_*` keys besides `departing_unregisters` are the single debt an older build kept,
+read once and moved into the list.
 
 | Store | Name | Scope | Cleared in |
 |---|---|---|---|
@@ -233,6 +271,7 @@ unregister a sign-out still owes (`PendingUnregisterPrefs`).
 | tigerduck_credentials | `departing_refresh_token` | owed | `PendingUnregisterPrefs.kt` `clear` |
 | tigerduck_credentials | `departing_student_id` | owed | `PendingUnregisterPrefs.kt` `clear` |
 | tigerduck_credentials | `departing_unanswered_refreshes` | owed | `PendingUnregisterPrefs.kt` `clear` |
+| tigerduck_credentials | `departing_unregisters` | owed | `PendingUnregisterPrefs.kt` `clear` |
 | tigerduck_credentials | `library_password` | library | `CredentialManager.kt` `clearLibraryCredentials` |
 | tigerduck_credentials | `library_password_refusals` | library | `CredentialManager.kt` `clearLibraryCredentials` |
 | tigerduck_credentials | `library_password_refused` | library | `CredentialManager.kt` `takeUpLibraryLatch` |
@@ -264,6 +303,9 @@ into `library_password_refusals` when it opens.
 | academic_calendar | `payload` | device | |
 | cjk_centering | `corrections` | device | |
 | cjk_centering | `key` | device | |
+| club_directory | `max_age` | device | |
+| club_directory | `payload` | device | |
+| club_directory | `stored_at` | device | |
 | course_changes | `endpoint` | device | |
 | course_changes | `etag` | device | |
 | course_changes | `payload` | device | |
@@ -296,6 +338,9 @@ into `library_password_refusals` when it opens.
 | server_push | `seen_ids_json` | device | |
 | server_push | `seen_ids` | device | |
 | server_push_intent | `token` | device | |
+| tigerduck_account_wipe | `owed` | device | |
+| tigerduck_account_wipe | `tries` | device | |
+| tigerduck_account_wipe | `who` | device | |
 | tigerduck_auth | `stored_password_refusals` | school | `StoredPasswordLatch.kt` `forget` |
 | tigerduck_auth | `stored_password_refused_at` | school | `StoredPasswordLatch.kt` `forget` |
 | tigerduck_auth | `stored_password_rejected_reason` | school | `StoredPasswordLatch.kt` `forget` |
@@ -318,10 +363,16 @@ into `library_password_refusals` when it opens.
 | tigerduck_live_activity | `sound_assignment` | device | |
 | tigerduck_live_activity | `sound_class_preparing` | device | |
 | tigerduck_live_activity | `sound_in_class` | device | |
+| tigerduck_outbox | `firstRunMs` | device | |
 | tigerduck_permissions | `chip_grant_reread` | device | |
 | tigerduck_permissions | `declined_*` | device | |
 | tigerduck_permissions | `granted_*` | device | |
 | tigerduck_permissions | `muted_*` | device | |
+| tigerduck_sync_clock | `backendKey` | device | |
+| tigerduck_sync_clock | `heardAtMs` | device | |
+| tigerduck_sync_clock | `heardUs` | device | |
+| tigerduck_sync_clock | `lastIssuedMs` | device | |
+| tigerduck_sync_clock | `lastSeenUs` | device | |
 | tls_pin_acceptances | `acceptances` | device | |
 | tls_pin_acceptances | `cancelledAt.*` | device | |
 | wear_bridge_state | `libraryCredentialEpoch` | device | |
@@ -333,6 +384,19 @@ alarm may still hold is handed out again. `stored_password_rejected` is the refu
 before the count; the latch takes it up into `stored_password_refusals` when it opens. A site's
 zoom and desktop choice go with the in-app browser's clearing (`BrowserDataCleaner.clear()`),
 which `AccountSessionEffects` runs after each sign-out and sign-in.
+
+`tigerduck_sync_clock` is TigerSync's clock (`SyncClock`): the last stamp this device issued, the
+last backend clock value it saw, and the last `X-TigerSync-Clock` heard with the time it came, all
+of the one backend `backendKey` names. It is the device's, not an account's, and is kept across a
+sign-out by the clock spec (`tigersync-clock`, "The clock state survives relaunch"): a stamp after
+a sign-out must still come after every value this device issued or saw. A full reset leaves it
+too. A move of the endpoint to another backend forgets the values, which say nothing of it.
+
+`tigerduck_outbox` holds the time this build first ran (`OldEntryTime`), recorded once as the
+process starts, before anything writes a queue. An edit an older build queued with no time is
+sent with the earliest time it is known to have existed, which that first run bounds (X1). It is
+the device's, not an account's: the queues' own files are cleared at a sign-out, and their entries
+with them. A full reset leaves it too.
 
 ## DataCache
 

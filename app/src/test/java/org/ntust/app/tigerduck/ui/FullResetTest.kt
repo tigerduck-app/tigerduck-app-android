@@ -1,12 +1,22 @@
 package org.ntust.app.tigerduck.ui
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.AccountPlan
+import org.ntust.app.tigerduck.auth.session.NoSchool
+import org.ntust.app.tigerduck.auth.session.SchoolPlan
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -41,14 +51,25 @@ class FullResetTest {
         credentials.saveLibrarySignIn(credentials.libraryAccountGeneration, "B10000009", "pw", "token", Long.MAX_VALUE, byUser = true)
     }
 
-    private fun fullReset() = FullReset(
-        signOutMail = { steps += "mail" },
-        // As AuthService.logout, after which the app hands the watch the library account again.
-        signOutSchool = {
-            steps += "school"
-            credentials.signOutSchoolAccount()
-            watch += libraryCredentialsForWatch(credentials)
+    /** The reset's sign-out, through the plans, over accounts that say when they go. */
+    private val plans = SignOutPlans(
+        // As the school's sign-out, after which the app hands the watch the library account again.
+        school = object : SchoolPlan by NoSchool {
+            override fun signOut(reason: SignOutReason) {
+                steps += "school"
+                credentials.signOutSchoolAccount()
+                watch += libraryCredentialsForWatch(credentials)
+            }
         },
+        mail = AccountPlan({ true }) { steps += "mail" },
+        library = AccountPlan({ true }) { steps += "library" },
+        readLibraryAgain = {},
+        leaveDemoLibrary = {},
+    )
+
+    private fun fullReset() = FullReset(
+        signOut = { plans.signOut(SignOutReason.FULL_RESET) },
+        wiped = plans::resetWiped,
         clearCaches = { steps += "caches" },
         credentials = credentials,
         prefs = prefs,
@@ -68,6 +89,36 @@ class FullResetTest {
         assertNull(watch.last())
         assertNull(credentials.libraryUsername)
         assertNull(credentials.ntustStudentId)
+    }
+
+    @Test
+    fun `a reset whose wipe throws still lets the school's session open`() = runBlocking {
+        var released = false
+        val quiet = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, _ -> })
+        val plans = SignOutPlans(
+            school = object : SchoolPlan by NoSchool {
+                override fun releaseClosed() {
+                    released = true
+                }
+            },
+            mail = AccountPlan({ false }) {},
+            library = AccountPlan({ false }) {},
+            readLibraryAgain = {},
+            leaveDemoLibrary = {},
+        )
+
+        FullReset(
+            signOut = { plans.signOut(SignOutReason.FULL_RESET) },
+            wiped = plans::resetWiped,
+            clearCaches = {},
+            credentials = credentials,
+            prefs = prefs,
+            publishLibraryCredentialsToWatch = { throw IllegalStateException("made-up failure") },
+            clearBrowser = {},
+        ).start(quiet) {}.join()
+
+        assertTrue(released)
+        quiet.cancel()
     }
 
     @Test

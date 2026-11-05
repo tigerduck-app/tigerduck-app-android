@@ -2,7 +2,7 @@
 <img width="2000" src="https://github.com/user-attachments/assets/cf6a1d18-a348-4b83-adfd-81c6dc82855f" />
 <br>
 
-[![Version](https://img.shields.io/badge/Version-v2.4.0-00BB00?style=for-the-badge)](https://github.com/tigerduck-app/tigerduck-app-android/releases/tag/v2.4.0)
+[![Version](https://img.shields.io/badge/Version-v4.0.0-00BB00?style=for-the-badge)](https://github.com/tigerduck-app/tigerduck-app-android/releases/tag/v4.0.0)
 [![License](https://img.shields.io/github/license/tigerduck-app/tigerduck-app-android?style=for-the-badge)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)

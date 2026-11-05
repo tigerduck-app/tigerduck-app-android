@@ -38,6 +38,7 @@ class LiveActivitySettingsViewModel @Inject constructor(
     // ON_RESUME the way NotificationPermissionSettingsScreen does, rather than
     // holding a snapshot this StateFlow would have to be told to refresh.
     val systemPermissions: SystemPermissions,
+    private val liveUpdates: LiveUpdatesSwitch,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
@@ -67,8 +68,10 @@ class LiveActivitySettingsViewModel @Inject constructor(
         }
     }
 
+    /** The same write as Home's ⋮ makes: see [LiveUpdatesSwitch]. */
     fun setEnabled(v: Boolean) {
-        prefs.isEnabled = v; emit()
+        liveUpdates.setEnabled(v)
+        _state.value = snapshot()
     }
 
     fun setShowInClass(v: Boolean) {

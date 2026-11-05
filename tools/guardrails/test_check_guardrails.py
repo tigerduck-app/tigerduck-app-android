@@ -420,6 +420,444 @@ class GuardrailsTest(unittest.TestCase):
         self.assertEqual(self.read_baseline(),
                          [{"path": APP + "A.kt", "kind": "taipei-literal", "count": 1}])
 
+    # --- ratchets that start non-empty
+
+    def counts(self, kind):
+        return {k[0]: n for k, n in cg.scan(self.root).items() if k[1] == kind}
+
+    def test_introduce_records_a_new_kind_and_refuses_one_with_entries(self):
+        self.write(APP + "A.kt", "val x = signInGeneration\nval y = 1\nval z = accountEpoch\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli("--introduce", "account-counter"), 0)
+        self.assertEqual(self.read_baseline(),
+                         [{"path": APP + "A.kt", "kind": "account-counter", "count": 2}])
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.run_cli("--introduce", "account-counter"), 1)
+        self.assertEqual(self.run_cli("--introduce", "taipei-literal"), 1)
+
+    def test_introduce_keeps_the_other_kinds_entries(self):
+        self.write(APP + "A.kt", 'val a = "Asia/Taipei"\nval b = isDemo\n')
+        self.write_baseline([{"path": APP + "A.kt", "kind": "taipei-literal", "count": 1}])
+        self.assertEqual(self.run_cli("--introduce", "demo-check"), 0)
+        self.assertEqual(len(self.read_baseline()), 2)
+
+    def test_a_kind_cannot_be_raised_once_it_has_entries(self):
+        self.write(APP + "A.kt", "val x = signInGeneration\n")
+        self.write_baseline([{"path": APP + "A.kt", "kind": "account-counter", "count": 1}])
+        self.write(APP + "A.kt", "val x = signInGeneration\nval y = signInGeneration\n")
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--update-baseline"), 1)
+
+    def commit_checker(self, text):
+        """Commits a stand-in check_guardrails.py and the baseline as branch base."""
+        rel = "tools/guardrails/baseline.json"
+        self.baseline = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(self.baseline), exist_ok=True)
+        self.write("tools/guardrails/check_guardrails.py", text)
+
+    def test_against_ref_skips_a_kind_the_ref_checker_does_not_name(self):
+        self.write(APP + "A.kt", "val x = signInGeneration\n")
+        self.commit_checker('KINDS = ("taipei-literal",)\n')
+        self.write_baseline([])
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("branch", "base")
+        self.write_baseline([{"path": APP + "A.kt", "kind": "account-counter", "count": 1}])
+        self.assertEqual(self.run_cli("--against-ref", "base"), 0)
+        # Once the ref's checker names the kind, the same entry is a raise.
+        self.write("tools/guardrails/check_guardrails.py", 'KINDS = ("account-counter",)\n')
+        self.write_baseline([])
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "names it")
+        self.write_baseline([{"path": APP + "A.kt", "kind": "account-counter", "count": 1}])
+        self.assertEqual(self.run_cli("--against-ref", "HEAD"), 1)
+
+    def long_pull(self, header, lines=85):
+        body = "".join("    println(1)\n" for _ in range(lines))
+        return header + " {\n" + body + "}\n"
+
+    def test_a_changed_parameter_list_is_the_same_function(self):
+        key = {"path": APP + "S.kt", "kind": "long-function", "name": "pull(String)", "lines": 87}
+        self.write_baseline([key])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String, b: Boolean)"))
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.run_cli("--update-baseline"), 0)
+        self.assertEqual(self.read_baseline()[0]["name"], "pull(String, Boolean)")
+
+    def test_a_changed_parameter_list_may_not_grow_the_function(self):
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 80}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String, b: Boolean)"))
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_a_new_long_overload_beside_a_shortened_one_inherits_nothing(self):
+        # pull(String) was baselined at 87 lines and is now short; pull(Int) is new and long.
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 87}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)", 10) + self.long_pull("fun pull(a: Int)"))
+        self.assertEqual(self.run_cli(), 1)
+        # Alone, the same long function keeps the allowance when only its parameters changed.
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)"))
+        self.assertEqual(self.run_cli(), 0)
+
+    def test_a_deleted_overload_lends_nothing_to_the_one_that_grew(self):
+        rel = "tools/guardrails/baseline.json"
+        self.baseline = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(self.baseline))
+        key = {"path": APP + "S.kt", "kind": "long-function", "name": "pull(String)", "lines": 100}
+        self.write_baseline([key])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)", 98) + self.long_pull("fun pull(a: Int)", 10))
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("branch", "base")
+        # pull(String) goes and pull(Int) grows, under what looks like one function changing.
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)", 88))
+        self.assertEqual(self.run_cli("--against-ref", "base"), 1)
+        # Regenerating the baseline hides nothing.
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function", "name": "pull(Int)", "lines": 90}])
+        self.assertEqual(self.run_cli("--against-ref", "base"), 1)
+
+    def test_a_lone_function_keeps_its_allowance_against_the_target(self):
+        rel = "tools/guardrails/baseline.json"
+        self.baseline = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(self.baseline))
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function", "name": "pull(String)", "lines": 100}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)", 98))
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("branch", "base")
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)", 90))
+        self.assertEqual(self.run_cli("--against-ref", "base"), 0)
+
+    def test_overloads_still_match_on_the_full_name(self):
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 87}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)") + self.long_pull("fun pull(a: Int)"))
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_a_changed_parameter_list_in_another_file_is_new(self):
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 87}])
+        self.write(APP + "T.kt", self.long_pull("fun pull(a: String, b: Int)"))
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_account_counter_hits_a_use_and_misses_a_comment(self):
+        self.write(APP + "A.kt",
+                   "// signInGeneration\nval a = \"accountEpoch\"\nfun f(generation: Int) {}\n"
+                   "val c = DataCache.Generation\nval d = tokens.signInGeneration\n"
+                   "val e = 1 // userDataGeneration\n")
+        self.assertEqual(self.counts("account-counter"), {APP + "A.kt": 3})
+
+    def test_account_counter_needs_a_word_boundary(self):
+        self.write(APP + "A.kt", "val a = mySignInGenerationLabel\nval b = generation: Long\n")
+        self.assertEqual(self.counts("account-counter"), {})
+
+    def test_sign_out_reactor_hits_each_watch_and_misses_a_comment(self):
+        self.write(APP + "A.kt",
+                   "// authState.collect\nval a = \"signOuts.collect\"\n"
+                   "authService.authState.collect { }\nauthState.first { !it }\n"
+                   "account.accountState.collect { }\nauth.signIns.collect { }\n"
+                   "account.studentChanges.collect { }\nmail.signOuts.collect { }\n")
+        self.assertEqual(self.counts("sign-out-reactor"), {APP + "A.kt": 6})
+
+    def test_sign_out_reactor_takes_no_baseline(self):
+        self.write(APP + "A.kt", "authState.collect { }\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-out-reactor"), 1)
+
+    def test_sign_out_reactor_leaves_the_stream_and_a_read_of_the_state_alone(self):
+        self.write(APP + "A.kt",
+                   "sessions.events.collect { }\nsession.changes.collect { }\n"
+                   "val a = authState.value\nval b = myauthState.collect\n")
+        self.assertEqual(self.counts("sign-out-reactor"), {})
+
+    def test_demo_check_hits_a_use_and_honors_its_homes(self):
+        line = "val a = if (isDemo) 1 else demoAccount.isActive\n"
+        self.write(APP + "ui/Screen.kt", line)
+        self.write(APP + "demo/Thing.kt", line)
+        self.write(APP + "auth/session/AccountSession.kt", line)
+        self.write(APP + "debug/DemoModeInterceptor.kt", line)
+        self.write(APP + "mail/MailDemo.kt", line)
+        self.write("app/src/play/java/org/ntust/app/tigerduck/demo/Play.kt", line)
+        # The sign-in type carries isDemo for the whole session.
+        self.write("shared/src/main/java/org/ntust/app/tigerduck/shared/account/SignIn.kt", line)
+        self.write(APP + "ui/Quiet.kt", "// isDemo\nval s = \"fixtures.demoMode\"\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/Screen.kt": 1})
+
+    def test_demo_check_sees_the_fixture_store_forms(self):
+        self.write(APP + "ui/A.kt", "val a = store.demoMode\nval b = fixtures.demoMode\nval c = demo.isActive\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 3})
+
+    def test_demo_check_sees_the_stored_flag_by_any_name(self):
+        self.write(APP + "ui/A.kt", "val a = !debugFixtures.demoMode\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 1})
+
+    def test_demo_check_sees_the_read_that_crosses_the_accounts(self):
+        self.write(APP + "ui/A.kt", "val a = session.demoFromElsewhere\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 1})
+
+    def test_demo_check_leaves_a_local_of_that_name_alone(self):
+        self.write(APP + "ui/A.kt", "private val demoMode = sampled\nval a = demoMode\n")
+        self.assertEqual(self.counts("demo-check"), {})
+
+    def test_demo_check_homes_are_the_session_not_its_folder(self):
+        self.write(APP + "auth/session/AccountSessions.kt", "val a = fixtures.demoMode\n")
+        self.write(APP + "auth/session/SignOutWipe.kt", "val a = session.isDemo\n")
+        self.write("shared/src/main/java/org/ntust/app/tigerduck/shared/account/Other.kt", "val a = isDemo\n")
+        self.assertEqual(self.counts("demo-check"), {
+            APP + "auth/session/SignOutWipe.kt": 1,
+            "shared/src/main/java/org/ntust/app/tigerduck/shared/account/Other.kt": 1,
+        })
+
+    def test_sign_in_read_honors_its_homes_and_takes_no_baseline(self):
+        line = "@OptIn(StartsAccountWork::class)\nfun f() {}\n"
+        for home in ("auth/AuthService.kt", "ui/screen/Home.kt", "ui/AppState.kt", "TigerDuckApp.kt",
+                     "demo/D.kt", "liveactivity/L.kt", "notification/ClassWorker.kt",
+                     "notification/BootReceiver.kt", "push/PushRegistrationService.kt",
+                     "mail/MailAccount.kt", "mail/MailRepository.kt", "mail/sync/MailChecker.kt", "data/moodle/M.kt",
+                     "data/DataMigration.kt", "network/MoodleService.kt", "network/moodle/N.kt",
+                     "network/AccountSessionGuard.kt", "network/NtustSessionManager.kt"):
+            self.write(APP + home, line)
+        self.assertEqual(self.counts("sign-in-read"), {})
+        self.write(APP + "data/cache/DataCache.kt", "import x.StartsAccountWork\n" + line)
+        self.write(APP + "notification/Helper.kt", line)
+        self.write(APP + "mail/store/MailCache.kt", line)
+        self.assertEqual(self.counts("sign-in-read"),
+                         {APP + "data/cache/DataCache.kt": 1, APP + "notification/Helper.kt": 1,
+                          APP + "mail/store/MailCache.kt": 1})
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-in-read"), 1)
+
+    def test_bearer_home_holds_the_literal_to_its_homes_and_takes_no_baseline(self):
+        self.write(APP + "auth/AuthTokenManager.kt", 'fun h() = "Bearer $access"\n')
+        self.write(APP + "auth/SessionHostGuard.kt", 'const val BEARER = "Bearer "\n')
+        self.write(APP + "push/PushApiClient.kt", 'val u = removeDevice("Bearer $accessToken", id)\n')
+        self.write(APP + "push/SyncApiClient.kt", '// Takes the "Bearer " header.\nval n = 1\n')
+        self.assertEqual(self.counts("bearer-home"), {})
+        # The unregister is one call of that file, not the file: another request counts alone,
+        # or on the same line.
+        self.write(APP + "push/PushApiClient.kt", 'val v = patch("Bearer $t")\n')
+        self.assertEqual(self.counts("bearer-home"), {APP + "push/PushApiClient.kt": 1})
+        self.write(APP + "push/PushApiClient.kt", 'val v = patch("Bearer $t", "Bearer $u")\n')
+        self.assertEqual(self.counts("bearer-home"), {APP + "push/PushApiClient.kt": 2})
+        self.write(APP + "push/PushApiClient.kt", 'val u = removeDevice("Bearer $accessToken", id)\nval v = patch("Bearer $t")\n')
+        self.write(APP + "network/BulletinApiClient.kt", 'val h = "Bearer " + token\n')
+        self.assertEqual(self.counts("bearer-home"),
+                         {APP + "push/PushApiClient.kt": 1, APP + "network/BulletinApiClient.kt": 1})
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "bearer-home"), 1)
+
+
+    def test_sign_out_start_holds_each_account_s_end_to_its_homes_and_takes_no_baseline(self):
+        calls = ("authTokenManager.logout()\nmailAccount.signOut(reason)\naccount.signOut(reason)\n"
+                 "credentials.clearLibraryCredentials(reason)\ncredentials.signOutSchoolAccount()\n"
+                 "librarySession.signOut(reason)\nval f = mailAccount::signOut\nval g = credentials::clearLibraryCredentials\n")
+        for home in ("auth/session/SignOutPlans.kt", "mail/MailAccount.kt", "library/LibrarySession.kt",
+                     "data/preferences/CredentialManager.kt"):
+            self.write(APP + home, calls)
+        self.assertEqual(self.counts("sign-out-start"), {})
+        self.write(APP + "ui/screen/settings/SettingsViewModel.kt", calls)
+        self.assertEqual(self.counts("sign-out-start"), {APP + "ui/screen/settings/SettingsViewModel.kt": 8})
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-out-start"), 1)
+
+    def test_sign_out_start_misses_comments_strings_and_other_names(self):
+        self.write(APP + "ui/Quiet.kt",
+                   "// authTokenManager.logout()\nval s = \"mailAccount.signOut()\"\n"
+                   "val t = myaccount.signOut()\nplans.signOut(SignOutReason.MAIL)\nauthService.logoutSoon()\n"
+                   "account.signOut { prefs.edit().clear().apply() }\n")
+        self.assertEqual(self.counts("sign-out-start"), {})
+
+
+    # --- phase 3's sync ratchets
+
+    def test_sync_switch_read_hits_each_switch_and_misses_comments_and_strings(self):
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt",
+                   "if (!prefs.cloudSyncEnabled) return\nval a = prefs.syncCourses\n"
+                   "val b = prefs.syncCourseColors || prefs.syncCourseNames\nval c = prefs.syncAssignments\n"
+                   "val d = prefs.school.pendingConflictCategories.get()\n"
+                   "// prefs.syncCourses\nval s = \"syncAssignments\"\n"
+                   "val t = effectiveCloudSyncEnabled(true)\nval u = prefs.syncCoursesSeen\n"
+                   "ServerStatusTracker.setCloudSyncEnabled(x)\n")
+        self.assertEqual(self.counts("sync-switch-read"), {APP + "ui/screen/home/HomeBackendSync.kt": 5})
+
+    def test_sync_switch_read_honors_its_homes(self):
+        line = "val a = prefs.cloudSyncEnabled && prefs.syncCourses\n"
+        for home in ("sync/SyncPolicy.kt", "data/preferences/AppPreferences.kt",
+                     "data/preferences/SchoolKeys.kt", "push/PushApiModels.kt"):
+            self.write(APP + home, line)
+        self.assertEqual(self.counts("sync-switch-read"), {})
+        self.write(APP + "push/PushApiClient.kt", line)
+        self.write(APP + "sync/SyncPolicyHelper.kt", line)
+        self.assertEqual(self.counts("sync-switch-read"),
+                         {APP + "push/PushApiClient.kt": 1, APP + "sync/SyncPolicyHelper.kt": 1})
+
+    def test_sync_write_counts_calls_and_misses_declarations_comments_and_strings(self):
+        self.write(APP + "ui/screen/settings/KeepLocalCourses.kt",
+                   "pushApiClient.patchAssignmentOverride(1, \"done\", signIn)\n"
+                   "client.patchCourseOverride(id, signIn, colorHex = c)\n"
+                   "client.patchCourseIgnore(id, true, null, signIn); client.putHolidayOverride(3, true, signIn)\n"
+                   "client.deleteCourse(key, signIn)\nclient.deleteAllCourses(term, signIn)\n"
+                   "client.uploadCourses(list, term, signIn)\nclient.uploadCoursesAnswered(list, term, signIn)\n"
+                   "client.uploadAssignments (list, signIn)\nclient.patchAssignmentOverrideAnswered(1, s, signIn, null)\n"
+                   "// client.deleteCourse(key, signIn)\nval s = \"deleteCourse(\"\n"
+                   "suspend fun deleteCourse(key: String): Boolean\nfun uploadCourses(list: List<Course>) = Unit\n"
+                   "val f = client::deleteCourse\nval g = undeleteCourse(key)\ndeleteCourseCaches(cacheDir)\n")
+        # The reference to deleteCourse counts as a call: it is sent wherever it is invoked.
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/settings/KeepLocalCourses.kt": 11})
+
+    def test_sync_write_counts_a_callable_reference_as_a_call(self):
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt",
+                   "val step = MarkStep(prefs, pushApiClient::patchAssignmentOverride)\n"
+                   "val send = PushApiClient::uploadCoursesAnswered\nval g = :: deleteAllCourses\n"
+                   "val h = ::deleteCourseCaches\nval i = client::deleteCourseLater\n"
+                   "// client::deleteCourse\nval s = \"client::deleteCourse\"\n")
+        self.write(APP + "data/PendingCourseDeletes.kt", "val d = CourseDeleter(pushApiClient::deleteCourse)\n")
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/home/HomeBackendSync.kt": 3})
+
+    def test_sync_write_misses_every_shape_of_declaration(self):
+        self.write(APP + "ui/screen/classtable/LocalCache.kt",
+                   "fun /* comment */ deleteCourse(key: String) = Unit\n"
+                   "fun LocalCache.deleteCourse(key: String) = Unit\n"
+                   "fun <T> Foo.deleteCourse(key: T) = Unit\n"
+                   "private inline fun <reified T : Any> Foo<T>?.uploadCourses(list: List<T>) = Unit\n"
+                   "override suspend fun deleteAllCourses(term: String?)\n"
+                   "internal fun Map<String, List<Int>>.uploadAssignments(x: Int) = Unit\n"
+                   "fun `patchCourseIgnore`(x: Int) = Unit\n")
+        self.assertEqual(self.counts("sync-write"), {})
+        # A call on the line of a declaration is still a call.
+        self.write(APP + "ui/screen/classtable/LocalCache.kt",
+                   "fun drop(key: String) = client.deleteCourse(key, signIn)\n"
+                   "fun Foo.drop(key: String) { api.deleteAllCourses(key, signIn) }\n"
+                   "fun f(): Boolean = deleteCourse(key)\n")
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/classtable/LocalCache.kt": 3})
+
+    def test_sync_write_honors_its_homes(self):
+        line = "client.deleteCourse(key, signIn)\n"
+        homes = ("push/PushApiClient.kt", "push/deep/Requests.kt", "sync/outbox/OutboxLane.kt",
+                 "data/UnsentMarks.kt", "data/PendingHolidayOverrides.kt", "data/PendingCourseOverrides.kt",
+                 "data/CourseIgnoreSync.kt", "data/PendingCourseAdds.kt", "data/PendingCourseDeletes.kt",
+                 "data/CourseIgnoreQueue.kt")
+        for home in homes:
+            self.write(APP + home, line)
+        self.assertEqual(self.counts("sync-write"), {})
+        self.write(APP + "data/CourseIgnoreReconciler.kt", line)
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt", line)
+        self.write(APP + "notification/BackgroundSyncWorker.kt", line + line)
+        self.assertEqual(self.counts("sync-write"), {
+            APP + "data/CourseIgnoreReconciler.kt": 1, APP + "ui/screen/home/HomeBackendSync.kt": 1,
+            APP + "notification/BackgroundSyncWorker.kt": 2,
+        })
+
+    def test_status_in_message_hits_each_sniff_and_misses_comments(self):
+        self.write(APP + "auth/SessionRefusal.kt",
+                   "fun f(e: Throwable) = e.message?.contains(\"401\") == true ||\n"
+                   "    e.message?.contains(\"session_revoked\") == true\n"
+                   "val a = body.contains(\"clock_ahead\") || body.contains( \"hlc_required\" )\n"
+                   "val b = message.contains(\"404\", ignoreCase = true)\n"
+                   "// message?.contains(\"401\")\n/* body.contains(\"clock_ahead\") */\n"
+                   "val c = reply.startsWith(\"250\")\nval d = message.contains(\"4011\")\n"
+                   "val e = message.contains(\"HTTP 401\")\nval g = message.contains(\"session_revoked_x\")\n")
+        self.assertEqual(self.counts("status-in-message"), {APP + "auth/SessionRefusal.kt": 5})
+
+    def test_status_in_message_hits_named_arguments(self):
+        self.write(APP + "auth/SessionRefusal.kt",
+                   "val a = e.message?.contains(other = \"401\") == true\n"
+                   "val b = body.contains(other = \"clock_ahead\", ignoreCase = true)\n"
+                   "val c = body.contains(ignoreCase = true, other = \"hlc_required\")\n"
+                   "val d = body.contains( other=\"session_revoked\" )\n"
+                   "val f = body.contains(other = \"HTTP 401\")\nval g = body.contains(other = x)\n")
+        self.assertEqual(self.counts("status-in-message"), {APP + "auth/SessionRefusal.kt": 4})
+
+    def test_status_in_message_has_no_home(self):
+        line = "val a = message.contains(\"401\")\n"
+        for anywhere in ("network/backend/BackendError.kt", "auth/SessionRefusal.kt", "push/EditStamp.kt"):
+            self.write(APP + anywhere, line)
+        self.assertEqual(len(self.counts("status-in-message")), 3)
+
+    def test_full_sync_fetch_counts_calls_outside_its_homes(self):
+        call = "val result = syncApiClient.fetchFullSync(signIn)\n"
+        self.write(APP + "push/SyncApiClient.kt",
+                   "suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult = TODO()\n" + call)
+        self.write(APP + "sync/Synchronizer.kt", call)
+        self.assertEqual(self.counts("full-sync-fetch"), {})
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt",
+                   call + "// syncApiClient.fetchFullSync(signIn)\nval s = \"fetchFullSync(\"\n")
+        self.write(APP + "notification/BackgroundSyncWorker.kt", call + "val r = api.fetchFullSync (signIn)\n")
+        self.write(APP + "push/OtherClient.kt", call)
+        # A declaration is not a call, in a home or not: an interface the client implements.
+        self.write(APP + "push/FullSyncSource.kt",
+                   "interface FullSyncSource {\n    suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult\n}\n")
+        self.assertEqual(self.counts("full-sync-fetch"), {
+            APP + "ui/screen/home/HomeBackendSync.kt": 1,
+            APP + "notification/BackgroundSyncWorker.kt": 2,
+            APP + "push/OtherClient.kt": 1,
+        })
+
+    def test_full_sync_fetch_counts_a_callable_reference_and_misses_declarations(self):
+        self.write(APP + "push/SyncApiClient.kt", "val f = this::fetchFullSync\n")
+        self.write(APP + "ui/screen/settings/ReenableCheck.kt",
+                   "val fetch = api::fetchFullSync\nval r = fetch(signIn)\nval g = SyncApiClient::fetchFullSync\n"
+                   "val h = api::fetchFullSyncLater\n")
+        self.write(APP + "push/FullSyncSource.kt",
+                   "fun /* comment */ fetchFullSync(s: SignIn) = Unit\nfun Api.fetchFullSync(s: SignIn) = Unit\n"
+                   "override suspend fun <T> Foo<T>.fetchFullSync(s: SignIn) = Unit\n")
+        self.assertEqual(self.counts("full-sync-fetch"), {APP + "ui/screen/settings/ReenableCheck.kt": 2})
+
+    def test_api_version_literal_hits_a_version_segment_and_misses_the_rest(self):
+        self.write(APP + "network/EndpointSettings.kt",
+                   "val a = \"https://h/v4\"\nval b = \"v3\"\nval c = \"https://api.tigerduck.app/v3/\"\n"
+                   "val d = \"$base/v4/sync?x=1\"\nval e = \"${base}/v3\"\nval f = \"/v3${path}\"\n"
+                   "const val LIVE_ACTIVITY = \"live_activity_v3\"\n"
+                   "// GET /v3/sync\n/** The base (`…/v3`). */\nval g = \"/v30/a\"\nval h = \"v3x\"\n"
+                   "val i = \"a/v4b\"\nval j = 1 /v3\nval k = \"see v4 notes\"\nval l = @GET(\"v4/sync\")\n")
+        self.assertEqual(self.counts("api-version-literal"), {APP + "network/EndpointSettings.kt": 7})
+
+    def test_api_version_literal_in_a_raw_string_and_a_template_counts(self):
+        self.write(APP + "network/A.kt",
+                   'val a = """\n  https://h/v3\n"""\nval b = "${if (x) "v4" else "x"}/a"\n')
+        self.assertEqual(self.counts("api-version-literal"), {APP + "network/A.kt": 2})
+
+    def test_api_version_literal_has_one_home_and_takes_no_baseline(self):
+        self.write(APP + "network/backend/ApiBase.kt",
+                   'enum class BackendApi(val segment: String) { V3("v3"), V4("v4") }\nval b = "https://h/v3"\n')
+        self.write_baseline([])
+        self.assertEqual(self.counts("api-version-literal"), {})
+        self.assertEqual(self.run_cli(), 0)
+        self.write(APP + "network/backend/Other.kt", 'val a = "v4"\n')
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "api-version-literal"), 1)
+        self.assertEqual(self.run_cli("--update-baseline"), 1)
+
+    def test_the_four_counting_sync_kinds_can_be_introduced(self):
+        self.write(APP + "ui/A.kt",
+                   "val a = prefs.syncCourses\nclient.deleteCourse(k, s)\n"
+                   "val b = m.contains(\"401\")\nval c = api.fetchFullSync(s)\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        for kind in ("sync-switch-read", "sync-write", "status-in-message", "full-sync-fetch"):
+            self.assertEqual(self.run_cli("--introduce", kind), 0, kind)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(sorted(e["kind"] for e in self.read_baseline()),
+                         ["full-sync-fetch", "status-in-message", "sync-switch-read", "sync-write"])
+        # Each is held like the rest: one more fails.
+        self.write(APP + "ui/A.kt",
+                   "val a = prefs.syncCourses\nclient.deleteCourse(k, s)\n"
+                   "val b = m.contains(\"401\")\nval c = api.fetchFullSync(s)\nval d = prefs.syncAssignments\n")
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_every_sync_kind_is_named_for_against_ref(self):
+        for kind in ("sync-switch-read", "sync-write", "status-in-message", "full-sync-fetch",
+                     "api-version-literal"):
+            self.assertIn(kind, cg.KINDS)
+
 
 if __name__ == "__main__":
     unittest.main()

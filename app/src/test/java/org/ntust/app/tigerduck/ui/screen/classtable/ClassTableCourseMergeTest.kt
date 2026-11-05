@@ -7,6 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.shared.Course
+import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 
 /**
  * Everything the user did to a timetable has to survive the next refresh.
@@ -309,5 +311,50 @@ class ClassTableCourseMergeTest {
 
         assertNull(ClassTableCourseMerge.withRoomsFound(listOf(noRoom, roomed), mapOf("A" to stillNone)))
         assertNull(ClassTableCourseMerge.withRoomsFound(listOf(noRoom, roomed), emptyMap()))
+    }
+
+    // --- An edit onto the term as stored, field by field (Greptile on PR #686, P1) ---
+
+    /** Every stored field of [Course], read off the class itself, so one added to it is here too. */
+    private val courseFields: List<Field> = Course::class.java.declaredFields
+        .filter { !Modifier.isStatic(it.modifiers) && !Modifier.isTransient(it.modifiers) }
+        .onEach { it.isAccessible = true }
+
+    /** A value of [field]'s type, the first or the second of two that differ. */
+    private fun valueOf(field: Field, second: Boolean): Any = when (field.type) {
+        String::class.java -> (if (second) "e-" else "a-") + field.name
+        java.lang.Float.TYPE -> if (second) 2f else 1f
+        java.lang.Integer.TYPE, Integer::class.java -> if (second) 2 else 1
+        java.lang.Boolean.TYPE, java.lang.Boolean::class.java -> second
+        else -> throw AssertionError("Course.${field.name} is a ${field.type}, which this test has no values for: give it some, and name the field in editOnto's merge")
+    }
+
+    /** Course C1 with every field but its number at the first value, or at the second when [second] says so. */
+    private fun course(second: (Field) -> Boolean): Course {
+        val course = Course(courseNo = "C1", courseName = "")
+        for (field in courseFields) if (field.name != "courseNo") field.set(course, valueOf(field, second(field)))
+        return course
+    }
+
+    /**
+     * Greptile on PR #686, P1: an edit of a course, saved after it waited behind a pull or a fetch
+     * that wrote the same course, takes from its copy only the fields it changed, and keeps every
+     * other field as stored. Each field in turn, read off [Course] itself: a field added to it that
+     * the merge does not name comes out as its default, and fails here.
+     */
+    @Test
+    fun `an edit of a course takes each field it changed and keeps every other field as stored`() {
+        assertTrue("Course's fields as read", courseFields.size >= 17)
+        for (changed in courseFields.filter { it.name != "courseNo" }) {
+            val before = course { false }
+            val after = course { it == changed }
+            // Stored meanwhile: every other field written anew, and the edited one as the tap found it.
+            val stored = course { it != changed }
+            val merged = ClassTableCourseMerge.editOnto(listOf(stored), listOf(before), listOf(after)).single()
+            for (field in courseFields.filter { it.name != "courseNo" }) {
+                val from = if (field == changed) "the edit's copy" else "the course as stored"
+                assertEquals("editing ${changed.name}: ${field.name} from $from", valueOf(field, true), field.get(merged))
+            }
+        }
     }
 }

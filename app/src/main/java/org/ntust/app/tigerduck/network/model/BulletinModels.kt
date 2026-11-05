@@ -103,6 +103,10 @@ internal fun TaxonomyResponse?.localizedTagLabel(
     return this?.tagLabel(id) ?: id
 }
 
+/**
+ * One bulletin subscription rule of this device, as the backend answers it. Read from the network
+ * only: no file or preference keeps one, so no older build has stored one.
+ */
 data class SubscriptionRule(
     val id: Int? = null,
     val name: String? = null,
@@ -110,18 +114,30 @@ data class SubscriptionRule(
     val tags: List<String> = emptyList(),
     val mode: String = "AND",
     val enabled: Boolean = true,
+    /**
+     * `/v4`: the id this device made for the rule, a UUID, by which the list's PUT keeps it
+     * (`docs/api-v4.md`, "Subscriptions"). Null on `/v3`, which answers none, and on a rule the
+     * page has not given one yet. Nullable, as Gson leaves a missing key null whatever its type.
+     */
+    @SerializedName("client_id") val clientId: String? = null,
 )
 
-// v3: GET /bulletin-subscriptions returns a flat list of rules.
+// GET /bulletin-subscriptions returns a flat list of rules; on v4, the PUT answers one too.
 data class SubscriptionsListResponse(
     val items: List<SubscriptionRule>,
 )
 
-// v3: POST/PATCH /bulletin-subscriptions — request body for a single rule.
-internal data class SubscriptionRuleRequest(
-    val name: String? = null,
-    val orgs: List<String> = emptyList(),
-    val tags: List<String> = emptyList(),
-    val mode: String = "AND",
-    val enabled: Boolean = true,
+// v4: PUT /bulletin-subscriptions, this device's whole list. A rule whose client_id the backend
+// holds is updated in place, a new one inserted, and the rest deleted; a duplicate is 422.
+internal data class SubscriptionListRequest(
+    val rules: List<SubscriptionListRule>,
+)
+
+internal data class SubscriptionListRule(
+    @SerializedName("client_id") val clientId: String,
+    val name: String?,
+    val orgs: List<String>,
+    val tags: List<String>,
+    val mode: String,
+    val enabled: Boolean,
 )

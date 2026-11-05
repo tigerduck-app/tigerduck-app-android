@@ -9,7 +9,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -22,8 +25,17 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.MarkWriter
+import org.ntust.app.tigerduck.data.TOOK
+import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -43,10 +55,12 @@ import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import java.time.LocalDateTime
 import java.util.Date
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.util.bare
+import org.ntust.app.tigerduck.util.set
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import sun.misc.Unsafe
 
 /**
  * Home as a signed-in student leaves it, with the real cache and preferences and no network.
@@ -61,17 +75,20 @@ class HomeViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var cache: DataCache
     private lateinit var home: HomeViewModel
+    private lateinit var prefs: AppPreferences
+    private val series = SignInSeries()
+    private val signedIn = SignedInState(true)
+    private val session = AccountSession(series, CoroutineScope(SupervisorJob())).also { it.signedInFrom(signedIn.signedIn) }
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         val context = RuntimeEnvironment.getApplication()
-        val prefs = AppPreferences(context)
+        prefs = AppPreferences(context)
         val calendar = AcademicCalendarStore(context, OkHttpClient(), prefs)
         cache = DataCache(context, calendar)
         val credentials = CredentialManager(context.getSharedPreferences("credentials-test", 0))
         credentials.ntustStudentId = "B00015999"
-        val signedIn = SignedInState(true)
         val auth = bare<AuthService>().also {
             it.set("signedInState", signedIn)
             it.set("authState", signedIn.signedIn)
@@ -79,11 +96,17 @@ class HomeViewModelTest {
         }
         val colors = bare<CourseColorStore>().also { it.set("changeEvent", MutableSharedFlow<Unit>()) }
         val courses = bare<CourseService>().also { it.set("academicCalendar", calendar) }
+        val tokens = bare<AuthTokenManager>().also { it.set("session", session) }
         home = HomeViewModel(
             bare(), auth, cache, courses, bare(), AssignmentNotificationScheduler(context), prefs, colors, bare(),
             liveActivity(context, prefs, calendar), bare(), bare(),
-            bare(), bare(), bare(), bare(), bare(), LocalEdits(), bare(), bare(), bare(), bare(),
+            bare(), bare(), tokens, bare(), unsentMarks, LocalEdits(), bare(), bare(), bare(), bare(),
         )
+    }
+
+    /** Taps kept on this phone alone, as with sync off: nothing leaves for a backend. */
+    private val unsentMarks by lazy {
+        UnsentMarks(cache, MarkWriter { _, _, _, _ -> TOOK }, records = { false }, sends = { false })
     }
 
     /**
@@ -126,11 +149,75 @@ class HomeViewModelTest {
             dispatcher.scheduler.runCurrent()
 
             // What the class table does for an add: its edit is saved, with no sync round after it.
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
 
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
             // Home's clock ticker never ends, and runTest waits for every coroutine on its scheduler.
+            home.viewModelScope.cancel()
+        }
+    }
+
+    /**
+     * A tap saves its own assignment's mark onto the marks as stored, never Home's whole sets: a
+     * pull's mark of another assignment, saved where Home has not read it yet (the background's,
+     * or Home's own before it shows it), stays.
+     */
+    @Test
+    fun `a tap saves only its own assignment, so a pull's mark Home has not read yet stays`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            prefs.notifyAssignments = false
+            cache.saveIgnoredAssignments(setOf("7"), testSignIn())
+
+            home.toggleMarkCompleted(assignment("8", taipei("12:00:00")))
+            repeat(400) {
+                dispatcher.scheduler.runCurrent()
+                if (cache.loadMarkedCompletedAssignments().isNotEmpty()) return@repeat
+                Thread.sleep(5)
+            }
+
+            assertEquals(setOf("8"), cache.loadMarkedCompletedAssignments())
+            assertEquals("the pull's mark of another assignment", setOf("7"), cache.loadIgnoredAssignments())
+        } finally {
+            home.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            // What the student who left has on the page.
+            home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
+            // The page stops as it clears: the sign-in's load reaches what this test leaves bare.
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                home.markedCompletedIds.first { it.isEmpty() }
+                home.viewModelScope.cancel()
+            }
+
+            signedIn.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, series.current, null)) }
+            signedIn.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
+            dispatcher.scheduler.runCurrent()
+
+            assertEquals(emptySet<String>(), home.markedCompletedIds.value)
+        } finally {
+            home.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a sign-in that ended before Home's reload shows nothing of the files`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            series.end()
+
+            // The class table's save, then a round's end: neither may reach Home under an ended sign-in.
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "The account's that left")), testSignIn())
+            cache.notifyBackgroundSyncComplete()
+
+            assertEquals(emptyList<String>(), homeCourseNos())
+        } finally {
             home.viewModelScope.cancel()
         }
     }
@@ -142,7 +229,7 @@ class HomeViewModelTest {
             // A swipe still on its way to disk: Home holds the id, the file does not.
             home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
 
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
             assertEquals(listOf("CS1001"), homeCourseNos())
 
             assertEquals(setOf("7"), home.markedCompletedIds.value)
@@ -159,7 +246,7 @@ class HomeViewModelTest {
             val tracker = RuntimeEnvironment.getApplication().getSharedPreferences("notification_tracker", 0)
             tracker.edit().putStringSet("scheduled_ids", setOf("armed")).commit()
 
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
             assertEquals(listOf("CS1001"), homeCourseNos())
 
             assertEquals(setOf("armed"), tracker.getStringSet("scheduled_ids", null))
@@ -285,13 +372,4 @@ class HomeViewModelTest {
         }
         return home.allCourses.value.map { it.courseNo }
     }
-}
-
-private inline fun <reified T : Any> bare(): T {
-    val unsafe = Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }.get(null) as Unsafe
-    return unsafe.allocateInstance(T::class.java) as T
-}
-
-private fun Any.set(field: String, value: Any?) {
-    javaClass.getDeclaredField(field).apply { isAccessible = true }.set(this, value)
 }

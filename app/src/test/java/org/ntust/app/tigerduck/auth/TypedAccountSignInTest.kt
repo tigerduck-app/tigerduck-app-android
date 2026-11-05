@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.auth
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -15,11 +17,15 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
@@ -58,19 +64,33 @@ class TypedAccountSignInTest {
     /** What must hold before the account shows as signed in. */
     private var prepare: suspend () -> Unit = {}
 
-    /** Runs as the demo account signs in on the device. */
+    /** The sign-in [prepare] ran under. */
+    private var preparedUnder: SignIn? = null
+
+    /** Runs as the demo account signs in on the device, before it goes on. */
     private var onDemo: () -> Unit = {}
 
-    /** The sign-in generation a sign-out moves, as AuthTokenManager's. */
-    private var generation = 0
+    /** Runs with the demo on, as its data is written. */
+    private var onDemoWrite: () -> Unit = {}
+
+    /** The sign-outs that ran. */
+    private var signOuts = 0
+    private var shownUnderLock: Boolean? = null
     private val accountLock = Any()
     private var signedIn = false
+
+    /** The school session whose wipe a sign-in waits for. */
+    private val session = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob()))
+
+    /** Runs as the stored account is signed out, in place of the wipe it starts. */
+    private var onLeave: () -> Unit = { session.open() }
 
     /** What AuthService.logout does to what the sign-in reads and writes. */
     private fun signOut() {
         synchronized(accountLock) {
             stored = null
-            generation++
+            signOuts++
+            session.signIns.end()
         }
         latch.clear()
         signedIn = false
@@ -90,8 +110,9 @@ class TypedAccountSignInTest {
 
     private fun typedSignIn() = TypedAccountSignIn(
         schoolSignIn = { studentId, password -> school.signIn(SERVICE, studentId, password) },
-        signInInteractively = { signIn -> signIn(GENERATION) == SignInAttempt.SIGNED_IN },
-        signInGeneration = { generation },
+        signInInteractively = { signIn -> signIn(session.signIns.current) == SignInAttempt.SIGNED_IN },
+        awaitOpen = { session.awaitOpen() },
+        currentSignIn = { session.signIns.current },
         accountLock = accountLock,
         storedStudentId = { stored?.first },
         writeAccount = { studentId, password ->
@@ -100,23 +121,35 @@ class TypedAccountSignInTest {
             steps += "store"
         },
         latch = latch,
+        leaveStoredAccount = {
+            steps += "leave"
+            synchronized(accountLock) { session.signIns.end() }
+            signOut()
+            onLeave()
+        },
         isDemoAccount = { _, password -> password == DEMO_PASSWORD },
-        enterDemo = {
+        enterDemo = { from ->
             steps += "demo"
             onDemo()
+            session.startDemo(from) {}.also { onDemoWrite() }
         },
         accountChanging = { steps += "owed" },
-        markSignedIn = {
-            signedIn = true
-            steps += "shown"
+        markSignedIn = { signIn ->
+            shownUnderLock = Thread.holdsLock(accountLock)
+            if (signIn.isCurrent) {
+                signedIn = true
+                steps += "shown"
+            }
+            signIn.isCurrent
         },
     )
 
     private suspend fun signIn(password: String = NEW_PASSWORD) = typedSignIn().signIn(
         STUDENT,
         password,
-        prepareSignedIn = {
+        prepareSignedIn = { signIn ->
             steps += "prepare"
+            preparedUnder = signIn
             prepare()
         },
     ) { _, _ ->
@@ -132,6 +165,14 @@ class TypedAccountSignInTest {
         assertEquals("nothing lifted it before the new password was stored", true, latchedAtStore)
         assertEquals(STUDENT to NEW_PASSWORD, stored)
         assertFalse(latch.isRejected)
+    }
+
+    @Test
+    fun `the account shows as signed in holding no lock a sign-out takes`() = runTest {
+        // A page on the main thread runs in the telling.
+        signIn()
+
+        assertEquals(false, shownUnderLock)
     }
 
     @Test
@@ -186,6 +227,133 @@ class TypedAccountSignInTest {
     }
 
     @Test
+    fun `another student's sign-in signs the stored one out once the school accepts, then stores`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        signedIn = true
+        var sameStudentSeen: Boolean? = null
+        onPost = { steps += "school" }
+
+        val outcome = typedSignIn().signIn(STUDENT, NEW_PASSWORD, prepareSignedIn = { steps += "prepare" }) { _, sameStudent ->
+            sameStudentSeen = sameStudent
+            SignInAttempt.SIGNED_IN
+        }
+
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, outcome)
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+        assertEquals("one sign-out ran", 1, signOuts)
+        assertTrue("the second student shows", signedIn)
+        assertEquals(false, sameStudentSeen)
+        assertEquals(listOf("school", "leave", "owed", "store", "prepare", "shown"), steps)
+    }
+
+    @Test
+    fun `a wrong password leaves the stored student signed in`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        signedIn = true
+        accepts = false
+
+        val outcome = runCatching { typedSignIn().signIn(STUDENT, NEW_PASSWORD, prepareSignedIn = {}) { _, _ -> SignInAttempt.SIGNED_IN } }
+
+        assertTrue(outcome.isFailure || outcome.getOrNull() == TypedAccountSignIn.Outcome.NOT_SIGNED_IN)
+        assertEquals(OTHER_STUDENT to OLD_PASSWORD, stored)
+        assertEquals("no sign-out ran", 0, signOuts)
+        assertTrue(signedIn)
+        assertEquals(emptyList<String>(), steps)
+    }
+
+    @Test
+    fun `the sign-in waits for the sign-out's wipe before it stores`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        // The wipe runs on the application scope, and takes its time.
+        val left = CompletableDeferred<Unit>()
+        onLeave = { left.complete(Unit) }
+        val signingIn = launch { signIn() }
+        left.await()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("nothing stored during the wipe, the wipe would take it", listOf("leave"), steps)
+        assertEquals(null, stored)
+
+        session.open()
+        signingIn.join()
+
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+        assertEquals(listOf("leave", "owed", "store", "prepare", "shown", "rest"), steps)
+    }
+
+    @Test
+    fun `a sign-in cancelled during the wipe leaves nobody stored, and the next one free`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        val left = CompletableDeferred<Unit>()
+        onLeave = { left.complete(Unit) }
+        val signingIn = launch { signIn() }
+        left.await()
+        testScheduler.advanceUntilIdle()
+
+        signingIn.cancelAndJoin()
+        session.open()
+
+        assertEquals(null, stored)
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+    }
+
+    @Test
+    fun `a sign-out landing during the wipe of the one this sign-in started is waited out too`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        val left = CompletableDeferred<Unit>()
+        onLeave = {
+            // A second sign-out, the session closed again as the first opens it.
+            session.open()
+            synchronized(accountLock) { session.signIns.end() }
+            signOut()
+            left.complete(Unit)
+        }
+        val signingIn = launch { signIn() }
+        left.await()
+        testScheduler.advanceUntilIdle()
+        assertEquals(null, stored)
+
+        session.open()
+        signingIn.join()
+
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+    }
+
+    @Test
+    fun `a sign-out that overtook the school's answer signs nobody else out, and stores nothing`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        onPost = { signOut() }
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, signIn())
+
+        assertEquals("the sign-in leaves nothing itself", emptyList<String>(), steps)
+        assertEquals(null, stored)
+    }
+
+    @Test
+    fun `the same student's sign-in, and one with nobody stored, sign nobody out`() = runTest {
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
+        stored = null
+
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
+
+        assertFalse("leave" in steps)
+        assertEquals(0, signOuts)
+    }
+
+    @Test
+    fun `the demo account over a stored student signs that student out first`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+
+        assertEquals(TypedAccountSignIn.Outcome.DEMO, signIn(password = DEMO_PASSWORD))
+
+        assertEquals(STUDENT to DEMO_PASSWORD, stored)
+        assertEquals(1, signOuts)
+        assertEquals(listOf("leave", "owed", "demo", "store", "prepare", "shown"), steps)
+    }
+
+    @Test
     fun `the demo account signs in on the device, and its store lifts the refusal too`() = runTest {
         val outcome = signIn(password = DEMO_PASSWORD)
 
@@ -233,6 +401,49 @@ class TypedAccountSignInTest {
         assertFalse(signedIn)
     }
 
+    @Test
+    fun `what comes before the showing runs under the sign-in that shows`() = runTest {
+        signIn()
+
+        assertSame(session.signIns.current, preparedUnder)
+    }
+
+    @Test
+    fun `the demo signs in under a sign-in of its own, which is the one that shows`() = runTest {
+        val from = session.signIns.current
+
+        assertEquals(TypedAccountSignIn.Outcome.DEMO, signIn(password = DEMO_PASSWORD))
+
+        assertFalse(from.isCurrent)
+        assertTrue(preparedUnder!!.isDemo)
+        assertSame(session.signIns.current, preparedUnder)
+        assertTrue(signedIn)
+    }
+
+    @Test
+    fun `a sign-out while the demo's data is written stores nothing, though the next sign-in has opened`() = runTest {
+        // The wipe over: the sign-in to ask about is the demo's own, not the one open by now.
+        onDemoWrite = {
+            signOut()
+            session.open()
+        }
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, signIn(password = DEMO_PASSWORD))
+
+        assertEquals(null, stored)
+        assertFalse(signedIn)
+    }
+
+    @Test
+    fun `a sign-out that ended the sign-in before the demo went on stores nothing and shows nothing`() = runTest {
+        onDemo = { signOut() }
+
+        val outcome = signIn(password = DEMO_PASSWORD)
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, outcome)
+        assertEquals(listOf("owed", "demo"), steps)
+    }
+
     private fun answer(request: Request): Response {
         requests += request.method
         val (url, html) = if (request.method == "POST") {
@@ -254,10 +465,10 @@ class TypedAccountSignInTest {
 
     private companion object {
         const val STUDENT = "B00000000"
+        const val OTHER_STUDENT = "B00000001"
         const val OLD_PASSWORD = "old-password"
         const val NEW_PASSWORD = "new-password"
         const val DEMO_PASSWORD = "made-up-demo-password"
-        const val GENERATION = 7
         const val SERVICE = "https://courseselection.ntust.edu.tw/"
         const val LOGIN_URL = "https://ssoam2.ntust.edu.tw/account/login?ReturnUrl=%2Fconnect"
 

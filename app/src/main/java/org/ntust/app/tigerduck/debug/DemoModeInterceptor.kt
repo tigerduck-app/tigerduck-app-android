@@ -17,12 +17,15 @@ import javax.inject.Singleton
  * than a new one where a 503 or an empty body reaches a parser that has
  * never been handed one.
  *
- * Installed on all three OkHttp clients: the shared one from [NetworkModule],
- * the NTUST/Moodle one [org.ntust.app.tigerduck.network.NtustSessionManager]
- * builds for its cookie jar, and the one inside
- * [org.ntust.app.tigerduck.shared.LibraryService]. Missing any of them would
- * leave a live route out of the device, and the timetable would be overwritten
- * through whichever one it was.
+ * Installed on the three OkHttp clients that hold an account: the shared one
+ * from [NetworkModule], the NTUST/Moodle one
+ * [org.ntust.app.tigerduck.network.NtustSessionManager] builds for its cookie
+ * jar, and the one inside [org.ntust.app.tigerduck.shared.LibraryService].
+ * Missing any of them would leave a live route out of the device, and the
+ * timetable would be overwritten through whichever one it was. The other two
+ * HTTPS clients, the pin document's and the browser's downloads, go without
+ * it, by name in `DemoStaysOnTheDeviceTest`. It covers OkHttp alone: School
+ * Mail's IMAP and SMTP are kept shut by `MailRepository`.
  *
  * Active in release builds too: that is where the store reviewer signs in.
  */

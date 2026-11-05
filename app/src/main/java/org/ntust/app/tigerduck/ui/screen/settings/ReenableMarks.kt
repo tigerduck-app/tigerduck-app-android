@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.util.Log
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 private const val TAG = "SyncReenable"
 
@@ -71,14 +72,14 @@ internal fun categoriesTaken(
  * Signed out, the check has no session, and the mark would wait for whoever
  * signs in next.
  */
-internal fun markForReenableCheck(prefs: AppPreferences, category: String, signedIn: Boolean) {
-    val synced = category in prefs.syncedCategories
+internal fun markForReenableCheck(prefs: AppPreferences, category: String, signedIn: Boolean, signIn: SignIn) {
+    val synced = category in prefs.school.syncedCategories.get()
     if (!signedIn || !synced) {
         Log.i(TAG, "[reenable] not marked: category=$category signedIn=$signedIn synced=$synced")
         return
     }
-    prefs.pendingConflictCategories = prefs.pendingConflictCategories + category
-    Log.i(TAG, "[reenable] marked category=$category pending=${prefs.pendingConflictCategories}")
+    prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() + category, signIn)
+    Log.i(TAG, "[reenable] marked category=$category pending=${prefs.school.pendingConflictCategories.get()}")
 }
 
 /**

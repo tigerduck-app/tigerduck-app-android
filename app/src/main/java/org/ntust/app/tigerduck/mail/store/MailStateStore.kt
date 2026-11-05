@@ -11,6 +11,7 @@ interface MailStateStore {
     var notificationsEnabled: Boolean
     /** Set when the server rejected the stored password; background checks stop until the next sign-in. */
     var authFailed: Boolean
+    /** The demo mailbox is signed in: the persisted truth, which the mail session's series starts from and follows. */
     var demoMailbox: Boolean
     var inboxUidValidity: Long
     /** The seen marker: the INBOX UID from which new mail counts as new. 0 = no baseline yet. */

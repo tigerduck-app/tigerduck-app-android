@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.util.JvmContext
 
 /** The Moodle tokens kept with the NTUST account, and gone with it. */
@@ -34,7 +35,7 @@ class CredentialManagerMoodleTest {
         credentials.ntustStudentId = "B11300001"
         credentials.storeMoodleTokenIfSignedIn("B11300001", "token", "private")
 
-        credentials.clearAll()
+        credentials.clearAll(SignOutReason.FULL_RESET)
 
         assertNull(credentials.moodlePrivateToken)
     }

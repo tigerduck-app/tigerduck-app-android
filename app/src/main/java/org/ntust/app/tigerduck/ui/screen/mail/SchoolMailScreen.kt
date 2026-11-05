@@ -46,13 +46,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -162,6 +159,7 @@ fun SchoolMailScreen(
     onOpenGuide: () -> Unit,
     viewModel: SchoolMailListViewModel = hiltViewModel(),
     accountViewModel: MailAccountViewModel = hiltViewModel(),
+    settingsViewModel: SchoolMailSettingsViewModel = hiltViewModel(),
 ) {
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val authFailed by viewModel.authFailed.collectAsStateWithLifecycle()
@@ -218,7 +216,7 @@ fun SchoolMailScreen(
         }
     }
 
-    if (!signedIn) {
+    if (!signedIn) { // School Mail's own sign-in, not the school's: no menu here (see schoolMailMenu).
         PageScaffold(
             title = stringResource(R.string.feature_school_mail),
             headerPosition = PageHeaderPosition.InContent,
@@ -282,17 +280,8 @@ fun SchoolMailScreen(
         title = stringResource(R.string.feature_school_mail),
         headerPosition = PageHeaderPosition.InContent,
         syncDot = { SchoolMailSyncDot(state.loadState, authFailed, indexProgress, isLoading, state.fetchedAt) },
-        actions = {
-            IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
-                Icon(
-                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                    contentDescription = stringResource(R.string.school_mail_unread_only),
-                )
-            }
-            IconButton(onClick = onOpenGuide) {
-                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.school_mail_use_other_app))
-            }
-        },
+        actions = { SchoolMailHeaderActions(state, viewModel, onOpenGuide) },
+        menu = schoolMailMenu(settingsViewModel),
     ) { padding ->
         // The compose button is the pull's sibling, not its content, so a pull does not carry it down.
         Box(Modifier.fillMaxSize().padding(padding)) {

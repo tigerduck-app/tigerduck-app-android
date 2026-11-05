@@ -5,11 +5,15 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -34,6 +38,8 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.ui.component.LocalOpenPageSettings
+import org.ntust.app.tigerduck.ui.component.PageSettings
 import org.ntust.app.tigerduck.ui.navigation.popIfTop
 import org.ntust.app.tigerduck.util.AppReturns
 import org.robolectric.RobolectricTestRunner
@@ -74,38 +80,45 @@ class BulletinSettingsSignedInTest {
     private fun announcements(signedIn: Boolean) {
         val vm = AnnouncementsViewModel(
             SavedStateHandle(), api(), cache, BulletinRepository(), BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache, DebugFixtureStore(context)), testCredentials(context),
+            testSessions(context),
             AppReturns(now = { 0L }, register = {}),
         )
         composeRule.setContent {
-            MaterialTheme {
-                AnnouncementsScreen(onOpenBulletin = {}, onOpenSubscriptions = {}, signedIn = signedIn, viewModel = vm)
+            CompositionLocalProvider(LocalOpenPageSettings provides { opened += it }) {
+                MaterialTheme {
+                    AnnouncementsScreen(onOpenBulletin = {}, signedIn = signedIn, viewModel = vm)
+                }
             }
         }
         composeRule.waitForIdle()
     }
 
-    private fun settingsButtons() = composeRule
-        .onAllNodesWithContentDescription(context.getString(R.string.bulletin_notifications_title))
+    private val opened = mutableListOf<PageSettings>()
+
+    private fun menus() = composeRule
+        .onAllNodesWithContentDescription(context.getString(R.string.action_more_actions))
         .fetchSemanticsNodes().size
 
     @Test
-    fun `signed out, the bulletins page offers no push settings`() {
+    fun `signed out, the bulletins page offers no push settings, nor a menu`() {
         announcements(signedIn = false)
 
-        assertEquals(0, settingsButtons())
+        assertEquals(0, menus())
     }
 
     @Test
-    fun `signed in, the bulletins page offers the push settings`() {
+    fun `signed in, the bulletins menu holds only Settings, which opens the push settings`() {
         announcements(signedIn = true)
 
-        assertEquals(1, settingsButtons())
+        assertEquals(1, menus())
+        composeRule.onNodeWithContentDescription(context.getString(R.string.action_more_actions)).performClick()
+        composeRule.onNodeWithText(context.getString(R.string.action_settings)).performClick()
+        assertEquals(listOf(PageSettings.BULLETINS), opened)
     }
 
     private fun settingsPage(signedIn: Boolean): Int {
         var closed = 0
-        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context), testSessions(context).school)
         composeRule.setContent {
             MaterialTheme { SubscriptionSettingsScreen(signedIn = signedIn, onBack = { closed++ }, viewModel = vm) }
         }
@@ -132,7 +145,7 @@ class BulletinSettingsSignedInTest {
     fun `signed out under another page, the push settings close once back on top`() {
         var signedIn by mutableStateOf(true)
         lateinit var nav: NavHostController
-        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context), testSessions(context).school)
         composeRule.setContent {
             nav = rememberNavController()
             MaterialTheme {
@@ -163,7 +176,7 @@ class BulletinSettingsSignedInTest {
         var signedIn by mutableStateOf(true)
         var closes = 0
         lateinit var nav: NavHostController
-        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context), testSessions(context).school)
         composeRule.setContent {
             nav = rememberNavController()
             MaterialTheme {

@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss.IMPORTED_CLASS_TABLES
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss.UNSYNCED_DATA
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Signing out deletes what exists only on the phone, so it asks first and says what goes: the
@@ -123,25 +124,25 @@ class SignOutConfirmationTest {
 
     @Test
     fun `fetched courses alone are not the user's own`() = runTest {
-        dataCache.saveCourses(listOf(course("CS1001301")), "1141")
+        dataCache.saveCourses(listOf(course("CS1001301")), "1141", testSignIn())
 
         assertEquals(emptySet<SignOutLoss>(), check.losses())
     }
 
     @Test
     fun `a course added by hand in an earlier term is the user's own`() = runTest {
-        dataCache.saveCourses(listOf(course("CS1001301"), course("XX0000001").copy(isManual = true)), "1132")
+        dataCache.saveCourses(listOf(course("CS1001301"), course("XX0000001").copy(isManual = true)), "1132", testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
 
     @Test
     fun `a picked colour and a marked assignment are the user's own`() = runTest {
-        dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141")
+        dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141", testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
-        dataCache.saveCourses(listOf(course("CS1001301")), "1141")
-        dataCache.saveMarkedCompletedAssignments(setOf("a1"))
+        dataCache.saveCourses(listOf(course("CS1001301")), "1141", testSignIn())
+        dataCache.saveMarkedCompletedAssignments(setOf("a1"), testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
 
@@ -173,16 +174,16 @@ class SignOutConfirmationTest {
         // F-Droid has no TigerSync, where every edit is asked about anyway.
         assumeTrue(prefs.cloudSyncEnabled)
         // And a full sync on this phone has taken every kind.
-        prefs.syncedCategories = REENABLE_CATEGORIES
+        prefs.school.syncedCategories.set(REENABLE_CATEGORIES, testSignIn())
     }
 
     @Test
     fun `a course added by hand that the server has not had yet is asked about`() = runTest {
         syncOn()
-        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true)), "1141")
+        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true)), "1141", testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
-        dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")))
+        dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")), testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
     }
 
@@ -190,15 +191,15 @@ class SignOutConfirmationTest {
     @Test
     fun `a course added back whose add still waits is asked about`() = runTest {
         syncOn()
-        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true)), "1141")
-        dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")))
+        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true)), "1141", testSignIn())
+        dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")), testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
-        dataCache.savePendingCourseAdds(mapOf("1141" to listOf("XX0000001")))
+        dataCache.savePendingCourseAdds(mapOf("1141" to listOf("XX0000001")), testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
         // An add whose course has left this phone is not sent again, and nothing of it is lost.
-        dataCache.saveCourses(emptyList(), "1141")
+        dataCache.saveCourses(emptyList(), "1141", testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
     }
 
@@ -209,6 +210,7 @@ class SignOutConfirmationTest {
 
         dataCache.savePendingCourseIgnores(
             listOf(PendingCourseIgnore("1141", "CS1001301", "1141CS1001301", null, ignore = true, changedAtMs = 1L)),
+            testSignIn(),
         )
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
@@ -221,7 +223,7 @@ class SignOutConfirmationTest {
 
         // Marked done offline: the mark waits in unsent_marks.json for the next sync, and the
         // sign-out would delete it before the server ever had it.
-        dataCache.saveUnsentMarks(listOf(UnsentMark("a1", "locally_completed")))
+        dataCache.saveUnsentMarks(listOf(UnsentMark("a1", "locally_completed")), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -229,11 +231,11 @@ class SignOutConfirmationTest {
     @Test
     fun `edits held for the re-enable check are asked about`() = runTest {
         syncOn()
-        dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141")
+        dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141", testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         // The sign-out clears the hold, and the colours it held back never reach the server.
-        prefs.pendingConflictCategories = setOf("course_colors")
+        prefs.school.pendingConflictCategories.set(setOf("course_colors"), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -241,10 +243,10 @@ class SignOutConfirmationTest {
     @Test
     fun `an edit of a kind no full sync has taken here yet is asked about`() = runTest {
         syncOn()
-        dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141")
+        dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141", testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
-        prefs.syncedCategories = REENABLE_CATEGORIES - "course_colors"
+        prefs.school.syncedCategories.set(REENABLE_CATEGORIES - "course_colors", testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -252,12 +254,12 @@ class SignOutConfirmationTest {
     @Test
     fun `marks a background sync has taken are kept, before any sync from Home`() = runTest {
         syncOn()
-        prefs.syncedCategories = emptySet()
-        dataCache.saveMarkedCompletedAssignments(setOf("a1"))
+        prefs.school.syncedCategories.set(emptySet(), testSignIn())
+        dataCache.saveMarkedCompletedAssignments(setOf("a1"), testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
         // BackgroundSyncWorker took the account's marks, which records only this.
-        prefs.assignmentMarksSyncedOnce = true
+        prefs.school.assignmentMarksSyncedOnce.set(true, testSignIn())
 
         assertEquals(emptySet<SignOutLoss>(), check.losses())
     }
@@ -265,7 +267,7 @@ class SignOutConfirmationTest {
     @Test
     fun `an ignored course is asked about while courses do not sync`() = runTest {
         syncOn()
-        dataCache.saveIgnoredCourses(setOf("1141CS1001301"))
+        dataCache.saveIgnoredCourses(setOf("1141CS1001301"), testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         prefs.syncCourses = false
@@ -281,6 +283,7 @@ class SignOutConfirmationTest {
         // Set offline: the colour waits in PendingCourseOverrides, which the sign-out wipes.
         dataCache.savePendingCourseOverrides(
             listOf(PendingCourseOverride("1141CS1001301", "#FF0000", null, null, changedAtMs = 1L)),
+            testSignIn(),
         )
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
@@ -290,16 +293,16 @@ class SignOutConfirmationTest {
     fun `a name on a course added by hand is asked about with names synced, as it never goes up`() = runTest {
         syncOn()
         // The server has had the course itself, so only its name is at stake.
-        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true)), "1141")
-        dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")))
+        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true)), "1141", testSignIn())
+        dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")), testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         // Renamed in the other language, so the course on the table carries no name of its own.
-        dataCache.saveCourseCustomNames(mapOf("XX0000001" to mapOf("en" to "Morning Math")))
+        dataCache.saveCourseCustomNames(mapOf("XX0000001" to mapOf("en" to "Morning Math")), testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
-        dataCache.saveCourseCustomNames(emptyMap())
-        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true, customCourseName = "早八")), "1141")
+        dataCache.saveCourseCustomNames(emptyMap(), testSignIn())
+        dataCache.saveCourses(listOf(course("XX0000001").copy(isManual = true, customCourseName = "早八")), "1141", testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
 
@@ -307,14 +310,14 @@ class SignOutConfirmationTest {
     fun `a name on a course added by hand is asked about though another term's course of that number has a Moodle ID`() = runTest {
         syncOn()
         // Taken for credit in an earlier term, added by hand again in this one.
-        dataCache.saveCourses(listOf(course("CS1001301").copy(moodleIdNumber = "1132CS1001301")), "1132")
-        dataCache.saveCourses(listOf(course("CS1001301").copy(isManual = true)), "1141")
-        dataCache.saveServerKnownNos(mapOf("1141" to listOf("CS1001301")))
+        dataCache.saveCourses(listOf(course("CS1001301").copy(moodleIdNumber = "1132CS1001301")), "1132", testSignIn())
+        dataCache.saveCourses(listOf(course("CS1001301").copy(isManual = true)), "1141", testSignIn())
+        dataCache.saveServerKnownNos(mapOf("1141" to listOf("CS1001301")), testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         // Renamed on this term's table: the name goes through this term's course alone, which has no Moodle ID.
-        dataCache.saveCourses(listOf(course("CS1001301").copy(isManual = true, customCourseName = "早八")), "1141")
-        dataCache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "早八")))
+        dataCache.saveCourses(listOf(course("CS1001301").copy(isManual = true, customCourseName = "早八")), "1141", testSignIn())
+        dataCache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "早八")), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -325,8 +328,9 @@ class SignOutConfirmationTest {
         dataCache.saveCourses(
             listOf(course("CS1001301").copy(moodleIdNumber = "1141CS1001301", customCourseName = "早八")),
             "1141",
+            testSignIn(),
         )
-        dataCache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "早八")))
+        dataCache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "早八")), testSignIn())
 
         assertEquals(emptySet<SignOutLoss>(), check.losses())
     }
@@ -337,7 +341,7 @@ class SignOutConfirmationTest {
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         // Its DELETE waits in PendingCourseDeletes: lost, the course comes back at the next sign-in.
-        dataCache.savePendingCourseDeletes(mapOf("1141" to mapOf("CS1001301" to 1L)))
+        dataCache.savePendingCourseDeletes(mapOf("1141" to mapOf("CS1001301" to 1L)), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }

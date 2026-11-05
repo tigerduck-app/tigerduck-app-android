@@ -140,10 +140,10 @@ class SignOutLossCheck @Inject constructor(
             courseColours = prefs.syncCourseColors,
             assignments = prefs.syncAssignments,
             // The background worker's full sync records only that it took the marks.
-            syncedOnce = prefs.syncedCategories + if (prefs.assignmentMarksSyncedOnce) setOf("assignments") else emptySet(),
+            syncedOnce = prefs.school.syncedCategories.get() + if (prefs.school.assignmentMarksSyncedOnce.get()) setOf("assignments") else emptySet(),
         )
         // Held back for the re-enable check, by its category names (REENABLE_CATEGORIES).
-        val held = prefs.pendingConflictCategories
+        val held = prefs.school.pendingConflictCategories.get()
         val serverKnown = dataCache.loadServerKnownNos()
         val overrides = dataCache.loadPendingCourseOverrides()
         // Only adds whose course is still here: PendingCourseAdds lets the others go unsent.

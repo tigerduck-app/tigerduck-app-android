@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.mail
 
 import android.content.Context
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -167,11 +169,16 @@ class MailSite @Inject constructor(private val store: MailDevServerStore) {
  * account that was never rejected.
  */
 @Singleton
-class MailDevServerController @Inject constructor(
+class MailDevServerController internal constructor(
     private val store: MailDevServerStore,
     private val site: MailSite,
-    private val account: MailAccount,
+    /** School Mail's sign-out, which only [SignOutPlans] runs. */
+    private val signOutMail: () -> Unit,
 ) {
+    @Inject
+    constructor(store: MailDevServerStore, site: MailSite, signOutPlans: SignOutPlans) :
+        this(store, site, { signOutPlans.signOut(SignOutReason.MAIL) })
+
     val settings: MailDevServerSettings get() = store.settings
 
     /**
@@ -186,7 +193,7 @@ class MailDevServerController @Inject constructor(
         val before = site.config()
         store.settings = settings
         if (site.config() == before) return false
-        account.signOut()
+        signOutMail()
         return true
     }
 

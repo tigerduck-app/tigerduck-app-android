@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * What a sync keeps per account goes at sign-out ([AppPreferences.clearSyncStamps]),
@@ -16,10 +17,14 @@ class SyncStampsTest {
 
     private val prefs = AppPreferences(context)
 
+    // What an older build kept of the server's last course reset, which nothing reads any more.
+    private val file = context.getSharedPreferences("tigerduck_prefs", 0)
+    private fun courseResetRead() = file.getString("lastSeenCoursesResetAt", null)
+
     private fun keep() {
-        prefs.lastSeenCoursesResetAt = "2026-10-10T16:42:49+00:00"
-        prefs.assignmentsUploadFingerprint = "abc"
-        prefs.assignmentsUploadedAtMs = 42L
+        file.edit().putString("lastSeenCoursesResetAt", "2026-10-10T16:42:49+00:00").commit()
+        prefs.school.assignmentsUploadFingerprint.set("abc", testSignIn())
+        prefs.school.assignmentsUploadedAtMs.set(42L, testSignIn())
         prefs.recordCoursesUpload("1151", "c1", 7L)
         prefs.recordCoursesUpload("1142", "c2", 8L)
     }
@@ -37,9 +42,9 @@ class SyncStampsTest {
 
         prefs.clearSyncStamps()
 
-        assertNull(prefs.lastSeenCoursesResetAt)
-        assertNull(prefs.assignmentsUploadFingerprint)
-        assertEquals(0L, prefs.assignmentsUploadedAtMs)
+        assertNull(courseResetRead())
+        assertNull(prefs.school.assignmentsUploadFingerprint.get())
+        assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
         assertCourseListsForgotten()
     }
 
@@ -49,10 +54,10 @@ class SyncStampsTest {
 
         prefs.forgetUploads()
 
-        assertNull(prefs.assignmentsUploadFingerprint)
-        assertEquals(0L, prefs.assignmentsUploadedAtMs)
+        assertNull(prefs.school.assignmentsUploadFingerprint.get())
+        assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
         assertCourseListsForgotten()
-        assertEquals("2026-10-10T16:42:49+00:00", prefs.lastSeenCoursesResetAt)
+        assertEquals("2026-10-10T16:42:49+00:00", courseResetRead())
     }
 
     @Test
@@ -65,21 +70,20 @@ class SyncStampsTest {
         assertEquals(0L, prefs.coursesUploadedAtMs("1151"))
         assertEquals("c2", prefs.coursesUploadFingerprint("1142"))
         assertEquals(8L, prefs.coursesUploadedAtMs("1142"))
-        assertEquals("abc", prefs.assignmentsUploadFingerprint)
+        assertEquals("abc", prefs.school.assignmentsUploadFingerprint.get())
     }
 
     @Test
-    fun `the older build's sync stamp is read once, and sign-out forgets it too`() {
+    fun `the older build's sync stamp is forgotten, and sign-out forgets it too`() {
         val legacy = context.getSharedPreferences("tigerduck_sync", 0)
         legacy.edit().putLong("last_course_sync_at", 42L).commit()
 
-        assertEquals(42L, prefs.legacyLastCourseSyncAtMs)
         prefs.forgetLegacyLastCourseSyncAt()
-        assertEquals(0L, prefs.legacyLastCourseSyncAtMs)
+        assertEquals(0L, legacy.getLong("last_course_sync_at", 0L))
 
         legacy.edit().putLong("last_course_sync_at", 42L).commit()
         prefs.clearSyncStamps()
-        assertEquals(0L, prefs.legacyLastCourseSyncAtMs)
+        assertEquals(0L, legacy.getLong("last_course_sync_at", 0L))
     }
 
     @Test
@@ -96,7 +100,7 @@ class SyncStampsTest {
             flip(false)
             keep()
             flip(true)
-            assertNull(prefs.assignmentsUploadFingerprint)
+            assertNull(prefs.school.assignmentsUploadFingerprint.get())
             assertNull(prefs.coursesUploadFingerprint("1151"))
         }
     }
@@ -108,7 +112,7 @@ class SyncStampsTest {
 
         prefs.syncAssignments = true
 
-        assertEquals("abc", prefs.assignmentsUploadFingerprint)
+        assertEquals("abc", prefs.school.assignmentsUploadFingerprint.get())
         assertEquals("c1", prefs.coursesUploadFingerprint("1151"))
     }
 }

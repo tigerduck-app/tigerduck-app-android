@@ -32,7 +32,7 @@ class KeepLocalCoursesTest {
 
     /** What a refresh does after Use Local: upload the term's whole roster, hidden course included. */
     private suspend fun FakeCourseServer.uploadRoster(semester: String, vararg courseNos: String) =
-        uploadCourses(roster(*courseNos), semester)
+        uploadTerm(roster(*courseNos), semester)
 
     @Test
     fun `a course deleted here stays deleted after Use Local and the next roster upload`() = runTest {
@@ -209,6 +209,91 @@ class KeepLocalCoursesTest {
     }
 
     @Test
+    fun `Use Local on v4 sends a term's colors as stamped overrides after its upload`() = runTest {
+        // A term reset, and one whose portal courses are not cached, which is not.
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2", "client:1142:MY9"))
+        val terms = listOf(
+            "1151" to listOf(
+                Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000"),
+                Course(courseNo = "CS2", courseName = "CS2", customColorHex = "#00FF00"),
+                Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#0000FF"),
+                Course(courseNo = "CS3", courseName = "CS3"),
+            ),
+            "1142" to listOf(Course(courseNo = "MY9", courseName = "Mine", isManual = true, customColorHex = "#123456")),
+        )
+
+        keepLocalCourses(
+            terms,
+            hiding = setOf("1151:CS2"),
+            backend = server,
+            customNames = mapOf("CS1" to mapOf("zh" to "微積分", "en" to "Calc"), "CS2" to mapOf("en" to "Gone")),
+            portalCached = { it == "1151" },
+        )
+
+        assertEquals(
+            listOf(
+                "reset 1151", "upload 1151", "hide client:1151:CS2",
+                "color client:1151:CS1", "name client:1151:CS1 en", "name client:1151:CS1 zh", "color client:1151:MY1",
+                // Not reset, and no colour rides its upload either.
+                "upload 1142", "color client:1142:MY9",
+            ),
+            server.requests,
+        )
+        assertEquals(mapOf("client:1151:CS1" to "#FF0000", "client:1151:MY1" to "#0000FF", "client:1142:MY9" to "#123456"), server.colors)
+        assertEquals(mapOf("client:1151:CS1" to mapOf("en" to "Calc", "zh" to "微積分")), server.names)
+    }
+
+    @Test
+    fun `on v4 a term uploaded without a reset sends its colors as overrides after its upload`() = runTest {
+        // The cache lost the term's portal rows: its hand-typed courses go up, and nothing is reset.
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1"))
+        val terms = listOf(
+            "1151" to listOf(
+                Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#0000FF"),
+                Course(courseNo = "MY2", courseName = "Mine too", isManual = true),
+                Course(courseNo = "MY3", courseName = "Hidden", isManual = true, customColorHex = "#FF00FF"),
+            ),
+        )
+
+        keepLocalCourses(
+            terms,
+            hiding = setOf("1151:MY3"),
+            backend = server,
+            customNames = mapOf("MY1" to mapOf("en" to "Mine")),
+            portalCached = { false },
+        )
+
+        assertEquals(listOf("upload 1151", "hide client:1151:MY3", "color client:1151:MY1"), server.requests)
+        assertEquals(mapOf("client:1151:MY1" to "#0000FF"), server.colors)
+    }
+
+    @Test
+    fun `on v4 each color and name goes as the phone holds it after the reset, not as Use Local read it`() = runTest {
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2"))
+        // While the reset is out the student recolors CS1, renames it, and clears CS2's color.
+        server.afterReset = {
+            server.local["client:1151:CS1"] = LocalChoices("#00FF00", mapOf("en" to "New", "zh" to ""))
+            server.local["client:1151:CS2"] = LocalChoices(null, emptyMap())
+        }
+
+        keepLocalCourses(
+            listOf(
+                "1151" to listOf(
+                    Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000"),
+                    Course(courseNo = "CS2", courseName = "CS2", customColorHex = "#0000FF"),
+                ),
+            ),
+            hiding = emptySet(),
+            backend = server,
+            customNames = mapOf("CS1" to mapOf("en" to "Old", "zh" to "舊")),
+        )
+
+        assertEquals(listOf("reset 1151", "upload 1151", "color client:1151:CS1", "name client:1151:CS1 en"), server.requests)
+        assertEquals(mapOf("client:1151:CS1" to "#00FF00"), server.colors)
+        assertEquals(mapOf("client:1151:CS1" to mapOf("en" to "New")), server.names)
+    }
+
+    @Test
     fun `nothing more is sent once the sign-in it was answered under is gone`() = runTest {
         val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1142:CS9"))
         var checks = 0
@@ -263,30 +348,34 @@ class UseLocalCoursesTest {
         portalCached = { true },
         latch = UseLocalLatch(terms.map { it.first }, host),
         host = host,
-        now = { 42L },
+        checked = null,
         isCurrent = { current },
+        now = { 42L },
     )
 
     private class Failing : CourseSyncBackend {
-        override suspend fun deleteAllCourses(semester: String) = throw IOException("offline")
-        override suspend fun uploadCourses(courses: List<Course>, semester: String) = Unit
-        override suspend fun deleteCourse(courseKey: String) = Unit
-        override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
+        override suspend fun resetTerm(semester: String) = throw IOException("offline")
+        override suspend fun uploadTerm(courses: List<Course>, semester: String) = Unit
+        override suspend fun hideCourse(courseKey: String) = Unit
+        override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
+        override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
 
     private class SwitchedOff : CourseSyncBackend {
-        override suspend fun deleteAllCourses(semester: String) = throw CourseSyncOffException()
-        override suspend fun uploadCourses(courses: List<Course>, semester: String) = throw CourseSyncOffException()
-        override suspend fun deleteCourse(courseKey: String) = throw CourseSyncOffException()
-        override suspend fun patchCustomName(moodleId: String, name: String, locale: String) =
+        override suspend fun resetTerm(semester: String) = throw CourseSyncOffException()
+        override suspend fun uploadTerm(courses: List<Course>, semester: String) = throw CourseSyncOffException()
+        override suspend fun hideCourse(courseKey: String) = throw CourseSyncOffException()
+        override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) =
             throw CourseSyncOffException()
+        override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
 
     private class Recording(private val onRequest: () -> Unit = {}) : CourseSyncBackend {
-        override suspend fun deleteAllCourses(semester: String) = onRequest()
-        override suspend fun uploadCourses(courses: List<Course>, semester: String) = onRequest()
-        override suspend fun deleteCourse(courseKey: String) = onRequest()
-        override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = onRequest()
+        override suspend fun resetTerm(semester: String) = onRequest()
+        override suspend fun uploadTerm(courses: List<Course>, semester: String) = onRequest()
+        override suspend fun hideCourse(courseKey: String) = onRequest()
+        override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = onRequest()
+        override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
 
     @Test
@@ -296,12 +385,13 @@ class UseLocalCoursesTest {
         // the reset terms (tigerduck-app-android#307).
         var uploads = 0
         val server = object : CourseSyncBackend {
-            override suspend fun deleteAllCourses(semester: String) = Unit
-            override suspend fun uploadCourses(courses: List<Course>, semester: String) {
+            override suspend fun resetTerm(semester: String) = Unit
+            override suspend fun uploadTerm(courses: List<Course>, semester: String) {
                 if (++uploads == 2) throw IOException("connection lost")
             }
-            override suspend fun deleteCourse(courseKey: String) = Unit
-            override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
+            override suspend fun hideCourse(courseKey: String) = Unit
+            override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
+            override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
         }
 
         val reset = run(server, "1151" to roster("CS1"), "1142" to roster("CS9"), "1132" to emptyList())
@@ -420,10 +510,24 @@ private class FakeCourseServer(
 ) : CourseSyncBackend {
     val rows = rows.toMutableSet()
 
+    /** Every request, in order, as `step argument`. */
+    val requests = mutableListOf<String>()
+
+    /** The phone's own choices now, by course key, where a test changed them while Use Local ran. */
+    val local = mutableMapOf<String, LocalChoices>()
+
+    /** Runs as each term's reset lands, for a test to change the phone's choices meanwhile. */
+    var afterReset: (semester: String) -> Unit = {}
+
+    override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = local["client:$semester:$courseNo"]
+
+    /** Colors by course key, which an override sets and a reset or a delete takes with the row. */
+    val colors = mutableMapOf<String, String>()
+
     /** The terms reset, in order. */
     val resets = mutableListOf<String>()
 
-    /** How many of the next [deleteCourse] calls fail before reaching the server. */
+    /** How many of the next [hideCourse] calls fail before reaching the server. */
     var failingDeletes = 0
 
     /**
@@ -433,46 +537,55 @@ private class FakeCourseServer(
      */
     val names = mutableMapOf<String, MutableMap<String, String>>()
 
-    // The moodle_id each row was stored under, which the override PATCH
-    // resolves: the uploaded one, or "{semester}{course_no}" without one.
-    private val moodleIds = rows.associateWith { it.removePrefix("client:").replace(":", "") }.toMutableMap()
-
-    override suspend fun deleteAllCourses(semester: String) {
+    override suspend fun resetTerm(semester: String) {
+        requests += "reset $semester"
         resets += semester
         val prefix = "client:$semester:"
         val removed = rows.filter { it.startsWith(prefix) }
         rows -= removed.toSet()
         removed.forEach(names::remove)
+        removed.forEach(colors::remove)
         for (key in tombstones.keys.filter { it.startsWith(prefix) }) tombstones[key] = true
         for (key in removed) tombstones[key] = true
+        afterReset(semester)
     }
 
-    override suspend fun uploadCourses(courses: List<Course>, semester: String) {
+    override suspend fun uploadTerm(courses: List<Course>, semester: String) {
+        requests += "upload $semester"
         for (course in courses) {
             val key = "client:$semester:${course.courseNo}"
             if (tombstones[key] == true) tombstones.remove(key)
             if (key in tombstones) continue
             rows += key
-            moodleIds[key] = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
         }
     }
 
-    override suspend fun deleteCourse(courseKey: String) {
+    override suspend fun hideCourse(courseKey: String) {
         if (failingDeletes > 0) {
             failingDeletes--
             throw IOException("connection lost")
         }
+        requests += "hide $courseKey"
         if (!rows.remove(courseKey)) return
         names.remove(courseKey)
+        colors.remove(courseKey)
         tombstones.putIfAbsent(courseKey, false)
     }
 
     /** Whether every name PATCH fails before reaching the server. */
     var failingNames = false
 
-    override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {
+    override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) {
+        val courseKey = "client:$semester:$courseNo"
         if (failingNames) throw IOException("connection lost")
-        val key = rows.firstOrNull { moodleIds[it] == moodleId } ?: throw IOException("HTTP 404")
-        names.getOrPut(key) { mutableMapOf() }[locale] = name
+        if (courseKey !in rows) throw IOException("HTTP 404")
+        colorHex?.let {
+            requests += "color $courseKey"
+            colors[courseKey] = it
+        }
+        if (name != null && locale != null) {
+            requests += "name $courseKey $locale"
+            names.getOrPut(courseKey) { mutableMapOf() }[locale] = name
+        }
     }
 }
