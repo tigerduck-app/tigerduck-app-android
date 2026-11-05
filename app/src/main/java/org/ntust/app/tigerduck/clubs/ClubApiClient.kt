@@ -31,16 +31,23 @@ class ClubsUnavailableException : IOException("the club system is unavailable")
  * `GET /activities` under [BASE_URL], as the Apple apps' `ClubAPIClient`. The client is the app's
  * own, so the host's pin set (`clubs`) applies; it keeps no cookies, and no HTTP cache, which could
  * answer a revalidation itself and hide the 304. The club stores keep the answers.
+ *
+ * It follows no redirect: one to another host would send a request there under that host's trust
+ * before the answer could be refused. A 3xx is a failed fetch, which keeps the stored copy.
  */
 @Singleton
 class ClubApiClient internal constructor(
-    private val client: OkHttpClient,
+    baseClient: OkHttpClient,
     private val baseUrl: HttpUrl,
 ) {
-    @Inject constructor(baseClient: OkHttpClient) : this(
-        baseClient.newBuilder().cache(null).callTimeout(30, TimeUnit.SECONDS).build(),
-        BASE_URL.toHttpUrl(),
-    )
+    @Inject constructor(baseClient: OkHttpClient) : this(baseClient, BASE_URL.toHttpUrl())
+
+    private val client: OkHttpClient = baseClient.newBuilder()
+        .cache(null)
+        .callTimeout(30, TimeUnit.SECONDS)
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
 
     /** Every club, with how long the answer stays fresh. */
     suspend fun clubs(): ClubDirectoryAnswer = send(request("clubs")) { response, body ->
@@ -65,7 +72,7 @@ class ClubApiClient internal constructor(
     private suspend fun <T> send(request: Request.Builder, answer: (Response, String) -> T): T =
         withContext(Dispatchers.IO) {
             client.newCall(request.build()).execute().use { response ->
-                // An answer that ends on another host after a redirect is not the club system's.
+                // No redirect is followed; an answer from another host is not the club system's all the same.
                 if (hostName(response.request.url.host) != hostName(baseUrl.host)) {
                     throw IOException("club answer from another host")
                 }
