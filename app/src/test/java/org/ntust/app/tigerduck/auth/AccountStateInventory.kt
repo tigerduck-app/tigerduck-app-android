@@ -807,8 +807,11 @@ internal class AccountStateInventory(
     }
 
     /** The sources declaring [type], and those of the types that name it after their `:`. */
-    private fun holders(type: String): List<String> =
+    private fun holders(type: String): List<String> = holdersOf.getOrPut(type) {
         declarations.filter { it.name == type || type in it.supertypes }.map { it.source }.distinct()
+    }
+
+    private val holdersOf = HashMap<String, List<String>>()
 
     /** A body of code that runs: a function's, named, or a lambda handed in for one, unnamed. */
     private data class Body(val source: String, val range: IntRange, val function: String?)
@@ -817,18 +820,33 @@ internal class AccountStateInventory(
     private fun named(path: String, name: String): List<Body> =
         functions.getValue(path).filter { it.name == name }.map { Body(path, it.body, name) }
 
+    /**
+     * The sources declaring a function at their margin, by its name. Read once: the sign-out's
+     * calls ask it for every call they cannot place, `listOf` and `launch` among them.
+     */
+    private val topLevelSources: Map<String, List<String>> by lazy {
+        val declaration = Regex("""^(?:(?:private|internal|public|inline|suspend)\s+)*fun\s+(?:<[^>]*>\s*)?(\w+)\s*\(""", RegexOption.MULTILINE)
+        code.flatMap { (path, text) -> declaration.findAll(text).map { it.groupValues[1] to path }.distinct().toList() }
+            .groupBy({ it.first }, { it.second })
+    }
+
     /** The bodies of the functions named [name] at the margin of a source: a top-level function's. */
-    private fun topLevel(name: String): List<Body> = code.filter { (_, text) ->
-        Regex("""^(?:(?:private|internal|public|inline|suspend)\s+)*fun\s+(?:<[^>]*>\s*)?$name\s*\(""", RegexOption.MULTILINE)
-            .containsMatchIn(text)
-    }.keys.flatMap { named(it, name) }
+    private fun topLevel(name: String): List<Body> = topLevelSources[name].orEmpty().flatMap { named(it, name) }
 
     /**
      * What a call of [name] from [path] runs, on [receiver] (null: none): a function of [path]'s, a
      * lambda [path]'s constructor hands in under that name, or a top-level function; on a receiver,
      * the function of that name of the types [path] declares the receiver as, and their subtypes'.
+     * Kept by call, as the same call recurs across the sign-out's bodies.
      */
     private fun target(path: String, receiver: String?, name: String): List<Body> {
+        val call = Triple(path, receiver, name)
+        return targets[call] ?: place(path, receiver, name).also { targets[call] = it }
+    }
+
+    private val targets = HashMap<Triple<String, String?, String>, List<Body>>()
+
+    private fun place(path: String, receiver: String?, name: String): List<Body> {
         if (receiver == null || receiver == "this") {
             return named(path, name).ifEmpty { wired(path, name) }.ifEmpty { topLevel(name) }
         }
@@ -853,6 +871,9 @@ internal class AccountStateInventory(
 
     private val callPattern = Regex("""\b([a-z]\w*)\s*\(|(\b\w+)?::([a-z]\w*)\b""")
 
+    /** A function's declaration ending where its name starts: `fun `, `fun <T> `, `fun Type.`. */
+    private val declaringFun = Regex("""\bfun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?$""")
+
     /** What the body at [range] in [path] calls, or hands on by reference, as far as this can tell which. */
     private fun callees(path: String, range: IntRange): List<Body> {
         val text = bare.getValue(path)
@@ -861,7 +882,7 @@ internal class AccountStateInventory(
             val call = match.groupValues[1]
             when {
                 call.isEmpty() -> target(path, match.groupValues[2].ifEmpty { null }, match.groupValues[3])
-                Regex("""\bfun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?$""").containsMatchIn(text.substring(maxOf(0, at - 60), at)) -> emptyList()
+                declaringFun.containsMatchIn(text.substring(maxOf(0, at - 60), at)) -> emptyList()
                 else -> {
                     var before = at - 1
                     while (before >= 0 && text[before].isWhitespace()) before--
