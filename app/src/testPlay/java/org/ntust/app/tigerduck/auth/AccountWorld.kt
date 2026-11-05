@@ -25,6 +25,9 @@ import org.ntust.app.tigerduck.browser.BrowserDataCleaner
 import org.ntust.app.tigerduck.browser.BrowserDownloads
 import org.ntust.app.tigerduck.browser.BrowserSettings
 import org.ntust.app.tigerduck.browser.StorageClearing
+import org.ntust.app.tigerduck.clubs.ClubActivities
+import org.ntust.app.tigerduck.clubs.ClubApiClient
+import org.ntust.app.tigerduck.clubs.ClubSubscriptions
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -204,7 +207,10 @@ internal fun accountWorld(
             classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
             prefs = appPrefs,
             sessionManager = sessionManager,
-            stores = SchoolStores({ BulletinReadStateStore(context) }, { appPrefs }, { latch }, { imported }, { outbox }, { dataCache }),
+            stores = SchoolStores(
+                { BulletinReadStateStore(context) }, { appPrefs }, { latch }, { ClubSubscriptions(context) },
+                { ClubActivities(context, ClubApiClient(OkHttpClient())) }, { imported }, { outbox }, { dataCache },
+            ),
             pushRegistration = pushRegistration,
             demoAccount = demoAccount,
             bulletinCache = bulletinCache,

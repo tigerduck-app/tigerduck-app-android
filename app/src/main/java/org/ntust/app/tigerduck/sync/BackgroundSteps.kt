@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.ClubSubscriptionsSyncer
 import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
@@ -28,6 +29,8 @@ internal class BackgroundSteps(
     private val relogin: suspend (SignIn) -> Boolean,
     private val pendingCourseAdds: PendingCourseAdds,
     private val firstPullGate: FirstPullGate,
+    /** The club subscriptions' document, which syncs after each full sync; none in a test that leaves it out. */
+    private val clubs: ClubSubscriptionsSyncer? = null,
 ) : PassSteps {
 
     override suspend fun mayRun(): Boolean {
@@ -79,8 +82,13 @@ internal class BackgroundSteps(
 
     override fun synced() = prefs.setLastSyncSource(SyncSource.BACKEND)
 
-    /** Nothing of its own: the worker's settings pull and reminders, which it hands the pass. */
-    override fun afterSync(pass: SyncPass) = Unit
+    /**
+     * The club document's sync, as after Home's pass; the worker's settings pull and reminders are
+     * its own, which it hands the pass.
+     */
+    override fun afterSync(pass: SyncPass) {
+        clubs?.afterFullSync(pass.signIn, pass.result.currentRevision)
+    }
 
     override fun failed() = prefs.setLastSyncSource(SyncSource.LOCAL)
 }

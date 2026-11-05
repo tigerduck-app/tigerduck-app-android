@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.ClubSubscriptionsSyncer
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -134,15 +135,16 @@ class Synchronizer internal constructor(
         roster: RosterReconciler,
         ack: AckClock = AckClock(),
         firstSync: FirstSyncReconciler? = null,
+        clubs: ClubSubscriptionsSyncer? = null,
     ) : this(
         drain = outbox::drain,
         ForegroundSteps(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, pendingCourseAdds, pendingCourseDeletes,
-            firstPullGate, widgetUpdater, reenableCheck, notificationSettingsSync, appScope,
+            firstPullGate, widgetUpdater, reenableCheck, notificationSettingsSync, appScope, clubs,
         ),
         BackgroundSteps(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, authService::attemptRelogin,
-            pendingCourseAdds, firstPullGate,
+            pendingCourseAdds, firstPullGate, clubs,
         ),
         marks, ignores, overrides, holidays, roster, firstSync ?: NO_FIRST_SYNC, ack,
     )

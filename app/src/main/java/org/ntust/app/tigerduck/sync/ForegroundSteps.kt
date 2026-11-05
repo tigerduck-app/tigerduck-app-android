@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.ClubSubscriptionsSyncer
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -37,6 +38,8 @@ internal class ForegroundSteps(
     private val reenableCheck: ReenableCheck,
     private val notificationSettingsSync: NotificationSettingsSync,
     private val appScope: CoroutineScope,
+    /** The club subscriptions' document, which syncs after each full sync; none in a test that leaves it out. */
+    private val clubs: ClubSubscriptionsSyncer? = null,
 ) : PassSteps {
 
     override suspend fun mayRun(): Boolean {
@@ -118,6 +121,8 @@ internal class ForegroundSteps(
         // other devices'. iOS re-sends at every full sync too.
         notificationSettingsSync.pushIfUnconfirmed()
         pullSettings(pass.result.currentRevision)
+        // The club document sends and takes in one step, launched like the pull above.
+        clubs?.afterFullSync(pass.signIn, pass.result.currentRevision)
     }
 
     /**
