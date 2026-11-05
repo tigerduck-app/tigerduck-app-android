@@ -14,8 +14,12 @@ import org.ntust.app.tigerduck.auth.postAutomatically
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** What a sign-in for the TigerDuck browser hands it: the cookies its site set, and whether SSO signed the site in. */
-data class BrowserSiteSession(val cookies: List<Cookie>, val signedIn: Boolean)
+/**
+ * What a sign-in for the TigerDuck browser hands it: the cookies its site set, whether SSO signed the
+ * site in, and [sso], the app's SSO session the run went through SSO with, for the browser to pass
+ * SSO by itself when a site sends it there again.
+ */
+data class BrowserSiteSession(val cookies: List<Cookie>, val signedIn: Boolean, val sso: List<Cookie> = emptyList())
 
 sealed class SsoLoginError : Exception() {
     class LoginFormNotFound : SsoLoginError()
@@ -280,7 +284,7 @@ class SsoLoginService internal constructor(
 
     /**
      * Signs [target]'s school site in for the TigerDuck browser with the SSO session the app
-     * already holds, and hands back what the site set: its session, for the browser alone.
+     * already holds, and hands back what the site set, its session, with that SSO session.
      *
      * The run has a jar of its own ([newCookieJar]) that starts with the cookies the app's shared
      * jar sends SSO and nothing else: ssoam2's own, and the whole school domain's, where ssoam2
@@ -288,7 +292,8 @@ class SsoLoginService internal constructor(
      * browser, those go to the site on the way too. Nothing goes back into the shared jar: the
      * site's session is never one the app's own calls also use. What it hands back is what
      * [target]'s host set for itself alone: not SSO's, not another host's met on the way, and not
-     * one scoped to reach the school's other sites. The calls go out apart from the caller
+     * one scoped to reach the school's other sites. The SSO session it hands back is the one it
+     * started with, nothing set on the way. The calls go out apart from the caller
      * ([awaitApart]), so cancelling it, as a timeout does, cancels them.
      *
      * No password is posted, and none is filled into a page: SSO asking for one ends the run
@@ -300,7 +305,8 @@ class SsoLoginService internal constructor(
         val site = target.toHttpUrlOrNull() ?: throw SsoLoginError.InvalidResponse()
         val host = site.host.lowercase()
         val jar = newCookieJar()
-        jar.saveFromResponse(SSO_SITE, client.cookieJar.loadForRequest(SSO_SITE))
+        val sso = client.cookieJar.loadForRequest(SSO_SITE)
+        jar.saveFromResponse(SSO_SITE, sso)
         val calls = RunningCalls()
         val run = SsoPages(client.newBuilder().cookieJar(jar).eventListener(calls).build())
         return awaitApart(calls::cancelAll) {
@@ -310,7 +316,7 @@ class SsoLoginService internal constructor(
             val (landedHtml, landed) = run.resolveOIDCBridgeForms(html, url)
             if (HtmlParser.findFormById(landedHtml, "IDPLogin") != null) throw SsoLoginError.InteractiveLoginRequired()
             if (HtmlParser.isSsoHost(landed.host)) throw SsoLoginError.SessionMissing()
-            BrowserSiteSession(jar.setBy(host).filter { it.domain.equals(host, ignoreCase = true) }, signedIn = throughSso)
+            BrowserSiteSession(jar.setBy(host).filter { it.domain.equals(host, ignoreCase = true) }, signedIn = throughSso, sso = sso)
         }
     }
 

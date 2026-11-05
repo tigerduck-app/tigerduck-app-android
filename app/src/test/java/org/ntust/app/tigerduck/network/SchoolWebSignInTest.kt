@@ -102,6 +102,17 @@ class SchoolWebSignInTest {
     }
 
     @Test
+    fun `it hands back the app's SSO session for the browser, the school domain's with it, and nothing met on the way`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        domainCookiesOnTheWay = true
+
+        val session = service().signInForBrowser(SITE_PAGE)
+
+        assertEquals(setOf(SSO_COOKIE, SSO_OWN_COOKIE), session.sso.map { it.name }.toSet())
+        assertEquals("ntust.edu.tw", session.sso.single { it.name == SSO_COOKIE }.domain)
+    }
+
+    @Test
     fun `with no SSO session held, SSO's sign-in form ends it and nothing is posted`() = runTest(UnconfinedTestDispatcher()) {
         expectFailure(SsoLoginError.SessionMissing::class.java) { service().signInForBrowser(SITE_PAGE) }
 

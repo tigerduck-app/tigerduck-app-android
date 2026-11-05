@@ -138,6 +138,20 @@ class SchoolBrowserSignInTest {
     }
 
     @Test
+    fun `SSO's session goes into the browser with the site's, on the whole school domain`() = runTest {
+        val sso = Cookie.Builder().name("AuthServer").value("sso-made-up").domain("ntust.edu.tw").path("/").secure().httpOnly().build()
+        answer = { BrowserSiteSession(session, signedIn = true, sso = listOf(sso)) }
+        val school = signIn()
+        assertTrue(school.signInWithoutLink(PAGE, byHand = false))
+
+        val (url, value) = written.single { it.second.startsWith("AuthServer=") }
+        assertEquals("https://ntust.edu.tw/", url)
+        assertTrue(value, value.contains("domain=ntust.edu.tw") && value.contains("secure"))
+        // The site's session is what the browser holds there, SSO's aside.
+        assertTrue(school.hasSession(PAGE, "$SITE_COOKIE=site-made-up"))
+    }
+
+    @Test
     fun `the browser is signed in to a site while it holds what it was handed for it`() = runTest {
         val school = signIn()
         assertFalse(school.hasSession(PAGE, null))

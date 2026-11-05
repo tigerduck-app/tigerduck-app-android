@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.browser
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.browser.BrowserSignIn
 import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.ui.AppProcessing
@@ -95,6 +97,9 @@ internal class BrowserSignInFlow(
             state.signIn = null
             load(target)
         } else {
+            // A run that failed logged why; with nothing logged before this line, the provider held its
+            // sign-in back, as for a site that sent the browser back to sign in right after one.
+            Log.i(TAG, "${provider.siteName}'s sign-in screen shows for ${target.toHttpUrlOrNull()?.host}")
             loads.signInTarget = target
             state.signIn = SignInState(provider.siteName, target)
         }
@@ -114,5 +119,9 @@ internal class BrowserSignInFlow(
     private fun restart(block: suspend () -> Unit) {
         job?.cancel()
         job = scope.launch { block() }
+    }
+
+    private companion object {
+        const val TAG = "BrowserSignInFlow"
     }
 }

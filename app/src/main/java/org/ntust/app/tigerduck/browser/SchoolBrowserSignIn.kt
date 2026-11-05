@@ -15,8 +15,10 @@ import org.ntust.app.tigerduck.util.logSummary
  * The school's sites' sign-in, every `*.ntust.edu.tw` site but Moodle's, which has its own
  * ([MoodleBrowserSignIn]). A site sending the browser to SSO's sign-in page is signed in by the app
  * itself: [run] (`SsoLoginService.signInForBrowser`) signs the site in with the SSO session the app
- * holds, in a run of its own, and the browser gets the cookies the site set for itself alone. SSO's
- * session never goes into the browser, nor a password into a page. With no SSO session the run can
+ * holds, in a run of its own, and the browser gets the cookies the site set for itself, with that
+ * SSO session, as on the iPhone: a site may send the browser through SSO again at any time (course
+ * selection does on its very next page), which passes by itself only for a browser that holds SSO's
+ * session. No password goes into a page. With no SSO session the run can
  * use, [warm] signs the app in to SSO again by the way of [target]'s site, through the app's own
  * guarded sign-in, whatever the app thinks of its session, and the run goes once more. ssoam's
  * NetIQ page and a site's own password form are the student's to sign in to: never taken over.
@@ -102,6 +104,7 @@ class SchoolBrowserSignIn(
         synchronized(this) { lastRuns[host] = now() to before }
         val session = try {
             withTimeoutOrNull(timeoutMs) { runWithSession(BrowserSchoolSites.signInLink(target) ?: target) }
+                ?: null.also { Log.w(TAG, "a school site's sign-in took longer than $timeoutMs ms") }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -109,7 +112,7 @@ class SchoolBrowserSignIn(
             null
         } ?: return false
         if (generation() != before || !usable()) return false
-        session.cookies.forEach { writeCookie("https://${it.domain}/", it.forBrowser()) }
+        (session.cookies + session.sso).forEach { writeCookie("https://${it.domain}/", it.forBrowser()) }
         flush()
         if (session.signedIn) synchronized(this) { handed[host] = before to session.cookies.associate { it.name to it.value } }
         return true
