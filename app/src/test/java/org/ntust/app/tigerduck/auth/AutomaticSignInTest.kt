@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.AnonymousDeviceRequest
 import org.ntust.app.tigerduck.push.OwedUnregister
@@ -245,10 +246,10 @@ class AutomaticSignInTest {
             owedAt = 0L,
         )
         val store = object : PendingUnregisterStore {
-            override fun load() = pending
+            override fun load() = listOfNotNull(pending)
             override fun save(pending: PendingUnregister) = true
-            override fun clear() {
-                pending = null
+            override fun clear(base: String?) {
+                if (base == null || pending?.let { ApiBase.sameBackend(it.session.baseUrl, base) } == true) pending = null
             }
         }
         return OwedUnregister(store) to { pending }
@@ -288,10 +289,10 @@ class AutomaticSignInTest {
             owedAt = 0L,
         )
         val store = object : PendingUnregisterStore {
-            override fun load() = pending
+            override fun load() = listOfNotNull(pending)
             override fun save(pending: PendingUnregister) = true
-            override fun clear() {
-                pending = null
+            override fun clear(base: String?) {
+                if (base == null || pending?.let { ApiBase.sameBackend(it.session.baseUrl, base) } == true) pending = null
             }
         }
         val manager = manager(owedUnregister = OwedUnregister(store))

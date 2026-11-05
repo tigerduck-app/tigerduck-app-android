@@ -30,21 +30,23 @@ class DepartingDeviceUnregisterTest {
     private var now = 1_800_000_000_000L
 
     private class MemoryStore : PendingUnregisterStore {
-        var pending: PendingUnregister? = null
+        private var entries = emptyList<PendingUnregister>()
+        val pending get() = entries.singleOrNull()
 
         /**
          * A disk that refuses every write from now on. As SharedPreferences does, the edit still
          * lands in memory, and only the commit reports the failure.
          */
         var refuseSaves = false
+        var refuseBackend: String? = null
 
-        override fun load() = pending
+        override fun load() = entries.toList()
         override fun save(pending: PendingUnregister): Boolean {
-            this.pending = pending
-            return !refuseSaves
+            entries = entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, pending.session.baseUrl) } + pending
+            return !refuseSaves && (refuseBackend?.let { ApiBase.sameBackend(it, pending.session.baseUrl) } != true)
         }
-        override fun clear() {
-            pending = null
+        override fun clear(base: String?) {
+            entries = if (base == null) emptyList() else entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, base) }
         }
     }
 
@@ -57,6 +59,7 @@ class DepartingDeviceUnregisterTest {
     /** Each DELETE as "device token". */
     private val deletes = mutableListOf<String>()
     private val deleteReplies = ArrayDeque<Any>()
+    private val tokenBackends = mutableMapOf<String, String>()
 
     /** The refresh tokens sent. */
     private val refreshes = mutableListOf<String>()
@@ -90,7 +93,7 @@ class DepartingDeviceUnregisterTest {
     private fun unregister() = DepartingDeviceUnregister(
         owed = owed,
         deleteDevice = { base, device, token, mayDepart ->
-            assertEquals("the DELETE goes to the backend that issued the token, at the API the app speaks", ApiBase.of(backend), base)
+            assertEquals("the DELETE goes to the backend that issued the token, at the API the app speaks", ApiBase.of(tokenBackends[token] ?: backend), base)
             // As PushApiClient.deleteDevice: asked once on the I/O thread, right before it goes.
             beforeDelete()
             if (!mayDepart()) throw UnregisterHeldBack()
@@ -102,7 +105,7 @@ class DepartingDeviceUnregisterTest {
             }
         },
         refresh = { session, sendsWithoutReply, mayDepart ->
-            assertEquals("the refresh goes to the backend that issued the token", backend, session.baseUrl)
+            assertEquals("the refresh goes to the backend that issued the token", tokenBackends[session.refreshToken] ?: backend, session.baseUrl)
             // As AuthTokenManager.refreshDeparting: a token gone twice without a reply is not sent.
             if (sendsWithoutReply >= 2) return@DepartingDeviceUnregister DepartingRefresh.Refused
             lastMayDepart = mayDepart
@@ -125,6 +128,131 @@ class DepartingDeviceUnregisterTest {
 
     private suspend fun owe(expiresAt: Long = now + 600_000) =
         unregister().owe("device-1", session("access-1", "refresh-1", expiresAt))
+
+    @Test
+    fun `debts to two backends go oldest first, and one still owed means retry`() = runTest {
+        owe()
+        now++
+        backend = ELSEWHERE
+        unregister().owe("device-2", session("access-b", "refresh-b", now + 600_000))
+        tokenBackends["access-1"] = BACKEND
+        tokenBackends["access-b"] = ELSEWHERE
+        deleteReplies += 503
+        deleteReplies += 204
+
+        assertEquals(Outcome.RETRY, unregister().send())
+        assertEquals(listOf("device-1 access-1", "device-2 access-b"), deletes)
+
+        assertEquals(Outcome.DONE, unregister().send())
+        assertEquals(listOf("device-1 access-1", "device-2 access-b", "device-1 access-1"), deletes)
+        assertTrue(store.load().isEmpty())
+    }
+
+    @Test
+    fun `refreshing an older debt does not put its next send behind the newer debt`() = runTest {
+        owe(expiresAt = now - 1)
+        refreshReplies += refreshed("access-2", "refresh-2")
+        now++
+        backend = ELSEWHERE
+        unregister().owe("device-b", session("access-b", "refresh-b", now + 600_000))
+        tokenBackends["refresh-1"] = BACKEND
+        tokenBackends["access-2"] = BACKEND
+        tokenBackends["access-b"] = ELSEWHERE
+        deleteReplies += 503
+        deleteReplies += 503
+
+        assertEquals(Outcome.RETRY, unregister().send())
+        assertEquals(Outcome.DONE, unregister().send())
+
+        assertEquals(listOf("refresh-1"), refreshes)
+        assertEquals(
+            listOf("device-1 access-2", "device-b access-b", "device-1 access-2", "device-b access-b"),
+            deletes,
+        )
+        assertTrue(store.load().isEmpty())
+    }
+
+    @Test
+    fun `a second debt to the same backend replaces the first across API versions`() = runTest {
+        owe()
+        backend = "https://BACKEND.example:443/v4/"
+        unregister().owe("device-new", session("access-new", "refresh-new", now + 600_000))
+
+        assertEquals(Outcome.DONE, unregister().send())
+        assertEquals(listOf("device-new access-new"), deletes)
+    }
+
+    @Test
+    fun `a sign-in at B ends only B's debt`() = runTest {
+        owe()
+        backend = ELSEWHERE
+        owe()
+
+        owed.signingIn(STUDENT, ELSEWHERE) { Unit }
+
+        backend = BACKEND
+        assertEquals(Outcome.DONE, unregister().send())
+        assertEquals(listOf("device-1 access-1"), deletes)
+    }
+
+    @Test
+    fun `unanswered refreshes belong to each debt, so giving up A still refreshes B`() = runTest {
+        owe(expiresAt = now - 1)
+        now++
+        backend = ELSEWHERE
+        unregister().owe("device-b", session("access-b", "refresh-b", now - 1))
+        tokenBackends["refresh-1"] = BACKEND
+        tokenBackends["refresh-b"] = ELSEWHERE
+        refreshReplies += DepartingRefresh.NoReply
+        refreshReplies += DepartingRefresh.NoReply
+        refreshReplies += refreshed("access-b-new", "refresh-b-new")
+
+        assertEquals(Outcome.DONE, unregister().send())
+        assertEquals(listOf("refresh-1", "refresh-1", "refresh-b"), refreshes)
+        assertEquals(listOf("device-b access-b-new"), deletes)
+        assertTrue(store.load().isEmpty())
+    }
+
+    @Test
+    fun `a refused count for A sends no refresh there and still sends B's debt`() = runTest {
+        owe(expiresAt = now - 1)
+        backend = ELSEWHERE
+        unregister().owe("device-b", session("access-b", "refresh-b", now + 600_000))
+        tokenBackends["access-b"] = ELSEWHERE
+        store.refuseBackend = BACKEND
+
+        assertEquals(Outcome.RETRY, unregister().send())
+        assertEquals(emptyList<String>(), refreshes)
+        assertEquals(listOf("device-b access-b"), deletes)
+        assertEquals(0, store.pending?.unansweredRefreshes)
+
+        store.refuseBackend = null
+        backend = BACKEND
+        refreshReplies += refreshed("access-2", "refresh-2")
+        assertEquals(Outcome.DONE, unregister().send())
+        assertEquals(listOf("refresh-1"), refreshes)
+        assertEquals(listOf("device-b access-b", "device-1 access-2"), deletes)
+        assertTrue(store.load().isEmpty())
+    }
+
+    @Test
+    fun `an older debt held back at an http backend does not hold back the next backend's debt`() = runTest {
+        backend = LAN
+        owe()
+        now++
+        backend = ELSEWHERE
+        unregister().owe("device-b", session("access-b", "refresh-b", now + 600_000))
+        tokenBackends["access-b"] = ELSEWHERE
+
+        assertEquals(Outcome.RETRY, unregister().send())
+        assertEquals(listOf("device-b access-b"), deletes)
+
+        backend = LAN
+        endpoint = LAN
+        assertEquals(Outcome.DONE, unregister().send())
+        assertEquals(listOf("device-b access-b", "device-1 access-1"), deletes)
+        assertTrue(store.load().isEmpty())
+    }
 
     @Test
     fun `a token that lasts goes out as it is, and the debt ends with the reply`() = runTest {

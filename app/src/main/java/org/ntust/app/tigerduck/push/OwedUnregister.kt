@@ -35,24 +35,25 @@ class OwedUnregister internal constructor(internal val store: PendingUnregisterS
      * debt's backend under another API version is at that backend ([ApiBase.sameBackend]).
      */
     suspend fun <T> signingIn(studentId: String, base: String, login: suspend () -> T): T {
-        val pending = runCatching { store.load() }.getOrNull()
-        if (pending != null && !ApiBase.sameBackend(pending.session.baseUrl, base)) return login()
+        val debts = runCatching { store.load() }.getOrNull()
+        val pending = debts?.firstOrNull { ApiBase.sameBackend(it.session.baseUrl, base) }
+        if (debts?.isNotEmpty() == true && pending == null) return login()
         val owedBy = pending?.session?.studentId
         if (owedBy != null && owedBy != studentId) {
             val result = login()
             // Not under the lock: an unregister on its way only finds the row gone.
-            clear()
+            clear(base)
             return result
         }
         return mutex.withLock {
             val result = login()
-            clear()
+            clear(base)
             result
         }
     }
 
-    private fun clear() {
-        runCatching { store.clear() }
+    private fun clear(base: String) {
+        runCatching { store.clear(base) }
             .onFailure { Log.w(TAG, "owed unregister not cleared after a sign-in: ${it.logSummary()}") }
     }
 

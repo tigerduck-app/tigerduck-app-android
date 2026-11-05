@@ -17,6 +17,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.DepartingDeviceUnregister
 import org.ntust.app.tigerduck.push.DeviceRegisterRequest
@@ -57,6 +58,29 @@ class SessionBackendMoveTest {
             afterSignIn = {},
         )
         signInWithStoredAccount = storedAccount::signIn
+    }
+
+    @Test
+    fun `a move from A to B then B to C keeps and sends both departures`() = runTest {
+        val manager = manager()
+        assertTrue(manager.signInIfSignedOut())
+        clock++
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.3:9/v3"
+        assertTrue(manager.signInIfSignedOut())
+        val api = PushApiClient(backend.client, prefs, manager)
+        val unregister = DepartingDeviceUnregister(
+            owed, api::deleteDevice, manager::refreshDeparting, manager::hasSessionAt,
+            now = { clock }, endpoint = { resolveAnnouncementEndpoint(prefs).url },
+        )
+
+        prefs.announcementApiBaseUrlOverride = ISSUER
+        assertEquals(DepartingDeviceUnregister.Outcome.RETRY, unregister.send())
+        assertEquals(listOf("127.0.0.1"), backend.received(UNREGISTER).map { it.host })
+        prefs.announcementApiBaseUrlOverride = CURRENT
+        assertEquals(DepartingDeviceUnregister.Outcome.DONE, unregister.send())
+        assertEquals(listOf("127.0.0.1", "127.0.0.2"), backend.received(UNREGISTER).map { it.host })
+        assertEquals(listOf("Bearer access-a", "Bearer access-2"), backend.received(UNREGISTER).map { it.authorization })
+        assertTrue(store.load().isEmpty())
     }
 
     @Test
@@ -324,11 +348,16 @@ class SessionBackendMoveTest {
     }
 
     private class MemoryStore : PendingUnregisterStore {
-        var pending: PendingUnregister? = null
+        private var entries = emptyList<PendingUnregister>()
+        val pending get() = entries.singleOrNull()
         var acceptSaves = true
-        override fun load() = pending
-        override fun save(pending: PendingUnregister): Boolean = acceptSaves.also { if (it) this.pending = pending }
-        override fun clear() { pending = null }
+        override fun load() = entries.toList()
+        override fun save(pending: PendingUnregister): Boolean = acceptSaves.also {
+            if (it) entries = entries.filterNot { entry -> ApiBase.sameBackend(entry.session.baseUrl, pending.session.baseUrl) } + pending
+        }
+        override fun clear(base: String?) {
+            entries = if (base == null) emptyList() else entries.filterNot { ApiBase.sameBackend(it.session.baseUrl, base) }
+        }
     }
 
     private companion object {
