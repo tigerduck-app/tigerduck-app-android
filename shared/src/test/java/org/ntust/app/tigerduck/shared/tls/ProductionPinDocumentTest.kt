@@ -31,8 +31,10 @@ class ProductionPinDocumentTest {
     }
 
     @Test
-    fun `its sets are the built-in table, and its serial the table's baseline`() {
-        assertEquals(BuiltInPins.sets.associateBy { it.id }, document.sets.associateBy { it.id })
+    fun `its sets are the built-in table but the clubs set, and its serial the table's baseline`() {
+        // The clubs set came after it: a later document carries it (tigerduck-backend#237), and
+        // until one is held the built-in set stays in force (PinPolicyTest).
+        assertEquals(BuiltInPins.sets.filter { it.id != "clubs" }.associateBy { it.id }, document.sets.associateBy { it.id })
         assertEquals(BuiltInPins.BASELINE_SERIAL, document.serial)
     }
 

@@ -42,10 +42,32 @@ class PinPolicyTest {
 
     @Test
     fun `the built-in table carries no tigerduck set and no leaf pins`() {
-        assertEquals(listOf("ntust", "library"), BuiltInPins.sets.map { it.id })
+        assertEquals(listOf("ntust", "library", "clubs"), BuiltInPins.sets.map { it.id })
         assertNull(BuiltInPins.sets.matching("api.tigerduck.app"))
         val leaves = setOf("Nz3wUtBXZ+2HPXuSyx4enXs62i/PH4MKtayV9N4X0PE=", "m8Epf0KqJFv9abCXfipePZ79hfOMjddCKxz+RSZIDKY=")
         assertTrue(BuiltInPins.sets.none { set -> set.pins.any { it in leaves } })
+    }
+
+    @Test
+    fun `clubs dot ntust takes the clubs set, which wins over ntust for that host alone`() {
+        assertEquals("clubs", BuiltInPins.sets.matching("clubs.ntust.edu.tw")?.id)
+        assertEquals("clubs", BuiltInPins.sets.matching("CLUBS.ntust.edu.tw.")?.id)
+        assertEquals("ntust", BuiltInPins.sets.matching("www.clubs.ntust.edu.tw")?.id)
+        assertEquals("ntust", BuiltInPins.sets.matching("moodle2.ntust.edu.tw")?.id)
+        assertEquals("ntust", BuiltInPins.sets.matching("ntust.edu.tw")?.id)
+        val isrgX1 = "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M="
+        assertTrue(isrgX1 in PinPolicy(appVersion = 30).setFor("clubs.ntust.edu.tw", now)!!.pins)
+        assertFalse(isrgX1 in PinPolicy(appVersion = 30).setFor("moodle2.ntust.edu.tw", now)!!.pins)
+    }
+
+    @Test
+    fun `a document without the clubs set leaves the built-in clubs pins in force`() {
+        val clubs = BuiltInPins.sets.single { it.id == "clubs" }
+        val newer = BuiltInPins.sets.single { it.id == "ntust" }.copy(pins = setOf(pin(9)))
+        val rules = PinPolicy(document = document(BuiltInPins.BASELINE_SERIAL + 1, newer), appVersion = 30)
+
+        assertEquals(clubs.pins, rules.setFor("clubs.ntust.edu.tw", now)?.pins)
+        assertEquals(setOf(pin(9)), rules.setFor("moodle2.ntust.edu.tw", now)?.pins)
     }
 
     @Test
