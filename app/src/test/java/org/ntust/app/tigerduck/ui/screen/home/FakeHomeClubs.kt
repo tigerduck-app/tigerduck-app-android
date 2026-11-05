@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import org.ntust.app.tigerduck.clubs.ClubActivityKind
@@ -19,6 +20,11 @@ class FakeHomeClubs(activities: List<ClubOccurrence> = emptyList()) : HomeClubs 
     override fun occurrences(days: Set<String>) = state.value.filter { it.day in days }
 
     override val changes: Flow<Unit> = state.map { }
+
+    /** Stands for a sign-out of the school account. */
+    val signOuts = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    override val accountChanges: Flow<Unit> get() = signOuts
 
     companion object {
         private fun minutes(hm: String) = hm.split(":").let { (h, m) -> h.toInt() * 60 + m.toInt() }

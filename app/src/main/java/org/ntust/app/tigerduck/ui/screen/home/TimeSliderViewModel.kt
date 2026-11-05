@@ -8,6 +8,8 @@ import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.clubs.ClubOccurrence
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
@@ -24,10 +26,7 @@ import kotlin.math.min
 /** Layout info for a single [TimeSliderItem] inside a 衝堂 overlap cluster. */
 data class SlotLayout(val lane: Int, val laneCount: Int)
 
-/**
- * The time machine shows the classes of [Course]s and, from [clubs], the subscribed clubs'
- * activities between them.
- */
+/** The time machine: the classes of [Course]s and, from [clubs], the subscribed clubs' activities. */
 class TimeSliderViewModel(private val clubs: HomeClubs = HomeClubs.None) {
 
     var items by mutableStateOf<List<TimeSliderItem>>(emptyList())
@@ -88,7 +87,10 @@ class TimeSliderViewModel(private val clubs: HomeClubs = HomeClubs.None) {
         timelineCenterDate = center
         val slots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS, changes)
             .filterNot { isQuietDay(it.localDate) || skipped(it.course, it.localDate) }
-        items = TimeSliderItem.timeline(slots, clubs.around(center, TIMELINE_DAY_RADIUS))
+        val found = clubs.around(center, TIMELINE_DAY_RADIUS)
+        items = TimeSliderItem.timeline(slots, found)
+        // The open activity as it is now, or closed once the clubs lack it.
+        openedClub = openedClub?.let { open -> found.firstOrNull { it.id == open.id && it.day == open.day } }
         slotLayouts = computeSlotLayouts(items)
         rebuildAnchors()
     }
@@ -144,11 +146,9 @@ class TimeSliderViewModel(private val clubs: HomeClubs = HomeClubs.None) {
     }
 
     /**
-     * Groups time-sorted slots into overlap clusters. A new cluster starts
-     * once a slot begins at or after the current cluster's running max-end;
-     * with [mergeTouching] only once it begins after it, so a club's piece
-     * that starts where a class ends sits flush against it on the track, as
-     * on iOS.
+     * Groups time-sorted slots into overlap clusters: a new one starts at or after the running
+     * max-end, or with [mergeTouching] only after it, so a club's piece starting where a class
+     * ends sits flush against it, as on iOS.
      */
     private fun buildClusters(slots: List<TimeSliderItem>, mergeTouching: Boolean = false): List<TimeCluster> {
         val out = mutableListOf<TimeCluster>()
@@ -235,9 +235,7 @@ class TimeSliderViewModel(private val clubs: HomeClubs = HomeClubs.None) {
     }
 
     fun state(at: Date): CourseState<TimeSliderItem> {
-        // Collect every item currently containing `at` so 衝堂 overlaps
-        // surface all active courses, not just the first match. items
-        // is sorted by start, so the resulting list mirrors lane order.
+        // Every item containing `at`, so 衝堂 shows all of them, in lane order (items are sorted by start).
         val active = items.filter { it.isOn(at) }
         if (active.isNotEmpty()) {
             return CourseState.InClass(active)
@@ -261,8 +259,11 @@ class TimeSliderViewModel(private val clubs: HomeClubs = HomeClubs.None) {
     val thumbItem: TimeSliderItem?
         get() = (currentState as? CourseState.InClass)?.slots?.firstOrNull { !it.isCancelled }
 
-    /** Rebuilds the timeline each time the clubs change, for as long as it is collected. */
-    suspend fun followClubs() = clubs.changes.collect { rebuildTimeline(timelineCenterDate); clubsRevision++ }
+    /** Rebuilds the timeline each time the clubs change, and closes the open activity at a sign-out. */
+    suspend fun followClubs() = coroutineScope {
+        launch { clubs.accountChanges.collect { openedClub = null } }
+        clubs.changes.collect { rebuildTimeline(timelineCenterDate); clubsRevision++ }
+    }
 
     /** Whether a subscribed club has an activity from [now]'s day on, within the timeline's reach. */
     fun hasClubActivities(now: Date): Boolean = clubs.hasActivities(now, TIMELINE_DAY_RADIUS)

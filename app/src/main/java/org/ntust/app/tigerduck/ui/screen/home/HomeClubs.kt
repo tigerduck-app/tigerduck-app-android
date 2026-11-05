@@ -9,7 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.clubs.ClubActivities
 import org.ntust.app.tigerduck.clubs.ClubDirectory
 import org.ntust.app.tigerduck.clubs.ClubOccurrence
@@ -26,6 +28,9 @@ interface HomeClubs {
 
     /** Emits at the start and each time what [occurrences] answers may have changed. */
     val changes: Flow<Unit>
+
+    /** Emits when the school account signed out or in, whose clubs and details are not the next one's. */
+    val accountChanges: Flow<Unit> get() = emptyFlow()
 
     /** The activities on the [radius] days before and after [center]'s Taipei day. */
     fun around(center: Date, radius: Int): List<ClubOccurrence> = occurrences(days(center, -radius..radius))
@@ -57,7 +62,11 @@ class FeedHomeClubs(
     private val subscriptions: ClubSubscriptions,
     private val directory: ClubDirectory,
     language: Flow<Unit>,
+    /** The school account's [AccountSession.changes][org.ntust.app.tigerduck.auth.session.AccountSession.changes]. */
+    account: Flow<Boolean> = emptyFlow(),
 ) : HomeClubs {
+    override val accountChanges: Flow<Unit> = account.map { }
+
     override fun occurrences(days: Set<String>): List<ClubOccurrence> {
         val names = directory.state.value.clubs.associate { it.id to directory.displayName(it) }
         return ClubActivities.occurrences(activities.activities.value, days, subscriptions.subscribed(), names)
@@ -75,8 +84,9 @@ class HomeClubsViewModel @Inject constructor(
     subscriptions: ClubSubscriptions,
     directory: ClubDirectory,
     uiLanguage: UiLanguageMonitor,
+    sessions: AccountSessions,
 ) : ViewModel() {
-    val clubs: HomeClubs = FeedHomeClubs(activities, subscriptions, directory, uiLanguage.changes)
+    val clubs: HomeClubs = FeedHomeClubs(activities, subscriptions, directory, uiLanguage.changes, sessions.school.changes)
 }
 
 /**

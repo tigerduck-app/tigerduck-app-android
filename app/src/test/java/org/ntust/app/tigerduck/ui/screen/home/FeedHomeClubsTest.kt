@@ -87,4 +87,28 @@ class FeedHomeClubsTest {
         assertEquals(listOf("Test Hiking Club", "Test Chess Club"), clubs.occurrences(day).map { it.clubName })
         job.cancel()
     }
+
+    private fun kotlinx.coroutines.CoroutineScope.openAfter(change: () -> Unit): Boolean {
+        fetch()
+        subscriptions.subscribe(9001, signIn)
+        val slider = TimeSliderViewModel(clubs)
+        val job = launch(Dispatchers.Unconfined) { slider.followClubs() }
+        slider.openedClub = clubs.occurrences(day).single()
+        change()
+        job.cancel()
+        return slider.openedClub != null
+    }
+
+    @Test
+    fun `an unsubscribe closes the open activity`() = runBlocking {
+        assertTrue(!openAfter { subscriptions.unsubscribe(9001, signIn) })
+    }
+
+    @Test
+    fun `a feed that drops the activity closes it`() = runBlocking {
+        assertTrue(!openAfter {
+            server.enqueue("activities", Answer(body = envelope(activity(2, 9002, "2026-11-05", "18:00", "19:00"))))
+            runBlocking { activities.refresh(signIn) }
+        })
+    }
 }

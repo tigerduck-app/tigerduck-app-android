@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.clubs.ClubOccurrence
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -147,5 +148,34 @@ class TimeSliderClubsTest {
         clubs.activities = listOf(club(1, 0, "19:00", "21:00").copy(color = 0x654321), club(2, 1, "19:00", "20:00"))
         assertEquals(listOf("1 1140-1260"), s.pieces())
         assertEquals(0x654321, s.items.filterIsInstance<TimeSliderItem.Club>().single().occurrence.color)
+    }
+
+    private fun openedAfter(clubs: FakeHomeClubs, change: () -> Unit): ClubOccurrence? {
+        val s = slider(clubs)
+        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined).launch { s.followClubs() }
+        s.openedClub = clubs.activities.first()
+        change()
+        job.cancel()
+        return s.openedClub
+    }
+
+    @Test
+    fun `an open activity that the clubs no longer have is closed`() {
+        val clubs = FakeHomeClubs(listOf(club(1, 0, "19:00", "21:00"), club(2, 1, "18:00", "19:00")))
+        assertEquals(null, openedAfter(clubs) { clubs.activities = clubs.activities.drop(1) })
+    }
+
+    @Test
+    fun `an open activity that changed is shown as it is now`() {
+        val clubs = FakeHomeClubs(listOf(club(1, 0, "19:00", "21:00")))
+        val open = openedAfter(clubs) { clubs.activities = listOf(club(1, 0, "19:00", "21:00").copy(color = 0x654321, name = "Renamed")) }
+        assertEquals(0x654321, open?.color)
+        assertEquals("Renamed", open?.name)
+    }
+
+    @Test
+    fun `an open activity is closed by a sign-out of the school account`() {
+        val clubs = FakeHomeClubs(listOf(club(1, 0, "19:00", "21:00")))
+        assertEquals(null, openedAfter(clubs) { clubs.signOuts.tryEmit(Unit) })
     }
 }
