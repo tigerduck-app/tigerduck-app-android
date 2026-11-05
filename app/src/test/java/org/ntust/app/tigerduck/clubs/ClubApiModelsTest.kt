@@ -63,6 +63,20 @@ class ClubApiModelsTest {
     }
 
     @Test
+    fun `an hour past any number, or past 23, leaves its row no place, and the rest of the feed reads`() {
+        val read = ClubApiList.activities(
+            envelope(listOf(activity(1), activity(2, from = "2147483648:00:00"), activity(3, to = "25:00:00")).joinToString(",")),
+        )
+        val placed = runCatching {
+            ClubActivities.occurrences(read, setOf("2026-11-02"), listOf(SubscribedClub(9001, 0x123456)), emptyMap()).map { it.id }
+        }
+
+        assertNull(placed.exceptionOrNull())
+        assertEquals(listOf(1), placed.getOrNull())
+        assertEquals(listOf(1, 2, 3), read.map { it.id })
+    }
+
+    @Test
     fun `the kind is the feed's type, and one this build does not know keeps its name`() {
         assertEquals(ClubActivityKind.Event, ClubActivityKind.of("活動"))
         assertEquals(ClubActivityKind.Meeting, ClubActivityKind.of("社課或會議"))

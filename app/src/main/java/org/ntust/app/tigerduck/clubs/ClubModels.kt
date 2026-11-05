@@ -76,7 +76,8 @@ data class ClubActivity(
             val parts = time?.split(":") ?: return null
             if (parts.size != 3 || parts[1].length != 2 || parts[2].length != 2) return null
             if (parts.any { part -> part.isEmpty() || !part.all { it in '0'..'9' } }) return null
-            val (hour, minute, second) = parts.map { it.toInt() }
+            // An hour of any length reads, as Swift's Int does, and one past Int's range or past 23 has no place.
+            val (hour, minute, second) = parts.map { it.toIntOrNull() ?: return null }
             if (hour !in 0..23 || minute !in 0..59 || second !in 0..59) return null
             return hour * 60 + minute
         }
