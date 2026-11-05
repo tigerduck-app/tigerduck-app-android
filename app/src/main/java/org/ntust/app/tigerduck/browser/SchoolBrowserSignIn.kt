@@ -45,6 +45,8 @@ class SchoolBrowserSignIn(
     private val flush: () -> Unit,
     private val timeoutMs: Long = TIMEOUT_MS,
     private val now: () -> Long = SystemClock::elapsedRealtime,
+    /** The time a cookie's expiry is told in. */
+    private val wallClock: () -> Long = System::currentTimeMillis,
 ) : BrowserSignIn {
 
     override val siteName: String = "NTUST"
@@ -62,13 +64,14 @@ class SchoolBrowserSignIn(
 
     /**
      * Whether the browser still holds, as they were, the cookies a sign-in through SSO handed it for
-     * [url]'s site: those of them it sends [url], as one for a deeper path stays off a page above it.
+     * [url]'s site: those of them it sends [url], as one for a deeper path stays off a page above it,
+     * and one that expired off every page.
      */
     override fun hasSession(url: String, cookieHeader: String?): Boolean {
         val page = url.toHttpUrlOrNull() ?: return false
         val cookies = synchronized(this) { handed[page.host.lowercase()]?.takeIf { it.first == generation() }?.second } ?: return false
         val sent = cookieHeader.orEmpty().split(';').map { it.substringBefore('=').trim() to it.substringAfter('=', "").trim() }.toSet()
-        val sentHere = cookies.filter { it.matches(page) }
+        val sentHere = cookies.filter { it.matches(page) && it.expiresAt > wallClock() }
         return sentHere.isNotEmpty() && sentHere.all { it.value.isNotEmpty() && (it.name to it.value) in sent }
     }
 

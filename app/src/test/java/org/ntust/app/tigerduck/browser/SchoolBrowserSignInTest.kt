@@ -24,6 +24,7 @@ class SchoolBrowserSignInTest {
     private var generation = 7
     private var usable = true
     private var clock = 1_000_000L
+    private var wall = 1_800_000_000_000L
 
     private val site = "https://$SITE_HOST/".toHttpUrl()
     private val session = listOf(Cookie.parse(site, "$SITE_COOKIE=site-made-up; Path=/; Secure; HttpOnly")!!)
@@ -40,6 +41,7 @@ class SchoolBrowserSignInTest {
         flush = { flushes++ },
         timeoutMs = timeoutMs,
         now = { clock },
+        wallClock = { wall },
     )
 
     @Test
@@ -182,6 +184,20 @@ class SchoolBrowserSignInTest {
         assertFalse("cookie gone", school.hasSession("https://sa.ntust.edu.tw/Dorm/", "a=1"))
         assertTrue(school.hasSession("https://sa.ntust.edu.tw/Dorm/OAuth2/Login", "DormAuth=dorm-made-up; OAuthState=state-made-up"))
         assertFalse("deeper cookie gone", school.hasSession("https://sa.ntust.edu.tw/Dorm/OAuth2/Login", "DormAuth=dorm-made-up"))
+    }
+
+    @Test
+    fun `a handed cookie that has expired does not count for the page`() = runTest {
+        fun cookie(name: String, lasts: Long) =
+            Cookie.Builder().name(name).value("$name-made-up").hostOnlyDomain(SITE_HOST).path("/").secure().expiresAt(wall + lasts).build()
+        answer = { BrowserSiteSession(listOf(cookie(SITE_COOKIE, 3_600_000), cookie("Short", 60_000)), signedIn = true) }
+        val school = signIn()
+        assertTrue(school.signInWithoutLink(PAGE, byHand = false))
+        assertFalse("short cookie still live", school.hasSession(PAGE, "$SITE_COOKIE=$SITE_COOKIE-made-up"))
+
+        wall += 120_000
+
+        assertTrue(school.hasSession(PAGE, "$SITE_COOKIE=$SITE_COOKIE-made-up"))
     }
 
     @Test

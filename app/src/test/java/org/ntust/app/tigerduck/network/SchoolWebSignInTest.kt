@@ -130,7 +130,7 @@ class SchoolWebSignInTest {
     }
 
     @Test
-    fun `a renewal no longer wanted once it holds the lock asks for nothing`() = runTest(UnconfinedTestDispatcher()) {
+    fun `a renewal no longer wanted asks for nothing`() = runTest(UnconfinedTestDispatcher()) {
         assertEquals(false, service().renewForBrowser(SITE_PAGE, STUDENT, PASSWORD) { false })
         assertTrue(requests.isEmpty())
     }
