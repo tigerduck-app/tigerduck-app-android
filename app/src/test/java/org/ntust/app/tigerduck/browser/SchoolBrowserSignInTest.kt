@@ -168,6 +168,23 @@ class SchoolBrowserSignInTest {
     }
 
     @Test
+    fun `a cookie handed for a deeper path does not count for a page it is not sent to`() = runTest {
+        val dorm = "https://sa.ntust.edu.tw/Dorm/".toHttpUrl()
+        val cookies = listOf(
+            Cookie.parse(dorm, "DormAuth=dorm-made-up; Path=/Dorm/; Secure")!!,
+            Cookie.parse(dorm, "OAuthState=state-made-up; Path=/Dorm/OAuth2/; Secure")!!,
+        )
+        answer = { BrowserSiteSession(cookies, signedIn = true) }
+        val school = signIn()
+        assertTrue(school.signInWithoutLink("https://sa.ntust.edu.tw/Dorm/", byHand = false))
+
+        assertTrue(school.hasSession("https://sa.ntust.edu.tw/Dorm/", "DormAuth=dorm-made-up"))
+        assertFalse("cookie gone", school.hasSession("https://sa.ntust.edu.tw/Dorm/", "a=1"))
+        assertTrue(school.hasSession("https://sa.ntust.edu.tw/Dorm/OAuth2/Login", "DormAuth=dorm-made-up; OAuthState=state-made-up"))
+        assertFalse("deeper cookie gone", school.hasSession("https://sa.ntust.edu.tw/Dorm/OAuth2/Login", "DormAuth=dorm-made-up"))
+    }
+
+    @Test
     fun `a page that asked for no sign-in leaves the browser not signed in there`() = runTest {
         val school = signIn()
         answer = { BrowserSiteSession(session, signedIn = false) }

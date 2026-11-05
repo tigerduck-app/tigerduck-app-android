@@ -297,6 +297,20 @@ class BrowserLoadsTest {
     }
 
     @Test
+    fun `a page the history brings back is the one a sign-in goes on to, through SSO's authorize on the way`() {
+        schoolLoads.requested(SITE_A)
+        schoolLoads.started(SITE_A)
+        schoolLoads.requested(SITE_B)
+        schoolLoads.started(SITE_B)
+        // Back: the history only starts the page.
+        schoolLoads.started(SITE_A)
+        schoolLoads.requested(AUTHORIZE)
+        schoolLoads.started(AUTHORIZE)
+
+        assertEquals(SITE_A, schoolLoads.signInReturn(SSO_LOGIN))
+    }
+
+    @Test
     fun `a form's POST to a school page is the page asked for`() {
         state.url = SITE_A
         schoolLoads.mainFrameRequested(SITE_B)

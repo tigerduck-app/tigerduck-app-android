@@ -66,13 +66,16 @@ class SchoolWebSignInTest {
 
     private val school = OkHttpClient.Builder().cookieJar(appJar).addInterceptor { chain -> answer(chain) }.build()
 
-    private fun service(): SsoLoginService {
+    private fun sessionManager(): NtustSessionManager {
         val context = RuntimeEnvironment.getApplication()
-        val prefs = context.getSharedPreferences("school-web-sign-in-test", Context.MODE_PRIVATE)
+        return NtustSessionManager(AppPreferences(context), DemoModeInterceptor(DebugFixtureStore(context)))
+    }
+
+    private fun service(sessionManager: NtustSessionManager = sessionManager(), client: OkHttpClient = school): SsoLoginService {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("school-web-sign-in-test", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
         val latch = PersistedStoredPasswordLatch(prefs, now = { NOW }) { STUDENT to PASSWORD }
-        val sessionManager = NtustSessionManager(AppPreferences(context), DemoModeInterceptor(DebugFixtureStore(context)))
-        return SsoLoginService(sessionManager, latch, newCookieJar = { SignInCookieJar().also { jars += it } }) { school }
+        return SsoLoginService(sessionManager, latch, newCookieJar = { SignInCookieJar().also { jars += it } }) { client }
     }
 
     /**
@@ -110,6 +113,26 @@ class SchoolWebSignInTest {
 
         assertEquals(setOf(SSO_COOKIE, SSO_OWN_COOKIE), session.sso.map { it.name }.toSet())
         assertEquals("ntust.edu.tw", session.sso.single { it.name == SSO_COOKIE }.domain)
+    }
+
+    @Test
+    fun `a renewal for the browser goes through SSO even while the app holds the site's own session`() = runTest(UnconfinedTestDispatcher()) {
+        val manager = sessionManager()
+        val client = OkHttpClient.Builder().cookieJar(manager.client.cookieJar).addInterceptor { chain -> answer(chain) }.build()
+        val site = SITE_PAGE.toHttpUrl()
+        manager.client.cookieJar.saveFromResponse(site, listOfNotNull(Cookie.parse(site, "$SITE_COOKIE=site-made-up; Path=/; Secure")))
+
+        // The fake SSO keeps every password on its form: what counts is that the stored one went there.
+        expectFailure(SsoLoginError.LoginFailed::class.java) {
+            service(manager, client).renewForBrowser(SITE_PAGE, STUDENT, PASSWORD) { true }
+        }
+        assertEquals(1, passwordPosts.size)
+    }
+
+    @Test
+    fun `a renewal no longer wanted once it holds the lock asks for nothing`() = runTest(UnconfinedTestDispatcher()) {
+        assertEquals(false, service().renewForBrowser(SITE_PAGE, STUDENT, PASSWORD) { false })
+        assertTrue(requests.isEmpty())
     }
 
     @Test

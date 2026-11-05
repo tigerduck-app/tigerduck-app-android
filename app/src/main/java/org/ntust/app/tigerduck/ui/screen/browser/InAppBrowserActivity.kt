@@ -833,8 +833,10 @@ class InAppBrowserActivity : AppCompatActivity() {
     // ── WebView callbacks ─────────────────────────────────────────────────
 
     private inner class Client : WebViewClient() {
+        // A frame's navigation, its redirects included where the WebView asks about them, goes
+        // unless it is a logout, which would end the SSO session the browser holds.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-            request.isForMainFrame && handleNavigation(request.url.toString())
+            if (request.isForMainFrame) handleNavigation(request.url.toString()) else BrowserRouting.isLogout(request.url.toString())
 
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             // Off the main thread. A form's POST off the allowlist is stopped here, before it is

@@ -52,20 +52,24 @@ class SchoolBrowserSignIn(
     /** When each site was last signed in by itself, by host, and for which [generation]. */
     private val lastRuns = mutableMapOf<String, Pair<Long, Int>>()
 
-    /** The cookies a sign-in handed the browser, by host, by name and value, and for which [generation]. */
-    private val handed = mutableMapOf<String, Pair<Int, Map<String, String>>>()
+    /** The site's cookies a sign-in handed the browser, by host, and for which [generation]. */
+    private val handed = mutableMapOf<String, Pair<Int, List<Cookie>>>()
 
     override fun handles(url: String): Boolean = isSchool(url) && !MoodleBrowserSignIn.isMoodle(url)
 
     /** Never asked without the site's address: see the other [hasSession]. */
     override fun hasSession(cookieHeader: String?): Boolean = false
 
-    /** Whether the browser still holds, as they were, the cookies a sign-in through SSO handed it for [url]'s site. */
+    /**
+     * Whether the browser still holds, as they were, the cookies a sign-in through SSO handed it for
+     * [url]'s site: those of them it sends [url], as one for a deeper path stays off a page above it.
+     */
     override fun hasSession(url: String, cookieHeader: String?): Boolean {
-        val host = hostOf(url) ?: return false
-        val cookies = synchronized(this) { handed[host]?.takeIf { it.first == generation() }?.second } ?: return false
-        val sent = cookieHeader.orEmpty().split(';').associate { it.substringBefore('=').trim() to it.substringAfter('=', "").trim() }
-        return cookies.isNotEmpty() && cookies.all { (name, value) -> value.isNotEmpty() && sent[name] == value }
+        val page = url.toHttpUrlOrNull() ?: return false
+        val cookies = synchronized(this) { handed[page.host.lowercase()]?.takeIf { it.first == generation() }?.second } ?: return false
+        val sent = cookieHeader.orEmpty().split(';').map { it.substringBefore('=').trim() to it.substringAfter('=', "").trim() }.toSet()
+        val sentHere = cookies.filter { it.matches(page) }
+        return sentHere.isNotEmpty() && sentHere.all { it.value.isNotEmpty() && (it.name to it.value) in sent }
     }
 
     override fun sessionCleared(url: String) {
@@ -114,7 +118,7 @@ class SchoolBrowserSignIn(
         if (generation() != before || !usable()) return false
         (session.cookies + session.sso).forEach { writeCookie("https://${it.domain}/", it.forBrowser()) }
         flush()
-        if (session.signedIn) synchronized(this) { handed[host] = before to session.cookies.associate { it.name to it.value } }
+        if (session.signedIn) synchronized(this) { handed[host] = before to session.cookies }
         return true
     }
 

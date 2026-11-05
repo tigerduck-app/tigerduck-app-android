@@ -14,11 +14,7 @@ import org.ntust.app.tigerduck.auth.postAutomatically
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * What a sign-in for the TigerDuck browser hands it: the cookies its site set, whether SSO signed the
- * site in, and [sso], the app's SSO session the run went through SSO with, for the browser to pass
- * SSO by itself when a site sends it there again.
- */
+/** What a sign-in for the TigerDuck browser hands it: its site's cookies, whether SSO signed the site in, and the app's SSO session ([sso]). */
 data class BrowserSiteSession(val cookies: List<Cookie>, val signedIn: Boolean, val sso: List<Cookie> = emptyList())
 
 sealed class SsoLoginError : Exception() {
@@ -131,6 +127,18 @@ class SsoLoginService internal constructor(
     ): Boolean = loginMutex.lockedUnlessStale(isStillWanted, stale = false) {
         logIn(serviceUrl, studentId, password)
     }
+
+    /**
+     * The app's sign-in to SSO again for the TigerDuck browser, whose run found no SSO session it
+     * could use: [ensureServiceLogin], [isStillWanted] included, through SSO whatever the app holds
+     * of [serviceUrl]'s own site. A session of the site's would let it through with no SSO session
+     * renewed, so that site's cookies go first; the app's next call there signs in again through SSO.
+     */
+    suspend fun renewForBrowser(serviceUrl: String, studentId: String, password: String, isStillWanted: () -> Boolean): Boolean =
+        loginMutex.lockedUnlessStale(isStillWanted, stale = false) {
+            serviceUrl.toHttpUrlOrNull()?.host?.let(sessionManager::dropCookies)
+            logIn(serviceUrl, studentId, password)
+        }
 
     /**
      * [ensureServiceLogin] past the session the jar holds, for the retry of a refused stored

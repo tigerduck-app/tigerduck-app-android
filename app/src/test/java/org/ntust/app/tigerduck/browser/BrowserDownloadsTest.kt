@@ -319,6 +319,22 @@ class BrowserDownloadsTest {
     }
 
     @Test
+    fun `a redirect to a school logout stops the download before anything goes there`() = runTest(StandardTestDispatcher()) {
+        val sent = mutableListOf<Pair<String, String?>>()
+        val saved = mutableListOf<String>()
+        val hops = mapOf("https://moodle2.ntust.edu.tw/a.pdf" to Hop(302, "https://ssoam2.ntust.edu.tw/connect/endsession"))
+
+        try {
+            transfer(hops, sent, saved).download(save) { _, _ -> }
+            fail("went to the logout")
+        } catch (_: IOException) {
+        }
+
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf"), sent.map { it.first })
+        assertTrue(saved.isEmpty())
+    }
+
+    @Test
     fun `a server error fails the download and saves nothing`() = runTest(StandardTestDispatcher()) {
         val sent = mutableListOf<Pair<String, String?>>()
         val saved = mutableListOf<String>()

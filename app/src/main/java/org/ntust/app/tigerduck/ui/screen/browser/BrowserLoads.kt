@@ -35,7 +35,8 @@ internal class BrowserLoads(private val state: BrowserPageState, private val sig
 
     /**
      * The last page asked for that a sign-in could go on to, by a load, a page's navigation or a
-     * form's POST: kept through its site's sign-in pages, SSO's authorize on the way to its form
+     * form's POST, or that started, as one the history brings back does with nothing asked: kept
+     * through its site's sign-in pages, SSO's authorize on the way to its form
      * among them, which would otherwise stand for it, and dropped for a page no provider signs in.
      * Written off the main thread too.
      */
@@ -70,6 +71,7 @@ internal class BrowserLoads(private val state: BrowserPageState, private val sig
 
     /** [url]'s page started. */
     fun started(url: String) {
+        asked(url)
         current = url
         // The page it was for has started, or another has instead.
         mainFrameRequest = null

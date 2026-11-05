@@ -30,7 +30,7 @@ object BrowserRouting {
      */
     fun navigation(url: String, allowlist: BrowserAllowlist): NavigationDecision = when (scheme(url)) {
         "https", "http" -> when {
-            BrowserSchoolSites.isLogout(url) || isSchoolLogout(url) -> NavigationDecision.Refuse
+            isLogout(url) -> NavigationDecision.Refuse
             allowlist.allows(url) -> NavigationDecision.Load
             else -> NavigationDecision.OpenOutside(url)
         }
@@ -52,7 +52,10 @@ object BrowserRouting {
      * browser then signs in again as for any session Moodle ends.
      */
     fun blocksRequest(url: String, isForMainFrame: Boolean, allowlist: BrowserAllowlist): Boolean =
-        BrowserSchoolSites.isLogout(url) || isSchoolLogout(url) || isForMainFrame && navigation(url, allowlist) != NavigationDecision.Load
+        isLogout(url) || isForMainFrame && navigation(url, allowlist) != NavigationDecision.Load
+
+    /** Whether [url] signs the student out of a school site, by its site's own rules or the school-wide ones. */
+    fun isLogout(url: String): Boolean = BrowserSchoolSites.isLogout(url) || isSchoolLogout(url)
 
     /**
      * Whether [url] ends Moodle's session: its logout page, `/login/logout.php`, and auth_oidc's

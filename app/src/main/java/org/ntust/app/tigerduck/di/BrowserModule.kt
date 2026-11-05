@@ -108,7 +108,8 @@ object BrowserModule {
             run = ssoLoginService::signInForBrowser,
             // The app's own sign-in, guarded as ever (one at a time, a refused password held back),
             // by the way of the site: it signs in to SSO again whatever the app thinks of its
-            // session. In the app's scope, awaited: a timeout leaves it to finish for the app.
+            // session, and whatever it holds of the site's. In the app's scope, awaited: a timeout
+            // leaves it to finish for the app.
             warm = { target ->
                 val before = BrowserSession.generation.value
                 appScope.async {
@@ -116,7 +117,7 @@ object BrowserModule {
                     val id = credentials.ntustStudentId ?: return@async false
                     val password = credentials.ntustPassword ?: return@async false
                     try {
-                        ssoLoginService.ensureServiceLogin(target, id.trim().uppercase(), password) {
+                        ssoLoginService.renewForBrowser(target, id.trim().uppercase(), password) {
                             // Not for an account that signed out while it waited.
                             usable() && BrowserSession.generation.value == before &&
                                 authService.canAskSchool && credentials.ntustStudentId == id
