@@ -75,12 +75,17 @@ class SchoolWebSignInTest {
         return SsoLoginService(sessionManager, latch, newCookieJar = { SignInCookieJar().also { jars += it } }) { school }
     }
 
-    /** The app signed in to SSO earlier, for another school site: its jar holds SSO's session, and a cookie of the whole domain's. */
+    /**
+     * The app signed in to SSO earlier, for another school site: its jar holds SSO's session, which
+     * ssoam2 sets as `AuthServer` on the whole school domain rather than its own host, a cookie of
+     * ssoam2's own, and another site's on its own host.
+     */
     private fun appHoldsSsoSession() {
         val sso = "https://$SSO_HOST/account/login".toHttpUrl()
-        appJar.saveFromResponse(sso, listOfNotNull(Cookie.parse(sso, "$SSO_COOKIE=sso-made-up; Path=/; Secure; HttpOnly")))
-        // Built, not parsed: a Domain attribute sends OkHttp's parser to the public suffix list, which tests lack.
-        appJar.saveFromResponse(sso, listOf(Cookie.Builder().name("shared").value("made-up").domain("ntust.edu.tw").path("/").secure().build()))
+        appJar.saveFromResponse(sso, listOf(domainCookie(SSO_COOKIE)))
+        appJar.saveFromResponse(sso, listOfNotNull(Cookie.parse(sso, "$SSO_OWN_COOKIE=sso-made-up; Path=/; Secure; HttpOnly")))
+        val other = "https://$OTHER_HOST/".toHttpUrl()
+        appJar.saveFromResponse(other, listOfNotNull(Cookie.parse(other, "$OTHER_COOKIE=other-made-up; Path=/; Secure")))
     }
 
     @Test
@@ -147,7 +152,7 @@ class SchoolWebSignInTest {
 
         val names = service().signInForBrowser(SITE_PAGE).cookies.map { it.name }
 
-        assertTrue(names.none { it == SSO_COOKIE || it == "shared" })
+        assertTrue(names.none { it == SSO_COOKIE || it == SSO_OWN_COOKIE })
     }
 
     @Test
@@ -161,13 +166,15 @@ class SchoolWebSignInTest {
     }
 
     @Test
-    fun `the site gets SSO's own cookies alone on the way, none of the whole domain's`() = runTest(UnconfinedTestDispatcher()) {
+    fun `the run takes SSO's cookies alone from the app's jar, another site's staying there`() = runTest(UnconfinedTestDispatcher()) {
         appHoldsSsoSession()
 
         service().signInForBrowser(SITE_PAGE)
 
-        assertTrue(sentToSite.isNotEmpty())
-        assertTrue(sentToSite.toString(), sentToSite.none { "shared" in it })
+        val started = jars.single().loadForRequest("https://$SSO_HOST/connect/authorize".toHttpUrl()).map { it.name }
+        assertTrue(started.toString(), SSO_COOKIE in started && SSO_OWN_COOKIE in started)
+        assertTrue(jars.single().loadForRequest("https://$OTHER_HOST/".toHttpUrl()).none { it.name == OTHER_COOKIE })
+        assertTrue(sentToSite.toString(), sentToSite.none { OTHER_COOKIE in it })
     }
 
     @Test
@@ -260,7 +267,11 @@ class SchoolWebSignInTest {
         const val STUDENT = "B00015999"
         const val PASSWORD = "made-up-password"
         const val SSO_HOST = "ssoam2.ntust.edu.tw"
-        const val SSO_COOKIE = ".AspNetCore.Identity.Application"
+        /** SSO's session, on the whole school domain. */
+        const val SSO_COOKIE = "AuthServer"
+        const val SSO_OWN_COOKIE = ".AspNetCore.Antiforgery.made-up"
+        const val OTHER_HOST = "cour01.ntust.edu.tw"
+        const val OTHER_COOKIE = "ASP.NET_SessionId"
         const val SSO_LOGIN = "https://$SSO_HOST/account/login?ReturnUrl=%2Fconnect"
         const val SITE_HOST = "stuinfosys.ntust.edu.tw"
         const val SITE_PAGE = "https://$SITE_HOST/StudentInformation"

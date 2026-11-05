@@ -282,13 +282,14 @@ class SsoLoginService internal constructor(
      * Signs [target]'s school site in for the TigerDuck browser with the SSO session the app
      * already holds, and hands back what the site set: its session, for the browser alone.
      *
-     * The run has a jar of its own ([newCookieJar]) that starts with SSO's own cookies from the
-     * app's shared jar and nothing else, so no cookie of the whole domain goes to the site on the
-     * way, and nothing goes back into the shared jar: the site's session is never one the app's
-     * own calls also use. What it hands back is what [target]'s host set for itself alone: not
-     * SSO's, not another host's met on the way, and not one scoped to reach the school's other
-     * sites. The calls go out apart from the caller ([awaitApart]), so cancelling it, as a timeout
-     * does, cancels them.
+     * The run has a jar of its own ([newCookieJar]) that starts with the cookies the app's shared
+     * jar sends SSO and nothing else: ssoam2's own, and the whole school domain's, where ssoam2
+     * keeps its session (`AuthServer`) and without which it asks for the password. As in any
+     * browser, those go to the site on the way too. Nothing goes back into the shared jar: the
+     * site's session is never one the app's own calls also use. What it hands back is what
+     * [target]'s host set for itself alone: not SSO's, not another host's met on the way, and not
+     * one scoped to reach the school's other sites. The calls go out apart from the caller
+     * ([awaitApart]), so cancelling it, as a timeout does, cancels them.
      *
      * No password is posted, and none is filled into a page: SSO asking for one ends the run
      * ([SsoLoginError.SessionMissing]), and so does ssoam's NetIQ page, which only a person signs
@@ -299,7 +300,7 @@ class SsoLoginService internal constructor(
         val site = target.toHttpUrlOrNull() ?: throw SsoLoginError.InvalidResponse()
         val host = site.host.lowercase()
         val jar = newCookieJar()
-        jar.saveFromResponse(SSO_SITE, client.cookieJar.loadForRequest(SSO_SITE).filter { it.domain.equals(SSO_SITE.host, ignoreCase = true) })
+        jar.saveFromResponse(SSO_SITE, client.cookieJar.loadForRequest(SSO_SITE))
         val calls = RunningCalls()
         val run = SsoPages(client.newBuilder().cookieJar(jar).eventListener(calls).build())
         return awaitApart(calls::cancelAll) {
