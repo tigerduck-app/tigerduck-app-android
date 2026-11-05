@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.ClubSubscriptionsSyncer
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
@@ -72,6 +73,7 @@ class HomeBackendSync @Inject constructor(
     private val authService: AuthService,
     private val pushApiClient: PushApiClient,
     private val notificationSettingsSync: NotificationSettingsSync,
+    private val clubSubscriptionsSync: ClubSubscriptionsSyncer? = null,
 ) {
 
     /**
@@ -93,6 +95,15 @@ class HomeBackendSync @Inject constructor(
     suspend fun sendWhatWaits(signIn: SignIn) {
         retryUnsent(signIn)
         notificationSettingsSync.pushIfUnconfirmed()
+        retryOwedSettings(signIn)
+    }
+
+    /**
+     * A club document change whose sync did not land, or a sync of it that failed to read, for a
+     * revision poll that found nothing new: run again until one lands, as the iPhone's poll does.
+     */
+    fun retryOwedSettings(signIn: SignIn) {
+        clubSubscriptionsSync?.retryIfOwed(signIn)
     }
 
     /**

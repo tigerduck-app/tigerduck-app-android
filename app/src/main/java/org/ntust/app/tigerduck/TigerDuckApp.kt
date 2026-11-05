@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.auth.AccountSessionEffects
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.StoredPasswordRetry
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.DataMigration
@@ -90,6 +91,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var courseChangeStore: CourseChangeStore
 
     @Inject
+    lateinit var clubFeeds: org.ntust.app.tigerduck.clubs.ClubFeeds
+
+    @Inject
     lateinit var analyticsLogger: AnalyticsLogger
 
     @Inject
@@ -157,6 +161,20 @@ class TigerDuckApp : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * The subscribed clubs' activities and the club list, on the first load and on every return to
+     * the foreground, as the iPhone's scene activation fetches them: nothing while the account has
+     * no subscription ([ClubFeeds]).
+     */
+    @OptIn(StartsAccountWork::class)
+    private fun startClubFeeds() {
+        appScope.launch(Dispatchers.Main) {
+            ProcessLifecycleOwner.get().lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                clubFeeds.refresh(sessions.school.current)
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         val signOutCutShort = signOutPlans.finishOwedSignOut() // before anything acts on the account
@@ -191,7 +209,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         warnIfPinsNearExpiry()
 
         startTlsPins()
-
+        startClubFeeds()
         // Wear OS bridge — publish to paired watch on schedule/auth/accent changes.
         // On fdroid the bridge is a no-op stub; these calls are still safe.
         dataCache.setOnCoursesSavedListener {

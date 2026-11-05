@@ -105,6 +105,9 @@ Scopes:
 | prefs | `academic_calendar` | keys | |
 | prefs | `bulletin_read_state` | school | `BulletinReadStateStore.kt` `clear` |
 | prefs | `cjk_centering` | keys | |
+| prefs | `club_activities` | school | `ClubActivities.kt` `clear` |
+| prefs | `club_directory` | keys | |
+| prefs | `club_subscriptions` | school | `ClubSubscriptions.kt` `clear` |
 | prefs | `course_changes` | keys | |
 | prefs | `class_preparing_tracker` | keys | |
 | prefs | `debug_clock` | keys | |
@@ -133,6 +136,13 @@ Scopes:
 | prefs | `wear_bridge_state` | keys | |
 
 A file listed with an account's scope is cleared whole, and its keys have no rows.
+
+The club subscriptions (`club_subscriptions`: the `club_subscriptions` settings document as this
+phone holds it, and whether a change of it has yet to reach the backend) and the club activity
+feed fetched for them (`club_activities`, with its ETag) are the school account's, and its sign-out
+drops both, as one of `SchoolStores.atOnce`. The club directory (`club_directory`, with when it
+was fetched and its `max-age`) is the school's public list of clubs, the same for every student,
+so it is the device's, as on iOS.
 
 ## Keys of `tigerduck_prefs`
 
@@ -289,6 +299,9 @@ into `library_password_refusals` when it opens.
 | academic_calendar | `payload` | device | |
 | cjk_centering | `corrections` | device | |
 | cjk_centering | `key` | device | |
+| club_directory | `max_age` | device | |
+| club_directory | `payload` | device | |
+| club_directory | `stored_at` | device | |
 | course_changes | `endpoint` | device | |
 | course_changes | `etag` | device | |
 | course_changes | `payload` | device | |

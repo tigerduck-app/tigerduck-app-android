@@ -97,7 +97,8 @@ fun ColorPickerSheet(
     presetPalette: List<Color>,
     usedByOthers: Set<Int>,
     onApply: (Color) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    labels: ColorPickerLabels = ColorPickerLabels.Course,
 ) {
     val style = LocalVisualStylePolicy.current
 
@@ -162,7 +163,7 @@ fun ColorPickerSheet(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = stringResource(R.string.color_picker_title),
+                    text = stringResource(labels.title),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -219,8 +220,7 @@ fun ColorPickerSheet(
                         ColorSwatch(
                             color = style.courseAccentColor(preset, tint = preset),
                             // Numbered from 1, as iOS reads them.
-                            label = stringResource(R.string.a11y_course_color_swatch)
-                                .replaceIosArg(1, index + 1L),
+                            label = stringResource(labels.swatch).replaceIosArg(1, index + 1L),
                             selected = presetArgb == selectedArgb,
                             usedByOther = presetArgb in usedByOthers && presetArgb != selectedArgb,
                             onClick = { pick(presetArgb); code.show(presetArgb) }
@@ -239,7 +239,7 @@ fun ColorPickerSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     SectionLabel(
-                        text = stringResource(R.string.color_picker_custom),
+                        text = stringResource(labels.custom),
                         modifier = Modifier.weight(1f)
                     )
                     Icon(
@@ -279,10 +279,7 @@ fun ColorPickerSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.action_cancel)) }
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.action_cancel)) }
                 Button(
                     onClick = { onApply(selectedColor) },
                     modifier = Modifier.weight(1f)

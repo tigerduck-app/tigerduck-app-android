@@ -250,6 +250,24 @@ class SyncWiringTest {
     }
 
     /**
+     * The club document syncs after every full sync, Home's and the worker's, and a run of it that
+     * did not land goes again at a poll that finds nothing new, or moves the watermark without a
+     * full sync, as on the iPhone.
+     */
+    @Test
+    fun `a full sync runs the club document's sync, and a poll runs one that is owed`() {
+        for (rel in listOf("sync/ForegroundSteps.kt", "sync/BackgroundSteps.kt")) {
+            assertCalls(rel, "afterSync", "clubs?.afterFullSync(pass.signIn, pass.result.currentRevision)")
+        }
+        assertCalls("ui/screen/home/HomeViewModel.kt", "pollRevision", "backendSync.retryOwedSettings(signInNow())")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "sendWhatWaits", "retryOwedSettings(signIn)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "retryOwedSettings", "clubSubscriptionsSync?.retryIfOwed(signIn)")
+        val synchronizer = source("sync/Synchronizer.kt").joinToString("\n")
+        assertTrue("the synchronizer no longer hands the steps the club sync", "notificationSettingsSync, appScope, clubs," in synchronizer)
+        assertTrue("the synchronizer no longer hands the worker's steps the club sync", "pendingCourseAdds, firstPullGate, clubs," in synchronizer)
+    }
+
+    /**
      * A full sync that lands proves a session and a network: a notification-settings edit whose
      * push never landed goes again, and another device's change is picked up, on the application
      * scope and on Main, never awaited. Both go to scopes the JVM tests leave idle.

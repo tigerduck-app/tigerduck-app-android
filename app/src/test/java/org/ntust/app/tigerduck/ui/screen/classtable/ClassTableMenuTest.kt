@@ -40,6 +40,7 @@ class ClassTableMenuTest {
                     Column {
                         OwnClassTableMenuItems(
                             onAddCourse = {},
+                            onSubscribeClubs = { asked += "subscribe clubs" },
                             shareEnabled = true,
                             onShare = {},
                             onImport = {},
@@ -79,11 +80,11 @@ class ClassTableMenuTest {
     }
 
     @Test
-    fun `Subscribe to Clubs is there but cannot be picked yet`() {
+    fun `Subscribe to Clubs opens the club subscriptions`() {
         showMenu()
 
-        composeRule.onNodeWithText(string(R.string.class_table_subscribe_clubs)).assertIsNotEnabled()
-        composeRule.onNodeWithText(string(R.string.class_table_reset_title)).assertIsEnabled()
+        composeRule.onNodeWithText(string(R.string.class_table_subscribe_clubs)).assertIsEnabled().performClick()
+        assertEquals(listOf("subscribe clubs"), asked)
     }
 
     private fun showPersonMenu(exportEnabled: Boolean = true, picked: MutableList<String> = mutableListOf()) {

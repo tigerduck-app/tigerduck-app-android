@@ -661,9 +661,9 @@ class HomeViewModel @Inject constructor(
         retryUnsent = backendSync::sendWhatWaits,
         fullSync = ::syncAndRepublish,
     ).also { outcome ->
-        // Reached the server with nothing new: a re-enable check that failed
-        // runs again here, as after a full sync (which a change starts).
-        if (outcome == RevisionPollOutcome.UNCHANGED) reenableCheck.runIfOwed()
+        // Reached the server with nothing new: a re-enable check, and a club document sync,
+        // that failed run again here, as after a full sync (which a change starts).
+        if (outcome == RevisionPollOutcome.UNCHANGED) { reenableCheck.runIfOwed(); backendSync.retryOwedSettings(signInNow()) }
     }
 
     /**

@@ -489,7 +489,7 @@ private fun AssignmentRow(assignment: Assignment, onClick: () -> Unit) {
  * as every grouped card in the app is drawn.
  */
 @Composable
-private fun EmphasisCard(
+internal fun EmphasisCard(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
@@ -548,7 +548,7 @@ private fun EmphasisCard(
  * as "Classroo" / "m", so the cards then go one under the other, each across the whole width.
  */
 @Composable
-private fun SideBySideOrStacked(gap: Dp, content: @Composable () -> Unit) {
+internal fun SideBySideOrStacked(gap: Dp, content: @Composable () -> Unit) {
     Layout(content = content, modifier = Modifier.fillMaxWidth()) { measurables, constraints ->
         val gapPx = gap.roundToPx()
         val gaps = gapPx * (measurables.size - 1)
@@ -600,7 +600,7 @@ internal fun openCourseInMoodle(context: Context, moodleCourseId: Int) {
  * turns into a checkmark while [copied].
  */
 @Composable
-private fun InfoRow(
+internal fun InfoRow(
     label: String,
     value: String,
     copied: Boolean = false,
