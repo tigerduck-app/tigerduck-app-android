@@ -155,7 +155,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           # The oldest Python the build runs on, as in localization. Renovate leaves it alone.
-          python-version: "3.9"
+          python-version: "3.15"
 
       - name: Test the checker
         run: python3 -m unittest discover -s tools/guardrails -v
