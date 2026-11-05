@@ -33,7 +33,7 @@ internal fun ClubCard(item: TimeSliderItem.Club, muted: Boolean, onClick: () -> 
     val club = item.occurrence
     val time = clubTimeRange(club.start, club.end)
     val hint = stringResource(R.string.a11y_club_activity_open_details_hint)
-    val spoken = (listOf(club.headline, club.subtitle, time).filter { it.isNotEmpty() }).joinToString(", ")
+    val spoken = (listOf(club.headline, club.subtitle, time, shownDateLabel(item.date).orEmpty()).filter { it.isNotEmpty() }).joinToString(", ")
     TimeSliderCardSurface(
         tint = item.tint,
         muted = muted,

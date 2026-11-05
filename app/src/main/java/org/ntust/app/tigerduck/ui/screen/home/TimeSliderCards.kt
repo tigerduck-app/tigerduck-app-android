@@ -129,13 +129,14 @@ internal fun TimeSliderCardSurface(
         colors = CardDefaults.cardColors(containerColor = container, contentColor = nameColor)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            if (isToday(date)) {
+            val label = shownDateLabel(date)
+            if (label == null) {
                 time(ink)
             } else {
                 FitOrStack(
                     modifier = Modifier.fillMaxWidth(),
                     first = { time(ink) },
-                    second = { Text(formatDateLabel(date), style = MaterialTheme.typography.labelSmall, color = ink.meta) },
+                    second = { Text(label, style = MaterialTheme.typography.labelSmall, color = ink.meta) },
                 )
             }
             Spacer(Modifier.height(4.dp))
@@ -143,6 +144,9 @@ internal fun TimeSliderCardSurface(
         }
     }
 }
+
+/** The date label a card shows beside its time: none for today's. */
+internal fun shownDateLabel(date: Date): String? = if (isToday(date)) null else formatDateLabel(date)
 
 private fun isToday(date: Date): Boolean {
     val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)

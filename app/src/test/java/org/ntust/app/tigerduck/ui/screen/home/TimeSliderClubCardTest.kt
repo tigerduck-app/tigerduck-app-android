@@ -117,4 +117,17 @@ class TimeSliderClubCardTest {
         card("Practice, 測試社團0 · TR-000, 19:00 - 21:00. ${hint()}").assertExists()
         assertEquals(0, composeRule.onAllNodesWithText(composeRule.activity.getString(R.string.home_time_slider_no_courses)).fetchSemanticsNodes().size)
     }
+
+    @Test
+    fun `a card for another day reads its date, and today's reads none`() {
+        val tomorrow = club(1, 0, "19:00", "21:00", day = "2026-11-06")
+        show(TimeSliderViewModel(FakeHomeClubs(listOf(tomorrow))), courses = emptyList())
+        card("Practice, 測試社團0 · TR-000, 19:00 - 21:00, ${formatDateLabel(java.util.Date.from(at("12:00", java.time.LocalDate.of(2026, 11, 6))))}. ${hint()}").assertExists()
+    }
+
+    @Test
+    fun `a card for today reads no date`() {
+        show(TimeSliderViewModel(FakeHomeClubs(listOf(club(1, 0, "19:00", "21:00")))), courses = emptyList())
+        card("Practice, 測試社團0 · TR-000, 19:00 - 21:00. ${hint()}").assertExists()
+    }
 }
