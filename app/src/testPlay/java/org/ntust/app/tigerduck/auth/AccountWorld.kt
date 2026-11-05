@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.clubs.ClubSubscriptions
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.PortalLinksCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
@@ -75,6 +76,7 @@ internal class AccountWorld(
     val credentials: CredentialManager,
     val dataCache: DataCache,
     val bulletinCache: BulletinCache,
+    val portalLinksCache: PortalLinksCache,
     val imported: ImportedClassTableStore,
     val tokens: AuthTokenManager,
     val auth: AuthService,
@@ -129,6 +131,7 @@ internal fun accountWorld(
     val academicCalendar = AcademicCalendarStore(context, refusing, appPrefs)
     val dataCache = DataCache(context, academicCalendar)
     val bulletinCache = BulletinCache(context)
+    val portalLinksCache = PortalLinksCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
     val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
     val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
@@ -214,6 +217,7 @@ internal fun accountWorld(
             pushRegistration = pushRegistration,
             demoAccount = demoAccount,
             bulletinCache = bulletinCache,
+            portalLinksCache = portalLinksCache,
             widgetUpdater = widgetUpdater,
             session = sessions.school,
             appScope = appScope,
@@ -258,7 +262,7 @@ internal fun accountWorld(
         browserClearingOwed = { false },
     )
     return AccountWorld(
-        appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions, effects,
+        appPrefs, credentials, dataCache, bulletinCache, portalLinksCache, imported, tokens, auth, browserClearings, sessions, effects,
         pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
         academicCalendar, demoAccount, fixtures, plans,
     )

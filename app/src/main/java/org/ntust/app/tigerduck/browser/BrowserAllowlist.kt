@@ -60,17 +60,21 @@ sealed interface AllowlistEntry {
  * port, with no user in the address, on a host one of [entries] lets in, or
  * any such page when [allowEverySite] (the developer switch) is on. A browser
  * the developer page's "Open a page" opened lets in every http and https page
- * at all ([anyPage], [lettingAnyPageIn]).
+ * at all ([anyPage], [lettingAnyPageIn]). A launch also lets its first page load, even when
+ * its HTTPS port differs from the default. An unrestricted launch lets in every HTTPS page
+ * ([anyHttpsPage]), while HTTP pages still open outside.
  */
 class BrowserAllowlist(
     val entries: List<AllowlistEntry>,
     val allowEverySite: Boolean = false,
     val anyPage: Boolean = false,
+    private val firstPage: String? = null,
+    val anyHttpsPage: Boolean = false,
 ) {
     /** Whether [url] may load inside. */
     fun allows(url: String): Boolean {
         val parsed = url.toHttpUrlOrNull() ?: return false
-        if (anyPage) return true
+        if (anyPage || anyHttpsPage && parsed.isHttps || parsed.toString() == firstPage) return true
         if (parsed.scheme != "https" || parsed.port != 443) return false
         if (parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return false
         if (allowEverySite) return true
@@ -79,7 +83,7 @@ class BrowserAllowlist(
     }
 
     /** This allowlist, letting in every http and https page, any port and any user included. */
-    fun lettingAnyPageIn(): BrowserAllowlist = BrowserAllowlist(entries, allowEverySite, anyPage = true)
+    fun lettingAnyPageIn(): BrowserAllowlist = BrowserAllowlist(entries, allowEverySite, anyPage = true, firstPage = firstPage)
 
     /** Whether [entry] adds nothing: an exact host a wildcard entry already lets in. */
     fun isRedundant(entry: AllowlistEntry): Boolean =

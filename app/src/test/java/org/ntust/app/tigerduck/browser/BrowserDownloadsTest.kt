@@ -47,15 +47,16 @@ class BrowserDownloadsTest {
     @Test
     fun `a file on an allowlisted https site is saved under the name and type it comes with`() {
         assertEquals(
-            DownloadPlan.Save("https://moodle2.ntust.edu.tw/pluginfile.php/1/a.pdf", "week3.pdf", "application/pdf"),
+            DownloadPlan.Save("https://moodle2.ntust.edu.tw/pluginfile.php/1/a.pdf", "week3.pdf", "application/pdf", restriction = BrowserAllowlist.DEFAULT),
             plan("https://moodle2.ntust.edu.tw/pluginfile.php/1/a.pdf", cd = "attachment; filename=\"week3.pdf\"", mime = "application/pdf; charset=binary"),
         )
     }
 
     @Test
     fun `the developer's Open a page browser saves a file off the allowlist, and its plan says so`() {
-        val plan = plan("https://example.com:8443/a.pdf", allowlist = BrowserAllowlist.DEFAULT.lettingAnyPageIn())
-        assertEquals(DownloadPlan.Save("https://example.com:8443/a.pdf", "a.pdf", "application/pdf", anyPage = true), plan)
+        val unrestricted = BrowserAllowlist.DEFAULT.lettingAnyPageIn()
+        val plan = plan("https://example.com:8443/a.pdf", allowlist = unrestricted)
+        assertEquals(DownloadPlan.Save("https://example.com:8443/a.pdf", "a.pdf", "application/pdf", anyPage = true, restriction = unrestricted), plan)
         assertEquals(false, (plan("https://moodle2.ntust.edu.tw/a.pdf") as DownloadPlan.Save).anyPage)
     }
 
@@ -318,18 +319,19 @@ class BrowserDownloadsTest {
     }
 
     @Test
-    fun `a download from the developer's Open a page browser follows a redirect off the allowlist`() = runTest(StandardTestDispatcher()) {
+    fun `a redirect to a school logout stops the download before anything goes there`() = runTest(StandardTestDispatcher()) {
         val sent = mutableListOf<Pair<String, String?>>()
         val saved = mutableListOf<String>()
-        val hops = mapOf(
-            "https://moodle2.ntust.edu.tw/a.pdf" to Hop(302, "https://example.com/real.pdf"),
-            "https://example.com/real.pdf" to Hop(200, body = "PDF"),
-        )
+        val hops = mapOf("https://moodle2.ntust.edu.tw/a.pdf" to Hop(302, "https://ssoam2.ntust.edu.tw/connect/endsession"))
 
-        transfer(hops, sent, saved).download(save.copy(anyPage = true)) { _, _ -> }
+        try {
+            transfer(hops, sent, saved).download(save) { _, _ -> }
+            fail("went to the logout")
+        } catch (_: IOException) {
+        }
 
-        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf", "https://example.com/real.pdf"), sent.map { it.first })
-        assertEquals(listOf("PDF"), saved)
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf"), sent.map { it.first })
+        assertTrue(saved.isEmpty())
     }
 
     @Test

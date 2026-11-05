@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.ui.screen.browser
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -49,7 +48,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -75,7 +73,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.browser.BrowserAllowlist
-import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
+import org.ntust.app.tigerduck.browser.sites.SchoolSiteCookies
 import org.ntust.app.tigerduck.browser.BrowserAppearance
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserColors
@@ -113,72 +111,6 @@ import javax.inject.Inject
 import org.ntust.app.tigerduck.debug.PretendMissingApps
 
 /**
- * Opens pages in the TigerDuck browser, the app's own browser built on a
- * WebView, whatever "Open links with" says. Moodle's pages open in it where
- * the Moodle app does not take them (MoodleWebPages.of), the profile pencil
- * among them; another feature opens a page in it with one call to [open].
- * Sign-in is per site, through [BrowserSignIns].
- */
-object InAppBrowser {
-    const val EXTRA_URL = "org.ntust.app.tigerduck.browser.URL"
-
-    /** Set by [openAnyPage]: the browser lets every page in, in a debug build only. */
-    const val EXTRA_ANY_PAGE = "org.ntust.app.tigerduck.browser.ANY_PAGE"
-
-    /**
-     * Whether this phone's WebView can delete everything a site keeps,
-     * service workers and Cache Storage included. The browser opens only
-     * where it can: on an older WebView one student's pages could outlive a
-     * sign-out. Set by tests.
-     */
-    @Volatile
-    internal var canClearEverything: () -> Boolean = {
-        runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.DELETE_BROWSING_DATA) }.getOrDefault(false)
-    }
-
-    /**
-     * Opens [url], an https page, in the TigerDuck browser; false when it is
-     * not one, when this phone's WebView cannot be cleared ([canClearEverything]),
-     * while a deletion is unconfirmed or a clearing owed ([BrowserCleanup]),
-     * or when nothing could open, for the caller to open it another way.
-     */
-    fun open(context: Context, url: String): Boolean {
-        if (url.toHttpUrlOrNull()?.isHttps != true) return false
-        return start(context, Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url))
-    }
-
-    /**
-     * Settings › Developer › Browser allowlist's "Open a page": opens [url], any http or https
-     * page, in a TigerDuck browser that lets every page in, past any allowlist, for a developer
-     * to try a page. A release build ([debug] false) opens nothing. As [open] otherwise.
-     */
-    fun openAnyPage(context: Context, url: String): Boolean = openAnyPage(context, url, BuildConfig.DEBUG)
-
-    @VisibleForTesting
-    internal fun openAnyPage(context: Context, url: String, debug: Boolean): Boolean {
-        if (!debug || url.toHttpUrlOrNull() == null) return false
-        val intent = Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url).putExtra(EXTRA_ANY_PAGE, true)
-        return start(context, intent)
-    }
-
-    private fun start(context: Context, intent: Intent): Boolean {
-        if (!canClearEverything() || !BrowserSession.usable || BrowserCleanup.of(context).isPending()) return false
-        if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return runCatching { context.startActivity(intent) }.isSuccess
-    }
-
-    /** The allowlist a browser goes by: [stored], or every page when [anyPageAsked] ([openAnyPage]) in a [debug] build. */
-    internal fun allowlistFor(stored: BrowserAllowlist, anyPageAsked: Boolean, debug: Boolean = BuildConfig.DEBUG): BrowserAllowlist =
-        if (anyPageAsked && debug) stored.lettingAnyPageIn() else stored
-
-    /** The page a browser starts on: [url] when it is an https page, or any web page for [anyPage]. */
-    internal fun startPage(url: String?, anyPage: Boolean): String? {
-        val parsed = url?.toHttpUrlOrNull() ?: return null
-        return url.takeIf { parsed.isHttps || anyPage }
-    }
-}
-
-/**
  * The TigerDuck browser. It owns the WebView, so a recomposition never
  * remakes it, and keeps it across a rotation; the screen
  * ([InAppBrowserScreen]) draws around it.
@@ -195,14 +127,13 @@ object InAppBrowser {
 class InAppBrowserActivity : AppCompatActivity() {
 
     @Inject lateinit var appState: AppState
-    @Inject lateinit var allowlistStore: BrowserAllowlistStore
 
     /** Opened by the developer page's "Open a page" ([InAppBrowser.openAnyPage]): every page loads, in a debug build. */
     private var anyPage = false
 
     /** The allowlist every navigation here is checked against. */
     private val allowlist: BrowserAllowlist
-        get() = InAppBrowser.allowlistFor(allowlistStore.allowlist.value, anyPage)
+        get() = InAppBrowser.allowlistFor(intent)
     @Inject lateinit var settings: BrowserSettings
     @Inject lateinit var downloads: BrowserDownloads
     @Inject lateinit var signIns: BrowserSignIns
@@ -517,16 +448,24 @@ class InAppBrowserActivity : AppCompatActivity() {
         // Before the page's own scripts, in each of its frames. Every WebView the browser opens in has
         // this: deleting all browsing data (InAppBrowser.canClearEverything) came long after it.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.TOUCH_PAN, BrowserPageScripts.TOUCH_PAN_ORIGINS) }
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.HIDE_LOGOUT, BrowserPageScripts.HIDE_LOGOUT_ORIGINS) }
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.TOUCH_FOCUS, BrowserPageScripts.TOUCH_FOCUS_ORIGINS) }
+            BrowserPageScripts.DOCUMENT_START.forEach { (script, origins) ->
+                runCatching { WebViewCompat.addDocumentStartJavaScript(this, script, origins) }
+            }
         }
     }
 
     /** Opens [target]: signed in first where its site signs the browser in and no session is kept. */
-    private fun open(target: String) {
+    private fun open(target: String) = SchoolSiteCookies.prepare(target, sessionCleared = {
+        signIns.forUrl(target)?.sessionCleared(target)
+    }) {
+        if (isFinishing || isDestroyed || !BrowserSession.usable ||
+            loadedSession != BrowserSession.generation.value || BrowserCleanup.of(this).isPending()) return@prepare
+        openPrepared(target)
+    }
+
+    private fun openPrepared(target: String) {
         val provider = signIns.forUrl(target)
-        if (provider == null || provider.hasSession(CookieManager.getInstance().getCookie(target))) {
+        if (provider == null || !provider.signsInAhead(target) || provider.hasSession(target, CookieManager.getInstance().getCookie(target))) {
             load(target)
             return
         }
@@ -552,7 +491,7 @@ class InAppBrowserActivity : AppCompatActivity() {
     private fun handleNavigation(url: String): Boolean {
         val provider = signIns.forUrl(url)
         if (provider != null && provider.isSignInPage(url)) {
-            signInFlow.signInPageReached(provider, url)
+            signInFlow.signInPageReached(provider, url, from = state.url)
             return true
         }
         return when (val decision = BrowserRouting.navigation(url, allowlist)) {
@@ -576,7 +515,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         // A navigation shouldOverrideUrlLoading was not asked about (a form's POST): checked here, and stopped.
         val provider = signIns.forUrl(url)
         if (provider != null && provider.isSignInPage(url)) {
-            signInFlow.signInPageReached(provider, url)
+            signInFlow.signInPageReached(provider, url, from = state.url)
             return
         }
         val decision = BrowserRouting.navigation(url, allowlist)
@@ -608,7 +547,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         state.url = loads.address(url)
         state.title = webView.title
         state.certificate = webView.certificate?.let(CertificateInfo::of)
-        state.signedIn = signIns.forUrl(url)?.hasSession(CookieManager.getInstance().getCookie(url)) == true
+        state.signedIn = signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
         updateHistory()
         probeTone()
     }
@@ -894,8 +833,10 @@ class InAppBrowserActivity : AppCompatActivity() {
     // ── WebView callbacks ─────────────────────────────────────────────────
 
     private inner class Client : WebViewClient() {
+        // A frame's navigation, its redirects included where the WebView asks about them, goes
+        // unless it is a logout, which would end the SSO session the browser holds.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-            request.isForMainFrame && handleNavigation(request.url.toString())
+            if (request.isForMainFrame) handleNavigation(request.url.toString()) else BrowserRouting.isLogout(request.url.toString())
 
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             // Off the main thread. A form's POST off the allowlist is stopped here, before it is

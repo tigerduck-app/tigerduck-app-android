@@ -16,6 +16,7 @@ enum class AppFeature(val id: String) {
     // those layouts back as this constant instead of as null.
     @SerializedName("SCORE", alternate = ["GPA"])
     SCORE("score"),
+    INFORMATION_SYSTEM("informationSystem"),
     COURSE_SELECTION("courseSelection"),
     GRADUATION_REQUIREMENTS("graduationRequirements"),
     LIBRARY("library"),
@@ -39,6 +40,7 @@ enum class AppFeature(val id: String) {
             SCHOOL_MAIL -> R.string.feature_school_mail
             LIBRARY -> R.string.feature_library
             SCORE -> R.string.feature_score
+            INFORMATION_SYSTEM -> R.string.feature_information_system
             COURSE_SELECTION -> R.string.feature_course_selection
             GRADUATION_REQUIREMENTS -> R.string.feature_graduation_requirements
             DISCUSSION_ROOM -> R.string.feature_discussion_room
@@ -62,6 +64,7 @@ enum class AppFeature(val id: String) {
             SCHOOL_MAIL -> R.string.feature_school_mail_short
             LIBRARY -> R.string.feature_library_short
             SCORE -> R.string.feature_score_short
+            INFORMATION_SYSTEM -> R.string.feature_information_system_short
             COURSE_SELECTION -> R.string.feature_course_selection_short
             GRADUATION_REQUIREMENTS -> R.string.feature_graduation_requirements_short
             DISCUSSION_ROOM -> R.string.feature_discussion_room_short
@@ -77,7 +80,7 @@ enum class AppFeature(val id: String) {
 
     val category: FeatureCategory?
         get() = when (this) {
-            CLASS_TABLE, CALENDAR, SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS, SCHOOL_MAIL -> FeatureCategory.ACADEMIC
+            CLASS_TABLE, CALENDAR, SCORE, INFORMATION_SYSTEM, COURSE_SELECTION, GRADUATION_REQUIREMENTS, SCHOOL_MAIL -> FeatureCategory.ACADEMIC
             LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE -> FeatureCategory.LIBRARY
             ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP -> FeatureCategory.LIFE
             ENGLISH_VOCAB -> FeatureCategory.LANGUAGE
@@ -103,7 +106,7 @@ enum class AppFeature(val id: String) {
      */
     val isImplemented: Boolean
         get() = when (this) {
-            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE, SCHOOL_MAIL, EMPTY_CLASSROOM -> true
+            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE, SCHOOL_MAIL, EMPTY_CLASSROOM, INFORMATION_SYSTEM -> true
             else -> false
         }
 
@@ -142,7 +145,7 @@ enum class AppFeature(val id: String) {
          */
         private val pinnableOrder = listOf(
             HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, SCHOOL_MAIL, LIBRARY, SCORE,
-            COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            INFORMATION_SYSTEM, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             DISCUSSION_ROOM, LIBRARY_LECTURE,
             FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
             ENGLISH_VOCAB,
@@ -152,7 +155,7 @@ enum class AppFeature(val id: String) {
         private val moreOrder = listOf(
             CLASS_TABLE, CALENDAR, SCORE, SCHOOL_MAIL,
             LIBRARY, ANNOUNCEMENTS,
-            COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            INFORMATION_SYSTEM, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             DISCUSSION_ROOM, LIBRARY_LECTURE,
             FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
             ENGLISH_VOCAB,

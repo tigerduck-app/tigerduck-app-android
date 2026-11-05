@@ -75,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.PageScaffold
+import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 import org.ntust.app.tigerduck.data.moodle.MoodleLookup
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberPlacement
@@ -290,16 +291,15 @@ internal fun isOwnPage(member: MoodleMember, ownId: Int?): Boolean = ownId != nu
 internal fun ownProfileEditorUrl(): String = MoodlePage.webUrl(MoodlePage.PROFILE_EDITOR)
 
 /**
- * The pencil: Moodle's profile editor in the TigerDuck browser, whatever "Open links with" says,
- * so it opens signed in and stays in the app. Moodle has no web service for these fields. Where
- * the browser cannot open (a WebView too old to clear it), [elsewhere] opens it as before.
+ * The pencil opens Moodle's profile editor signed in, whatever "Open links with" says.
+ * [elsewhere] opens it as before when the WebView is too old to clear.
  */
 internal fun editOwnProfile(
     context: Context,
     elsewhere: (Context, String) -> Unit = { c, url -> MoodleWebPages.of(c, inApp = false).open(c, url, null) },
 ) {
     val url = ownProfileEditorUrl()
-    if (!InAppBrowser.open(context, url)) elsewhere(context, url)
+    if (!InAppBrowser.open(context, url, allowlist = BrowserAllowlistStore.of(context).allowlist.value)) elsewhere(context, url)
 }
 
 private fun writeWithMailApp(context: Context, address: String) {

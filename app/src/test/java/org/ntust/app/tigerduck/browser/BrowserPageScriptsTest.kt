@@ -37,7 +37,7 @@ class BrowserPageScriptsTest {
 
     @Test
     fun `only Moodle's pages lose their logout`() {
-        assertEquals(setOf("https://moodle2.ntust.edu.tw"), BrowserPageScripts.HIDE_LOGOUT_ORIGINS)
+        assertEquals(setOf("https://moodle2.ntust.edu.tw", "http://moodle2.ntust.edu.tw"), BrowserPageScripts.HIDE_LOGOUT_ORIGINS)
     }
 
     @Test
@@ -70,5 +70,34 @@ class BrowserPageScriptsTest {
         assertTrue(script, script.contains("outline: none !important; box-shadow: none !important;"))
         assertFalse("the keyboard's ring is left alone", script.replace(":not(:focus-visible)", "").contains(":focus-visible"))
         assertEquals(setOf("https://moodle2.ntust.edu.tw"), BrowserPageScripts.TOUCH_FOCUS_ORIGINS)
+    }
+
+    @Test
+    fun `a school site's logout links and forms are found by the routing's own rule, and controls by their words`() {
+        val script = BrowserPageScripts.HIDE_SCHOOL_LOGOUT
+
+        assertTrue("reads each address as a URL", script.contains("new URL("))
+        // The routing's words, script extensions and action parameters, not a copy of them.
+        BrowserRouting.SCHOOL_LOGOUT_WORDS.forEach { assertTrue(it, script.contains("'$it'")) }
+        BrowserRouting.SCRIPT_EXTENSIONS.forEach { assertTrue(it, script.contains("'$it'")) }
+        BrowserRouting.ACTION_PARAMETERS.forEach { assertTrue(it, script.contains("'$it'")) }
+        assertTrue("path parameters off", script.contains("split(';')"))
+        assertTrue("by the words on them", script.contains("登出") && script.contains("sign"))
+        assertTrue("as the page changes", script.contains("MutationObserver"))
+        assertTrue("Moodle's go by its own rules", script.contains("moodle2.ntust.edu.tw"))
+    }
+
+    @Test
+    fun `a school page's wrappers stay, as no rule hides an element by its class or id alone`() {
+        val script = BrowserPageScripts.HIDE_SCHOOL_LOGOUT
+
+        assertFalse(script, script.contains("[class*=\"logout\" i] {"))
+        assertFalse(script, script.contains("display: none !important; }"))
+        assertFalse("no address matched by a substring", script.contains("href*="))
+    }
+
+    @Test
+    fun `every school page loses its logout`() {
+        assertEquals(setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw", "http://ntust.edu.tw", "http://*.ntust.edu.tw"), BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS)
     }
 }

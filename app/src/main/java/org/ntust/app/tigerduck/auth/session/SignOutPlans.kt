@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.auth.ClearingSteps
 import org.ntust.app.tigerduck.auth.DepartingSession
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
+import org.ntust.app.tigerduck.data.cache.PortalLinksCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
@@ -99,6 +100,7 @@ class SignOutPlans internal constructor(
         pushRegistration: PushRegistrationService,
         demoAccount: DemoAccount,
         bulletinCache: BulletinCache,
+        portalLinksCache: PortalLinksCache,
         widgetUpdater: WidgetUpdater,
         sessions: AccountSessions,
         @ApplicationScope appScope: CoroutineScope,
@@ -107,7 +109,7 @@ class SignOutPlans internal constructor(
     ) : this(
         school = SchoolSignOut(
             context, authService, credentials, authTokenManager, notificationSettingsSync, courseService, moodleService,
-            classroomUsage, prefs, sessionManager, stores, pushRegistration, demoAccount, bulletinCache, widgetUpdater,
+            classroomUsage, prefs, sessionManager, stores, pushRegistration, demoAccount, bulletinCache, portalLinksCache, widgetUpdater,
             sessions.school, appScope,
         ),
         mail = AccountPlan({ mailAccount.signedIn.value }, mailAccount::signOut),
@@ -192,6 +194,7 @@ internal class SchoolSignOut(
     private val pushRegistration: PushRegistrationService,
     private val demoAccount: DemoAccount,
     private val bulletinCache: BulletinCache,
+    private val portalLinksCache: PortalLinksCache,
     widgetUpdater: WidgetUpdater,
     session: AccountSession,
     private val appScope: CoroutineScope,
@@ -257,6 +260,7 @@ internal class SchoolSignOut(
         // now, so every read and write of it waits for it, as an API endpoint
         // move's clear (BulletinCache.clearIn).
         once("bulletins") { bulletinCache.clearIn(appScope) }
+        once("portal links") { portalLinksCache.clearIn(appScope) }
         cleared
     }
 

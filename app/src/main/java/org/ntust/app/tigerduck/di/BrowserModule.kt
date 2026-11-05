@@ -9,6 +9,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.browser.AndroidWebViewStorage
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
@@ -21,7 +23,9 @@ import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.browser.MediaStoreDownloadTransfer
 import org.ntust.app.tigerduck.browser.MoodleBrowserSignIn
 import org.ntust.app.tigerduck.browser.MoodleWebSessionSignIn
+import org.ntust.app.tigerduck.browser.SchoolBrowserSignIn
 import org.ntust.app.tigerduck.network.MoodleTokenService
+import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
 import javax.inject.Singleton
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
@@ -76,7 +80,7 @@ object BrowserModule {
     /**
      * Who signs the browser in where: Moodle, through its autologin, and between
      * its keys through the app's own sign-in to its website with the SSO session
-     * the app holds. A school SSO provider would join this list; none is written yet.
+     * the app holds, and the school's sites through the app's SSO session.
      */
     @Provides
     @Singleton
@@ -84,17 +88,53 @@ object BrowserModule {
         @ApplicationContext context: Context,
         autologin: MoodleAutologin,
         tokenService: MoodleTokenService,
+        ssoLoginService: SsoLoginService,
+        credentials: org.ntust.app.tigerduck.data.preferences.CredentialManager,
+        @ApplicationScope appScope: CoroutineScope,
+        authService: AuthService,
         session: AccountSession,
         cleanup: BrowserCleanup,
     ): BrowserSignIns {
+        val usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() }
         val webSession = MoodleWebSessionSignIn(
             run = tokenService::signInToWebsite,
             session = session,
-            usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() },
+            usable = usable,
             generation = { BrowserSession.generation.value },
             writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },
             flush = { CookieManager.getInstance().flush() },
         )
-        return BrowserSignIns(listOf(MoodleBrowserSignIn(autologin, webSession)))
+        val school = SchoolBrowserSignIn(
+            run = ssoLoginService::signInForBrowser,
+            // The app's own sign-in, guarded as ever (one at a time, a refused password held back),
+            // by the way of the site: it signs in to SSO again whatever the app thinks of its
+            // session, and whatever it holds of the site's. In the app's scope, awaited: a timeout
+            // leaves it to finish for the app.
+            warm = { target ->
+                val before = BrowserSession.generation.value
+                appScope.async {
+                    if (!usable() || !authService.canAskSchool) return@async false
+                    val id = credentials.ntustStudentId ?: return@async false
+                    val password = credentials.ntustPassword ?: return@async false
+                    try {
+                        ssoLoginService.renewForBrowser(target, id.trim().uppercase(), password) {
+                            // Not for an account that signed out while it waited.
+                            usable() && BrowserSession.generation.value == before &&
+                                authService.canAskSchool && credentials.ntustStudentId == id
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        false
+                    }
+                }.await()
+            },
+            usable = usable,
+            generation = { BrowserSession.generation.value },
+            writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },
+            flush = { CookieManager.getInstance().flush() },
+        )
+        // Moodle's first: its site is the school's too.
+        return BrowserSignIns(listOf(MoodleBrowserSignIn(autologin, webSession), school))
     }
 }

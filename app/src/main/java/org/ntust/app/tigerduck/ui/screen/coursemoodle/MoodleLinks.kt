@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.network.moodle.SHARED_NOT_VIEWED_EXTENSIONS
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
 import org.ntust.app.tigerduck.ui.AppProcessing
 import org.ntust.app.tigerduck.ui.openLink
+import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 import org.ntust.app.tigerduck.util.fileProviderAuthority
 import org.ntust.app.tigerduck.util.logSummary
@@ -123,7 +124,7 @@ fun interface MoodleWebPages {
     companion object {
         /** The TigerDuck browser first ([InAppFirstMoodleWebPages]), else [fallback]. */
         fun inAppFirst(fallback: MoodleWebPages): MoodleWebPages =
-            InAppFirstMoodleWebPages({ c, url -> InAppBrowser.open(c, url) }, fallback)
+            InAppFirstMoodleWebPages({ c, url -> InAppBrowser.open(c, url, allowlist = BrowserAllowlistStore.of(c).allowlist.value) }, fallback)
 
         /**
          * The app's: a Moodle page in the TigerDuck browser, which keeps Moodle's session until

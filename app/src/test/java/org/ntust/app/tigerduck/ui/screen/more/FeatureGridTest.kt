@@ -56,8 +56,8 @@ class FeatureGridTest {
 
     @Test
     fun `cards keep their shape when every name fits one line`() {
-        // Wide enough for "Empty classroom", the longest English name, on one line.
-        show(width = 1000.dp, fontScale = 1f)
+        // Wide enough for "Information System", the longest English name, on one line.
+        show(width = 1200.dp, fontScale = 1f)
 
         val cards = cards()
         val cellWidth = cards.first().width

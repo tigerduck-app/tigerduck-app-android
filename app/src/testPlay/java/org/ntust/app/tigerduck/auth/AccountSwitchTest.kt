@@ -42,6 +42,7 @@ import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.PortalLinksSnapshot
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -133,6 +134,7 @@ class AccountSwitchTest {
         val credentials = w.credentials
         val dataCache = w.dataCache
         val bulletinCache = w.bulletinCache
+        val portalLinksCache = w.portalLinksCache
         val imported = w.imported
         val auth = w.auth
         val browserClearings = w.browserClearings
@@ -144,6 +146,7 @@ class AccountSwitchTest {
         dataCache.saveMoodleData(listOf("forum"), System.currentTimeMillis(), "forums-7", FIRST, testSignIn())
         bulletinCache.save(emptyList())
         bulletinCache.saveFetchedAt(System.currentTimeMillis())
+        portalLinksCache.save(PortalLinksSnapshot(emptyList(), java.util.Date(), FIRST), "zh", w.sessions.school.signIns.current)
         val classmate = ClassTableShareCode(
             ClassTableShareCode.Format.TIGER_DUCK, CLASSMATE, null, listOf(ClassTableShareCode.Term(SEMESTER, listOf("CS1001"))),
         )
@@ -154,6 +157,9 @@ class AccountSwitchTest {
         File(bulletins, "summaries.json.tmp").writeText("[]")
         File(bulletins, "fetched_at.tmp").writeText("1")
         assertTrue(account.filesUnder(bulletins).isNotEmpty())
+        val portal = File(context.filesDir, "portal")
+        File(portal, "links_en.json.tmp").writeText("{}")
+        assertTrue(account.filesUnder(portal).isNotEmpty())
 
         /** Nothing of the first student's is left, and their School Mail and library account stay. */
         suspend fun assertNothingOfTheFirstLeft(after: String) {
@@ -163,6 +169,7 @@ class AccountSwitchTest {
             assertEquals(after, emptyList<String>(), listOf("cache", "data").flatMap { account.filesUnder(account.cacheRoots.getValue(it)) })
             assertEquals(after, emptyList<String>(), account.filesUnder(dataCache.moodleDownloadsRoot()))
             assertEquals(after, emptyList<String>(), account.filesUnder(bulletins))
+            assertEquals(after, emptyList<String>(), account.filesUnder(portal))
             assertEquals(after, emptyList<String>(), imported.load().people.map { it.nickname })
             assertFalse(after, importedUnfinished.exists())
             assertEquals(after, othersBefore, credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") })

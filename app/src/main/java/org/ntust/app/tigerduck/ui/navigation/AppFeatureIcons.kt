@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Business
@@ -31,6 +32,7 @@ val AppFeature.icon: ImageVector
         AppFeature.SCHOOL_MAIL -> Icons.Filled.Mail
         AppFeature.LIBRARY -> Icons.AutoMirrored.Filled.MenuBook
         AppFeature.SCORE -> Icons.Filled.BarChart
+        AppFeature.INFORMATION_SYSTEM -> Icons.Filled.AccountBalance
         AppFeature.COURSE_SELECTION -> Icons.Filled.EditNote
         AppFeature.GRADUATION_REQUIREMENTS -> Icons.Filled.School
         AppFeature.DISCUSSION_ROOM -> Icons.Filled.MeetingRoom
