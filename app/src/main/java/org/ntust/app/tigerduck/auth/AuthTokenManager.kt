@@ -39,13 +39,8 @@ import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.AbstractCoroutineContextElement
-import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
-
-/** A request that needs a session got no access token, so it was not sent. */
-class NotSignedInException : Exception("not authenticated")
 
 /**
  * Manages v3 JWT access and refresh tokens, and signs in again on its own
@@ -58,7 +53,7 @@ class AuthTokenManager(
     private val prefs: AppPreferences,
     private val deviceUuid: String,
     private val now: () -> Long = System::currentTimeMillis,
-    // The unregister a sign-out owes, which a login waits for and then ends; see [login].
+    // The unregister a departure owes, which a login at its backend ends; see [login].
     private val owedUnregister: OwedUnregister? = null,
     // How long a departing refresh waits for a session refresh of its token on its way.
     private val departingWaitMs: Long = REFRESH_TIMEOUT_SECONDS * 1000,
@@ -68,8 +63,10 @@ class AuthTokenManager(
      * tests that are not about it, as other stores here take an absent collaborator.
      */
     val session: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())),
+    enqueueDepartingUnregister: () -> Unit = {},
 ) {
     private val refreshMutex = Mutex()
+    private val backendMove = BackendSessionMove(owedUnregister, deviceUuid, now, enqueueDepartingUnregister)
 
     // Backend logins, one at a time; see [login].
     private val loginQueue = Mutex()
@@ -173,26 +170,48 @@ class AuthTokenManager(
     }
 
     /**
-     * The header of a request of [signIn]'s, signing in first when there is no session. Without
+     * The header of a request of [signIn]'s, signing in first with no session at this backend. Without
      * one the request is not sent, as the backend could only refuse it with 401; and once [signIn]
      * has ended none either, rather than the next account's token. The sign-in it may start is
      * [signIn]'s own, and it gets a token only while [signIn] stands.
      */
     suspend fun requireAuthHeader(signIn: SignIn): String {
         if (!signIn.isCurrent) throw NotSignedInException()
-        if (!isLoggedIn) signInAutomatically(under = signIn)
-        if (!isLoggedIn) throw NotSignedInException()
+        if (!signInAtCurrentBackend(under = signIn)) throw NotSignedInException()
         val access = validTokenIfSignedIn(signIn) ?: refresh(signIn) ?: throw NotSignedInException()
+        if (!hasSessionAt(baseUrl)) throw NotSignedInException()
         return "Bearer $access"
     }
 
     /**
-     * Signs in when there is no session, and says whether there is one now.
+     * Signs in with no session at the current backend, and says whether there is one now.
      * Runs on each return to the app, and before a registration or a sync.
      */
-    suspend fun signInIfSignedOut(): Boolean {
-        if (!isLoggedIn) signInAutomatically()
-        return isLoggedIn
+    suspend fun signInIfSignedOut(): Boolean = signInAtCurrentBackend()
+
+    private suspend fun signInAtCurrentBackend(under: SignIn? = null, waitOutPause: Boolean = true): Boolean {
+        if (under != null && !under.isCurrent) return false
+        if (!hasSessionAt(baseUrl)) signInAutomatically(under, waitOutPause)
+        return hasSessionAt(baseUrl)
+    }
+
+    private suspend fun prepareBackend(under: SignIn?): Boolean {
+        if (under != null && !under.isCurrent) return false
+        if (hasSessionAt(baseUrl)) return true
+        // A login already out may still store its old backend's pair. Take it after that reply,
+        // before another login can go out; a refresh still out stores only over the pair it sent.
+        return loginQueue.withLock {
+            backendMove.keepingDeparture { keep ->
+                synchronized(signInLock) {
+                    if (under != null && !under.isCurrent) return@synchronized false
+                    if (!hasSessionAt(baseUrl)) {
+                        departingSession()?.let { if (!keep(it)) return@synchronized false }
+                        tokens.clear()
+                    }
+                    true
+                }
+            }
+        }
     }
 
     /**
@@ -207,6 +226,7 @@ class AuthTokenManager(
      * sign-in's, which the refusal says nothing of, and there is nothing to retry: false.
      */
     suspend fun signInAgain(signIn: SignIn): Boolean {
+        if (!hasSessionAt(baseUrl)) return signInAtCurrentBackend(under = signIn)
         val replacing = synchronized(signInLock) {
             if (!signIn.isCurrent) return false
             val refresh = tokens.refreshToken
@@ -230,16 +250,6 @@ class AuthTokenManager(
     // Under signInLock. The stored access token the backend refused, if it still is the stored one.
     private var refusedAccess: String? = null
 
-    /**
-     * The pair, by its refresh token, that an automatic sign-in after a refusal is to replace: a
-     * login that finds another stored at its turn, which a refresh or a sign-in has stored since,
-     * sends nothing ([login]), and the sign-in counts as done ([runSignIn]). In the coroutine
-     * context, which carries it through AuthService's sign-in to [login].
-     */
-    private class Replacing(val refreshToken: String) : AbstractCoroutineContextElement(Replacing) {
-        companion object Key : CoroutineContext.Key<Replacing>
-    }
-
     /** The login a pair stored since its sign-in began made moot; see [Replacing]. */
     class SessionReplacedException : AuthException("a pair was stored since; no login sent")
 
@@ -248,10 +258,7 @@ class AuthTokenManager(
      * a stored password the school refused ([StoredPasswordRetry]), which its own schedule paces
      * and which may have just got the Moodle token the failed one lacked.
      */
-    suspend fun signInIfSignedOutNow(): Boolean {
-        if (!isLoggedIn) signInAutomatically(waitOutPause = false)
-        return isLoggedIn
-    }
+    suspend fun signInIfSignedOutNow(): Boolean = signInAtCurrentBackend(waitOutPause = false)
 
     /**
      * Runs the interactive sign-in's [signIn], which calls [login] with the
@@ -285,6 +292,7 @@ class AuthTokenManager(
         waitOutPause: Boolean = true,
         replacing: String? = null,
     ): Boolean {
+        if (!prepareBackend(under)) return false
         val signInWith = signInWithStoredAccount ?: return false
         val attempt = CompletableDeferred<Boolean>()
         val signIn: SignIn
@@ -293,6 +301,7 @@ class AuthTokenManager(
             // Before the credentials, which the sign-in reads.
             signIn = session.current
             if (under != null && under !== signIn) return false
+            if (replacing == null && hasSessionAt(baseUrl)) return true
             signInUnderWay ?: run {
                 if (waitOutPause && isSignInPaused()) return false
                 signInUnderWay = attempt
@@ -300,7 +309,10 @@ class AuthTokenManager(
                 null
             }
         }
-        if (running != null) return running.await()
+        if (running != null) {
+            val signedIn = running.await()
+            return if (signedIn && !hasSessionAt(baseUrl)) signInAutomatically(under, waitOutPause, replacing) else signedIn
+        }
         // Finishes for the callers waiting on it when this one is cancelled.
         return withContext(NonCancellable + (replacing?.let(::Replacing) ?: EmptyCoroutineContext)) {
             runSignIn(attempt, signIn, replacing) { current ->
@@ -366,19 +378,7 @@ class AuthTokenManager(
      * without one.
      */
     fun departingSession(): DepartingSession? = synchronized(signInLock) {
-        val access = tokens.accessToken ?: return null
-        val refresh = tokens.refreshToken ?: return null
-        // The backend recorded at sign-in; the one set now for a pair stored before that was.
-        // The count of the token's sends goes with it as the disk has it: every send that may
-        // have reached the backend, from before a restart or answered with a 5xx too, and one
-        // still on its way, counted there before it went out. That one stays counted even when
-        // it comes back unused: once the pair is gone the count cannot be put back on disk, and
-        // the departing refresh must never be the token's third send (MAX_REFRESH_TOKEN_SENDS).
-        // This process's own count of replies lost is taken as well; the disk's is never below it.
-        DepartingSession(
-            access, refresh, tokens.expiresAt, storedIssuer(), tokens.studentId,
-            maxOf(sendsWithoutReply(refresh), tokens.refreshTokenSends),
-        )
+        tokens.departingSession(storedIssuer(), tokens.refreshToken?.let(::sendsWithoutReply) ?: 0)
     }
 
     /**
@@ -819,18 +819,18 @@ class AuthTokenManager(
     }
 
     // Only while [refreshToken] is still the account's stored token: a pair
-    // stored since by a sign-in has a count of its own. False when the disk did
-    // not take the count, and once the account has signed out: the sign-out
-    // took the departing session under this lock with the count as it stood,
-    // so a send counted after it would be one the debt never knows of, and
-    // answered with a 5xx nothing here would count it either. A departing
-    // refresh, with no [signIn], is counted by its caller, with the debt.
+    // stored since by a sign-in has a count of its own. A departure took the
+    // pair with its count under this lock, so a later send would be one the
+    // debt never knows of. With a 5xx nothing here could count it either.
+    // False once the pair departed, after sign-out, or if the disk refused the
+    // count. A departing refresh, with no [signIn], is counted by its caller,
+    // with the debt.
     private fun countSends(refreshToken: String, count: Int, signIn: SignIn?): Boolean =
         synchronized(signInLock) {
             when {
                 signIn == null -> true
                 !signIn.isCurrent -> false
-                tokens.refreshToken != refreshToken -> true
+                tokens.refreshToken != refreshToken -> false
                 else -> tokens.saveRefreshTokenSends(count)
             }
         }

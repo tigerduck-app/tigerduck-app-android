@@ -181,8 +181,8 @@ class BackendRequestBytesTest {
     }.toString()
 
     @Test
-    fun `a refresh goes to the backend a pair was stored with, in the spelling it was stored in`() = runTest {
-        val sent = refreshOfStoredPair(issuedBy = "https://API.Example.TEST:443/v3/")
+    fun `a refresh goes to the backend a pair was stored with, whichever spelling the setting names it in`() = runTest {
+        val sent = refreshOfStoredPair(issuedBy = "https://API.Example.TEST:443/v3/", endpoint = "https://api.example.test/v3")
 
         assertEquals(listOf("POST https://api.example.test/v4/auth/refresh"), sent)
     }
@@ -194,10 +194,11 @@ class BackendRequestBytesTest {
         assertEquals(listOf("POST https://other.example.test/prefix/v4/auth/refresh"), sent)
     }
 
-    private suspend fun refreshOfStoredPair(issuedBy: String?): List<String> {
+    // A pair from a backend the setting does not name is no session there (SessionBackendMoveTest).
+    private suspend fun refreshOfStoredPair(issuedBy: String?, endpoint: String = "https://other.example.test/prefix/v3"): List<String> {
         val backend = RecordingBackend()
         val context = JvmContext()
-        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://other.example.test/prefix/v3" }
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = endpoint }
         val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens", Context.MODE_PRIVATE))
         tokens.save("access-1", "refresh-1", clock - 1, issuedBy = issuedBy, studentId = STUDENT)
         val manager = AuthTokenManager(tokens, backend.client, prefs, "device-1", now = { clock })

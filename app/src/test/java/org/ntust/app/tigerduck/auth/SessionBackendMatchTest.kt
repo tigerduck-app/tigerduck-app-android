@@ -31,7 +31,7 @@ class SessionBackendMatchTest {
 
     /** A session [issuer] issued, as a sign-in there stores it, and its access token as handed out. */
     private suspend fun signedInAt(issuer: String): Pair<AuthTokenManager, String> {
-        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://setting.example.test/v3" }
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = issuer }
         val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-$issuer", Context.MODE_PRIVATE))
         tokens.save("access-1", "refresh-1", Long.MAX_VALUE, issuedBy = issuer, studentId = STUDENT)
         val manager = AuthTokenManager(tokens, backend.client, prefs, "device-1").apply {
