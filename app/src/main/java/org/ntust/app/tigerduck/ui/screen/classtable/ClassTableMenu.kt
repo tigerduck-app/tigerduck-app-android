@@ -23,13 +23,14 @@ import org.ntust.app.tigerduck.ui.component.PageSettingsItem
 
 /**
  * The ⋮ menu's items on the user's own class table, in the iPhone's order:
- * adding to it, sharing it and taking in someone else's, exporting it, then
+ * adding to it and subscribing to clubs, sharing it and taking in someone else's, exporting it, then
  * the page's settings right above resetting it, in red. Each action closes
  * the menu itself before it acts; [close] is for the settings.
  */
 @Composable
 internal fun ColumnScope.OwnClassTableMenuItems(
     onAddCourse: () -> Unit,
+    onSubscribeClubs: () -> Unit,
     shareEnabled: Boolean,
     onShare: () -> Unit,
     onImport: () -> Unit,
@@ -43,12 +44,11 @@ internal fun ColumnScope.OwnClassTableMenuItems(
         leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
         onClick = onAddCourse,
     )
-    // A place kept for club subscriptions, shown greyed out as the iPhone does.
+    // The club subscriptions, whose activities the grid shows.
     DropdownMenuItem(
         text = { Text(stringResource(R.string.class_table_subscribe_clubs)) },
         leadingIcon = { Icon(Icons.Filled.Groups, contentDescription = null) },
-        onClick = {},
-        enabled = false,
+        onClick = onSubscribeClubs,
     )
     HorizontalDivider()
     DropdownMenuItem(

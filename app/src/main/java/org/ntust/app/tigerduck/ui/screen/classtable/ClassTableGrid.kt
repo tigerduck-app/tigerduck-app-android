@@ -5,7 +5,6 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -13,31 +12,21 @@ import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.AbsoluteAlignment
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.clubs.ClubOccurrence
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
@@ -82,6 +71,10 @@ internal fun TimetableGrid(
     thisWeek: ClassTableWeek? = null,
     /** The minute of the day the current-time line marks; null for none. */
     nowMinute: Int? = null,
+    /** The subscribed clubs' activities by weekday, drawn where the courses leave room; none in an exported image. */
+    clubs: Map<Int, List<ClubOccurrence>> = emptyMap(),
+    onClubTap: (List<ClubOccurrence>) -> Unit = {},
+    onPickClubColor: (ClubOccurrence) -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     // The app's own long-press vibration, through the Vibration setting; none without a menu.
@@ -140,16 +133,7 @@ internal fun TimetableGrid(
                     ),
                 contentAlignment = AbsoluteAlignment.TopLeft,
             ) {
-                // Period labels (left column)
-                periods.forEachIndexed { periodIndex, period ->
-                    ClassTablePeriodLabel(
-                        period = period,
-                        cellHeight = cellHeight,
-                        modifier = Modifier
-                            .width(periodColWidth)
-                            .absoluteOffset(x = 0.dp, y = cellHeight * periodIndex),
-                    )
-                }
+                ClassTablePeriodLabels(periods, periodColWidth, cellHeight)
 
                 // What each slot shows, worked out once for both passes below.
                 val roles = remember(courses, periods, weekdays) {
@@ -160,18 +144,7 @@ internal fun TimetableGrid(
 
                 // Empty slots first, drawn at once: a course fading out of a
                 // slot sits above them, and the grid itself never fades.
-                weekdays.forEachIndexed { dayIndex, _ ->
-                    periods.forEachIndexed { periodIndex, _ ->
-                        if (roles[dayIndex][periodIndex] is CellRole.Empty) {
-                            ClassTableEmptySlot(
-                                modifier = Modifier
-                                    .width(dayColWidth)
-                                    .height(cellHeight)
-                                    .absoluteOffset(x = periodColWidth + dayColWidth * dayIndex, y = cellHeight * periodIndex)
-                            )
-                        }
-                    }
-                }
+                ClassTableEmptySlots(roles, periodColWidth, dayColWidth, cellHeight)
 
                 // Then the courses, each slot keyed by its day and period so
                 // a switch fades only the slots whose courses change.
@@ -232,6 +205,14 @@ internal fun TimetableGrid(
                     }
                 }
 
+                // The clubs' activities, in what room the courses and higher clubs leave them.
+                val clubActions = ClubBlockActions(onClubTap, onPickClubColor.takeIf { editable }, onLongPress)
+                weekdays.forEachIndexed { dayIndex, weekday ->
+                    clubs[weekday]?.let { day ->
+                        ClassTableClubColumn(day, courses, weekday, periods, periodColWidth + dayColWidth * dayIndex, dayColWidth, cellHeight, clubActions)
+                    }
+                }
+
                 val today = thisWeek?.todayWeekday?.let(weekdays::indexOf)?.takeIf { it >= 0 }
                 if (today != null && nowMinute != null) {
                     ClassTableNowLine(
@@ -242,42 +223,6 @@ internal fun TimetableGrid(
                         width = dayColWidth * weekdays.size,
                     )
                 }
-            }
-        }
-    }
-}
-
-/**
- * The weekday labels over the grid's day columns, [dayLabels] indexed by weekday. Placed the way
- * the cells are, at absolute offsets from the left: a `Row` mirrors in a right-to-left language,
- * and put each label over another day's courses.
- */
-@Composable
-private fun ClassTableWeekdayHeader(
-    weekdays: List<Int>,
-    dayLabels: List<String>,
-    periodColWidth: Dp,
-    dayColWidth: Dp,
-    /** Today's weekday in a week from today, whose label alone takes the accent; null for a plain timetable. */
-    today: Int? = null,
-) {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = AbsoluteAlignment.TopLeft) {
-        weekdays.forEachIndexed { dayIndex, day ->
-            Box(
-                modifier = Modifier
-                    .width(dayColWidth)
-                    .absoluteOffset(x = periodColWidth + dayColWidth * dayIndex),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = dayLabels.getOrElse(day) { "$day" },
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (today == null || day == today) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
             }
         }
     }
@@ -295,45 +240,6 @@ private data class SlotCourses(
     /** A solo block as the school changed it on its column's date. */
     val change: ClassSlot? = null,
 )
-
-/**
- * The current-time line over the day columns, with a dot at its leading end, as on iOS: inside a
- * period by the share of it gone, at the top of the next between two; none before the first or
- * after the last.
- */
-@Composable
-private fun ClassTableNowLine(
-    minute: Int,
-    periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
-    cellHeight: Dp,
-    x: Dp,
-    width: Dp,
-) {
-    val ranges = periods.map { minuteOf(it.startTime)..minuteOf(it.endTime) }
-    val offset = ClassTableThisWeek.nowLineOffset(minute, ranges, cellHeight.value, cellHeight.value) ?: return
-    val color = MaterialTheme.colorScheme.primary
-    val dot = 7.dp
-    val line = 1.5.dp
-    Box(
-        modifier = Modifier
-            .absoluteOffset(x = x - dot / 2, y = offset.dp - dot / 2)
-            .width(width + dot / 2)
-            .height(dot)
-            .testTag(NOW_LINE_TAG)
-            .clearAndSetSemantics {},
-    ) {
-        Box(
-            Modifier
-                .absoluteOffset(y = (dot - line) / 2)
-                .fillMaxWidth()
-                .height(line)
-                .background(color),
-        )
-        Box(Modifier.size(dot).background(color, CircleShape))
-    }
-}
-
-private fun minuteOf(hm: String): Int = hm.split(":").let { (h, m) -> h.toInt() * 60 + m.toInt() }
 
 /** The courses that start in one slot, drawn from the slot's own corner; the grid places it. */
 @Composable

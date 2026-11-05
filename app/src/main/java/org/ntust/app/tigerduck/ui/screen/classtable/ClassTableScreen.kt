@@ -56,7 +56,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -84,9 +83,11 @@ import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherEn
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMenuItems
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableShareSheet
+import org.ntust.app.tigerduck.ui.screen.classtable.clubs.ClassTableClubSheetsHost
+import org.ntust.app.tigerduck.ui.screen.classtable.clubs.ClassTableClubsViewModel
+import org.ntust.app.tigerduck.ui.screen.classtable.clubs.ClubColorTarget
+import org.ntust.app.tigerduck.ui.screen.classtable.clubs.rememberClassTableClubSheets
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
-import org.ntust.app.tigerduck.ui.component.colorPickerOffersDarkPalette
 import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.CourseCard
@@ -97,10 +98,6 @@ import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import org.ntust.app.tigerduck.ui.theme.courseColorPalette
-import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 import org.ntust.app.tigerduck.util.formatCredits
 
 private data class ConflictPickerTarget(
@@ -199,12 +196,21 @@ fun ClassTableScreen(
         ClassTableCellLayout.activePeriods(shownCourses, showAllPeriods = alwaysShowAllPeriods)
     }
     val activeWeekdays = remember(shownCourses) { ClassTableCellLayout.activeWeekdays(shownCourses) }
+    // The subscribed clubs' week, only on the user's own table for the newest term, as on iOS; the
+    // export leaves them out and keeps the table's own rows.
+    val clubs: ClassTableClubsViewModel = hiltViewModel()
+    val clubWeek by clubs.week.collectAsStateWithLifecycle()
+    val clubSheets = rememberClassTableClubSheets()
+    val shownClubs = if (shownPerson == null && shown.semester == shown.semesters.firstOrNull()) clubWeek else emptyMap()
+    val gridPeriods = remember(activePeriods, shownClubs) { ClassTableClubLayout.activePeriods(activePeriods, shownClubs) }
+    val gridWeekdays = remember(activeWeekdays, shownClubs) { ClassTableClubLayout.activeWeekdays(activeWeekdays, shownClubs) }
+    // Someone else's class table is kept on the device, so no sign-in stands in front of it.
+    val showsTable = isLoggedIn || shownPerson != null
+    val hasGrid = showsTable && activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() &&
+        (shownCourses.isNotEmpty() || shownClubs.isNotEmpty())
     val showClassroomInClassTable by viewModel.showClassroomInClassTable.collectAsStateWithLifecycle()
     val pinTodayCoursesOnClassTable by viewModel.pinTodayCoursesOnClassTable.collectAsStateWithLifecycle()
     val outlineRequiredCourses by viewModel.outlineRequiredCourses.collectAsStateWithLifecycle()
-    // Someone else's class table is kept on the device, so no sign-in stands in front of it.
-    val showsTable = isLoggedIn || shownPerson != null
-    val hasGrid = showsTable && activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() && shownCourses.isNotEmpty()
     // Whose class table it is, for the credits label and the exported image: the student ID,
     // or the nickname of someone else's.
     val owner = shownPerson?.nickname ?: viewModel.studentId
@@ -288,6 +294,7 @@ fun ClassTableScreen(
     LaunchedEffect(shownPerson?.id) {
         if (shownPerson == null) return@LaunchedEffect
         showAddCourse = false
+        clubSheets.close()
         showResetConfirm = false
         courseToRename = null
         courseToRecolor = null
@@ -333,6 +340,7 @@ fun ClassTableScreen(
             } else {
                 OwnClassTableMenuItems(
                     onAddCourse = { close(); showAddCourse = true },
+                    onSubscribeClubs = { close(); clubSheets.subscribing = true },
                     // Held off with an export, whose chooser would
                     // open behind the sheet.
                     shareEnabled = !exporting && shareTerms.isNotEmpty() &&
@@ -358,7 +366,7 @@ fun ClassTableScreen(
     ) { padding ->
         TigerPullToRefresh(
             isRefreshing = if (shownPerson != null) isRefreshingShownPerson else isLoading,
-            onRefresh = { viewModel.refresh() },
+            onRefresh = { viewModel.refresh(); clubs.refreshFeeds() },
             modifier = Modifier.fillMaxSize().padding(padding),
             refreshingMessage = refreshingMessage,
         ) {
@@ -554,7 +562,7 @@ fun ClassTableScreen(
                 }
 
                 // Under the picker, which stays to switch to a term that has courses.
-                if (shown.showsNoCourses(settled = hasSettled, isLoading = isLoading)) {
+                if (shown.showsNoCourses(settled = hasSettled, isLoading = isLoading) && shownClubs.isEmpty()) {
                     org.ntust.app.tigerduck.ui.component.EmptyStateView(
                         icon = Icons.AutoMirrored.Filled.MenuBook,
                         title = stringResource(R.string.home_time_slider_no_courses),
@@ -576,8 +584,11 @@ fun ClassTableScreen(
                     TimetableGrid(
                         courses = shownCourses,
                         showRoomHints = showClassroomInClassTable,
-                        weekdays = activeWeekdays,
-                        periods = activePeriods,
+                        weekdays = gridWeekdays,
+                        periods = gridPeriods,
+                        clubs = shownClubs,
+                        onClubTap = clubSheets::tap,
+                        onPickClubColor = { clubSheets.recolor = ClubColorTarget(it.clubId, it.clubName) },
                         // The user's assignments, so none on someone else's
                         // class table, even for a course both take.
                         courseNosWithAssignments = if (shownPerson == null) courseNosWithAssignments else emptySet(),
@@ -596,7 +607,7 @@ fun ClassTableScreen(
                                 val top = content.localPositionOf(rows, Offset.Zero).y
                                 val now = ClassTableRowTops(
                                     shown.switches,
-                                    activePeriods.withIndex().associate { (i, p) -> p.id to top + i * rowHeightPx },
+                                    gridPeriods.withIndex().associate { (i, p) -> p.id to top + i * rowHeightPx },
                                 )
                                 val before = lastRowTops[0]
                                 val scrollBefore = lastScroll[0]
@@ -677,41 +688,10 @@ fun ClassTableScreen(
     }
 
     courseToRecolor?.let { course ->
-        val darkPalette = LocalVisualStylePolicy.current.colorPickerOffersDarkPalette(TigerDuckTheme.isDarkMode)
-        val displayPalette = if (darkPalette) courseColorPaletteDark else courseColorPalette
-        // Each course's color as the palette above has it.
-        val shown = if (darkPalette) TigerDuckTheme::courseColor else TigerDuckTheme::courseColorVibrant
-        val currentColor = shown(course.courseNo)
-        val usedByOthers = remember(courses, course.courseNo, darkPalette) {
-            courses
-                .asSequence()
-                .filter { it.courseNo != course.courseNo }
-                .map { shown(it.courseNo).toArgb() or 0xFF000000.toInt() }
-                .toSet()
-        }
-        ColorPickerSheet(
-            courseName = course.displayName,
-            currentColor = currentColor,
-            presetPalette = displayPalette,
-            usedByOthers = usedByOthers,
-            onApply = { picked ->
-                val pickedArgb = picked.toArgb() or 0xFF000000.toInt()
-                val displayIdx = displayPalette.indexOfFirst {
-                    (it.toArgb() or 0xFF000000.toInt()) == pickedArgb
-                }
-                // Preset picks are stored as the canonical (light) hex so
-                // switching theme later swaps automatically. Custom HSV picks
-                // keep the exact color in both modes.
-                val storedArgb = if (displayIdx >= 0) {
-                    courseColorPalette[displayIdx].toArgb()
-                } else {
-                    picked.toArgb()
-                }
-                val hex = "#" + String.format("%06X", storedArgb and 0xFFFFFF)
-                viewModel.updateCourseColor(course.courseNo, hex)
-                courseToRecolor = null
-            },
-            onDismiss = { courseToRecolor = null }
+        CourseRecolorSheet(
+            course, courses,
+            onApply = { hex -> viewModel.updateCourseColor(course.courseNo, hex); courseToRecolor = null },
+            onDismiss = { courseToRecolor = null },
         )
     }
 
@@ -842,8 +822,9 @@ fun ClassTableScreen(
             onScan = onRequestImport,
         )
     }
-    // A sign-out closes the sheet: the code names the account that left.
-    LaunchedEffect(isLoggedIn) { if (!isLoggedIn) sharing = null }
+    ClassTableClubSheetsHost(clubSheets, clubs)
+    // A sign-out closes the sheets: the code names the account that left, and the clubs are its.
+    LaunchedEffect(isLoggedIn) { if (!isLoggedIn) { sharing = null; clubSheets.close() } }
 
     if (showAddCourse) {
         val addCourseSheetState = rememberDetentSheetState()

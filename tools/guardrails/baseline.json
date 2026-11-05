@@ -381,13 +381,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ColorPickerSheet.kt",
     "kind": "long-file",
-    "count": 590
+    "count": 587
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ColorPickerSheet.kt",
     "kind": "long-function",
-    "name": "ColorPickerSheet(String, Color, List<Color>, Set<Int>, (Color)->Unit, ()->Unit)",
-    "lines": 200
+    "name": "ColorPickerSheet(String, Color, List<Color>, Set<Int>, (Color)->Unit, ()->Unit, ColorPickerLabels)",
+    "lines": 197
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ConflictLShape.kt",
@@ -692,11 +692,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableGrid.kt",
-    "kind": "long-file",
-    "count": 434
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableGrid.kt",
     "kind": "long-function",
     "name": "CourseSlot(CellRole, Int, String, List<org.ntust.app.tigerduck.data.model.TimetablePeriod>, Int, String?, Dp, Dp, (course:Course,weekday:Int,periodId:String)->Unit, Set<String>, Set<String>, Boolean, (()->Unit)?, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course)->Unit, (Course,Course,Int,String)->Unit, ClassSlot?, Boolean)",
     "lines": 94
@@ -704,19 +699,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableGrid.kt",
     "kind": "long-function",
-    "name": "TimetableGrid(List<Course>, Boolean, List<Int>, List<org.ntust.app.tigerduck.data.model.TimetablePeriod>, Set<String>, Set<String>, Boolean, (Course)->Unit, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course,Course,Int,String)->Unit, (course:Course,weekday:Int,periodId:String)->Unit, Boolean, ((rows:LayoutCoordinates,rowHeightPx:Float)->Unit)?, ClassTableWeek?, Int?)",
-    "lines": 200
+    "name": "TimetableGrid(List<Course>, Boolean, List<Int>, List<org.ntust.app.tigerduck.data.model.TimetablePeriod>, Set<String>, Set<String>, Boolean, (Course)->Unit, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course,Course,Int,String)->Unit, (course:Course,weekday:Int,periodId:String)->Unit, Boolean, ((rows:LayoutCoordinates,rowHeightPx:Float)->Unit)?, ClassTableWeek?, Int?, Map<Int,List<ClubOccurrence>>, (List<ClubOccurrence>)->Unit, (ClubOccurrence)->Unit)",
+    "lines": 192
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableScreen.kt",
     "kind": "long-file",
-    "count": 989
+    "count": 970
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableScreen.kt",
     "kind": "long-function",
     "name": "ClassTableScreen(ClassTableViewModel, ()->Unit, ()->Unit)",
-    "lines": 719
+    "lines": 703
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableScreen.kt",
@@ -1088,7 +1083,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
     "kind": "long-file",
-    "count": 1723
+    "count": 1722
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
