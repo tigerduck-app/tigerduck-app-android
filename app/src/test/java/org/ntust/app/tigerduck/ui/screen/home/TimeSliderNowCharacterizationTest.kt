@@ -52,11 +52,11 @@ class TimeSliderNowCharacterizationTest {
         if (slot == null) "-" else "${slot.id} ${shown(slot.start)}..${shown(slot.end)}${if (slot.isCancelled) "!" else ""}"
 
     private fun state(slider: TimeSliderViewModel, time: String, day: LocalDate = thursday): String =
-        when (val s = slider.courseState(Date.from(at(time, day)))) {
-            is CourseState.InClass -> "in " + s.slots.joinToString(" | ") { text(it) }
-            is CourseState.Between -> "between ${text(s.previous)} / ${text(s.next)}"
-            is CourseState.BeforeFirst -> "before ${text(s.next)}"
-            is CourseState.AfterLast -> "after ${text(s.previous)}"
+        when (val s = slider.state(Date.from(at(time, day)))) {
+            is CourseState.InClass -> "in " + s.slots.joinToString(" | ") { text(it.slot) }
+            is CourseState.Between -> "between ${text(s.previous?.slot)} / ${text(s.next?.slot)}"
+            is CourseState.BeforeFirst -> "before ${text(s.next.slot)}"
+            is CourseState.AfterLast -> "after ${text(s.previous.slot)}"
         }
 
     private val morning = "CC900_20261105_2 11-05T09:10..11-05T12:10"
@@ -107,7 +107,7 @@ class TimeSliderNowCharacterizationTest {
         assertEquals("between $cancelled / $last", state(s, "11:10"))
         assertEquals("in $last", state(s, "11:20"))
         assertTrue(s.timeSlots.filter { it.isCancelled }.size == s.timeSlots.count { it.id.contains("_3") })
-        assertEquals(null, slider(changes(row(1, "cancelled"))).thumbSlot)
+        assertEquals(null, slider(changes(row(1, "cancelled"))).thumbItem)
     }
 
     @Test
@@ -188,7 +188,7 @@ class TimeSliderNowCharacterizationTest {
     fun `a period with no known time drops its meeting and leaves the rest`() {
         fun only(periods: List<String>) = slider(courses = listOf(course(periods)))
 
-        assertFalse(only(listOf("Z")).hasCourses)
+        assertFalse(only(listOf("Z")).hasItems)
         assertTrue(only(listOf("Z")).timeSlots.isEmpty())
         assertEquals("a course with only unknown periods is no state but between nothing", "between - / -", state(only(listOf("Z")), "10:30"))
 

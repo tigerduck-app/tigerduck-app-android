@@ -924,7 +924,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-file",
-    "count": 511
+    "count": 458
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
@@ -987,31 +987,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-file",
-    "count": 891
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
-    "kind": "long-function",
-    "name": "CourseTimeCard(CourseState, (CourseTimeSlot)->Unit)",
-    "lines": 88
+    "count": 662
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
     "name": "FluidTrack(TimeSliderViewModel, Boolean)",
-    "lines": 191
+    "lines": 189
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
     "name": "SlotCard(CourseTimeSlot, Boolean, Boolean, (()->Unit)?, ()->Unit, Modifier)",
-    "lines": 188
+    "lines": 152
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
     "name": "TimeSliderSection(List<Course>, QuietDays, Boolean, Boolean, Boolean, ()->Unit, TimeSliderViewModel, CourseChanges, (CourseTimeSlot)->Unit)",
-    "lines": 115
+    "lines": 91
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryPageAccount.kt",
