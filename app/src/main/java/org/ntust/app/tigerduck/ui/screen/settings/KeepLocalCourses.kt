@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.ui.screen.settings
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.CourseDeleteKind
+import org.ntust.app.tigerduck.data.schoolLists
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendError
@@ -28,8 +30,8 @@ internal interface CourseSyncBackend {
     /** `POST /sync/courses/upload` of the term's courses. */
     suspend fun uploadTerm(courses: List<Course>, semester: String)
 
-    /** `DELETE /sync/courses/{course_key}`: one course hidden, on every device. */
-    suspend fun hideCourse(courseKey: String)
+    /** `DELETE /sync/courses/{course_key}`: [courseNo] in [semester], hidden here, hidden on every device. */
+    suspend fun hideCourse(semester: String, courseNo: String)
 
     /**
      * `PATCH /sync/courses/{course_key}/override` with a color, or one locale's name, of the
@@ -170,9 +172,14 @@ internal class PushCourseSyncBackend(
         }
     }
 
-    override suspend fun hideCourse(courseKey: String) {
+    override suspend fun hideCourse(semester: String, courseNo: String) {
         ensureSends()
-        api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null)
+        // Named as the iPhone's Use Local names it: a hide of a course the school lists, none of any
+        // other, for its row to decide (tigerduck-app-android#698). Never a removal, not even of a
+        // course added here: Use Local has just uploaded each hidden course as the school's, which
+        // a removal would keep on every other device.
+        val kind = CourseDeleteKind.of(hiddenHere = true, addedHere = false, listedBySchool = dataCache.schoolLists(semester, courseNo))
+        api.deleteCourseAnswered(CourseUploadPayload.key(semester, courseNo), signIn, hiddenAt = null, kind = kind)
     }
 
     override suspend fun patchStampedOverride(
@@ -297,7 +304,7 @@ internal suspend fun keepLocalCourses(
         if (reset) onReset(semester)
         for (courseNo in hiddenNos.sorted()) {
             ensureCurrent()
-            backend.hideCourse("client:$semester:$courseNo")
+            backend.hideCourse(semester, courseNo)
         }
         // A reset takes the term's override rows, names included, with its
         // course rows, so a reset term's names go up again. After the

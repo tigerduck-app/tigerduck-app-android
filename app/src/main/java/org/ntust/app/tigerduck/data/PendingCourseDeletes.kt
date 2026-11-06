@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.WriteAnswer
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -21,6 +22,7 @@ import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.outbox.OutboxLane
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,9 +73,9 @@ internal fun interface CourseDeleter {
  *
  * The deletes wait in an [OutboxLane] over the queue's own file ([CourseDeletesStore]), one per
  * course ([membershipField]), one request per hold of the lock. A delete is never given up on for
- * its refusals, as before. The stamps come from the [SyncClock]. A delete goes with no kind, as
- * the iPhone's does: the backend decides from its row, and hides a school course or removes one
- * added by hand. One made while course sync is off
+ * its refusals, as before. The stamps come from the [SyncClock]. A delete names its kind, read as
+ * it goes, as the iPhone's does ([courseDeleteKind]): with none, the backend hid a course
+ * whose hand-add had not reached it on every device (tigerduck-app-android#698). One made while course sync is off
  * is kept until it is on (LWW D12), and one the backend refused, the course being added since
  * elsewhere, lifts this phone's hide of it unless the course was deleted again since.
  *
@@ -100,7 +102,7 @@ class PendingCourseDeletes internal constructor(
         load: suspend () -> Map<String, Map<String, Long>> = dataCache::loadPendingCourseDeletes,
     ) : this(
         dataCache, pendingCourseAdds,
-        AnsweredCourseDeleter { courseKey, signIn, hiddenAt -> deleter.delete(courseKey, signIn, hiddenAt).let { ANSWERED } },
+        AnsweredCourseDeleter { courseKey, signIn, hiddenAt, _ -> deleter.delete(courseKey, signIn, hiddenAt).let { ANSWERED } },
         clock, load, MembershipOutbox(),
     )
 
@@ -115,7 +117,9 @@ class PendingCourseDeletes internal constructor(
     ) : this(
         dataCache = dataCache,
         pendingCourseAdds = pendingCourseAdds,
-        deleter = AnsweredCourseDeleter { courseKey, signIn, hiddenAt -> pushApiClient.deleteCourseAnswered(courseKey, signIn, hiddenAt) },
+        deleter = AnsweredCourseDeleter { courseKey, signIn, hiddenAt, kind ->
+            pushApiClient.deleteCourseAnswered(courseKey, signIn, hiddenAt, kind)
+        },
         clock = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
         load = dataCache::loadPendingCourseDeletes,
         outbox = MembershipOutbox(syncPolicies, ackClock, scope),
@@ -136,11 +140,23 @@ class PendingCourseDeletes internal constructor(
     // so one asked before it and kept only after is not kept; read and set under [mutex].
     private var forgottenBefore = Long.MIN_VALUE
 
+    // The kind the class table chose for each delete it asked ([keep], [send]), by `<semester>:<courseNo>`
+    // key, with the moment of the delete it was chosen for: sent for that delete only, a newer one
+    // of the course choosing again. Chosen as asked, before the class table's own writes, which take
+    // a school course off its term's rows and hide it a step at a time. In memory: a delete from
+    // before this process goes by what the phone holds as it goes ([courseDeleteKind]).
+    private val chosenKinds = ConcurrentHashMap<String, Pair<Long, ChosenKind>>()
+
     private val sends: CourseDeleteSends = CourseDeleteSends(
         dataCache, deleter, outbox,
         // The file as it stands, under the queue's lock (the lane's own is not held across it).
         waiting = { deletesOf(waiting()) },
         underQueueLock = { step -> mutex.withLock { step() } },
+        kindOf = { delete ->
+            val chosen = chosenKinds[CourseTombstoneKeys.key(delete.semester, delete.courseNo)]
+                ?.takeIf { (askedAt, _) -> askedAt == delete.queuedAt }?.second
+            if (chosen != null) chosen.kind else dataCache.courseDeleteKind(delete.semester, delete.courseNo)
+        },
     )
 
     private val lane: OutboxLane<CourseDelete> = OutboxLane(
@@ -187,10 +203,13 @@ class PendingCourseDeletes internal constructor(
      * disk without sending it, for [send] or the next full sync to send: the
      * class table keeps it before its hide is marked, so a course selection
      * answer never finds the mark without the delete
-     * (`DataCache.hideDeletedCourse`). False once [signIn] has ended.
+     * (`DataCache.hideDeletedCourse`). False once [signIn] has ended. It goes
+     * as the [chosen] kind, when one was.
      */
-    suspend fun keep(semester: String, courseNo: String, queuedAt: Long, signIn: SignIn): Boolean =
-        edit(signIn) { it.with(semester, courseNo, queuedAt) }
+    suspend fun keep(semester: String, courseNo: String, queuedAt: Long, signIn: SignIn, chosen: ChosenKind? = null): Boolean {
+        choose(semester, courseNo, queuedAt, chosen)
+        return edit(signIn) { it.with(semester, courseNo, queuedAt) }
+    }
 
     /**
      * Sends the delete of [courseNo] in [semester] that [keep] kept, without
@@ -204,15 +223,25 @@ class PendingCourseDeletes internal constructor(
         sendHeld(semester, courseNo, signIn)
     }
 
+    /**
+     * The kind of the class table's delete of [courseNo] in [semester], [deleted] as the term held
+     * it, for [keep] or [send] ([CourseDeleteKind.asked]): leaving a hide here when [hides]. Call it
+     * before the delete writes anything, as its save takes a school course off the term's rows.
+     */
+    suspend fun chooseKind(semester: String, courseNo: String, deleted: Course?, hides: Boolean): ChosenKind =
+        ChosenKind(CourseDeleteKind.asked(deleted, hides, dataCache.schoolLists(semester, courseNo)))
+
     /** [send] with the delete asked now. */
     suspend fun send(semester: String, courseNo: String, signIn: SignIn) = send(semester, courseNo, stamp(), signIn)
 
     /**
      * Deletes [courseNo]'s row in [semester] from the backend, keeping the
-     * delete, asked at [queuedAt], until it lands. Takes
-     * [PendingCourseAdds.removing] itself, so call it outside that lock.
+     * delete, asked at [queuedAt], until it lands, as the [chosen] kind when
+     * one was. Takes [PendingCourseAdds.removing] itself, so call it outside
+     * that lock.
      */
-    suspend fun send(semester: String, courseNo: String, queuedAt: Long, signIn: SignIn) {
+    suspend fun send(semester: String, courseNo: String, queuedAt: Long, signIn: SignIn, chosen: ChosenKind? = null) {
+        choose(semester, courseNo, queuedAt, chosen)
         // On disk before the wait for the lock, which a slow request may hold
         // for a while: a process killed meanwhile keeps the delete for its
         // next sync. A re-add's forget waiting ahead of this cannot let it go,
@@ -308,6 +337,12 @@ class PendingCourseDeletes internal constructor(
         )
 
     private suspend fun waiting(): Map<String, Map<String, Long>> = load()
+
+    // Keeps the kind [chosen] for the delete of [courseNo] asked at [queuedAt], over any older one's.
+    private fun choose(semester: String, courseNo: String, queuedAt: Long, chosen: ChosenKind?) {
+        if (chosen == null) return
+        chosenKinds.merge(CourseTombstoneKeys.key(semester, courseNo), queuedAt to chosen) { old, new -> if (new.first >= old.first) new else old }
+    }
 
     // False, and nothing written, once [signIn] has ended. Through the lane, under the file's lock.
     private suspend fun edit(

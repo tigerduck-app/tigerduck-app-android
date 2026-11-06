@@ -356,7 +356,7 @@ class UseLocalCoursesTest {
     private class Failing : CourseSyncBackend {
         override suspend fun resetTerm(semester: String) = throw IOException("offline")
         override suspend fun uploadTerm(courses: List<Course>, semester: String) = Unit
-        override suspend fun hideCourse(courseKey: String) = Unit
+        override suspend fun hideCourse(semester: String, courseNo: String) = Unit
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
         override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
@@ -364,7 +364,7 @@ class UseLocalCoursesTest {
     private class SwitchedOff : CourseSyncBackend {
         override suspend fun resetTerm(semester: String) = throw CourseSyncOffException()
         override suspend fun uploadTerm(courses: List<Course>, semester: String) = throw CourseSyncOffException()
-        override suspend fun hideCourse(courseKey: String) = throw CourseSyncOffException()
+        override suspend fun hideCourse(semester: String, courseNo: String) = throw CourseSyncOffException()
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) =
             throw CourseSyncOffException()
         override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
@@ -373,7 +373,7 @@ class UseLocalCoursesTest {
     private class Recording(private val onRequest: () -> Unit = {}) : CourseSyncBackend {
         override suspend fun resetTerm(semester: String) = onRequest()
         override suspend fun uploadTerm(courses: List<Course>, semester: String) = onRequest()
-        override suspend fun hideCourse(courseKey: String) = onRequest()
+        override suspend fun hideCourse(semester: String, courseNo: String) = onRequest()
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = onRequest()
         override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
@@ -389,7 +389,7 @@ class UseLocalCoursesTest {
             override suspend fun uploadTerm(courses: List<Course>, semester: String) {
                 if (++uploads == 2) throw IOException("connection lost")
             }
-            override suspend fun hideCourse(courseKey: String) = Unit
+            override suspend fun hideCourse(semester: String, courseNo: String) = Unit
             override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
             override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
         }
@@ -560,7 +560,8 @@ private class FakeCourseServer(
         }
     }
 
-    override suspend fun hideCourse(courseKey: String) {
+    override suspend fun hideCourse(semester: String, courseNo: String) {
+        val courseKey = "client:$semester:$courseNo"
         if (failingDeletes > 0) {
             failingDeletes--
             throw IOException("connection lost")

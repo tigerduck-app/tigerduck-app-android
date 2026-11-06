@@ -40,7 +40,8 @@ import java.io.File
  * The course deletes as an outbox channel ([PendingCourseDeletes]), over real files and the real
  * backend client, against a backend that records what reaches it.
  *
- * A delete goes with the moment it was asked and no kind, one made with course sync off is kept,
+ * A delete goes with the moment it was asked and, for a course this phone does not hide, as the
+ * removal of a hand-add (CourseDeleteKindTest); one made with course sync off is kept,
  * and one the backend refused, the course being added since elsewhere, lifts this phone's hide
  * unless the course was deleted again.
  */
@@ -228,7 +229,7 @@ class CourseDeletesChannelTest {
         deletes.drain(signIn)
 
         assertEquals(
-            listOf(listOf("DELETE", "$v4/sync/courses/client:1141:CS1003?hlc=1700000001000000", listOf(bearer), null, "")),
+            listOf(listOf("DELETE", "$v4/sync/courses/client:1141:CS1003?hlc=1700000001000000&kind=remove", listOf(bearer), null, "")),
             backend.sent.map { it.shape() },
         )
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
@@ -248,7 +249,7 @@ class CourseDeletesChannelTest {
         prefs.syncCourses = true
         deletes.drain(signIn)
 
-        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000123000"), backend.sent.map { it.url })
+        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000123000&kind=remove"), backend.sent.map { it.url })
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
     }
 
@@ -293,7 +294,7 @@ class CourseDeletesChannelTest {
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null }, outbox)
         val deletes = PendingCourseDeletes(
             cache, adds,
-            { _, _, hiddenAt ->
+            { _, _, hiddenAt, _ ->
                 sent += hiddenAt
                 gate()
                 WriteAnswer(sent = true, serverClockUs = null, applied = if (sent.size == 1) emptySet() else setOf(WriteAnswer.MEMBERSHIP), values = emptyMap())
@@ -353,7 +354,7 @@ class CourseDeletesChannelTest {
         }
         deletes = PendingCourseDeletes(
             cache, adds,
-            { _, _, hiddenAt ->
+            { _, _, hiddenAt, _ ->
                 // The older delete is refused, an add of the course elsewhere being newer.
                 refused = hiddenAt == 10L
                 WriteAnswer(sent = true, serverClockUs = null, applied = if (refused) emptySet() else setOf(WriteAnswer.MEMBERSHIP), values = emptyMap())
@@ -377,7 +378,7 @@ class CourseDeletesChannelTest {
 
         deletes.drain(signIn)
 
-        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000"), backend.sent.map { it.url })
+        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000&kind=remove"), backend.sent.map { it.url })
     }
 
     /**
@@ -392,10 +393,11 @@ class CourseDeletesChannelTest {
         val delete = CourseDelete(term, typed, 1_790_000_000_123L)
         val sends = CourseDeleteSends(
             cache,
-            { courseKey, pinned, hiddenAt -> client.deleteCourseAnswered(courseKey, pinned, hiddenAt) },
+            { courseKey, pinned, hiddenAt, kind -> client.deleteCourseAnswered(courseKey, pinned, hiddenAt, kind) },
             MembershipOutbox(SyncPolicies(prefs)),
             waiting = { listOf(delete) },
             underQueueLock = { step -> step() },
+            kindOf = { null },
         )
 
         var result: SendResult? = null
@@ -462,7 +464,7 @@ class CourseDeletesChannelTest {
         prefs.syncCourses = true
         deletes.drain(signIn)
         assertEquals(
-            listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000001000", "$v4/sync/courses/client:$term:$other?hlc=0"),
+            listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000001000&kind=remove", "$v4/sync/courses/client:$term:$other?hlc=0&kind=remove"),
             backend.sent.map { it.url },
         )
     }
@@ -498,7 +500,7 @@ class CourseDeletesChannelTest {
         Outbox(setOf(deletes, adds)).drain(signIn)
 
         assertEquals(
-            listOf("POST $v4/sync/courses/upload", "DELETE $v4/sync/courses/client:$term:$other?hlc=5000"),
+            listOf("POST $v4/sync/courses/upload", "DELETE $v4/sync/courses/client:$term:$other?hlc=5000&kind=remove"),
             backend.sent.map { "${it.method} ${it.url}" },
         )
     }
@@ -517,9 +519,9 @@ class CourseDeletesChannelTest {
 
         assertEquals(
             listOf(
-                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
-                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
-                listOf("DELETE", "$v4/sync/courses/client:$term:$other?hlc=1790000000456000", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000&kind=remove", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000&kind=remove", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$other?hlc=1790000000456000&kind=remove", listOf(bearer), null, ""),
             ),
             backend.sent.map { it.shape() },
         )

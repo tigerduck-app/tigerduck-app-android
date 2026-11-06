@@ -249,7 +249,7 @@ class V4QueueFixturesTest {
             "POST /v4/sync/courses/upload | Bearer access-1 | " +
                 """{"courses":[$ADD_ROW_1,$ADD_ROW_2],"adds":[{"course_key":"client:1141:CS1001","hlc":1700000000000000},""" +
                 """{"course_key":"client:1141:CS1002","hlc":1700000100000000}]}""",
-            "DELETE /v4/sync/courses/client:1141:CS1003?hlc=1700000001000000 | Bearer access-1 | ",
+            "DELETE /v4/sync/courses/client:1141:CS1003?hlc=1700000001000000&kind=remove | Bearer access-1 | ",
             """PATCH /v4/sync/courses/client:1141:CS1001/override | Bearer access-1 | {"color_hex":"#336699","hlc":1700000200000000}""",
             """PUT /v4/sync/holiday-overrides/5 | Bearer access-1 | {"notify":true,"hlc":1760000000000000}""",
         )

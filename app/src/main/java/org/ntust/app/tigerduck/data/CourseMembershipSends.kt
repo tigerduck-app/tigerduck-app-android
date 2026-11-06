@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
  * [org.ntust.app.tigerduck.push.PushApiClient.deleteCourseAnswered].
  */
 internal fun interface AnsweredCourseDeleter {
-    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long): WriteAnswer
+    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long, kind: CourseDeleteKind?): WriteAnswer
 }
 
 /**
@@ -191,6 +191,8 @@ internal class CourseDeleteSends(
     private val outbox: MembershipOutbox,
     private val waiting: suspend () -> List<CourseDelete>,
     private val underQueueLock: suspend (suspend () -> Unit) -> Unit,
+    // The kind a delete names, read as it goes (tigerduck-app-android#698).
+    private val kindOf: suspend (CourseDelete) -> CourseDeleteKind?,
 ) {
     // Whether the send under the lock may still make its one request: a removal kept while it was
     // in flight goes at its own turn of the lock, as before, not on the back of this one.
@@ -218,7 +220,8 @@ internal class CourseDeleteSends(
             // applies it only when later than the course's last add, hide and reset: a hide queued
             // offline loses to an add made since on another device, and a retry after a lost reply
             // changes nothing (#591).
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt)
+            val kind = kindOf(delete)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
