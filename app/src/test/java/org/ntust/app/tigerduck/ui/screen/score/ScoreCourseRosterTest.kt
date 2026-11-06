@@ -148,7 +148,7 @@ class ScoreCourseRosterTest {
     // --- Detail rows ---
 
     @Test
-    fun `the rows are instructor, enrolment, deduped classroom and schedule, each only when known`() {
+    fun `the rows are classroom, instructor, dimension, credit type, enrolment and schedule, each only when known`() {
         val full = Course.fromSchedule(
             courseNo = "CS1001301",
             courseName = "Calculus",
@@ -159,16 +159,24 @@ class ScoreCourseRosterTest {
             schedule = mapOf(1 to listOf("3", "4"), 2 to listOf("1")),
         )
 
+        // The iPhone's order (tigerduck-app-android#702), the score page's own rows among the class table's.
         assertEquals(
             listOf(
-                R.string.course_detail_instructor_label to "Prof. Lin",
-                R.string.score_course_detail_enrollment_label to "35 / 60",
                 R.string.course_detail_classroom_label to "TR-313",
+                R.string.course_detail_instructor_label to "Prof. Lin",
+                R.string.course_detail_dimension_label to "Humanities",
+                R.string.score_info_credit_type to "Education program",
+                R.string.course_detail_enrollment_label to "35 / 60",
                 R.string.score_course_detail_schedule_label to "M3, M4, T1",
             ),
-            ScoreCourseRoster.rows(full),
+            ScoreCourseRoster.rows(full, dimension = "Humanities", creditType = "Education program"),
         )
-        assertEquals(emptyList<Pair<Int, String>>(), ScoreCourseRoster.rows(rosterCourse("CS1001301")))
+        assertEquals(emptyList<Pair<Int, String>>(), ScoreCourseRoster.rows(rosterCourse("CS1001301"), dimension = null, creditType = null))
+        // With no roster, the score page's own rows alone.
+        assertEquals(
+            listOf(R.string.course_detail_dimension_label to "Humanities"),
+            ScoreCourseRoster.rows(null, dimension = "Humanities", creditType = null),
+        )
     }
 
     /** The fields are declared non-null, but a row this sparse holds null in them; see CLAUDE.md. */
@@ -177,7 +185,7 @@ class ScoreCourseRosterTest {
         val sparse = sparseCachedCourse()
 
         assertSame(sparse, ScoreCourseRoster.match(listOf(sparse), grade("CS1001301")))
-        assertEquals(emptyList<Pair<Int, String>>(), ScoreCourseRoster.rows(sparse))
+        assertEquals(emptyList<Pair<Int, String>>(), ScoreCourseRoster.rows(sparse, dimension = null, creditType = null))
     }
 
     // --- View model ---

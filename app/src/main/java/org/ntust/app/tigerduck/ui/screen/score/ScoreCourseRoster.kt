@@ -43,22 +43,26 @@ internal object ScoreCourseRoster {
     fun semesterCode(term: String): String? = AcademicTerm.parse(term)?.takeIf { it.year >= 100 }?.code
 
     /**
-     * The class table's rows for [roster], label resource to value, leaving
-     * out what the cache has nothing for: a course the portal lists without
-     * a cap or a room shows no "0 / 0" and no blank row, as on iOS.
+     * A score row's detail rows, label resource to value, in the iPhone's
+     * order (#702): classroom, instructor, dimension, credit type, enrolment
+     * and schedule, the class table's from [roster] and the score page's own
+     * [dimension] and [creditType], with the class table preview's labels.
+     * Each is left out when it has nothing to say: a course the portal lists
+     * without a cap or a room shows no "0 / 0" and no blank row.
      */
-    fun rows(roster: Course): List<Pair<Int, String>> = buildList {
-        val instructor = roster.instructor.orEmptyField().trim()
-        if (instructor.isNotEmpty()) {
-            add(R.string.course_detail_instructor_label to instructor)
-        }
-        if (roster.maxCount > 0) {
-            add(R.string.score_course_detail_enrollment_label to "${roster.enrolledCount} / ${roster.maxCount}")
-        }
-        Course.dedupRooms(roster.classroom.orEmptyField()).trim().takeIf { it.isNotEmpty() }?.let {
+    fun rows(roster: Course?, dimension: String?, creditType: String?): List<Pair<Int, String>> = buildList {
+        roster?.let { Course.dedupRooms(it.classroom.orEmptyField()).trim() }?.takeIf { it.isNotEmpty() }?.let {
             add(R.string.course_detail_classroom_label to it)
         }
-        scheduleCode(roster.schedule).takeIf { it.isNotEmpty() }?.let {
+        roster?.instructor.orEmptyField().trim().takeIf { it.isNotEmpty() }?.let {
+            add(R.string.course_detail_instructor_label to it)
+        }
+        dimension?.let { add(R.string.course_detail_dimension_label to it) }
+        creditType?.let { add(R.string.score_info_credit_type to it) }
+        if (roster != null && roster.maxCount > 0) {
+            add(R.string.course_detail_enrollment_label to "${roster.enrolledCount} / ${roster.maxCount}")
+        }
+        roster?.let { scheduleCode(it.schedule) }?.takeIf { it.isNotEmpty() }?.let {
             add(R.string.score_course_detail_schedule_label to it)
         }
     }
