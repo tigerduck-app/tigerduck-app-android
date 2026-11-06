@@ -68,7 +68,7 @@ class AddCourseTakeBackTest {
         // sent: lifted before it is kept, the course would go up with the roster and the DELETE
         // take it off again; marked after the send, a process killed during it would leave none.
         val mark = delete.indexOfFirst { "dataCache.hideDeletedCourse(courseNo, semester, deletedCourse, signIn)" in it }
-        val kept = delete.indexOfFirst { "pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn)" in it }
+        val kept = delete.indexOfFirst { "pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn, pendingCourseDeletes.chooseKind(semester, courseNo, deletedCourse, hides = true))" in it }
         // Sent as kept, not queued again: a full sync's retry may have sent it meanwhile.
         val sent = delete.indexOfFirst { "pendingCourseDeletes.sendKept(semester, courseNo, signIn)" in it }
         assertTrue("the delete's hide is marked between keeping its DELETE and sending it", kept in 0 until mark && mark < sent)
@@ -79,6 +79,22 @@ class AddCourseTakeBackTest {
         assertTrue(
             "the tombstone is written only with that edit",
             delete.subList(edit + 1, write).any { it.trim().startsWith("if (tombstoneEdit != null)") },
+        )
+    }
+
+    @Test
+    fun `deleteCourse chooses its delete's kind before its own writes`() {
+        val delete = body(viewModelSource(), "deleteCourse")
+
+        // Chosen from the course as the term holds it: the save takes a school course off the
+        // term's rows, and the hide and its mark come a step at a time (tigerduck-app-android#698).
+        val kept = delete.indexOfFirst { "pendingCourseDeletes.keep(" in it && "chooseKind(semester, courseNo, deletedCourse, hides = true)" in it }
+        val saved = delete.indexOfFirst { "saveEdit(updated" in it }
+        val hidden = delete.indexOfFirst { "dataCache.hideDeletedCourse(" in it }
+        assertTrue("the kind is chosen as the delete is kept, before its hide and the save", kept in 0 until minOf(saved, hidden))
+        assertTrue(
+            "a delete with no hide goes as a removal's choice",
+            delete.any { "pendingCourseDeletes.send(" in it && "chooseKind(semester, courseNo, deletedCourse, hides = false)" in it },
         )
     }
 }

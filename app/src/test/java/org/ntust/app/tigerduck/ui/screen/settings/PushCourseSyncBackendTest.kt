@@ -60,7 +60,7 @@ class PushCourseSyncBackendTest {
 
         assertTrue(fails { courses.resetTerm("1151") })
         assertTrue(fails { courses.uploadTerm(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151") })
-        assertTrue(fails { courses.hideCourse("client:1151:CS1") })
+        assertTrue(fails { courses.hideCourse("1151", "CS1") })
         assertTrue(fails { courses.patchStampedOverride("1151", "CS1", "1151CS1", name = "Calc", locale = "en") })
         assertEquals(emptyList<String>(), backend.endpoints())
     }

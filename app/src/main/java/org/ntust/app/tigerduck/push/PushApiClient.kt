@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.data.CourseDeleteKind
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
@@ -317,8 +318,8 @@ class PushApiClient @Inject constructor(
     suspend fun serverDropped(semester: String, courseNos: Collection<String>) = courseSync.serverDropped(semester, courseNos)
 
     /** A course's delete, with the backend's answer; see [CourseSyncRequests.deleteCourse]. */
-    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?): WriteAnswer =
-        courseSync.deleteCourse(courseKey, signIn, hiddenAt)
+    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: CourseDeleteKind? = null): WriteAnswer =
+        courseSync.deleteCourse(courseKey, signIn, hiddenAt, kind)
 
     /** A term's reset, or every term's, with the backend's answer; see [CourseSyncRequests.deleteAllCourses]. */
     suspend fun deleteAllCoursesAnswered(semester: String?, signIn: SignIn, resetAtMs: Long?): WriteAnswer =

@@ -11,6 +11,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
+import org.ntust.app.tigerduck.data.CourseDeleteKind
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.EmptyBody
@@ -253,11 +254,11 @@ internal class CourseSyncRequests(
      * Deletes the course row [courseKey] names. [signIn] pins the request to
      * that sign-in, as [uploadCoursesAnswered] does: a delete queued as one account and sent after a sign-out and
      * another sign-in goes without a token, not with the next account's,
-     * which could take that account's own course off. With no kind: the backend decides from its
-     * row, a hide of a school course and the removal of one added by hand, as the iPhone's
-     * `deleteCourse` sends it.
+     * which could take that account's own course off. It names [kind], a hide or the removal of a
+     * hand-add, as the iPhone's `deleteCourse` does; with none the backend decides from its row, and
+     * hides a key it holds no row of (tigerduck-app-android#698).
      */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?): WriteAnswer =
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: CourseDeleteKind?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
             val service = api.at(baseUrl())
@@ -267,7 +268,7 @@ internal class CourseSyncRequests(
             // since on another device, and a retry after a lost reply changes nothing. One refused as
             // ahead of the backend's clock goes again stamped from the refusal's clock, past the gate
             // the first request passed, read again: course sync can have gone off meanwhile.
-            sendStamped(hiddenAt, clock, ::sends, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc) }) {
+            sendStamped(hiddenAt, clock, ::sends, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc, kind?.wire) }) {
                 clock.answer(it, "deleteCourse", WriteAnswer.MEMBERSHIP)
             } ?: WriteAnswer.NOT_SENT
         }

@@ -257,17 +257,17 @@ class DataCache @Inject constructor(
     }
 
     /**
-     * Whether [semester]'s portal rows are cached: `courses_<semester>.json`
-     * lives in the evictable cacheDir, and once the system evicts it,
-     * [loadCourses] returns the hand-typed courses alone.
+     * The numbers of [semester]'s portal rows as cached, the school's own: `courses_<semester>.json` lives
+     * in the evictable cacheDir, and once the system evicts it, [loadCourses] returns the hand-typed courses alone.
      */
-    suspend fun hasPortalCourses(semester: String): Boolean {
+    suspend fun portalCourseNos(semester: String): Set<String> {
         absorbLegacyCourseCache()
-        val type = object : TypeToken<List<Course>>() {}.type
-        return load<List<Course>>(type, coursesFilename(semester), requireContent = COURSE_NO_TOKEN)
-            ?.let(::usableRows)
-            ?.any { !it.isManual } == true
+        return load<List<Course>>(object : TypeToken<List<Course>>() {}.type, coursesFilename(semester), requireContent = COURSE_NO_TOKEN)
+            ?.let(::usableRows).orEmpty().filter { !it.isManual }.mapTo(mutableSetOf()) { it.courseNo }
     }
+
+    /** Whether [semester]'s portal rows are cached; see [portalCourseNos]. */
+    suspend fun hasPortalCourses(semester: String): Boolean = portalCourseNos(semester).isNotEmpty()
 
     private fun manualCoursesFilename(semester: String): String = "manual_courses_$semester.json"
 
@@ -1044,7 +1044,7 @@ class DataCache @Inject constructor(
     data class RestoredCourse(val restoredAt: Long, val listedAt: Long?)
 
     /** The marked hides, as `<semester>:<courseNo>` keys; see [hideDeletedCourse]. */
-    private suspend fun loadHandAddedHides(): Set<String> {
+    suspend fun loadHandAddedHides(): Set<String> {
         val type = object : TypeToken<List<String?>>() {}.type
         return loadFromUserData<List<String?>>(type, HAND_ADDED_HIDES_FILE).orEmpty().filterNotNullTo(mutableSetOf())
     }
@@ -1139,7 +1139,7 @@ class DataCache @Inject constructor(
     }
 
     /** Each term's latest non-empty course selection answer, by [recordSelectionRoster]. */
-    private suspend fun loadSelectionRosters(): Map<String, List<String>> {
+    suspend fun loadSelectionRosters(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String?, List<String?>?>>() {}.type
         return loadFromUserData<Map<String?, List<String?>?>>(type, SELECTION_ROSTERS_FILE).orEmpty()
             .mapNotNull { (semester, nos) -> semester?.let { it to nos.orEmpty().filterNotNull() } }

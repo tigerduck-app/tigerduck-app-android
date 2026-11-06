@@ -88,7 +88,7 @@ class ClassTableWiringTest {
     @Test
     fun `a delete and a reset reach the backend with no course add being sent`() {
         val delete = body("deleteCourse")
-        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)" in delete)
+        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn, " in delete)
         assertTrue("deleteCourse takes the adds lock the outbox takes itself", "pendingCourseAdds.removing {" !in delete)
 
         val wipe = body("wipeTerm")
