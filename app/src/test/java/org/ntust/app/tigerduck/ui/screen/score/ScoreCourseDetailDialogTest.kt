@@ -130,4 +130,13 @@ class ScoreCourseDetailDialogTest {
 
         composeRule.onNodeWithText("Note").assertDoesNotExist()
     }
+
+    @Test
+    fun `a remote course's details name no teaching method, as on the iPhone`() {
+        // Dropped on both phones (tigerduck-app-android#702); the score list still tags it.
+        show(calculus.copy(distanceLearning = true)) { null }
+
+        composeRule.onNodeWithText("Teaching method").assertDoesNotExist()
+        composeRule.onNodeWithText("Remote").assertDoesNotExist()
+    }
 }

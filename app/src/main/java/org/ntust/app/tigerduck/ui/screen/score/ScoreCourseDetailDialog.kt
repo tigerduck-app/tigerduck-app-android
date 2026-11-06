@@ -86,12 +86,7 @@ internal fun CourseDetailDialogContent(course: CourseGrade, roster: RosterLookup
             course.geDimension?.let {
                 add(stringResource(R.string.score_info_general_dimension) to it)
             }
-            if (course.distanceLearning) {
-                add(
-                    stringResource(R.string.score_info_teaching_method) to
-                        stringResource(R.string.score_distance_learning)
-                )
-            }
+            // No teaching-method row, as on the iPhone (#702): the score list tags a remote course.
             if (roster is RosterLookup.Found) {
                 ScoreCourseRoster.rows(roster.course).forEach { (label, value) ->
                     add(stringResource(label) to value)
