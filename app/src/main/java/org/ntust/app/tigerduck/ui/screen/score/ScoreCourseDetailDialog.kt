@@ -75,24 +75,15 @@ internal fun CourseDetailDialogContent(course: CourseGrade, roster: RosterLookup
     ) {
         HeaderRow(course)
 
-        // The score page's rows beyond the header, then the class table's.
-        // iOS dropped the former for the latter; the issue keeps both. Each
-        // is left out when it has nothing to say, so the column is built
-        // first and only drawn when there is one.
-        val rows = buildList {
-            creditTypeLabel(course.creditType)?.let {
-                add(stringResource(R.string.score_info_credit_type) to it)
-            }
-            course.geDimension?.let {
-                add(stringResource(R.string.score_info_general_dimension) to it)
-            }
-            // No teaching-method row, as on the iPhone (#702): the score list tags a remote course.
-            if (roster is RosterLookup.Found) {
-                ScoreCourseRoster.rows(roster.course).forEach { (label, value) ->
-                    add(stringResource(label) to value)
-                }
-            }
-        }
+        // The score page's rows beyond the header among the class table's, in
+        // the iPhone's order, with no teaching-method row (#702): the score
+        // list tags a remote course. Each is left out when it has nothing to
+        // say, so the column is built first and only drawn when there is one.
+        val rows = ScoreCourseRoster.rows(
+            roster = (roster as? RosterLookup.Found)?.course,
+            dimension = course.geDimension,
+            creditType = creditTypeLabel(course.creditType),
+        ).map { (label, value) -> stringResource(label) to value }
         if (rows.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 rows.forEach { (label, value) -> InfoRow(label, value) }
