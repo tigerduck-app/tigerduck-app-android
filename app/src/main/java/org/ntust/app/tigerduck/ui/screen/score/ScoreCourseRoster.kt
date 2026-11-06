@@ -57,8 +57,8 @@ internal object ScoreCourseRoster {
         roster?.instructor.orEmptyField().trim().takeIf { it.isNotEmpty() }?.let {
             add(R.string.course_detail_instructor_label to it)
         }
-        dimension?.let { add(R.string.course_detail_dimension_label to it) }
-        creditType?.let { add(R.string.score_info_credit_type to it) }
+        dimension?.takeIf { it.isNotBlank() }?.let { add(R.string.course_detail_dimension_label to it) }
+        creditType?.takeIf { it.isNotBlank() }?.let { add(R.string.score_info_credit_type to it) }
         if (roster != null && roster.maxCount > 0) {
             add(R.string.course_detail_enrollment_label to "${roster.enrolledCount} / ${roster.maxCount}")
         }

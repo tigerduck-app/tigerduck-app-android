@@ -177,6 +177,8 @@ class ScoreCourseRosterTest {
             listOf(R.string.course_detail_dimension_label to "Humanities"),
             ScoreCourseRoster.rows(null, dimension = "Humanities", creditType = null),
         )
+        // A blank value has nothing to say either.
+        assertEquals(emptyList<Pair<Int, String>>(), ScoreCourseRoster.rows(null, dimension = " ", creditType = ""))
     }
 
     /** The fields are declared non-null, but a row this sparse holds null in them; see CLAUDE.md. */
