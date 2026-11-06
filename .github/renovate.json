@@ -179,6 +179,16 @@
       "prBodyNotes": [
         "**Strings:** nothing else to do if `app-translation` moved: every build generates the strings from it."
       ]
+    },
+    {
+      "description": "app-translation moves by hand, in the PRs that need its strings.",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchDepNames": [
+        "app-translation"
+      ],
+      "enabled": false
     }
   ]
 }
