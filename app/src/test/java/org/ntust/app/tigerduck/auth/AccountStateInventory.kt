@@ -293,12 +293,13 @@ internal class AccountStateInventory(
     /**
      * Sources handed a file another source opens, under no constant of their own: the token stores
      * and the owed unregister share the credential store CredentialManager opens, and the school's
-     * keys the preferences AppPreferences opens.
+     * keys and the accent's upgrade step the preferences AppPreferences opens.
      */
     private val sharedFiles = mapOf(
         "V3TokenStore.kt" to "tigerduck_credentials",
         "PendingUnregisterPrefs.kt" to "tigerduck_credentials",
         "SchoolKeys.kt" to "tigerduck_prefs",
+        "AccentUpgrade.kt" to "tigerduck_prefs",
     )
 
     /**

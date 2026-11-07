@@ -153,6 +153,23 @@ class WearAccentHexTest {
         assertEquals(AccentGradientDirection.DEFAULT.code, map.getInt(WearProtocol.Schedule.KEY_ACCENT_DIRECTION))
     }
 
+    // v2.4.0 sent the watch its gradient with no switch: an upgrade keeps sending it.
+    @Test
+    fun `after an upgrade with a gradient picked the watch is still sent it`() {
+        context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE).edit()
+            .putInt("accentColorHex", blue)
+            .putInt("accentGradientStartHex", blue)
+            .putInt("accentGradientEndHex", purple)
+            .putInt("accentGradientDirection", AccentGradientDirection.RightToLeft.code)
+            .commit()
+        val upgraded = AppPreferences(context)
+        val map = DataMap().apply { putAccent(upgraded) }
+
+        assertEquals(gradient(blue, purple, direction = AccentGradientDirection.RightToLeft), wearAccentGradient(upgraded))
+        assertEquals("#AF52DE", map.getString(WearProtocol.Schedule.KEY_ACCENT_END))
+        assertEquals(AccentGradientDirection.RightToLeft.code, map.getInt(WearProtocol.Schedule.KEY_ACCENT_DIRECTION))
+    }
+
     @Test
     fun `with the switch off the payload carries the first stop alone`() {
         AccentSetting(prefs).pickAccent(gradient(blue, purple))

@@ -190,6 +190,76 @@ class AppPreferencesAccentTest {
         assertEquals(0x5856D6, prefs.accentColorHex)
     }
 
+    /**
+     * The preferences file as v2.4.0 left it: the accent, its gradient as a start, end and
+     * direction (-1 for none), and the wallpaper switch. That release drew the gradient on the
+     * watch with no switch, and only the first stop on the widgets and the Live Update.
+     */
+    private fun storedBy240(accentHex: Int, startHex: Int, endHex: Int, directionCode: Int = 1) {
+        raw.edit()
+            .putInt("accentColorHex", accentHex)
+            .putInt("accentGradientStartHex", startHex)
+            .putInt("accentGradientEndHex", endHex)
+            .putInt("accentGradientDirection", directionCode)
+            .putBoolean("useWallpaperColors", false)
+            .commit()
+    }
+
+    @Test
+    fun `an upgrade with a gradient picked keeps it on the watch, and the widgets and Live Update on one color`() {
+        storedBy240(accentHex = 0x007AFF, startHex = 0x007AFF, endHex = 0xAF52DE)
+
+        val prefs = AppPreferences(context)
+        assertTrue(prefs.accentGradientOnWatch)
+        assertTrue(raw.getBoolean("accentGradientOnWatch", false))
+        assertFalse(prefs.accentGradientOnWidgets)
+        assertFalse(prefs.accentGradientOnLiveActivities)
+        assertEquals(
+            DeviceAccents(watch = AccentGradient.of(listOf(0x007AFF, 0xAF52DE), AccentGradientStyle.Linear, AccentGradientDirection.BottomToTop)),
+            prefs.deviceAccents,
+        )
+    }
+
+    @Test
+    fun `an upgrade with a single color starts with the watch switch off, as a new install`() {
+        storedBy240(accentHex = 0xFF9500, startHex = -1, endHex = -1, directionCode = 3)
+
+        assertFalse(AppPreferences(context).accentGradientOnWatch)
+        assertFalse(raw.contains("accentGradientOnWatch"))
+    }
+
+    // The release before drew no gradient that an older build's color had replaced, nor does this one.
+    @Test
+    fun `an upgrade with a gradient picked over since by a single color starts with the switch off`() {
+        storedBy240(accentHex = 0x34C759, startHex = 0x007AFF, endHex = 0xAF52DE)
+
+        assertFalse(AppPreferences(context).accentGradientOnWatch)
+    }
+
+    @Test
+    fun `a watch switch already set is left as it is, the gradient from before still stored`() {
+        storedBy240(accentHex = 0x007AFF, startHex = 0x007AFF, endHex = 0xAF52DE)
+        raw.edit().putBoolean("accentGradientOnWatch", false).commit()
+
+        assertFalse(AppPreferences(context).accentGradientOnWatch)
+    }
+
+    @Test
+    fun `the upgrade's step runs once, so a switch turned off since stays off`() {
+        storedBy240(accentHex = 0x007AFF, startHex = 0x007AFF, endHex = 0xAF52DE)
+        AppPreferences(context).accentGradientOnWatch = false
+
+        assertFalse(AppPreferences(context).accentGradientOnWatch)
+    }
+
+    @Test
+    fun `a new install starts with every switch off`() {
+        val prefs = AppPreferences(context)
+
+        assertFalse(prefs.accentGradientOnWidgets || prefs.accentGradientOnWatch || prefs.accentGradientOnLiveActivities)
+        assertFalse(raw.contains("accentGradientOnWatch"))
+    }
+
     @Test
     fun `a full reset turns the wallpaper, the gradient and its switches off`() {
         val prefs = AppPreferences(context)

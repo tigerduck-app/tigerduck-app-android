@@ -25,7 +25,6 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeCo
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassReminders
 import org.ntust.app.tigerduck.shared.AccentGradient
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import javax.inject.Inject
@@ -115,6 +114,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .remove("rememberAnnouncementFilter")
             .remove("savedAnnouncementOrgs")
             .apply()
+        // The watch drew the gradient picked in the release before with no switch: it goes on.
+        keepWatchGradientFromBefore(prefs)
     }
 
     // Where builds before the server-time course-reset check kept this
@@ -375,11 +376,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      */
     val accent: AccentGradient
         get() = AccentGradient.saved(
-            AccentGradient.decode(prefs.getString("accentGradient", null)) ?: AccentGradient.legacy(
-                prefs.getInt("accentGradientStartHex", AccentPolicy.NO_GRADIENT),
-                prefs.getInt("accentGradientEndHex", AccentPolicy.NO_GRADIENT),
-                prefs.getInt("accentGradientDirection", AccentGradientDirection.DEFAULT.code),
-            ),
+            AccentGradient.decode(prefs.getString("accentGradient", null)) ?: legacyAccentGradient(prefs),
             accentColorHex,
         )
 
