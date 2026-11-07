@@ -62,6 +62,7 @@ import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.ui.component.DetentSheetState
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.HanScript
 import org.ntust.app.tigerduck.util.formatCredits
 import org.ntust.app.tigerduck.util.toCreditsOrZero
 
@@ -72,23 +73,6 @@ private val courseCodePattern = Regex("^[A-Za-z0-9]+$")
 
 private fun looksLikeCourseCode(text: String): Boolean =
     courseCodePattern.matches(text) && text.any { it.isDigit() }
-
-// Map any simplified Han characters in the query to traditional before hitting
-// the zh API — NTUST QueryCourse stores course names in traditional only.
-private val simplifiedToTraditional by lazy {
-    runCatching { android.icu.text.Transliterator.getInstance("Simplified-Traditional") }.getOrNull()
-}
-
-private fun toTraditional(text: String): String =
-    simplifiedToTraditional?.transliterate(text) ?: text
-
-private fun containsHan(text: String): Boolean = text.any {
-    val block = Character.UnicodeBlock.of(it) ?: return@any false
-    block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
-            block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
-            block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
-            block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,7 +130,7 @@ internal fun AddCourseSheet(
         val isCourseCode = looksLikeCourseCode(trimmed)
         // Always send the traditional form to the zh API so simplified queries
         // ("隐私") still match traditional course names ("隱私與資訊安全").
-        val zhQuery = toTraditional(trimmed)
+        val zhQuery = HanScript.toTraditional(trimmed)
         val enQuery = trimmed
         val uiLang = courseService.preferredCourseApiLanguage()
         // Query language drives the parenthetical: when the query language
@@ -155,7 +139,7 @@ internal fun AddCourseSheet(
         // language so no parenthetical is shown.
         val queryLang = when {
             isCourseCode -> uiLang
-            containsHan(trimmed) -> "zh"
+            HanScript.containsHan(trimmed) -> "zh"
             else -> "en"
         }
         searchJob = scope.launch {
