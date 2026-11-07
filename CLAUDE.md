@@ -203,13 +203,15 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   makes it `EditStamp.Oldest`, the one place it turns into `hlc: 0`, which loses to every
   stored stamp. `FieldAges` (`push/EditStamp.kt`) holds the per-key rule, as the iPhone's
   (tigerduck-app#1008), around every write of a synced field, a lane's or a screen's: a
-  write's span runs from its first age reading, the token in hand, to its 2xx answer, and
-  an edit ages from the latest end among the spans of its key that went out at or before it
-  was made; one made before a span went out keeps its own age. A key (`SyncField.spanKey`)
-  is an assignment's, a holiday's, or a term's, which every course write of the term and its
-  reset share; its writes go one at a time. As a span ends, every queued edit of its key made
-  since it went out keeps that end as its floor, on disk (`EditFloors`, `EditClocks.floor`,
-  the holidays' times), parked or not, and only while the span's sign-in stands. A queue that
+  write's span runs from its first age reading, the token in hand, to its 2xx answer, under
+  its sign-in, and an edit ages from the latest end among the spans of its key that went out
+  at or before it was made, by its own time alone; one made before a span went out keeps its
+  own age. A key (`SyncField.spanKey`) is an assignment's, a holiday's, or a term's, which
+  every course write of the term and its reset share; its writes go one at a time. As a span
+  ends, every queued edit of its key made during it keeps that end as its floor, on disk
+  (`EditFloors`, `EditClocks.floor`, the holidays' times), parked or not, and only while the
+  span's sign-in stands; one kept a moment after takes it as it is kept, and a write reads
+  its edit's floor from its queue under the lock (`EditFloors.floorOf`). A queue that
   orders its edits past the clock keeps that order apart from the time (`CourseMoment`): no
   edit's time is ahead of the clock that read it. `EditAgeTest`, `OldestWritesTest`,
   `WriteSpansTest` and `WriteSpanQueuesTest` pin them.
