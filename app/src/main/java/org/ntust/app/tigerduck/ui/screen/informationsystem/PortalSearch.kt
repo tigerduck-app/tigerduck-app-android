@@ -17,30 +17,29 @@ internal object PortalSearch {
 
     /**
      * [shown], the UI page's links, each with its counterpart among [other]: the link at the same
-     * address, the two pages told apart by an `/EN` segment or a language parameter, or else, when a
-     * category is left with as many links on each page, the one in the same place. A link of
-     * [other] that pairs with none comes after, alone.
+     * address, the two pages told apart by an `/EN` segment or a language parameter, or else, in a
+     * category where no address pairs and each page lists as many links, the one in the same place.
+     * Where some addresses pair, a link left over is one page's alone, and pairs with none. A link
+     * of [other] that pairs with none comes after, alone.
      */
     fun pairs(shown: List<PortalLink>, other: List<PortalLink>): List<PortalPair> {
-        val left = other.toMutableList()
         // Each address read once: the search pairs again at every keystroke.
-        val addresses = other.associateWith { address(it.url) }
-        val byAddress = shown.map { link ->
+        val addresses = other.map { address(it.url) }
+        val taken = BooleanArray(other.size)
+        val matched = shown.map { link ->
             val key = address(link.url)
-            val match = left.firstOrNull { it.category == link.category && addresses.getValue(it) == key }
-            match?.let(left::remove)
-            link to match
+            other.indices.firstOrNull { !taken[it] && other[it].category == link.category && addresses[it] == key }
+                ?.also { taken[it] = true }
+        }.toMutableList()
+        for (category in shown.map { it.category }.distinct()) {
+            val mine = shown.indices.filter { shown[it].category == category }
+            if (mine.any { matched[it] != null }) continue
+            val theirs = other.indices.filter { !taken[it] && other[it].category == category }
+            if (theirs.size != mine.size) continue
+            mine.zip(theirs).forEach { (i, j) -> matched[i] = j; taken[j] = true }
         }
-        val unpaired = byAddress.filter { it.second == null }.groupBy({ it.first.category }, { it.first })
-        val byPlace = mutableMapOf<PortalLink, PortalLink>()
-        for ((category, links) in unpaired) {
-            val others = left.filter { it.category == category }
-            if (others.size != links.size) continue
-            links.zip(others).forEach { (link, counterpart) -> byPlace[link] = counterpart }
-            left.removeAll(others)
-        }
-        return byAddress.map { (link, match) -> PortalPair(link, match ?: byPlace[link]) } +
-            left.map { PortalPair(null, it) }
+        return shown.indices.map { PortalPair(shown[it], matched[it]?.let(other::get)) } +
+            other.indices.filter { !taken[it] }.map { PortalPair(null, other[it]) }
     }
 
     /**

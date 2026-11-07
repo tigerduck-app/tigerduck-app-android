@@ -114,4 +114,25 @@ class PortalSearchTest {
         assertEquals(listOf("宿舍系統"), names(PortalSearch.search(PortalSearch.pairs(zh, emptyList()), "宿舍", uiEnglish = false)))
         assertEquals(emptyList<String>(), names(PortalSearch.search(PortalSearch.pairs(zh, emptyList()), "dorm", uiEnglish = false)))
     }
+
+    @Test
+    fun `links only one page lists, where the others pair by address, are not paired by place`() {
+        val shown = zh + link("畢業生離校手續單", "https://leave.ntust.edu.tw/", PortalCategory.CAMPUS_LIFE)
+        val other = en + link("Exchange Students", "https://oia.ntust.edu.tw/exchange", PortalCategory.CAMPUS_LIFE)
+
+        val pairs = PortalSearch.pairs(shown, other)
+
+        assertEquals(listOf("Exchange Students"), names(PortalSearch.search(pairs, "exchange", uiEnglish = false)))
+        assertEquals(listOf("畢業生離校手續單"), names(PortalSearch.search(pairs, "離校", uiEnglish = false)))
+    }
+
+    @Test
+    fun `two equal links each keep their own counterpart`() {
+        val twice = link("學籍資料", "https://stuinfo.ntust.edu.tw/zh")
+        val other = listOf(link("Student Records", "https://stuinfo.ntust.edu.tw/en"), link("Student Status", "https://stuinfo.ntust.edu.tw/en2"))
+
+        val pairs = PortalSearch.pairs(listOf(twice, twice), other)
+
+        assertEquals(listOf("Student Records", "Student Status"), pairs.map { it.other?.name })
+    }
 }
