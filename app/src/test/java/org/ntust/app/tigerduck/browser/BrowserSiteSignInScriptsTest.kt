@@ -65,6 +65,14 @@ class BrowserSiteSignInScriptsTest {
     }
 
     @Test
+    fun `the mark answers no token where the property is there already, and never reads one back`() {
+        val script = mark(page, form, STUDENT_ID)
+
+        assertTrue(script.contains("passwordField === null || Object.getOwnPropertyDescriptor(window, key) ? null :"))
+        assertFalse("a value a page could have set is never answered", script.contains(".value;") || script.contains("kept"))
+    }
+
+    @Test
     fun `each script checks the page's address before anything else, and the fill its token before the form`() {
         listOf(mark(page, form, STUDENT_ID), fill(page, form, STUDENT_ID, PASSWORD, TOKEN)).forEach { script ->
             val check = script.indexOf("if (location.origin !== origin || location.pathname !== path) return")

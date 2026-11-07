@@ -44,18 +44,14 @@ object BrowserSiteSignInScripts {
 
     /**
      * Fills the student id where the form is empty and its fields stand as [FIELDS] requires, and,
-     * for a form with a password field, makes the page's token, or reads the one already made:
-     * answers it and `location.href`. A property of the token's name the mark did not make leaves
-     * the page with no token, and so with no password.
+     * for a form with a password field, makes the page's token: answers it and `location.href`.
+     * Where a property of the token's name is there already, made by an earlier mark or by the page,
+     * it answers no token, and so its own run gives no password: no value a page could have set is
+     * ever taken for a token. A run that made the token goes on as before.
      */
     fun mark(page: SitePage, form: SiteSignInForm, studentId: String): String = script(page, form, studentId) {
         """    const href = location.href;
-    const token = passwordField === null ? null : (() => {
-      const kept = Object.getOwnPropertyDescriptor(window, key);
-      if (kept) {
-        const ours = typeof kept.value === 'string' && /^[0-9a-f]{32}$/.test(kept.value);
-        return ours && !kept.writable && !kept.configurable && !kept.enumerable ? kept.value : null;
-      }
+    const token = passwordField === null || Object.getOwnPropertyDescriptor(window, key) ? null : (() => {
       const made = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('');
       Object.defineProperty(window, key, { value: made, writable: false, configurable: false, enumerable: false });
       return made;

@@ -240,6 +240,23 @@ class BrowserSiteSignInTest {
     }
 
     @Test
+    fun `a second flow on the same page, whose mark finds the token there and answers none, leaves the first flow's fill alone`() = runTest {
+        checkTakesMs = 1_000
+        val first = launch { fill() }
+        runCurrent()
+        page.answer = { """{"token":null,"href":"$CARD_SYSTEM"}""" }
+        val second = launch { fill() }
+        runCurrent()
+        assertTrue("the second flow ends at its mark", second.isCompleted)
+        first.join()
+
+        assertEquals(2, page.marks.size)
+        assertEquals(1, requests.size)
+        assertEquals(TOKEN, value(page.fills.single(), "token"))
+        assertEquals(PASSWORD, value(page.fills.single(), "password"))
+    }
+
+    @Test
     fun `a leaf met before skips the request, but not the mark nor the checks`() = runTest {
         fill()
         page = Page()
