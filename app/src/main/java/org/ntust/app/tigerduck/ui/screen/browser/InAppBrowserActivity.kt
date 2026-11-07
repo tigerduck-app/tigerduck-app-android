@@ -86,6 +86,7 @@ import org.ntust.app.tigerduck.browser.BrowserSession
 import org.ntust.app.tigerduck.browser.BrowserSettings
 import org.ntust.app.tigerduck.browser.BrowserSignIn
 import org.ntust.app.tigerduck.browser.BrowserSignIns
+import org.ntust.app.tigerduck.browser.BrowserSiteSignIn
 import org.ntust.app.tigerduck.browser.BrowserUpload
 import org.ntust.app.tigerduck.browser.BrowserUserAgent
 import org.ntust.app.tigerduck.browser.BrowserZoom
@@ -117,7 +118,7 @@ import org.ntust.app.tigerduck.debug.PretendMissingApps
  *
  * The page loads only what the allowlist lets in, checked at every
  * main-frame navigation and redirect, and again as a page starts (a form's
- * POST asks no one). A site's own sign-in page is replaced by the browser's
+ * POST asks no one). SSO's and Moodle's sign-in pages give way to the browser's
  * sign-in screen ([BrowserSignIn]). Everything the WebView keeps is the
  * browser's to clear at sign-out ([org.ntust.app.tigerduck.browser.BrowserDataCleaner]), which closes
  * this screen. Screenshots are allowed: there is no telling which field
@@ -137,6 +138,7 @@ class InAppBrowserActivity : AppCompatActivity() {
     @Inject lateinit var settings: BrowserSettings
     @Inject lateinit var downloads: BrowserDownloads
     @Inject lateinit var signIns: BrowserSignIns
+    @Inject lateinit var siteSignIn: BrowserSiteSignIn
 
     private val state = BrowserPageState()
 
@@ -548,6 +550,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         state.title = webView.title
         state.certificate = webView.certificate?.let(CertificateInfo::of)
         state.signedIn = signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
+        siteSignIn.pageFinished(webView, url, loadedSession, lifecycleScope)
         updateHistory()
         probeTone()
     }
@@ -860,13 +863,9 @@ class InAppBrowserActivity : AppCompatActivity() {
             return WebResourceResponse("text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
         }
 
-        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-            url?.let(::onPageStart)
-        }
+        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) { url?.let(::onPageStart) }
 
-        override fun onPageFinished(view: WebView, url: String?) {
-            url?.let(::onPageDone)
-        }
+        override fun onPageFinished(view: WebView, url: String?) { url?.let(::onPageDone) }
 
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             // A page that changes its address itself (history.pushState) lands here only.
