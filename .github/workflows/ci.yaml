@@ -99,6 +99,23 @@ jobs:
           -Pkotlin.daemon.jvmargs=-Xmx3g
           $TASKS
 
+      # The browser's school sign-in scripts give the stored password to a page, and the JVM has
+      # no DOM to run them in: the play leg's unit tests write them out (SiteSignInScriptsExport)
+      # and jsdom runs them against small copies of the sites' forms.
+      - name: Set up Node
+        if: matrix.leg == 'play'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/page-scripts/package-lock.json
+
+      - name: Page scripts
+        if: matrix.leg == 'play'
+        run: |
+          npm ci --prefix tools/page-scripts --no-audit --no-fund
+          node tools/page-scripts/site-sign-in.test.cjs app/build/site-sign-in-scripts
+
   release-scripts:
     # The scripts the release workflows run, which otherwise first run once
     # the PR is merged: tools/play/publish.py sends every release to Google
