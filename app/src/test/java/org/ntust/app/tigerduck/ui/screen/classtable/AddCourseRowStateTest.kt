@@ -1,7 +1,9 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
+import org.ntust.app.tigerduck.R
 
 /**
  * What a result row in Add course offers: a course added in this session can
@@ -37,5 +39,23 @@ class AddCourseRowStateTest {
             AddCourseRowState.AddedThisSession,
             addCourseRowState(calculus, existingCourseNos = setOf(calculus), sessionAddedCourseNos = setOf(calculus)),
         )
+    }
+
+    /**
+     * Each mark looks and reads differently: a course already there is a gray check read as
+     * added and disabled, one added here an accent-filled check whose hint is Remove, and the
+     * rest a plus whose hint is Add. As the iPhone's `AddCourseRowMark` (tigerduck-app#876).
+     */
+    @Test
+    fun `each row mark looks and reads differently`() {
+        val marks = AddCourseRowState.entries
+        assertEquals(marks.size, marks.map { it.icon }.toSet().size)
+        assertEquals(marks.size, marks.map { Triple(it.value, it.hint, it == AddCourseRowState.AlreadyThere) }.toSet().size)
+        assertNull(AddCourseRowState.Addable.value)
+        assertEquals(R.string.action_add, AddCourseRowState.Addable.hint)
+        assertEquals(R.string.add_course_added, AddCourseRowState.AddedThisSession.value)
+        assertEquals(R.string.action_remove, AddCourseRowState.AddedThisSession.hint)
+        assertEquals(R.string.add_course_added, AddCourseRowState.AlreadyThere.value)
+        assertNull(AddCourseRowState.AlreadyThere.hint)
     }
 }

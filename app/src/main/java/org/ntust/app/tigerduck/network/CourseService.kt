@@ -595,7 +595,7 @@ class CourseService @Inject constructor(
         }
     }
 
-    private suspend fun applyAbbreviations(
+    internal suspend fun applyAbbreviations(
         results: List<CourseSearchResult>,
         language: String
     ): List<CourseSearchResult> {

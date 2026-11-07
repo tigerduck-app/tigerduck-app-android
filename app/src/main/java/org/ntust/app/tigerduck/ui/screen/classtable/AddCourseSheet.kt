@@ -1,7 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,19 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,239 +33,143 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import dagger.hilt.android.EntryPointAccessors
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.coursecatalog.CourseCatalogAccess
+import org.ntust.app.tigerduck.coursecatalog.CourseCatalogStore
 import org.ntust.app.tigerduck.network.CourseService
-import org.ntust.app.tigerduck.network.model.CourseSearchResult
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.DetentSheetState
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import org.ntust.app.tigerduck.util.HanScript
-import org.ntust.app.tigerduck.util.formatCredits
-import org.ntust.app.tigerduck.util.toCreditsOrZero
+import java.io.IOException
 
-// Course codes are ASCII alphanumeric with at least one digit
-// (e.g. "EC1013701", "GE1002101"). Anything else is treated as a name or
-// teacher query — matching the iOS AddCourseSheet heuristic.
-private val courseCodePattern = Regex("^[A-Za-z0-9]+$")
-
-private fun looksLikeCourseCode(text: String): Boolean =
-    courseCodePattern.matches(text) && text.any { it.isDigit() }
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Add course: searches the term's course catalog from the TigerDuck backend on the device, as the
+ * iPhone's sheet does (tigerduck-app#876). The stored catalog answers at once; the backend is asked
+ * once per opening whether it changed, and waited for only while nothing is stored.
+ */
 @Composable
 internal fun AddCourseSheet(
     semester: String,
-    existingCourseNos: Set<String>,
+    tableCourses: List<Course>,
     courseService: CourseService,
     sheetState: DetentSheetState,
     /**
-     * Returns true iff the course was actually persisted. The sheet uses this
-     * to gate [sessionAddedCourseNos]: a rejected add (a triple-period
-     * conflict, say) must not flip the row to a checkmark whose next tap
-     * would route through [onRemove].
+     * Returns true iff the course was actually persisted. The sheet uses this to gate
+     * `sessionAddedCourseNos`: a rejected add (a triple-period conflict, say) must not flip the
+     * row to a checkmark whose next tap would route through [onRemove].
      */
     onAdd: (Course) -> Boolean,
     /** Takes back a course added in this session; see [ClassTableViewModel.removeAddedCourse]. */
     onRemove: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val access = remember { EntryPointAccessors.fromApplication(context.applicationContext, CourseCatalogAccess::class.java) }
     val scope = rememberCoroutineScope()
-    val resources = LocalResources.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
-    // Total available sheet container height (screen height). The sheet's
-    // animated offset measures distance from this container's top, so the
-    // currently visible sheet height = containerHeight - sheetOffset.
-    val containerHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
-    // Reactively track the visible portion of the sheet so the placeholder
-    // overlay can re-center as the user drags between partial and full.
-    val visibleHeightDp by remember(sheetState, containerHeightPx) {
-        derivedStateOf {
-            val offset = sheetState.offset.takeUnless { it.isNaN() } ?: 0f
-            with(density) { (containerHeightPx - offset).coerceAtLeast(0f).toDp() }
-        }
-    }
+    val model = remember { CourseSearchModel(scope, access.courseCatalogFiles(), label = courseService::applyAbbreviations) }
+    val fetch = rememberCatalogFetch(access)
+    val language = remember { courseService.preferredCourseApiLanguage() }
     var searchText by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<GroupedCourse>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    // The courses added while this sheet is open, kept across searches: each
-    // stays tappable, and a second tap takes it back out. Courses that were
-    // already on the class table are not in it and stay as they are.
+    // The courses added while this sheet is open, kept across searches: each stays tappable, and
+    // a second tap takes it back out. Courses already on the class table are not in it.
     var sessionAddedCourseNos by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
-
-    fun search() {
-        val trimmed = searchText.trim()
-        if (trimmed.isEmpty()) return
-        errorMessage = null
-        isSearching = true
-        searchResults = emptyList()
-        searchJob?.cancel()
-
-        val isCourseCode = looksLikeCourseCode(trimmed)
-        // Always send the traditional form to the zh API so simplified queries
-        // ("隐私") still match traditional course names ("隱私與資訊安全").
-        val zhQuery = HanScript.toTraditional(trimmed)
-        val enQuery = trimmed
-        val uiLang = courseService.preferredCourseApiLanguage()
-        // Query language drives the parenthetical: when the query language
-        // differs from the UI language, we display the other-language name in
-        // parens. Course codes are language-agnostic — fall back to the UI
-        // language so no parenthetical is shown.
-        val queryLang = when {
-            isCourseCode -> uiLang
-            HanScript.containsHan(trimmed) -> "zh"
-            else -> "en"
-        }
-        searchJob = scope.launch {
-            try {
-                val (zhResults, enResults) = coroutineScope {
-                    val zh = async {
-                        runCatching {
-                            if (isCourseCode) courseService.lookupCourse(semester, trimmed, "zh")
-                            else mergeResults(
-                                runCatching {
-                                    courseService.searchCourses(
-                                        semester,
-                                        zhQuery,
-                                        "zh"
-                                    )
-                                }.getOrDefault(emptyList()),
-                                runCatching {
-                                    courseService.searchByTeacher(
-                                        semester,
-                                        zhQuery,
-                                        "zh"
-                                    )
-                                }.getOrDefault(emptyList()),
-                            )
-                        }.getOrDefault(emptyList())
-                    }
-                    val en = async {
-                        runCatching {
-                            if (isCourseCode) courseService.lookupCourse(semester, trimmed, "en")
-                            else mergeResults(
-                                runCatching {
-                                    courseService.searchCourses(
-                                        semester,
-                                        enQuery,
-                                        "en"
-                                    )
-                                }.getOrDefault(emptyList()),
-                                runCatching {
-                                    courseService.searchByTeacher(
-                                        semester,
-                                        enQuery,
-                                        "en"
-                                    )
-                                }.getOrDefault(emptyList()),
-                            )
-                        }.getOrDefault(emptyList())
-                    }
-                    zh.await() to en.await()
-                }
-                // The name-search API matches against the queried language only, so
-                // searching "隱私" against the EN endpoint returns nothing even when
-                // a course exists. To still surface the other-language name for the
-                // parenthetical, fill in any missing courseNos via lookupCourse,
-                // which is keyed by code and language-agnostic. Lookups are cached
-                // per (semester, courseNo, lang), so this is essentially free on
-                // repeat queries.
-                val (zhFilled, enFilled) = coroutineScope {
-                    val zhByNo = zhResults.associateBy { it.courseNo }
-                    val enByNo = enResults.associateBy { it.courseNo }
-                    val missingZhNos = enByNo.keys - zhByNo.keys
-                    val missingEnNos = zhByNo.keys - enByNo.keys
-                    val zhLookups = missingZhNos.map { no ->
-                        async {
-                            runCatching { courseService.lookupCourse(semester, no, "zh") }
-                                .getOrDefault(emptyList())
-                        }
-                    }
-                    val enLookups = missingEnNos.map { no ->
-                        async {
-                            runCatching { courseService.lookupCourse(semester, no, "en") }
-                                .getOrDefault(emptyList())
-                        }
-                    }
-                    val zhExtras = zhLookups.flatMap { it.await() }
-                    val enExtras = enLookups.flatMap { it.await() }
-                    (zhResults + zhExtras) to (enResults + enExtras)
-                }
-                val grouped = groupBilingualResults(
-                    zhResults = zhFilled,
-                    enResults = enFilled,
-                    courseService = courseService,
-                    uiLang = uiLang,
-                    queryLang = queryLang,
-                )
-                searchResults = grouped
-                errorMessage =
-                    if (grouped.isEmpty()) resources.getString(R.string.add_course_not_found) else null
-                isSearching = false
-            } catch (e: CancellationException) {
-                // Superseded by a newer search — leave state for the live job to manage.
-                throw e
-            } catch (e: Exception) {
-                errorMessage =
-                    resources.getString(R.string.add_course_search_failed, e.message ?: "")
-                isSearching = false
-            }
-        }
+    val query = searchText.trim()
+    val table = remember(tableCourses) {
+        tableCourses.map { CourseSearchTableCourse(it.courseNo, it.displayName, CourseSearch.slots(it.schedule)) }
     }
 
-    // Live search: debounce typing so we don't fire a request per keystroke,
-    // but users no longer need to press the submit/search action to see results.
-    // Skip very short queries — partial course codes hit an exact-match endpoint
-    // and short name/teacher queries are rejected by the server, both of which
-    // would otherwise surface as a misleading "not found".
-    LaunchedEffect(searchText) {
-        val trimmed = searchText.trim()
-        if (trimmed.isEmpty()) {
-            searchJob?.cancel()
-            searchResults = emptyList()
-            errorMessage = null
-            isSearching = false
-            return@LaunchedEffect
-        }
-        // Course codes need to be entered fully; only run the live search once
-        // Free-text queries fire from the first
-        // character.
-        val minLength = if (looksLikeCourseCode(trimmed)) 8 else 1
-        if (trimmed.length < minLength) return@LaunchedEffect
-        delay(300)
-        search()
+    // Every keystroke searches the stored catalog at once: no wait, and no request to the school.
+    LaunchedEffect(query, model.filters.searched, model.searchAgainCount) {
+        model.search(query, semester, fetch)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 16.dp)
+    val shown = remember(model.results, table, model.filters) {
+        AddCourseResults.shown(model.results, language, table, model.filters, courseService::parseNodeToSchedule)
+    }
+    val foundByNumber = remember(model.results, query) { CourseSearch.foundByNumber(query, model.results) }
+    val existingCourseNos = remember(table) { table.mapTo(HashSet()) { it.courseNo } }
+    val otherLanguage = CourseCatalogStore.LANGUAGES.first { it != language }
+
+    AddCourseSearchPage(
+        searchText = searchText,
+        onSearchText = { searchText = it },
+        model = model,
+        hasResults = shown.isNotEmpty(),
+        sheetState = sheetState,
+        onDismiss = onDismiss,
     ) {
+        items(shown, key = { it.course.courseNo }) { item ->
+            val course = item.course
+            val names = AddCourseResults.names(
+                course, model.row(course.courseNo, language), model.row(course.courseNo, otherLanguage),
+                query, foundByNumber, language,
+            )
+            val state = addCourseRowState(course.courseNo, existingCourseNos, sessionAddedCourseNos)
+            AddCourseResultRow(item, names, state) {
+                when (state) {
+                    AddCourseRowState.AddedThisSession -> {
+                        sessionAddedCourseNos = sessionAddedCourseNos - course.courseNo
+                        onRemove(course.courseNo)
+                    }
+                    AddCourseRowState.Addable ->
+                        if (onAdd(course.tableCourse(names.name, names.instructor))) {
+                            sessionAddedCourseNos = sessionAddedCourseNos + course.courseNo
+                        }
+                    AddCourseRowState.AlreadyThere -> Unit
+                }
+            }
+            HorizontalDivider()
+        }
+    }
+}
+
+/** The fetch of this sheet's sign-in: one read of it as the sheet opens, which a sign-out ends. */
+@OptIn(StartsAccountWork::class)
+@Composable
+private fun rememberCatalogFetch(access: CourseCatalogAccess): CourseCatalogStore.Fetch = remember {
+    val signIn = access.accountSessions().school.current
+    val client = access.courseCatalogClient()
+    CourseCatalogStore.Fetch { semester, language, etag -> client.fetch(semester, language, etag, signIn) }
+}
+
+/**
+ * Why the search failed, as the sheet says it in place of "not found" when no catalog can be had:
+ * a lost connection, or no catalog of the term (a missing one, a refused session).
+ */
+internal fun searchFailureReason(failure: Throwable): Int =
+    if (failure is IOException) R.string.error_network_unavailable else R.string.error_courses_unavailable
+
+@Composable
+private fun AddCourseSearchPage(
+    searchText: String,
+    onSearchText: (String) -> Unit,
+    model: CourseSearchModel,
+    hasResults: Boolean,
+    sheetState: DetentSheetState,
+    onDismiss: () -> Unit,
+    results: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    Box(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -282,368 +179,82 @@ internal fun AddCourseSheet(
                 )
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
             }
-
             Spacer(Modifier.height(12.dp))
-
-            // Unified search field — detects code / name / teacher from the input.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchText,
-                    onValueChange = { searchText = it },
-                    placeholder = { Text(stringResource(R.string.add_course_placeholder)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        keyboardController?.hide()
-                        search()
-                    }),
-                    modifier = Modifier.weight(1f)
-                )
-                FilledIconButton(
-                    onClick = { search() },
-                    enabled = searchText.isNotBlank() && !isSearching
-                ) {
-                    if (isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    } else {
-                        Icon(
-                            Icons.Filled.Search,
-                            contentDescription = stringResource(R.string.action_search)
-                        )
-                    }
-                }
-            }
-
-            errorMessage?.let {
+            // One field for a course number, a name or a teacher. Enter only retries a failure.
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = onSearchText,
+                placeholder = { Text(stringResource(R.string.add_course_placeholder)) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    keyboardController?.hide()
+                    model.submit()
+                }),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).focusRequester(focus)
+            )
+            model.failure?.let {
                 Text(
-                    it,
+                    stringResource(R.string.add_course_search_failed, stringResource(searchFailureReason(it))),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
-
             Spacer(Modifier.height(8.dp))
-
-            // Results list — only present when we have results. For empty/loading
-            // states the Column expands to fill the sheet via the Spacer below so
-            // the centered overlay can position relative to the full sheet height.
-            if (!isSearching && searchResults.isNotEmpty()) {
+            if (hasResults) {
                 val resultsState = rememberLazyListState()
                 LazyColumn(
                     state = resultsState,
                     modifier = Modifier.weight(1f).scrollbar(resultsState),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
-                    items(searchResults) { group ->
-                        val rowState = addCourseRowState(group.courseNo, existingCourseNos, sessionAddedCourseNos)
-                        val isPresent = rowState != AddCourseRowState.Addable
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                // Courses the user already had are not removable here:
-                                // tap-to-remove would be a dangerous escape hatch. Only
-                                // courses added in this session toggle off.
-                                .clickable(enabled = rowState != AddCourseRowState.AlreadyThere) {
-                                    if (rowState == AddCourseRowState.AddedThisSession) {
-                                        sessionAddedCourseNos = sessionAddedCourseNos - group.courseNo
-                                        onRemove(group.courseNo)
-                                        return@clickable
-                                    }
-                                    val course = Course.fromSchedule(
-                                        courseNo = group.courseNo,
-                                        courseName = group.courseName,
-                                        instructor = group.instructor,
-                                        credits = group.credits,
-                                        classroom = group.classroom,
-                                        enrolledCount = group.enrolledCount,
-                                        maxCount = group.maxCount,
-                                        schedule = group.schedule,
-                                        classroomMap = group.classroomMap,
-                                        dimension = group.dimension,
-                                        allYear = group.allYear,
-                                        requireOption = group.requireOption,
-                                    )
-                                    if (onAdd(course)) {
-                                        sessionAddedCourseNos = sessionAddedCourseNos + group.courseNo
-                                    }
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    group.courseName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                                Text(
-                                    stringResource(
-                                        R.string.add_course_result_meta,
-                                        group.courseNo,
-                                        group.instructor,
-                                        group.credits.formatCredits()
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                                )
-                                if (group.classroom.isNotEmpty()) {
-                                    Text(
-                                        group.classroom,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                                    )
-                                }
-                                if (group.nodeDisplay.isNotEmpty()) {
-                                    Text(
-                                        group.nodeDisplay,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                                    )
-                                }
-                            }
-                            if (isPresent) {
-                                Icon(
-                                    Icons.Filled.CheckCircle,
-                                    contentDescription = stringResource(R.string.add_course_added),
-                                    tint = Color(0xFF34C759),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Filled.Add,
-                                    contentDescription = stringResource(R.string.action_add),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                        HorizontalDivider()
-                    }
-                }
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    content = results,
+                )
             } else {
-                // Take all remaining vertical space so the parent Box can
-                // center its overlay relative to the full sheet height.
+                // Takes the rest, so the overlay below centers on the whole sheet.
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
-
-        // Overlay constrained to the *visible* sheet height so the contents
-        // sit at the visual middle of whatever portion is currently on
-        // screen — partial, fully expanded, or anywhere mid-drag.
-        if (isSearching || searchResults.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(visibleHeightDp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSearching) {
-                    CircularProgressIndicator()
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            stringResource(R.string.add_course_placeholder),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.add_course_example),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                        )
-                    }
-                }
-            }
-        }
+        if (!hasResults) EmptyState(searchText.isBlank(), model, visibleSheetHeight(sheetState))
     }
 }
 
-private data class GroupedCourse(
-    val courseNo: String,
-    val courseName: String,
-    val instructor: String,
-    val credits: Float,
-    val classroom: String,
-    val enrolledCount: Int,
-    val maxCount: Int,
-    val schedule: Map<Int, List<String>>,
-    /** "weekday-period" -> deduped room for that slot. See [Course.classroom]. */
-    val classroomMap: Map<String, String>,
-    val nodeDisplay: String,
-    /**
-     * Carried straight from QueryCourse so a course added by hand shows its
-     * dimension, term span and course type without waiting for the next refresh.
-     */
-    val dimension: String?,
-    val allYear: String?,
-    val requireOption: String?,
-)
-
-/** What a result row offers; see [addCourseRowState]. */
-internal enum class AddCourseRowState {
-    /** Not on the class table: a tap adds it. */
-    Addable,
-
-    /** Added while this sheet has been open: a tap takes it back out. */
-    AddedThisSession,
-
-    /** On the class table before the sheet opened: left alone. */
-    AlreadyThere,
-}
-
 /**
- * The state of the row for [courseNo], given the class table's courses and
- * the ones added in this session. The session wins: an added course is on the
- * class table too by the time the row is drawn again. As on the iPhone
- * (tigerduck-app#84).
+ * The visible part of the sheet, which the empty state centers in: partial, full, or anywhere
+ * mid-drag. The sheet's offset is measured from the top of a container as tall as the screen.
  */
-internal fun addCourseRowState(
-    courseNo: String,
-    existingCourseNos: Set<String>,
-    sessionAddedCourseNos: Set<String>,
-): AddCourseRowState = when (courseNo) {
-    in sessionAddedCourseNos -> AddCourseRowState.AddedThisSession
-    in existingCourseNos -> AddCourseRowState.AlreadyThere
-    else -> AddCourseRowState.Addable
-}
-
-/**
- * Merge name-search and teacher-search results, preserving name-first order
- * and deduping by (courseNo, node). Matches the iOS behaviour so the Android
- * feature stays in lockstep when the server adds/renames courses.
- */
-private fun mergeResults(
-    primary: List<CourseSearchResult>,
-    secondary: List<CourseSearchResult>,
-): List<CourseSearchResult> {
-    val seen = mutableSetOf<String>()
-    val merged = mutableListOf<CourseSearchResult>()
-    for (result in primary + secondary) {
-        val key = "${result.courseNo}#${result.node ?: ""}"
-        if (seen.add(key)) merged.add(result)
-    }
-    return merged
-}
-
-private fun groupResults(
-    results: List<CourseSearchResult>,
-    courseService: CourseService
-): List<GroupedCourse> {
-    val seen = mutableMapOf<String, GroupedCourse>()
-    val order = mutableListOf<String>()
-
-    for (result in results) {
-        val key = result.courseNo
-        val partial = courseService.parseNodeToSchedule(result.node)
-        val room = (result.classRoomNo ?: "").trim()
-        val dedupedRoom = Course.dedupRooms(room)
-        val partialClassroomMap = if (dedupedRoom.isEmpty()) emptyMap() else buildMap {
-            for ((day, periods) in partial) {
-                for (period in periods) put("$day-$period", dedupedRoom)
-            }
+@Composable
+private fun visibleSheetHeight(sheetState: DetentSheetState): Dp {
+    val density = LocalDensity.current
+    val containerHeightPx = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+    val height by remember(sheetState, containerHeightPx) {
+        derivedStateOf {
+            val offset = sheetState.offset.takeUnless { it.isNaN() } ?: 0f
+            with(density) { (containerHeightPx - offset).coerceAtLeast(0f).toDp() }
         }
-        val existing = seen[key]
-        if (existing != null) {
-            val merged = existing.schedule.toMutableMap()
-            for ((day, periods) in partial) {
-                merged[day] = (merged[day] ?: emptyList()) + periods
-            }
-            val newClassroom = when {
-                existing.classroom.isEmpty() -> Course.dedupRooms(room)
-                room.isEmpty() -> existing.classroom
-                else -> Course.dedupRooms("${existing.classroom}, $room")
-            }
-            val nodeStr = when {
-                existing.nodeDisplay.isEmpty() -> result.node ?: ""
-                result.node.isNullOrEmpty() -> existing.nodeDisplay
-                else -> "${existing.nodeDisplay}, ${result.node}"
-            }
-            seen[key] = existing.copy(
-                classroom = newClassroom,
-                schedule = merged,
-                classroomMap = existing.classroomMap + partialClassroomMap,
-                nodeDisplay = nodeStr,
-                // Same first-non-empty rule as CourseService.lookupOrFallback:
-                // the row naming the dimension need not be the first seen.
-                dimension = CourseService.firstNonEmpty(listOf(existing.dimension, result.dimension)),
-                allYear = CourseService.firstNonEmpty(listOf(existing.allYear, result.allYear)),
-                requireOption = CourseService.firstNonEmpty(listOf(existing.requireOption, result.requireOption)),
-            )
+    }
+    return height
+}
+
+/** The spinner while nothing is stored yet, the field's prompt before a query, and "not found" after one. */
+@Composable
+private fun EmptyState(blank: Boolean, model: CourseSearchModel, visibleHeight: Dp) {
+    val message = when {
+        model.isSearching -> null
+        blank -> R.string.add_course_placeholder
+        model.hasSearched && model.failure == null -> R.string.add_course_not_found
+        else -> return
+    }
+    Box(modifier = Modifier.fillMaxWidth().height(visibleHeight), contentAlignment = Alignment.Center) {
+        if (message == null) {
+            CircularProgressIndicator()
         } else {
-            order.add(key)
-            seen[key] = GroupedCourse(
-                courseNo = result.courseNo,
-                courseName = result.courseName,
-                instructor = result.courseTeacher,
-                credits = result.creditPoint.toCreditsOrZero(),
-                classroom = result.classRoomNo ?: "",
-                enrolledCount = result.chooseStudent ?: 0,
-                maxCount = result.maxEnrollment,
-                schedule = partial,
-                classroomMap = partialClassroomMap,
-                nodeDisplay = result.node ?: "",
-                dimension = CourseService.firstNonEmpty(listOf(result.dimension)),
-                allYear = CourseService.firstNonEmpty(listOf(result.allYear)),
-                requireOption = CourseService.firstNonEmpty(listOf(result.requireOption)),
+            Text(
+                stringResource(message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
         }
-    }
-
-    return order.mapNotNull { seen[it] }
-}
-
-/**
- * Run [groupResults] on each language's payload and stitch them together so
- * each course carries both its zh and en names. When the input language
- * differs from the UI language we surface the other-language name in
- * parentheses ("English (中文)" or "中文 (English)") so users searching in a
- * language they don't read recognize their result.
- */
-private fun groupBilingualResults(
-    zhResults: List<CourseSearchResult>,
-    enResults: List<CourseSearchResult>,
-    courseService: CourseService,
-    uiLang: String,
-    queryLang: String,
-): List<GroupedCourse> {
-    val zhGroups = groupResults(zhResults, courseService).associateBy { it.courseNo }
-    val enGroups = groupResults(enResults, courseService).associateBy { it.courseNo }
-
-    val primaryGroups = if (uiLang == "zh") zhGroups else enGroups
-    val secondaryGroups = if (uiLang == "zh") enGroups else zhGroups
-
-    // Preserve UI-language ordering; tack on any courses only the other
-    // language matched (covers the case where the API returns nothing for the
-    // UI language but the bilingual query still found a match).
-    val orderedKeys = LinkedHashSet<String>().apply {
-        addAll(primaryGroups.keys)
-        addAll(secondaryGroups.keys)
-    }
-    val showBilingual = queryLang != uiLang
-
-    return orderedKeys.mapNotNull { key ->
-        val primary = primaryGroups[key]
-        val secondary = secondaryGroups[key]
-        val base = primary ?: secondary ?: return@mapNotNull null
-        val primaryName = primary?.courseName?.takeIf { it.isNotBlank() }
-            ?: secondary?.courseName.orEmpty()
-        val secondaryName = secondary?.courseName
-        val displayName =
-            if (showBilingual && !secondaryName.isNullOrBlank() && secondaryName != primaryName) {
-                "$primaryName ($secondaryName)"
-            } else primaryName
-        base.copy(courseName = displayName)
     }
 }

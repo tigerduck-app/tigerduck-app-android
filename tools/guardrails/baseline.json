@@ -640,23 +640,6 @@
     "count": 493
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
-    "kind": "long-file",
-    "count": 665
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
-    "kind": "long-function",
-    "name": "AddCourseSheet(String, Set<String>, CourseService, DetentSheetState, (Course)->Boolean, (String)->Unit, ()->Unit)",
-    "lines": 393
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
-    "kind": "long-function",
-    "name": "search()",
-    "lines": 119
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableCellLayout.kt",
     "kind": "long-function",
     "name": "ClassTableCellLayout.roleAt(List<Course>, List<TimetablePeriod>, Int, Int)",
@@ -721,7 +704,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-file",
-    "count": 2074
+    "count": 2071
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",

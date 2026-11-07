@@ -1107,9 +1107,6 @@ class ClassTableViewModel @Inject constructor(
         selectedIsSomeoneElses = false
     }
 
-    val existingCourseNos: Set<String>
-        get() = _courses.value.map { it.courseNo }.toSet()
-
     fun addCourse(course: Course): Boolean {
         if (isShowingSomeoneElse) return false
         wouldCauseTripleConflict(course)?.let {

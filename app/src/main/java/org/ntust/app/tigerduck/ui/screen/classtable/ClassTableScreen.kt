@@ -836,7 +836,7 @@ fun ClassTableScreen(
             val currentSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             AddCourseSheet(
                 semester = currentSemester,
-                existingCourseNos = viewModel.existingCourseNos,
+                tableCourses = viewModel.courses.collectAsStateWithLifecycle().value,
                 courseService = viewModel.courseService,
                 sheetState = addCourseSheetState,
                 onAdd = { viewModel.addCourse(it) },
