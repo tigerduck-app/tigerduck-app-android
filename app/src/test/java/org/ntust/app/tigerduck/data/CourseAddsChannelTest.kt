@@ -397,7 +397,7 @@ class CourseAddsChannelTest {
 
     /** LWW D13's stamp-0 add: kept only where none waits, and sent as the oldest. */
     @Test
-    fun `an add queued as the oldest goes as old as the wall clock reads, and leaves a waiting add as it is`() = runTest {
+    fun `an add queued as the oldest goes as hlc 0, and leaves a waiting add as it is`() = runTest {
         cache.saveCourses(listOf(typed, untyped), term, signIn)
         val adds = v4Adds()
         backend.answer(upload, 500, "{}")
@@ -411,7 +411,7 @@ class CourseAddsChannelTest {
         adds.drain(signIn)
         assertEquals(
             """{"courses":[${row(typed)},${row(untyped)}],"adds":[{"course_key":"${key(typed)}","age_ms":0},""" +
-                """{"course_key":"${key(untyped)}","age_ms":$nowMs}]}""",
+                """{"course_key":"${key(untyped)}","hlc":0}]}""",
             backend.sent.single().body,
         )
     }

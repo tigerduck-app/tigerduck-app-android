@@ -14,11 +14,15 @@ import javax.inject.Singleton
  * which [DeviceClocks.ageMs] reads at each send, and the backend stamps the edit with its arrival
  * less that age, so no device time is ever compared with the backend's.
  *
- * An edit an older build queued kept its wall time alone, and so do the oldest value ([OLDEST]) and
- * an entry given its old-entry time ([org.ntust.app.tigerduck.sync.outbox.OldEntryTime]): with no
- * [elapsedMs] or [boot], each ages by the wall clock.
+ * An edit an older build queued kept its wall time alone, and so does an entry given its old-entry
+ * time ([org.ntust.app.tigerduck.sync.outbox.OldEntryTime]): with no [elapsedMs] or [boot], each
+ * ages by the wall clock. The oldest value ([OLDEST]) has no age at all: it goes as `hlc: 0`
+ * ([DeviceClocks.stampOf]).
  */
 data class EditTime(val wallMs: Long, val elapsedMs: Long? = null, val boot: Int? = null) {
+
+    /** Whether this is the oldest edit there is ([OLDEST]), the one way to say so. */
+    val isOldest: Boolean get() = this == OLDEST
 
     /** Whether this and [other] were read in one known boot, so their elapsed times compare. */
     fun sameBootAs(other: EditTime): Boolean =
@@ -38,16 +42,40 @@ data class EditTime(val wallMs: Long, val elapsedMs: Long? = null, val boot: Int
     companion object {
         /**
          * The oldest edit there is (LWW D13): a value this phone held before its category ever
-         * synced, which fills only a field the backend holds no stamp for. Its age is the wall
-         * clock's whole reading, which the backend holds at its cap of a year.
+         * synced, an add an upload names with no time, an old-entry time of 0. It fills only a
+         * field the backend holds no stamp for, so it goes as the stamp 0 ([EditStamp.Oldest]),
+         * never as an age, which the backend would date at most a year back.
          */
         val OLDEST = EditTime(0L)
     }
 }
 
 /**
- * This device's clocks, for an edit's time ([now]) and its age at a send ([ageMs]): the one home of
- * the `age_ms` rule. A test hands in its own wall clock, elapsed clock and boot count.
+ * What a write sends to date an edit (backend 4.3.0): its age ([Age], `age_ms`), or for the oldest
+ * value ([EditTime.OLDEST]) the stamp 0 ([Oldest], `hlc: 0`), as before `age_ms`, which loses to
+ * every stamp the backend holds; the backend keeps taking `hlc` for zero stamps. [ageMs] and [hlc]
+ * are the two fields, each null where the stamp sends none, so a write sends exactly one.
+ */
+sealed interface EditStamp {
+    val ageMs: Long?
+    val hlc: Long?
+
+    /** An edit's age at this send, in ms. */
+    data class Age(override val ageMs: Long) : EditStamp {
+        override val hlc: Long? get() = null
+    }
+
+    /** The oldest value: the one place it turns into `hlc: 0`. */
+    data object Oldest : EditStamp {
+        override val ageMs: Long? get() = null
+        override val hlc: Long get() = 0L
+    }
+}
+
+/**
+ * This device's clocks, for an edit's time ([now]) and what a write sends to date it ([stampOf],
+ * from its age, [ageMs]): the one home of the `age_ms` rule. A test hands in its own wall clock,
+ * elapsed clock and boot count.
  */
 @Singleton
 class DeviceClocks internal constructor(
@@ -67,6 +95,9 @@ class DeviceClocks internal constructor(
      * milliseconds since, by [EditTime.ageAt]. 0 for an edit made now, which keeps no time (null).
      */
     fun ageMs(madeAt: EditTime?): Long = madeAt?.ageAt(now()) ?: 0L
+
+    /** What a write sends for an edit made at [madeAt], read now: [EditStamp.Oldest] for the oldest, else its [ageMs]. */
+    fun stampOf(madeAt: EditTime?): EditStamp = if (madeAt?.isOldest == true) EditStamp.Oldest else EditStamp.Age(ageMs(madeAt))
 
     companion object {
         /** The wall clock alone, with no elapsed clock or boot: for a queue or a client a test builds without the device's. */

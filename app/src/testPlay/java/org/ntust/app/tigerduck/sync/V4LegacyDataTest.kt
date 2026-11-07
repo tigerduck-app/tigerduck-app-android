@@ -166,8 +166,8 @@ class V4LegacyDataTest {
 
             rig.outbox.drain(signIn)
 
-            // As the oldest: as old as the wall clock reads, which the backend holds at a year.
-            assertEquals(listOf("DELETE /v4/sync/courses/client:$TERM:CS1001?age_ms=$NOW_MS | "), sent(from, "DELETE "))
+            // As the oldest: hlc 0, which loses to every stamp the backend holds.
+            assertEquals(listOf("DELETE /v4/sync/courses/client:$TERM:CS1001?hlc=0 | "), sent(from, "DELETE "))
             assertEquals(emptyList<String>(), rules.refused)
         }
 

@@ -143,6 +143,16 @@ class AgeMsQueuesTest {
     }
 
     @Test
+    fun `a holiday choice an older build left with no time, and no first run known, goes as the oldest, hlc 0`() = runTest {
+        prefs.holidayNotifyOverrides = setOf(5)
+        prefs.holidayOverridesAwaitingUpload = setOf(5)
+
+        PendingHolidayOverrides(prefs, client).drain(signIn)
+
+        assertEquals("""{"notify":true,"hlc":0}""", backend.sent.single().body)
+    }
+
+    @Test
     fun `an older build's course override row, with its wall time alone, still loads`() = runTest {
         File(context.filesDir, "TigerDuckData/pending_course_overrides.json").apply { parentFile?.mkdirs() }.writeText(
             """[{"moodleId":"${term}CS1","colorHex":"#FF0000","changedAtMs":5,"semester":"$term","courseNo":"CS1","attempts":0,"seq":3,"madeAtMs":5}]""",

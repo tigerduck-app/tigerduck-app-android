@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.push
 
 import com.google.gson.annotations.SerializedName
+import org.ntust.app.tigerduck.sync.EditStamp
 
 // v3 device registration DTOs.
 // @SerializedName is load-bearing on every field: these classes have no R8
@@ -77,9 +78,16 @@ data class AnonymousDeviceRequest(
  */
 data class HolidayOverrideRequest(
     @SerializedName("notify") val notify: Boolean,
-    /** The choice's age at this send, in ms (`age_ms`), which the backend stamps it by. */
-    @SerializedName("age_ms") val ageMs: Long,
-)
+    /** The choice's age at this send, in ms (`age_ms`), which the backend stamps it by; null for the oldest. */
+    @SerializedName("age_ms") val ageMs: Long? = null,
+    /** The oldest choice's stamp 0 (`hlc`), in place of an age; null for every other, which Gson leaves out. */
+    @SerializedName("hlc") val hlc: Long? = null,
+) {
+    companion object {
+        /** [notify] with [stamp]'s one field. */
+        fun of(notify: Boolean, stamp: EditStamp) = HolidayOverrideRequest(notify, stamp.ageMs, stamp.hlc)
+    }
+}
 
 data class UpdateDevicePreferencesRequest(
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,

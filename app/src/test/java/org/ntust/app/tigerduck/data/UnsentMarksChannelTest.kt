@@ -569,7 +569,7 @@ class UnsentMarksChannelTest {
     }
 
     @Test
-    fun `a mark queued as the oldest goes as old as the wall clock reads, and only when none waits for its assignment`() = runTest {
+    fun `a mark queued as the oldest goes as hlc 0, and only when none waits for its assignment`() = runTest {
         val marks = v4Marks()
         prefs.syncAssignments = false
         marks.send("8", "ignored", signIn)
@@ -580,7 +580,8 @@ class UnsentMarksChannelTest {
         prefs.syncAssignments = true
         marks.drain(signIn)
 
-        assertEquals(listOf(0L, nowMs), v4Backend.sent.map(::ageOf))
+        assertEquals(listOf(0L, null), v4Backend.sent.map(::ageOf))
+        assertEquals("""{"local_status":"ignored","hlc":0}""", v4Backend.sent.last().body)
     }
 
     @Test

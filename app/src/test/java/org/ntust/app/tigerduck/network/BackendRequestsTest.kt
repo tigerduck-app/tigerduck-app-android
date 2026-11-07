@@ -72,11 +72,11 @@ class BackendRequestsTest {
         )
         assertSameRequest(
             Request.Builder().url("$base/sync/courses/client:114-1:CS1001?age_ms=7").delete().header("Authorization", auth).build(),
-            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, null),
+            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, null, null),
         )
         assertSameRequest(
             Request.Builder().url("$base/sync/courses/client:114-1:CS1001?age_ms=7&kind=remove").delete().header("Authorization", auth).build(),
-            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, "remove"),
+            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, null, "remove"),
         )
     }
 
@@ -88,11 +88,11 @@ class BackendRequestsTest {
             Request.Builder()
                 .url("$base/sync/courses?semester=${java.net.URLEncoder.encode(semester, "UTF-8")}&age_ms=7")
                 .delete().header("Authorization", auth).build(),
-            api.removeCourses(auth, java.net.URLEncoder.encode(semester, "UTF-8"), EmptyBody, 7),
+            api.removeCourses(auth, java.net.URLEncoder.encode(semester, "UTF-8"), EmptyBody, 7, null),
         )
         assertSameRequest(
             Request.Builder().url("$base/sync/courses?age_ms=7").delete().header("Authorization", auth).build(),
-            api.removeCourses(auth, null, EmptyBody, 7),
+            api.removeCourses(auth, null, EmptyBody, 7, null),
         )
     }
 

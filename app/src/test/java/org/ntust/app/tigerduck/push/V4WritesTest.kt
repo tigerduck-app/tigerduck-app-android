@@ -186,8 +186,8 @@ class V4WritesTest {
         val body = JSONObject(sent.body!!)
         assertEquals(setOf("courses", "adds", "roster_terms"), body.keys().asSequence().toSet())
         assertEquals(
-            // The add with no time as the oldest: as old as the wall clock reads, which the backend holds at a year.
-            listOf(mapOf("course_key" to "client:1151:XA0000009", "age_ms" to 2500), mapOf("course_key" to "client:1151:XA0000008", "age_ms" to nowMs)),
+            // The add with no time as the oldest: hlc 0, which loses to every stamp the backend holds.
+            listOf(mapOf("course_key" to "client:1151:XA0000009", "age_ms" to 2500), mapOf("course_key" to "client:1151:XA0000008", "hlc" to 0)),
             plain(body.getJSONArray("adds")),
         )
         assertEquals(listOf("XA0000001", "XA0000009", "XA0000008"), (0 until 3).map { body.getJSONArray("courses").getJSONObject(it).getString("course_no") })
@@ -201,7 +201,7 @@ class V4WritesTest {
         val body = JSONObject(backend.sent.single().body!!)
         assertTrue("no adds in $body", body.has("adds"))
         assertEquals(
-            listOf(mapOf("course_key" to "client:1151:XA0000001", "age_ms" to nowMs), mapOf("course_key" to "client:1151:XA0000008", "age_ms" to nowMs)),
+            listOf(mapOf("course_key" to "client:1151:XA0000001", "hlc" to 0), mapOf("course_key" to "client:1151:XA0000008", "hlc" to 0)),
             plain(body.getJSONArray("adds")),
         )
         assertEquals(setOf("courses", "adds"), body.keys().asSequence().toSet())

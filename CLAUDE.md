@@ -199,9 +199,11 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   4.3.0): the elapsed clock's within one boot (`Settings.Global.BOOT_COUNT`), else the
   wall clock's, never below 0, read again at each send and retry. The backend stamps an
   edit with its arrival less its age, so no code compares a device time with a server
-  time. `AnswerArrivals` (`sync/outbox/`) holds the per-key rule: an edit made while an
-  earlier send of its field was out counts its age from that answer's arrival.
-  `EditAgeTest` and `AnswerArrivalsTest` pin both.
+  time. The oldest value (`EditTime.OLDEST`, LWW D13) has no age: `DeviceClocks.stampOf`
+  makes it `EditStamp.Oldest`, the one place it turns into `hlc: 0`, which loses to every
+  stored stamp. `AnswerArrivals` (`sync/outbox/`) holds the per-key rule: an edit made
+  while an earlier send of its field was out counts its age from that answer's arrival.
+  `EditAgeTest`, `OldestWritesTest` and `AnswerArrivalsTest` pin them.
 - `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
   backend whatever its version segment says; and the backend's error code, read once

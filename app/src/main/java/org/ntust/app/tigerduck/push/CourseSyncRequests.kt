@@ -232,7 +232,7 @@ internal class CourseSyncRequests(
             // With the hide's age, which the backend applies only when later than the course's last
             // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
             // since on another device, and a retry after a lost reply lands on about the same stamp.
-            sendAged({ service.removeCourse(header, courseKey, EmptyBody, clocks.ageMs(hiddenAt), kind?.wire) }) {
+            sendAged({ clocks.stampOf(hiddenAt).let { service.removeCourse(header, courseKey, EmptyBody, it.ageMs, it.hlc, kind?.wire) } }) {
                 answerOf(it, "deleteCourse", WriteAnswer.MEMBERSHIP)
             }
         }
@@ -245,8 +245,8 @@ internal class CourseSyncRequests(
      * wipe every term's local overlay — an unscoped reset still stamps it and
      * still means "wipe everything". Reset is offered per term because the
      * timetable is now per term; see `DELETE /sync/courses` in the backend's
-     * `routes/sync/courses.py`. It carries the age of [resetAt], the time it
-     * was asked, or 0 for one asked now (null).
+     * `routes/sync/courses.py`. It carries the stamp of [resetAt], the time it
+     * was asked ([org.ntust.app.tigerduck.sync.DeviceClocks.stampOf]), 0 old for one asked now (null).
      */
     suspend fun deleteAllCourses(semester: String?, signIn: SignIn, resetAt: EditTime?): WriteAnswer =
         withContext(Dispatchers.IO) {
@@ -255,7 +255,7 @@ internal class CourseSyncRequests(
             val header = authHeader(signIn)
             val term = semester?.let { java.net.URLEncoder.encode(it, "UTF-8") }
             val reset: suspend () -> WriteAnswer = {
-                sendAged({ service.removeCourses(header, term, EmptyBody, clocks.ageMs(resetAt)) }) {
+                sendAged({ clocks.stampOf(resetAt).let { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) } }) {
                     answerOf(it, "deleteAllCourses", WriteAnswer.RESET)
                 }
                     // The upload after the reset, usually the list sent before it,

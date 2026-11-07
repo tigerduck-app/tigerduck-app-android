@@ -105,7 +105,8 @@ class CourseMembershipStampTest {
         assertNull(sent.protocol)
         val add = JSONObject(sent.body).getJSONArray("adds").getJSONObject(0)
         assertEquals(KEY, add.getString("course_key"))
-        assertEquals("as old as the wall clock reads", NOW, add.getLong("age_ms"))
+        assertEquals("the oldest, as before age_ms", 0L, add.getLong("hlc"))
+        assertFalse(add.has("age_ms"))
     }
 
     private fun course() = Course(courseNo = NO, courseName = NO, isManual = true)

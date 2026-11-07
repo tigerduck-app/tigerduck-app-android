@@ -63,7 +63,7 @@ class AnswerArrivals internal constructor(
      * value ([EditTime.OLDEST]) stays the oldest.
      */
     fun ageFrom(field: String, madeAt: EditTime): EditTime {
-        if (madeAt == EditTime.OLDEST) return madeAt
+        if (madeAt.isOldest) return madeAt
         val arrived = synchronized(lock) { read()[field] } ?: return madeAt
         return if (madeAt.isBefore(arrived)) arrived else madeAt
     }

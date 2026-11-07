@@ -449,7 +449,7 @@ class CourseDeletesChannelTest {
 
     /** LWW D13's stamp-0 delete: kept only where none waits, and sent as the oldest. */
     @Test
-    fun `a delete queued as the oldest goes as old as the wall clock reads, and leaves a waiting delete as it is`() = runTest {
+    fun `a delete queued as the oldest goes as hlc 0, and leaves a waiting delete as it is`() = runTest {
         val (deletes, _) = v4Deletes()
         prefs.syncCourses = false
         deletes.send(term, typed, EditTime(1_790_000_000_001L), signIn)
@@ -461,7 +461,7 @@ class CourseDeletesChannelTest {
         prefs.syncCourses = true
         deletes.drain(signIn)
         assertEquals(
-            listOf("$v4/sync/courses/client:$term:$typed?age_ms=0&kind=remove", "$v4/sync/courses/client:$term:$other?age_ms=$nowMs&kind=remove"),
+            listOf("$v4/sync/courses/client:$term:$typed?age_ms=0&kind=remove", "$v4/sync/courses/client:$term:$other?hlc=0&kind=remove"),
             backend.sent.map { it.url },
         )
     }

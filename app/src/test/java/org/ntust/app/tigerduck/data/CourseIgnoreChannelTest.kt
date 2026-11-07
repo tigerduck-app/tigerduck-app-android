@@ -561,7 +561,7 @@ class CourseIgnoreChannelTest {
 
     /** LWW D13's stamp-0 setting: kept only where none waits, and sent as the oldest. */
     @Test
-    fun `a setting queued as the oldest goes as old as the wall clock reads, and leaves a waiting change as it is`() = runTest {
+    fun `a setting queued as the oldest goes as hlc 0, and leaves a waiting change as it is`() = runTest {
         val ignores = v4Ignores()
         queue(change("AAA"))
 
@@ -573,7 +573,7 @@ class CourseIgnoreChannelTest {
         assertEquals(
             listOf(
                 v4Patch("AAA", """{"ignore_assignments":true,"age_ms":${nowMs - madeAtMs}}"""),
-                v4Patch("BBB", """{"ignore_assignments":true,"age_ms":$nowMs}"""),
+                v4Patch("BBB", """{"ignore_assignments":true,"hlc":0}"""),
             ),
             v4Backend.sent.map { it.shape() },
         )

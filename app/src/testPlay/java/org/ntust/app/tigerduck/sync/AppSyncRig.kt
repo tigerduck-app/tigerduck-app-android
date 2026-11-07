@@ -51,11 +51,12 @@ internal fun appBackendClient(prefs: AppPreferences, backend: OkHttpClient, rule
 
 /**
  * `/v4`'s rules for a write, ahead of the backend's stand-in (`docs/api-v4.md`, "Mapping",
- * "Course upload" and "Edit stamps"): a write that takes a stamp and comes without `age_ms` is
- * refused with 422 `hlc_required`, as is an add without one, and an upload that carries
- * `force_keys` or `course_overrides` with 422 `invalid_request`. One that sends an `hlc`, which
- * this build never does, is refused too, with the test's own 422 `hlc_sent`. Each refusal is kept
- * in [refused]; every other request goes on as it came.
+ * "Course upload" and "Edit stamps"): a write that takes a stamp and comes with neither `age_ms`
+ * nor the oldest's `hlc: 0` is refused with 422 `hlc_required`, as is an add without one, and an
+ * upload that carries `force_keys` or `course_overrides` with 422 `invalid_request`. One that
+ * sends an `hlc` other than the oldest's 0, or one beside an `age_ms`, which this build never does,
+ * is refused too, with the test's own 422 `hlc_sent`. Each refusal is kept in [refused]; every
+ * other request goes on as it came.
  */
 internal class V4WriteRules : Interceptor {
     val refused = CopyOnWriteArrayList<String>()
@@ -72,12 +73,14 @@ internal class V4WriteRules : Interceptor {
             else -> false
         }
         val adds = body?.optJSONArray("adds")?.let { adds -> (0 until adds.length()).map(adds::getJSONObject) }.orEmpty()
+        // Each stamp the request carries, its age and its hlc: its own, from its query or body, and each add's.
+        val own = (request.url.queryParameter("age_ms") ?: body?.opt("age_ms")) to (request.url.queryParameter("hlc") ?: body?.opt("hlc"))
+        val stamps = adds.map { it.opt("age_ms") to it.opt("hlc") } + listOfNotNull(own.takeIf { stamped })
         val code = when {
-            request.url.queryParameter("hlc") != null || body?.has("hlc") == true || adds.any { it.has("hlc") } -> "hlc_sent"
-            stamped && request.url.queryParameter("age_ms") == null && body?.has("age_ms") != true -> "hlc_required"
+            stamps.any { (age, hlc) -> hlc != null && (age != null || hlc.toString() != "0") } -> "hlc_sent"
+            stamps.any { (age, hlc) -> age == null && hlc == null } -> "hlc_required"
             path == "/v4/sync/courses/upload" && body != null && (body.has("force_keys") || body.has("course_overrides")) ->
                 "invalid_request"
-            path == "/v4/sync/courses/upload" && adds.any { !it.has("age_ms") } -> "hlc_required"
             else -> null
         }
         if (code == null) {

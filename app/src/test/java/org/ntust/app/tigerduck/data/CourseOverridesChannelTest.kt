@@ -933,7 +933,7 @@ class CourseOverridesChannelTest {
 
     /** LWW D13's stamp-0 change: kept only where none waits, and sent as the oldest. */
     @Test
-    fun `a change queued as the oldest goes as old as the wall clock reads, and leaves a waiting change as it is`() = runTest {
+    fun `a change queued as the oldest goes as hlc 0, and leaves a waiting change as it is`() = runTest {
         val overrides = v4Overrides()
         prefs.syncCourseColors = false
         overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn)
@@ -944,7 +944,7 @@ class CourseOverridesChannelTest {
         overrides.drain(signIn)
 
         assertEquals(listOf("#FF0000", "#654321"), v4Backend.sent.map { Regex(""""color_hex":"([^"]+)"""").find(it.body.orEmpty())?.groupValues?.get(1) })
-        assertTrue(v4Backend.sent.last().body.orEmpty().endsWith(""","age_ms":$nowMs}"""))
+        assertEquals("""{"color_hex":"#654321","hlc":0}""", v4Backend.sent.last().body)
     }
 
     private companion object {

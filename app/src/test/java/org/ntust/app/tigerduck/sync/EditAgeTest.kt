@@ -7,7 +7,8 @@ import org.junit.Test
 
 /**
  * An edit's `age_ms` (backend 4.3.0): the milliseconds from the edit to its send, by the elapsed
- * clock when both fall in one boot, else by the wall clock, never below 0, read again at every send.
+ * clock when both fall in one boot, else by the wall clock, never below 0, read again at every send;
+ * and the oldest value's `hlc: 0`, which no age stands for.
  */
 class EditAgeTest {
 
@@ -91,8 +92,14 @@ class EditAgeTest {
     }
 
     @Test
-    fun `the oldest edit is as old as the wall clock is`() {
-        assertEquals(wall, clocks.ageMs(EditTime.OLDEST))
+    fun `the oldest edit goes as the stamp 0, never with an age, and every other edit with its age`() {
+        val oldest = clocks.stampOf(EditTime.OLDEST)
+        // An old-entry time of 0 is the oldest too: the one way to say it.
+        assertEquals(EditStamp.Oldest, clocks.stampOf(EditTime(0L)))
+        assertEquals(listOf(null, 0L), listOf(oldest.ageMs, oldest.hlc))
+        assertEquals(EditStamp.Age(wall - 1), clocks.stampOf(EditTime(1L)))
+        assertEquals(EditStamp.Age(0L), clocks.stampOf(null))
+        assertEquals(listOf(true, false, false), listOf(EditTime.OLDEST.isOldest, EditTime(1L).isOldest, EditTime(0L, 5L, 7).isOldest))
     }
 
     @Test

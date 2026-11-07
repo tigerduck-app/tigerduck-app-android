@@ -82,24 +82,27 @@ internal interface PushApi {
     fun coursesUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
 
     /**
-     * [ageMs] the hide's age at this send, in ms (`age_ms`); [kind] `hide` or `remove`
-     * (`CourseDeleteKind`), or null for none, where the backend decides from its row.
+     * [ageMs] the hide's age at this send, in ms (`age_ms`), or for the oldest hide [hlc] 0 in its
+     * place, each null where it goes not ([org.ntust.app.tigerduck.sync.EditStamp]); [kind] `hide` or
+     * `remove` (`CourseDeleteKind`), or null for none, where the backend decides from its row.
      */
     @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
     fun removeCourse(
         @Header("Authorization") auth: String,
         @Path("courseKey", encoded = true) courseKey: String,
         @Body empty: RequestBody,
-        @Query(AGE_MS) ageMs: Long,
+        @Query(AGE_MS) ageMs: Long?,
+        @Query(HLC) hlc: Long?,
         @Query("kind") kind: String?,
     ): Call
 
-    /** [semester] form-encoded already (`URLEncoder`), or null for every term; [ageMs] the reset's age. */
+    /** [semester] form-encoded already (`URLEncoder`), or null for every term; [ageMs] or [hlc] the reset's stamp, as [removeCourse]'s. */
     @HTTP(method = "DELETE", path = "sync/courses", hasBody = true)
     fun removeCourses(
         @Header("Authorization") auth: String,
         @Query("semester", encoded = true) semester: String?,
         @Body empty: RequestBody,
-        @Query(AGE_MS) ageMs: Long,
+        @Query(AGE_MS) ageMs: Long?,
+        @Query(HLC) hlc: Long?,
     ): Call
 }
