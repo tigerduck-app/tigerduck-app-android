@@ -3,16 +3,20 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
+import java.io.File
 import java.util.Locale
 
 /**
  * What the class table's color sheet keeps for the color applied ([storedCourseColorHex]). In dark
  * mode the sheet opens on the color a course shows, a dark variant, and kept as is it stayed dark
- * in light mode too. A color typed in is kept as typed, though, a dark variant too.
+ * in light mode too. A color typed in is kept as typed, though, a dark variant too. The sheet holds
+ * the color it opened on, so the course's color is read once, there: a sync can change it while the
+ * sheet is open. Read from the source, as [AddCourseSheetTermTest] does.
  */
 class CourseRecolorStoredHexTest {
 
@@ -53,6 +57,24 @@ class CourseRecolorStoredHexTest {
 
         assertEquals("#123456", storedCourseColorHex(color(0x123456), darkPalette = true, kept = kept))
         assertEquals("#123456", storedCourseColorHex(color(0x123456), darkPalette = false, kept = kept))
+    }
+
+    @Test
+    fun `the sheet reads the course's color once, when it opens`() {
+        val rel = "src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/CourseRecolorSheet.kt"
+        var dir: File? = File("").absoluteFile
+        var source: String? = null
+        while (dir != null && source == null) {
+            source = listOf(File(dir, rel), File(dir, "app/$rel")).firstOrNull { it.isFile }?.readText()
+            dir = dir.parentFile
+        }
+        checkNotNull(source) { "Could not locate CourseRecolorSheet.kt from ${File("").absolutePath}" }
+
+        assertTrue(
+            "kept from the sheet's opening",
+            Regex("""val opened = remember\(course\.courseNo\) \{ TigerDuckTheme\.courseColorVibrant""").containsMatchIn(source),
+        )
+        assertTrue("applied against it", Regex("""storedCourseColorHex\(picked, darkPalette, opened\)""").containsMatchIn(source))
     }
 
     @Test

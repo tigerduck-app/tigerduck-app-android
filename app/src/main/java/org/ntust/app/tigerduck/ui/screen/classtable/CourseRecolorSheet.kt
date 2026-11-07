@@ -24,6 +24,8 @@ internal fun CourseRecolorSheet(course: Course, courses: List<Course>, onApply: 
     // Each course's color as the palette above has it.
     val shown = if (darkPalette) TigerDuckTheme::courseColor else TigerDuckTheme::courseColorVibrant
     val currentColor = shown(course.courseNo)
+    // The course's color as the sheet opened on it, which the picker holds: a sync can change it meanwhile.
+    val opened = remember(course.courseNo) { TigerDuckTheme.courseColorVibrant(course.courseNo) }
     val usedByOthers = remember(courses, course.courseNo, darkPalette) {
         courses
             .asSequence()
@@ -36,7 +38,7 @@ internal fun CourseRecolorSheet(course: Course, courses: List<Course>, onApply: 
         currentColor = currentColor,
         presetPalette = displayPalette,
         usedByOthers = usedByOthers,
-        onApply = { picked -> onApply(storedCourseColorHex(picked, darkPalette, TigerDuckTheme.courseColorVibrant(course.courseNo))) },
+        onApply = { picked -> onApply(storedCourseColorHex(picked, darkPalette, opened)) },
         onDismiss = onDismiss,
     )
 }
