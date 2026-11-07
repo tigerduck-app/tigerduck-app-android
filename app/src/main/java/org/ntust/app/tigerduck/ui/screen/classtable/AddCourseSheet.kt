@@ -10,15 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -84,6 +88,9 @@ internal fun AddCourseSheet(
     val fetch = rememberCatalogFetch(access)
     val language = remember { courseService.preferredCourseApiLanguage() }
     var searchText by remember { mutableStateOf("") }
+    var page by remember { mutableStateOf(AddCoursePage.Search) }
+    // The search field takes focus once, as the sheet opens, and not again back from the filters.
+    var focused by remember { mutableStateOf(false) }
     // The courses added while this sheet is open, kept across searches: each stays tappable, and
     // a second tap takes it back out. Courses already on the class table are not in it.
     var sessionAddedCourseNos by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -97,28 +104,30 @@ internal fun AddCourseSheet(
         model.search(query, semester, fetch)
     }
 
+    if (page != AddCoursePage.Search) {
+        val busy = remember(table) { table.flatMapTo(HashSet()) { it.slots } }
+        CourseSearchFilterPages(page, { page = it }, model, busy, language)
+        return
+    }
     val shown = remember(model.results, table, model.filters) {
         AddCourseResults.shown(model.results, language, table, model.filters, courseService::parseNodeToSchedule)
     }
-    val foundByNumber = remember(model.results, query) { CourseSearch.foundByNumber(query, model.results) }
-    val existingCourseNos = remember(table) { table.mapTo(HashSet()) { it.courseNo } }
-    val otherLanguage = CourseCatalogStore.LANGUAGES.first { it != language }
-
+    val rows = AddCourseRows(model, query, language, table, sessionAddedCourseNos)
     AddCourseSearchPage(
         searchText = searchText,
         onSearchText = { searchText = it },
         model = model,
         hasResults = shown.isNotEmpty(),
         sheetState = sheetState,
+        focus = !focused,
+        onFocused = { focused = true },
+        onFilters = { page = AddCoursePage.Filters },
         onDismiss = onDismiss,
     ) {
         items(shown, key = { it.course.courseNo }) { item ->
             val course = item.course
-            val names = AddCourseResults.names(
-                course, model.row(course.courseNo, language), model.row(course.courseNo, otherLanguage),
-                query, foundByNumber, language,
-            )
-            val state = addCourseRowState(course.courseNo, existingCourseNos, sessionAddedCourseNos)
+            val names = rows.names(course)
+            val state = rows.state(course)
             AddCourseResultRow(item, names, state) {
                 when (state) {
                     AddCourseRowState.AddedThisSession -> {
@@ -135,6 +144,27 @@ internal fun AddCourseSheet(
             HorizontalDivider()
         }
     }
+}
+
+/** What each result row says and offers, for the current results. */
+private class AddCourseRows(
+    private val model: CourseSearchModel,
+    private val query: String,
+    private val language: String,
+    table: List<CourseSearchTableCourse>,
+    private val sessionAddedCourseNos: Set<String>,
+) {
+    private val otherLanguage = CourseCatalogStore.LANGUAGES.first { it != language }
+    private val foundByNumber = CourseSearch.foundByNumber(query, model.results)
+    private val existingCourseNos = table.mapTo(HashSet()) { it.courseNo }
+
+    fun names(course: AddCourseGroup): AddCourseNames = AddCourseResults.names(
+        course, model.row(course.courseNo, language), model.row(course.courseNo, otherLanguage),
+        query, foundByNumber, language,
+    )
+
+    fun state(course: AddCourseGroup): AddCourseRowState =
+        addCourseRowState(course.courseNo, existingCourseNos, sessionAddedCourseNos)
 }
 
 /** The fetch of this sheet's sign-in: one read of it as the sheet opens, which a sign-out ends. */
@@ -160,25 +190,24 @@ private fun AddCourseSearchPage(
     model: CourseSearchModel,
     hasResults: Boolean,
     sheetState: DetentSheetState,
+    focus: Boolean,
+    onFocused: () -> Unit,
+    onFilters: () -> Unit,
     onDismiss: () -> Unit,
-    results: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
+    results: LazyListScope.() -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (focus) focusRequester.requestFocus()
+        onFocused()
+    }
     Box(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    stringResource(R.string.add_course_title),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
-            }
+            SearchHeader(filtersSet = !model.filters.isDefault, onFilters = {
+                keyboardController?.hide()
+                onFilters()
+            }, onDismiss = onDismiss)
             Spacer(Modifier.height(12.dp))
             // One field for a course number, a name or a teacher. Enter only retries a failure.
             OutlinedTextField(
@@ -192,7 +221,7 @@ private fun AddCourseSearchPage(
                     keyboardController?.hide()
                     model.submit()
                 }),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).focusRequester(focus)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).focusRequester(focusRequester)
             )
             model.failure?.let {
                 Text(
@@ -217,6 +246,28 @@ private fun AddCourseSearchPage(
             }
         }
         if (!hasResults) EmptyState(searchText.isBlank(), model, visibleSheetHeight(sheetState))
+    }
+}
+
+/** The title, the filter button, filled while any filter is off its default as on the iPhone, and Close. */
+@Composable
+private fun SearchHeader(filtersSet: Boolean, onFilters: () -> Unit, onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            stringResource(R.string.add_course_title),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = onFilters) {
+            Icon(
+                if (filtersSet) Icons.Filled.FilterAlt else Icons.Outlined.FilterAlt,
+                contentDescription = stringResource(R.string.course_search_filters),
+            )
+        }
+        TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
     }
 }
 
