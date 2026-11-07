@@ -52,6 +52,10 @@ class InformationSystemViewModel @Inject constructor(
 
     data class State(
         val items: List<PortalLink> = emptyList(),
+        /** The other language's page, which a search in that language reads too ([PortalSearch]). */
+        val otherItems: List<PortalLink> = emptyList(),
+        /** Whether [items] is the English page. */
+        val englishPage: Boolean = false,
         val loadState: LoadState = LoadState.Idle,
         val selectedCategory: PortalCategory? = null,
         val searchText: String = "",
@@ -99,7 +103,9 @@ class InformationSystemViewModel @Inject constructor(
         if (loadedFor?.second != useEnglish) {
             accountJob.cancel()
             accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
-            _state.update { applyFilters(it.copy(items = emptyList(), loadState = LoadState.Idle)) }
+            _state.update {
+                applyFilters(it.copy(items = emptyList(), otherItems = emptyList(), englishPage = useEnglish, loadState = LoadState.Idle))
+            }
         }
         // Only once there is an account to load for: a visit while signed out must not stop
         // the load that signing in triggers.
@@ -111,6 +117,9 @@ class InformationSystemViewModel @Inject constructor(
                 if (isCurrent(signIn, studentId, useEnglish)) {
                     _state.update { applyFilters(it.copy(items = cached, loadState = LoadState.Loaded)) }
                 }
+            }
+            portalService.cachedPortalLinks(studentId, !useEnglish)?.let { cached ->
+                if (isCurrent(signIn, studentId, useEnglish)) _state.update { applyFilters(it.copy(otherItems = cached)) }
             }
             refresh(useEnglish, signIn)
         }
@@ -151,6 +160,15 @@ class InformationSystemViewModel @Inject constructor(
             try {
                 val links = portalService.fetchPortalLinks(studentId, password, useEnglish, signIn)
                 publish { applyFilters(it.copy(items = links, loadState = LoadState.Loaded)) }
+                // Then the other page, which a search in its language reads too. It only widens the
+                // search: failed, it leaves this page's list as it is.
+                try {
+                    val other = portalService.fetchPortalLinks(studentId, password, !useEnglish, signIn)
+                    publish { applyFilters(it.copy(otherItems = other)) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: NtustPortalError) {
@@ -188,12 +206,9 @@ class InformationSystemViewModel @Inject constructor(
         _state.update { applyFilters(it.copy(searchText = text)) }
 
     private fun applyFilters(s: State): State {
-        val text = s.searchText.trim()
-        val displayed = s.items.asSequence()
-            .filter { s.selectedCategory == null || it.category == s.selectedCategory }
-            .filter { text.isEmpty() || it.name.contains(text, ignoreCase = true) }
-            .toList()
-        return s.copy(displayed = displayed)
+        val pairs = PortalSearch.pairs(s.items, s.otherItems)
+            .filter { s.selectedCategory == null || (it.shown ?: it.other)?.category == s.selectedCategory }
+        return s.copy(displayed = PortalSearch.search(pairs, s.searchText, uiEnglish = s.englishPage))
     }
 }
 
