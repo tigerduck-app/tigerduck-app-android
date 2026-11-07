@@ -202,8 +202,13 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   time. The oldest value (`EditTime.OLDEST`, LWW D13) has no age: `DeviceClocks.stampOf`
   makes it `EditStamp.Oldest`, the one place it turns into `hlc: 0`, which loses to every
   stored stamp. `AnswerArrivals` (`sync/outbox/`) holds the per-key rule: an edit made
-  while an earlier send of its field was out counts its age from that answer's arrival.
-  `EditAgeTest`, `OldestWritesTest` and `AnswerArrivalsTest` pin them.
+  while an earlier send of its field was out counts its age from that answer's arrival,
+  which the client keeps, on disk, before the write returns, and reads around every write
+  of a synced field, a lane's or a screen's, by the field the write names
+  (`FieldAges`, `push/EditStamp.kt`). A queue that orders its edits past the clock keeps
+  that order apart from the time (`CourseMoment`): no edit's time is ahead of the clock
+  that read it. `EditAgeTest`, `OldestWritesTest`, `AnswerArrivalsTest` and
+  `AnswerArrivalWritesTest` pin them.
 - `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
   backend whatever its version segment says; and the backend's error code, read once
@@ -214,9 +219,8 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
 - `Outbox` and `OutboxLane` (`app/.../sync/outbox/`): every unsent edit, one lane per
   channel with one request in flight, each edit timed by `DeviceClocks` (its device clocks
   kept beside its wall time, nullable) and, written by an older build with no time, by its
-  old-entry time (`OldEntryTime`), sent with its age from the lane (`OutboxLane.ageFrom`),
-  and each answer's clock kept as its field's acknowledgment (`AckClock`) and its arrival
-  in `AnswerArrivals`. The six queues (`UnsentMarks`,
+  old-entry time (`OldEntryTime`), sent with its age, and each answer's clock kept as its
+  field's acknowledgment (`AckClock`). The six queues (`UnsentMarks`,
   `PendingHolidayOverrides`, `PendingCourseOverrides`, `CourseIgnoreQueue`,
   `PendingCourseAdds`, `PendingCourseDeletes`) keep their own files and register as
   channels from them (`@IntoSet`); `OutboxTest` holds the drain order. The `sync-write`
