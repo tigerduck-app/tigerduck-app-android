@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync.outbox
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.annotation.WorkerThread
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -50,7 +51,8 @@ class AnswerArrivals internal constructor(
     /**
      * The answer to a write of [fields] under [signIn] arrived now. Nothing once [signIn] has ended.
      * On disk when this returns (`commit()`), before the write's caller goes on, so an edit kept
-     * after it never outlives it; so call it off the main thread, as the client's writes run.
+     * after it never outlives it; so call it off the main thread, as the client's writes run. A
+     * commit the disk refuses is logged, and the arrival holds for this process alone.
      */
     @WorkerThread
     fun arrived(fields: Collection<String>, signIn: SignIn) {
@@ -64,7 +66,9 @@ class AnswerArrivals internal constructor(
                     arrivals[field] = at
                 }
                 while (arrivals.size > KEPT) arrivals.remove(arrivals.keys.first())
-                prefs?.edit(commit = true) { putString(KEY_ARRIVALS, written(arrivals)) }
+                val stored = prefs?.edit()?.putString(KEY_ARRIVALS, written(arrivals))?.commit()
+                // Without the arrivals, which name the account's courses and assignments.
+                if (stored == false) Log.w(TAG, "an answer's arrival did not reach the disk")
             }
         }
     }
@@ -111,8 +115,14 @@ class AnswerArrivals internal constructor(
     }.toString()
 
     companion object {
-        /** How many fields' arrivals are kept, the latest. */
-        const val KEPT = 200
+        /**
+         * How many fields' arrivals are kept, the latest, the oldest arrival going first past it: well
+         * above the fields a Use Local sends while a tap it holds waits for one of their answers (a
+         * term's marks, colors and names). Its worth of the longest fields is under 500 KB on disk.
+         */
+        const val KEPT = 5_000
+
+        private const val TAG = "AnswerArrivals"
 
         private const val PREFS_FILE = "tigerduck_outbox_answers"
         private const val KEY_ARRIVALS = "arrivals"

@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.sync.outbox
 import android.content.SharedPreferences
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.DeviceClocks
@@ -105,14 +106,40 @@ class AnswerArrivalsTest {
     }
 
     @Test
-    fun `only the latest arrivals are kept`() {
-        val arrivals = arrivals()
+    fun `an arrival outlives a Use Local's worth of other fields' answers`() {
+        val arrivals = AnswerArrivals.inMemory(clocks)
+        val tapped = clocks.now()
+        later(1)
+        arrivals.arrived(listOf("mark:7"), series.current)
+        val answeredAt = clocks.now()
+        later(1)
+        repeat(4_999) { arrivals.arrived(listOf("other:$it"), series.current) }
+
+        assertEquals("a tap queued during Use Local still counts from its answer", answeredAt, arrivals.ageFrom("mark:7", tapped))
+    }
+
+    @Test
+    fun `past the cap the oldest arrival goes first, and one answered again is the newest`() {
+        val arrivals = AnswerArrivals.inMemory(clocks)
         val queued = clocks.now()
         later(1)
-        repeat(AnswerArrivals.KEPT + 1) { arrivals.arrived(listOf("mark:$it"), series.current) }
+        arrivals.arrived(listOf("mark:0"), series.current)
+        arrivals.arrived(listOf("mark:1"), series.current)
+        arrivals.arrived(listOf("mark:0"), series.current)
+        repeat(AnswerArrivals.KEPT - 1) { arrivals.arrived(listOf("other:$it"), series.current) }
 
-        assertEquals("the first is gone", queued, arrivals().ageFrom("mark:0", queued))
-        assertEquals(clocks.now(), arrivals().ageFrom("mark:${AnswerArrivals.KEPT}", queued))
+        assertEquals("the oldest arrival is gone", queued, arrivals.ageFrom("mark:1", queued))
+        assertEquals(clocks.now(), arrivals.ageFrom("mark:0", queued))
+    }
+
+    @Test
+    fun `the cap's worth of the longest fields stays a few hundred kilobytes on disk`() {
+        val field = { n: Int -> "course_overrides/client:1151:CS${1_000_000 + n}/custom_names/zh-Hant" }
+        arrivals().arrived(List(AnswerArrivals.KEPT) { field(it) }, series.current)
+
+        val stored = prefs.getString("arrivals", null).orEmpty()
+        assertEquals(AnswerArrivals.KEPT, org.json.JSONArray(stored).length())
+        assertTrue("${stored.length} chars", stored.length < 500_000)
     }
 }
 
