@@ -12,7 +12,7 @@ import java.util.Locale
 /**
  * What the class table's color sheet keeps for the color applied ([storedCourseColorHex]). In dark
  * mode the sheet opens on the color a course shows, a dark variant, and kept as is it stayed dark
- * in light mode too.
+ * in light mode too. A color typed in is kept as typed, though, a dark variant too.
  */
 class CourseRecolorStoredHexTest {
 
@@ -25,7 +25,17 @@ class CourseRecolorStoredHexTest {
         for (light in MoodleColorBook.READABLE) {
             val shown = checkNotNull(MoodleColorBook.darkFor(light))
 
-            assertEquals(hex(light), storedCourseColorHex(color(shown), darkPalette = true))
+            assertEquals(hex(light), storedCourseColorHex(color(shown), darkPalette = true, kept = color(light)))
+        }
+    }
+
+    @Test
+    fun `a Moodle color's dark variant typed in for a course not on that Moodle color is kept as typed`() {
+        val light = MoodleColorBook.READABLE[0]
+        val dark = checkNotNull(MoodleColorBook.darkFor(light))
+
+        for (kept in listOf(courseColorPalette[2], color(dark), color(MoodleColorBook.READABLE[1]))) {
+            assertEquals(hex(dark), storedCourseColorHex(color(dark), darkPalette = true, kept = kept))
         }
     }
 
@@ -33,20 +43,22 @@ class CourseRecolorStoredHexTest {
     fun `a dark preset keeps its light preset`() {
         assertEquals(
             hex(courseColorPalette[3].toArgb()),
-            storedCourseColorHex(courseColorPaletteDark[3], darkPalette = true),
+            storedCourseColorHex(courseColorPaletteDark[3], darkPalette = true, kept = courseColorPalette[0]),
         )
     }
 
     @Test
     fun `a color of the sheet's own is kept as picked, in either palette`() {
-        assertEquals("#123456", storedCourseColorHex(color(0x123456), darkPalette = true))
-        assertEquals("#123456", storedCourseColorHex(color(0x123456), darkPalette = false))
+        val kept = color(MoodleColorBook.READABLE[0])
+
+        assertEquals("#123456", storedCourseColorHex(color(0x123456), darkPalette = true, kept = kept))
+        assertEquals("#123456", storedCourseColorHex(color(0x123456), darkPalette = false, kept = kept))
     }
 
     @Test
     fun `the light sheet keeps a Moodle color as it is`() {
         val light = MoodleColorBook.READABLE[4]
 
-        assertEquals(hex(light), storedCourseColorHex(color(light), darkPalette = false))
+        assertEquals(hex(light), storedCourseColorHex(color(light), darkPalette = false, kept = color(light)))
     }
 }

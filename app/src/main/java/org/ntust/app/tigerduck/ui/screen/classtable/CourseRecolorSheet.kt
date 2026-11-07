@@ -36,18 +36,19 @@ internal fun CourseRecolorSheet(course: Course, courses: List<Course>, onApply: 
         currentColor = currentColor,
         presetPalette = displayPalette,
         usedByOthers = usedByOthers,
-        onApply = { picked -> onApply(storedCourseColorHex(picked, darkPalette)) },
+        onApply = { picked -> onApply(storedCourseColorHex(picked, darkPalette, TigerDuckTheme.courseColorVibrant(course.courseNo))) },
         onDismiss = onDismiss,
     )
 }
 
 /**
- * The `#RRGGBB` a course keeps for [picked], applied on the sheet's dark palette when [darkPalette]
- * is set. Preset picks are stored as the canonical (light) hex so switching theme later swaps
- * automatically, and so are Moodle colors, which the dark sheet opens on in their dark variant.
- * Custom HSV picks keep the exact color in both modes.
+ * The `#RRGGBB` a course that keeps [kept] keeps for [picked], applied on the sheet's dark palette
+ * when [darkPalette] is set. Preset picks are stored as the canonical (light) hex so switching theme
+ * later swaps automatically, and so is the course's own Moodle color, which the dark sheet opens on
+ * in its dark variant. Custom HSV picks keep the exact color in both modes, a Moodle color's dark
+ * variant too.
  */
-internal fun storedCourseColorHex(picked: Color, darkPalette: Boolean): String {
+internal fun storedCourseColorHex(picked: Color, darkPalette: Boolean, kept: Color): String {
     val displayPalette = if (darkPalette) courseColorPaletteDark else courseColorPalette
     val pickedArgb = picked.toArgb() or 0xFF000000.toInt()
     val displayIdx = displayPalette.indexOfFirst {
@@ -55,7 +56,7 @@ internal fun storedCourseColorHex(picked: Color, darkPalette: Boolean): String {
     }
     val storedArgb = when {
         displayIdx >= 0 -> courseColorPalette[displayIdx].toArgb()
-        darkPalette -> MoodleColorBook.lightFor(pickedArgb and 0xFFFFFF) ?: picked.toArgb()
+        darkPalette && MoodleColorBook.darkFor(kept.toArgb() and 0xFFFFFF) == (pickedArgb and 0xFFFFFF) -> kept.toArgb()
         else -> picked.toArgb()
     }
     return "#" + String.format("%06X", storedArgb and 0xFFFFFF)
