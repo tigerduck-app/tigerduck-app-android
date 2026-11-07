@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.UnsentMarks
+import org.ntust.app.tigerduck.data.moment
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.Course
@@ -87,7 +88,7 @@ class HomePullAcrossSignInTest {
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
         val ignores = CourseIgnoreSync(
             w.dataCache,
-            writer = { _, ignore, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
+            writer = { _, ignore, _, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
             effects = { ignoresChanged() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,
@@ -208,7 +209,7 @@ class HomePullAcrossSignInTest {
             val signIn = w.sessions.school.signIns.current
             marks.keep("8", "locally_completed", signIn)
             ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
-            adds.send(listOf(added), TERM, ADDED, addedAt = 1L, signIn = signIn)
+            adds.send(listOf(added), TERM, ADDED, addedAt = moment(1L), signIn = signIn)
         }
 
         assertEquals(setOf(COURSE, ADDED), w.dataCache.loadCourses(TERM).map { it.courseNo }.toSet())

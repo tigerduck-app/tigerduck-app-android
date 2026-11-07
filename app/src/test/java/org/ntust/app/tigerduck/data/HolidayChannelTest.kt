@@ -31,8 +31,8 @@ import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicy
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -46,7 +46,7 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * The holiday choices' queue over the real backend client and real preferences. Each choice is
- * stamped by the sync clock, one an older build left with no time goes with this build's first run
+ * sent with its age by the device's clocks, one an older build left with no time goes with this build's first run
  * (Review Focus 1), a choice made with TigerSync off is kept and goes once it is on, the reply's
  * clock is the choice's acknowledgment, and a reply that says the backend kept a later choice puts
  * it on this phone unless the user has chosen again (LWW D12). The queue is the outbox's holidays
@@ -88,16 +88,16 @@ class HolidayChannelTest {
     private val v4Backend = RecordingBackend()
     private val v4Path = "/v4/sync/holiday-overrides/3"
 
-    /** The wall clock the sync clock and the old-entry time read; a test moves it. */
+    /** The wall clock the device's clocks and the old-entry time read; a test moves it. */
     private var nowMs = 1_790_000_500_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { nowMs })
+    private val deviceClocks = DeviceClocks.wallOnly { nowMs }
     private val ack = AckClock()
     private val oldEntryTime = OldEntryTime(context.getSharedPreferences("tigerduck_outbox", 0), Dispatchers.Unconfined) { nowMs }
 
-    /** The queue as the app builds it, over the client at `/v4`, stamping with [syncClock]. */
+    /** The queue as the app builds it, over the client at `/v4`, its edits timed by [deviceClocks]. */
     private fun TestScope.v4Holidays() = PendingHolidayOverrides(
-        prefs, pushApiClientAt(v4, v4Backend.client, prefs, syncClock),
-        syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime, calendar = calendar,
+        prefs, pushApiClientAt(v4, v4Backend.client, prefs, deviceClocks),
+        clocks = deviceClocks, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime, calendar = calendar,
     )
 
     /** The user's switch, as `CalendarViewModel.setNotifyOnHoliday` flips it: the local set, then the send. */
@@ -106,8 +106,8 @@ class HolidayChannelTest {
         send(id, signIn)
     }
 
-    private fun hlcOf(sent: RecordingBackend.Sent): Long? =
-        Regex(""""hlc":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
+    private fun ageOf(sent: RecordingBackend.Sent): Long? =
+        Regex(""""age_ms":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
 
     /** This build first ran at [firstRunMs]. */
     private fun firstRanAt(firstRunMs: Long) {
@@ -163,7 +163,7 @@ class HolidayChannelTest {
                 TOOK
             },
             syncs = { true },
-            clock = { now },
+            clocks = DeviceClocks.wallOnly { now },
         )
         prefs.holidayNotifyOverrides = setOf(3)
 
@@ -227,22 +227,22 @@ class HolidayChannelTest {
     // --- /v4: the outbox's holidays channel ---
 
     @Test
-    fun `on v4 a choice goes stamped by the sync clock, and the reply's clock is the choice's acknowledgment`() = runTest {
+    fun `on v4 a choice goes with its age, and the reply's clock is the choice's acknowledgment`() = runTest {
         v4Backend.answer(v4Path, 200, syncFixture("v4/answer-holiday.json"), mapOf("X-TigerSync-Clock" to "1790000500002000"))
 
         v4Holidays().tap(3, notify = true)
 
         val sent = v4Backend.sent.single()
         assertEquals(listOf("PUT", "$v4/sync/holiday-overrides/3", listOf(bearer)), listOf(sent.method, sent.url, sent.headers))
-        // Nothing heard yet: the wall clock, a tick on.
-        assertEquals("""{"notify":true,"hlc":${(nowMs + 1) * 1_000}}""", sent.body)
-        assertEquals(mapOf(3 to nowMs + 1), prefs.holidayOverrideEditTimes)
+        // Sent as it was made: 0 old.
+        assertEquals("""{"notify":true,"age_ms":0}""", sent.body)
+        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(1_790_000_500_002_000L, ack.lastAck(SyncField.holiday(3)))
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
 
     @Test
-    fun `an entry an older build wrote goes out on v4 stamped with this build's first run, kept before it goes`() = runTest {
+    fun `an entry an older build wrote goes out on v4 aged from this build's first run, kept before it goes`() = runTest {
         val firstRunMs = nowMs - 200_000
         firstRanAt(firstRunMs)
         prefs.holidayNotifyOverrides = setOf(5)
@@ -252,11 +252,11 @@ class HolidayChannelTest {
 
         holidays.drain(signIn)
         // The time it went with is kept, so a later write cannot move it.
-        assertEquals(mapOf(5 to firstRunMs), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(5 to EditTime(firstRunMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         nowMs += 60_000
         holidays.drain(signIn)
 
-        assertEquals(listOf(firstRunMs * 1_000, firstRunMs * 1_000), v4Backend.sent.map(::hlcOf))
+        assertEquals(listOf(200_000L, 260_000L), v4Backend.sent.map(::ageOf))
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
 
@@ -276,7 +276,7 @@ class HolidayChannelTest {
 
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(setOf(5), prefs.holidayOverridesAwaitingUpload)
-        assertEquals("not even given its old-entry time", emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals("not even given its old-entry time", emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
     }
 
     @Test
@@ -284,7 +284,7 @@ class HolidayChannelTest {
         val holidays = v4Holidays()
         prefs.cloudSyncEnabled = false
         holidays.tap(3, notify = true)
-        val madeAtMs = nowMs + 1
+        val madeAtMs = nowMs
         holidays.drain(signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
@@ -293,7 +293,7 @@ class HolidayChannelTest {
         nowMs += 60_000
         holidays.drain(signIn)
 
-        assertEquals(listOf("""{"notify":true,"hlc":${madeAtMs * 1_000}}"""), v4Backend.sent.map { it.body })
+        assertEquals(listOf("""{"notify":true,"age_ms":${nowMs - madeAtMs}}"""), v4Backend.sent.map { it.body })
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
 
@@ -307,7 +307,7 @@ class HolidayChannelTest {
 
         assertEquals("the backend's choice is this phone's now", emptySet<Int>(), calendar.optedInHolidayIds)
         assertEquals("and the calendar's pages are told", listOf(setOf(3), emptySet<Int>()), told)
-        assertEquals("with no time of this phone's", emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals("with no time of this phone's", emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals("let go, not sent again", 1, v4Backend.sent.size)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
@@ -331,7 +331,7 @@ class HolidayChannelTest {
                 }
             },
             syncs = { true },
-            stamp = { nowMs },
+            clocks = DeviceClocks.wallOnly { nowMs },
             ack = ack,
             scope = backgroundScope,
             calendar = calendar,
@@ -344,7 +344,7 @@ class HolidayChannelTest {
         nowMs += 1_000
         val second = launch { holidays.tap(3, notify = false) }
         testScheduler.runCurrent()
-        assertEquals(mapOf(3 to nowMs), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         release.complete(Unit)
         first.join()
         second.join()
@@ -352,12 +352,12 @@ class HolidayChannelTest {
         assertEquals(listOf(true, false), sent)
         assertEquals("the first reply is the field's acknowledgment", 1_790_000_600_000_000L, ack.lastAck(SyncField.holiday(3)))
         assertEquals("the user's choice stays", emptySet<Int>(), calendar.optedInHolidayIds)
-        assertEquals(mapOf(3 to nowMs), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
 
     @Test
-    fun `on v4 a refused choice is never parked, and one refused as ahead twice is kept for the next sync`() = runTest {
+    fun `on v4 a refused choice is never parked, and one refused with a 409 is kept for the next sync`() = runTest {
         repeat(10) { v4Backend.answer(v4Path, 404, syncFixture("v4/error-not-found.json")) }
         val holidays = v4Holidays()
 
@@ -366,11 +366,9 @@ class HolidayChannelTest {
         assertEquals(10, v4Backend.sent.size)
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
 
-        repeat(2) {
-            v4Backend.answer(v4Path, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${(nowMs - 60_000) * 1_000}"))
-        }
+        v4Backend.answer(v4Path, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${(nowMs - 60_000) * 1_000}"))
         holidays.drain(signIn)
-        assertEquals("stamped, then stamped again", 12, v4Backend.sent.size)
+        assertEquals("never sent again on its own", 11, v4Backend.sent.size)
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
     }
 
@@ -429,8 +427,8 @@ class HolidayChannelTest {
         prefs.holidayNotifyOverrides = setOf(5)
         prefs.holidayOverridesAwaitingUpload = setOf(5)
         val holidays = PendingHolidayOverrides(
-            prefs, pushApiClientAt(v4, v4Backend.client, prefs, syncClock),
-            syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = times, calendar = calendar,
+            prefs, pushApiClientAt(v4, v4Backend.client, prefs, deviceClocks),
+            clocks = deviceClocks, ack = ack, scope = backgroundScope, oldEntryTime = times, calendar = calendar,
         )
 
         val retry = launch { holidays.drain(signIn) }
@@ -438,18 +436,18 @@ class HolidayChannelTest {
         // Turned off while its old-entry time is read: kept at once, its request waiting.
         val tap = launch { holidays.tap(5, notify = false) }
         testScheduler.runCurrent()
-        val tappedAt = prefs.holidayOverrideEditTimes.getValue(5)
+        val tappedAt = prefs.holidayOverrideEditTimes.getValue(5).madeAt
         assertTrue(
             "a snapshot fetched after the choice keeps it as this phone has it",
-            5 in holidays.keptOver(serverHlc = (System.currentTimeMillis() + 60_000) * 1_000),
+            5 in holidays.keptOver(),
         )
         disk.release()
         retry.join()
         tap.join()
 
-        assertEquals("the choice keeps its own time", mapOf(5 to tappedAt), prefs.holidayOverrideEditTimes)
+        assertEquals("the choice keeps its own time", mapOf(5 to tappedAt), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(
-            listOf("""{"notify":false,"hlc":${firstRunMs * 1_000}}""", """{"notify":false,"hlc":${tappedAt * 1_000}}"""),
+            listOf("""{"notify":false,"age_ms":${nowMs - firstRunMs}}""", """{"notify":false,"age_ms":${nowMs - tappedAt.wallMs}}"""),
             v4Backend.sent.map { it.body },
         )
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
@@ -523,7 +521,7 @@ class HolidayChannelTest {
 
         assertEquals(emptySet<Int>(), prefs.holidayNotifyOverrides)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertNull("nor is the departing student's acknowledgment the next one's", ack.lastAck(SyncField.holiday(3)))
     }
 }

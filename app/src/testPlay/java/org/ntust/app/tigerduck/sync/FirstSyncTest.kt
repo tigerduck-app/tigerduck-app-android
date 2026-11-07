@@ -170,7 +170,7 @@ class FirstSyncTest {
     private fun run(pass: SyncPass) = runBlocking { for (step in steps()) step.reconcile(pass) }
 
     @Test
-    fun `a category never synced queues each local value stamped 0, and the pull keeps them`() = runBlocking {
+    fun `a category never synced queues each local value as the oldest, and the pull keeps them`() = runBlocking {
         seed()
 
         run(pass(emptySnapshot(), syncedBefore = emptySet()))
@@ -209,11 +209,11 @@ class FirstSyncTest {
     }
 
     /**
-     * "First sync of a category": the queued color goes stamped 0, which fills only a course the
-     * backend holds no color for and changes no other.
+     * "First sync of a category": the queued color goes as the oldest, `hlc: 0` with no age, which
+     * fills only a course the backend holds no color for and changes no other.
      */
     @Test
-    fun `a first color sync sends its colors stamped 0`() = runBlocking {
+    fun `a first color sync sends its colors as the oldest`() = runBlocking {
         seed()
         run(pass(emptySnapshot(), syncedBefore = SyncCategory.entries.toSet() - SyncCategory.COURSE_COLORS))
 
@@ -221,6 +221,7 @@ class FirstSyncTest {
 
         val sent = backend.received("PATCH /v4/sync/courses/client:$term:XA1/override").map { JSONObject(it.body) }
         assertEquals(listOf("#123456" to 0L), sent.map { it.getString("color_hex") to it.getLong("hlc") })
+        assertTrue(sent.none { it.has("age_ms") })
     }
 
     /** In the background (C2), a first sync queues nothing: it is Home's. */

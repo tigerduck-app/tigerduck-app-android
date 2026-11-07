@@ -12,14 +12,17 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.cache.QueueFile
+import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
-import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
@@ -68,7 +71,7 @@ import javax.inject.Singleton
  * lifted. A pull keeps every change still waiting, and every one the backend
  * acknowledged since its snapshot began (LWW D12, [heldFields]).
  *
- * Each change is stamped by the sync clock, and goes by its course's key
+ * Each change keeps its time by the device's clocks and goes with its age (`age_ms`), by its course's key
  * (`client:{semester}:{course_no}`), from its own term and number or, for a row an older build
  * wrote without, its Moodle id ([legacyPlaceOf]); one with no time with its old-entry time (X1),
  * and a reply that the backend kept a later value puts it here unless a newer change waits.
@@ -80,8 +83,8 @@ class PendingCourseOverrides internal constructor(
     private val records: (color: Boolean) -> Boolean,
     private val sends: (color: Boolean) -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
-    // The time a change is stamped with: the sync clock's.
-    private val stamp: () -> Long = clock,
+    // The clocks a change's time is read by: [clock] alone, with no elapsed clock, for a test's queue.
+    private val clocks: DeviceClocks = DeviceClocks.wallOnly(clock),
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
@@ -93,8 +96,8 @@ class PendingCourseOverrides internal constructor(
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
         policies: SyncPolicies = SyncPolicies(prefs),
-        /** What a change is stamped by; null only in tests, for the wall clock. */
-        syncClock: SyncClock? = null,
+        /** What a change's time is read by; the wall clock alone in tests. */
+        clocks: DeviceClocks = DeviceClocks.WALL,
         ack: AckClock = AckClock(),
         @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
@@ -102,12 +105,12 @@ class PendingCourseOverrides internal constructor(
         semesterCatalog: org.ntust.app.tigerduck.network.SemesterCatalog? = null,
     ) : this(
         dataCache = dataCache,
-        writer = CourseOverrideWriter { change, target, signIn, allowed ->
-            pushApiClient.patchCourseOverrideAnswered(target, signIn, change.colorHex, change.customName, change.locale, allowed, change.madeAtMs)
+        writer = CourseOverrideWriter { change, target, signIn, allowed, madeAt ->
+            pushApiClient.patchCourseOverrideAnswered(target, signIn, change.colorHex, change.customName, change.locale, allowed, madeAt)
         },
         records = { color -> policies.current.keeps(kindOf(color)) },
         sends = { color -> policies.current.sends(kindOf(color)) },
-        stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
+        clocks = clocks,
         ack = ack,
         scope = scope,
         oldEntryTime = oldEntryTime,
@@ -207,13 +210,13 @@ class PendingCourseOverrides internal constructor(
     suspend fun reserveVersion(): Long = mutex.withLock { memory.nextSeq(lane.entries()) }
 
     /**
-     * Keeps [change] stamped 0 at the oldest version unless a change of its key waits (LWW D13: it fills
+     * Keeps [change] at the oldest time ([EditTime.OLDEST]) and version unless a change of its key waits (LWW D13: it fills
      * only a field the backend has no stamp for). Sends nothing; a kind's first sync queues it.
      */
     suspend fun queueAsOldest(change: Change, signIn: SignIn): Boolean = mutex.withLock {
         val row = PendingCourseOverride(
             change.moodleId, change.colorHex, change.customName, change.locale, clock(), change.semester, change.courseNo,
-            seq = 0L, madeAtMs = OLDEST,
+            seq = 0L, madeAtMs = EditTime.OLDEST.wallMs,
         )
         val key = row.key ?: return@withLock false
         lane.edit(signIn) { rows -> if (rows.any { it.key == key }) rows else rows + row }
@@ -254,6 +257,22 @@ class PendingCourseOverrides internal constructor(
     }
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    /**
+     * Each change of [key]'s term made at or after [start] ages from [end] at least: a row an older
+     * build kept by Moodle id alone by the term its send goes to ([CourseOverrideSends.placeFor]).
+     */
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn, termOf())
+    }
+
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt, termOf())
+
+    // Each change's term's key: by its term, or, for a row an older build kept by Moodle id alone, where its send goes.
+    private suspend fun termOf(): (PendingCourseOverride) -> String? {
+        val legacy = lane.entries().filter { placeOf(it) == null }.associate { it.moodleId to sendPath.placeFor(it)?.semester }
+        return { row -> (placeOf(row)?.semester ?: legacy[row.moodleId])?.let(SyncField::termReset) }
+    }
 
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */
     override fun forgetMemory() = lane.forgetMemory().also { memory.forgetParkedTry() }
@@ -304,7 +323,7 @@ class PendingCourseOverrides internal constructor(
             // Where a change names no term, the current term's course with its Moodle id.
             val places = if (changes.all { it.semester != null && it.courseNo != null }) emptyMap() else currentTermPlaces(dataCache)
             val now = clock()
-            val madeAtMs = stamp()
+            val madeAt = clocks.now()
             var seq = 0L
             var recorded = LinkedHashMap<String, PendingCourseOverride>()
             // In one step with the lane's own writes; the versions are this queue's, under [mutex].
@@ -316,7 +335,8 @@ class PendingCourseOverrides internal constructor(
                 for (c in changes) {
                     val place = if (c.semester != null && c.courseNo != null) CoursePlace(c.semester, c.courseNo) else places[c.moodleId]
                     val entry = PendingCourseOverride(
-                        c.moodleId, c.colorHex, c.customName, c.locale, now, place?.semester, place?.courseNo, seq = seq, madeAtMs = madeAtMs,
+                        c.moodleId, c.colorHex, c.customName, c.locale, now, place?.semester, place?.courseNo, seq = seq,
+                        madeAtMs = madeAt.wallMs, madeAtClocks = EditClocks.of(madeAt),
                     )
                     val key = entry.key ?: continue
                     if (memory.outbids(key, waiting[key]?.seq, seq)) continue
@@ -346,9 +366,6 @@ class PendingCourseOverrides internal constructor(
     companion object {
         /** Refusals before a change is parked, as the marks and course ignores park. */
         const val MAX_ATTEMPTS = 5
-
-        // The stamp of a value queued as the oldest there is (LWW D13).
-        private const val OLDEST = 0L
 
         // The sync category colours ([color]) or names are.
         private fun kindOf(color: Boolean): SyncCategory = if (color) SyncCategory.COURSE_COLORS else SyncCategory.COURSE_NAMES

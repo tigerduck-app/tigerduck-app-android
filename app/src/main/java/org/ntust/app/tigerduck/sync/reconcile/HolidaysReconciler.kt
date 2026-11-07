@@ -43,7 +43,7 @@ class HolidaysReconciler @Inject constructor(
     // The snapshot's choices field by field (LWW D12).
     private fun apply(pass: SyncPass, holds: PullHolds, stamped: Map<Int, StampedValue<Boolean>>) {
         HolidayOverrideApply.applyStamped(
-            stamped, holds.serverHlc, { holds.keeps(SyncField.holiday(it)) }, pass.signIn, pendingHolidayOverrides, academicCalendar,
+            stamped, { holds.keeps(SyncField.holiday(it)) }, pass.signIn, pendingHolidayOverrides, academicCalendar,
         )
     }
 }

@@ -12,18 +12,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.cache.QueueFile
+import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
-import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -38,9 +40,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sends one assignment's mark, and says what the backend answered; see [PushApiClient.patchAssignmentOverrideAnswered]. */
+/**
+ * Sends one assignment's mark while [allowed], the queue's gate, asked again right before it goes,
+ * lets it, and says what the backend answered; see [PushApiClient.patchAssignmentOverrideAnswered].
+ */
 internal fun interface MarkWriter {
-    suspend fun write(assignmentId: Int, status: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer
+    suspend fun write(assignmentId: Int, status: String, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean): WriteAnswer
 }
 
 /**
@@ -71,7 +76,10 @@ internal fun interface MarkWriter {
  * are taken over this phone's ([forget]). Account-scoped: wiped with the user
  * data at sign-out.
  *
- * Each tap is stamped by the sync clock ([stamp]). A mark an older build
+ * Each tap keeps its time by the device's clocks ([clocks]), and goes with
+ * its age (`age_ms`), from the tap or from the end of a write of its
+ * assignment that was out when it was made, kept with it (its floor, the
+ * client's `FieldAges`), parked or not. A mark an older build
  * wrote with no time is given its old-entry time at its first load and
  * written back (X1), never its send time. A reply writes nothing on this
  * phone, the backend's later mark included: Home saves the marks from its own
@@ -87,8 +95,8 @@ class UnsentMarks internal constructor(
     private val records: () -> Boolean,
     private val sends: () -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
-    // The time a tap is stamped with: the sync clock's.
-    private val stamp: () -> Long = clock,
+    // The clocks a tap's time is read by: [clock] alone, with no elapsed clock, for a test's queue.
+    private val clocks: DeviceClocks = DeviceClocks.wallOnly(clock),
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
@@ -99,8 +107,8 @@ class UnsentMarks internal constructor(
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
         policies: SyncPolicies = SyncPolicies(prefs),
-        /** What a tap is stamped by; null only in tests, for the wall clock. */
-        syncClock: SyncClock? = null,
+        /** What a tap's time is read by; the wall clock alone in tests. */
+        clocks: DeviceClocks = DeviceClocks.WALL,
         ack: AckClock = AckClock(),
         @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         /** The old-entry time of a mark an older build wrote with no time; null only in tests, for none. */
@@ -110,7 +118,7 @@ class UnsentMarks internal constructor(
         writer = MarkWriter(pushApiClient::patchAssignmentOverrideAnswered),
         records = { policies.current.keeps(SyncCategory.ASSIGNMENTS) },
         sends = { policies.current.sends(SyncCategory.ASSIGNMENTS) },
-        stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
+        clocks = clocks,
         ack = ack,
         scope = scope,
         oldEntryTime = oldEntryTime,
@@ -144,6 +152,7 @@ class UnsentMarks internal constructor(
                 withTime = { mark, atMs -> mark.copy(madeAtMs = atMs) },
                 oldEntryTimeMs = { oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.UNSENT_MARKS)) ?: 0L },
             ),
+            floors = EntryFloors(UnsentMark::madeAt, { it.madeAtClocks?.floor?.time }, UnsentMark::withFloor),
         ),
         ack = ack,
         scope = scope,
@@ -169,7 +178,7 @@ class UnsentMarks internal constructor(
             lane.edit(signIn) { marks -> marks.filterNot { it.assignmentId == assignmentId } }
             return
         }
-        lane.enqueueAndDrain(UnsentMark(assignmentId, status, madeAtMs = stamp()), signIn, sends)
+        lane.enqueueAndDrain(tapNow(assignmentId, status), signIn, sends)
     }
 
     /**
@@ -181,19 +190,25 @@ class UnsentMarks internal constructor(
      */
     suspend fun keep(assignmentId: String, status: String, signIn: SignIn) {
         lane.edit(signIn) { marks ->
-            if (marks.any { it.assignmentId == assignmentId }) marks else marks + UnsentMark(assignmentId, status, madeAtMs = stamp())
+            if (marks.any { it.assignmentId == assignmentId }) marks else marks + tapNow(assignmentId, status)
         }
     }
 
+    // A tap that set [assignmentId] to [status] now, with its time by the device's clocks.
+    private fun tapNow(assignmentId: String, status: String): UnsentMark {
+        val now = clocks.now()
+        return UnsentMark(assignmentId, status, madeAtMs = now.wallMs, madeAtClocks = EditClocks.of(now))
+    }
+
     /**
-     * Keeps [status] as [assignmentId]'s mark stamped 0, the oldest stamp there is, unless a mark
+     * Keeps [status] as [assignmentId]'s mark at the oldest time there is ([EditTime.OLDEST]), unless a mark
      * waits for it: a value this phone held before the category ever synced, which fills only a
      * mark the backend holds no stamp for (LWW D13), as a category's first sync queues it. Written
      * only while [signIn] stands.
      */
     suspend fun queueAsOldest(assignmentId: String, status: String, signIn: SignIn) {
         lane.edit(signIn) { marks ->
-            if (marks.any { it.assignmentId == assignmentId }) marks else marks + UnsentMark(assignmentId, status, madeAtMs = OLDEST)
+            if (marks.any { it.assignmentId == assignmentId }) marks else marks + UnsentMark(assignmentId, status, madeAtMs = EditTime.OLDEST.wallMs)
         }
     }
 
@@ -221,6 +236,12 @@ class UnsentMarks internal constructor(
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
 
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn)
+    }
+
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt)
+
     /** At a sign-out: the next student's parked marks get their own one more try in this process. */
     override fun forgetMemory() {
         parkedRequeued.set(false)
@@ -234,13 +255,12 @@ class UnsentMarks internal constructor(
         // An id no request can name goes nowhere, and is let go as it always was.
         val id = mark.assignmentId?.toIntOrNull() ?: return SendResult.Sent(null)
         val answer = try {
-            writer.write(id, status, signIn, mark.madeAtMs)
+            writer.write(id, status, signIn, mark.madeAt, sends)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "mark PATCH failed, kept for the next sync: ${e.logSummary()}")
-            // Refused again once stamped again after a clock_ahead: nothing about the mark itself.
-            return if (e.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(e)
+            return SendResult.afterFailure(e)
         }
         if (!answer.sent) return SendResult.NotSent
         return SendResult.Sent(answer.serverClockUs)
@@ -259,10 +279,6 @@ class UnsentMarks internal constructor(
 
         /** How long a parked mark waits for its next try in a process that stays alive. */
         const val PARKED_RETRY_MS = 8 * 60 * 60 * 1000L
-
-        // The stamp of a value queued as the oldest there is (LWW D13).
-        private const val OLDEST = 0L
-
     }
 }
 

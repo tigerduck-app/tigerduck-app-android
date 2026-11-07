@@ -103,6 +103,7 @@ class DataMigration @Inject constructor(
                 2 -> migrate2to3()
                 3 -> migrate3to4()
                 4 -> migrate4to5()
+                5 -> migrate5to6()
             }
             current++
             prefs.dataSchemaVersion = current
@@ -187,6 +188,14 @@ class DataMigration @Inject constructor(
         dropStaleCoursesCheck(prefs, sessions.school.current)
     }
 
+    /**
+     * Builds before `age_ms` kept TigerSync's clock in [LEGACY_SYNC_CLOCK_PREFS]: the last stamp
+     * issued and the backend's clock last heard. Every write now sends its age, which the backend
+     * stamps itself, so nothing reads them: the file goes, once. A device without it, a fresh
+     * install's, has nothing to delete.
+     */
+    private fun migrate5to6() = deleteLegacySyncClock(context)
+
     companion object {
         private const val TAG = "DataMigration"
 
@@ -231,6 +240,12 @@ class DataMigration @Inject constructor(
                         }
                     }.onFailure { Log.w(TAG, "Failed to delete ${file.name}: ${it.logSummary()}") }
                 }
+        }
+
+        /** [migrate5to6]'s work, here so a test can run it: deletes [LEGACY_SYNC_CLOCK_PREFS], if any. */
+        internal fun deleteLegacySyncClock(context: Context) {
+            runCatching { context.deleteSharedPreferences(LEGACY_SYNC_CLOCK_PREFS) }
+                .onFailure { Log.w(TAG, "Failed to delete the old sync clock: ${it.logSummary()}") }
         }
 
         /**
@@ -286,8 +301,11 @@ class DataMigration @Inject constructor(
         // quote+colon pair, so they can't masquerade as un-obfuscated.
         private const val COURSE_NO_TOKEN = "\"courseNo\":"
 
+        // TigerSync's clock before `age_ms`, which [migrate5to6] deletes.
+        private const val LEGACY_SYNC_CLOCK_PREFS = "tigerduck_sync_clock"
+
         /** Highest schema this build writes. Bump when adding a new step. */
-        const val CURRENT_SCHEMA = 5
+        const val CURRENT_SCHEMA = 6
 
         /**
          * Lowest schema this build can migrate forward from. Anything below

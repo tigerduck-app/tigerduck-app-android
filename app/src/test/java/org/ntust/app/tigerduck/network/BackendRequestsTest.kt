@@ -71,12 +71,12 @@ class BackendRequestsTest {
             api.removeDevice(auth, "device-1", EmptyBody),
         )
         assertSameRequest(
-            Request.Builder().url("$base/sync/courses/client:114-1:CS1001?hlc=7").delete().header("Authorization", auth).build(),
-            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, null),
+            Request.Builder().url("$base/sync/courses/client:114-1:CS1001?age_ms=7").delete().header("Authorization", auth).build(),
+            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, null, null),
         )
         assertSameRequest(
-            Request.Builder().url("$base/sync/courses/client:114-1:CS1001?hlc=7&kind=remove").delete().header("Authorization", auth).build(),
-            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, "remove"),
+            Request.Builder().url("$base/sync/courses/client:114-1:CS1001?age_ms=7&kind=remove").delete().header("Authorization", auth).build(),
+            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, 7, null, "remove"),
         )
     }
 
@@ -86,13 +86,13 @@ class BackendRequestsTest {
         val semester = "114-1 summer"
         assertSameRequest(
             Request.Builder()
-                .url("$base/sync/courses?semester=${java.net.URLEncoder.encode(semester, "UTF-8")}&hlc=7")
+                .url("$base/sync/courses?semester=${java.net.URLEncoder.encode(semester, "UTF-8")}&age_ms=7")
                 .delete().header("Authorization", auth).build(),
-            api.removeCourses(auth, java.net.URLEncoder.encode(semester, "UTF-8"), EmptyBody, 7),
+            api.removeCourses(auth, java.net.URLEncoder.encode(semester, "UTF-8"), EmptyBody, 7, null),
         )
         assertSameRequest(
-            Request.Builder().url("$base/sync/courses?hlc=7").delete().header("Authorization", auth).build(),
-            api.removeCourses(auth, null, EmptyBody, 7),
+            Request.Builder().url("$base/sync/courses?age_ms=7").delete().header("Authorization", auth).build(),
+            api.removeCourses(auth, null, EmptyBody, 7, null),
         )
     }
 
@@ -100,8 +100,8 @@ class BackendRequestsTest {
     fun `overrides and uploads send the JSON the client wrote`() {
         val api = service(PushApi::class.java)
         assertSameRequest(
-            Request.Builder().url("$base/sync/holiday-overrides/7").put(json(HolidayOverrideRequest(true))).header("Authorization", auth).build(),
-            api.holidayOverride(auth, 7, HolidayOverrideRequest(true)),
+            Request.Builder().url("$base/sync/holiday-overrides/7").put(json(HolidayOverrideRequest(true, 0))).header("Authorization", auth).build(),
+            api.holidayOverride(auth, 7, HolidayOverrideRequest(true, 0)),
         )
         val override = mutableMapOf<String, Any?>("color_hex" to "#FF8800", "locale" to "zh-Hant")
         assertSameRequest(

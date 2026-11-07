@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.moment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
@@ -34,8 +35,7 @@ import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.V4WriteRules
 import org.ntust.app.tigerduck.sync.appBackendClient
 import org.ntust.app.tigerduck.sync.appSyncRig
@@ -52,8 +52,8 @@ import org.robolectric.annotation.Config
  * (C2): the current term only, no marks of a first sync, no course reset, and the settings pull.
  * Pinned so moving the pass into the synchronizer sends the same bytes. Over the clients and queues
  * as the app builds them, behind `/v4`'s rules for a write ([V4WriteRules]), a setting the released
- * build left naming `/v3`. Made-up accounts and course numbers; times in a body, which the queues
- * take from the clock, read as `<time>`. The courses and the assignments are left not due, so the
+ * build left naming `/v3`. Made-up accounts and course numbers; times in a body read as `<time>`,
+ * and each edit's age, which the queues take from the clock, as `<age>`. The courses and the assignments are left not due, so the
  * run asks the school nothing.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -86,9 +86,9 @@ class BackgroundPullRequestsTest {
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         // As the app builds its clients and queues, under /v4's rules for a write.
-        val clock = SyncClock(SyncClockStore(context), prefs)
+        val clock = DeviceClocks.WALL
         // The rules, behind whatever a test does as a request goes out.
-        val client = appBackendClient(prefs, clock, backend.client) { chain -> duringRequest?.invoke(chain.request().url.encodedPath); rules.intercept(chain) }
+        val client = appBackendClient(prefs, backend.client) { chain -> duringRequest?.invoke(chain.request().url.encodedPath); rules.intercept(chain) }
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client)
         rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS)).home
         settings = settingsSyncAt(context, w, client, idleScope)
@@ -137,7 +137,7 @@ class BackgroundPullRequestsTest {
             // The how-many-th request to this endpoint the i-th one is.
             all[backend.endpoints().subList(0, i).count { it == endpoint }]
         }
-        val body = request.body.replace(Regex("""\d{12,}"""), "<time>")
+        val body = request.body.replace(Regex(""""age_ms":\d+"""), "\"age_ms\":<age>").replace(Regex("""\d{12,}"""), "<time>")
         "$endpoint | ${request.authorization} | ${request.protocol} | $body"
     }
 
@@ -176,8 +176,8 @@ class BackgroundPullRequestsTest {
         rig.ignores.setIgnored(term, COURSE, moodleId(), null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
-        rig.adds.send(listOf(kept, added), term, ADDED, addedAt = 1L, signIn = signIn)
-        assertTrue(rig.deletes.keep(term, GONE, queuedAt = 5L, signIn = signIn))
+        rig.adds.send(listOf(kept, added), term, ADDED, addedAt = moment(1L), signIn = signIn)
+        assertTrue(rig.deletes.keep(term, GONE, queuedAt = moment(5L), signIn = signIn))
         rig.overrides.queue(
             listOf(PendingCourseOverrides.Change(moodleId(), colorHex = "#ABCDEF", semester = term, courseNo = COURSE)),
             rig.overrides.reserveVersion(), signIn,
@@ -188,13 +188,13 @@ class BackgroundPullRequestsTest {
 
     /** What waits, in the order the retries run: ignores, marks, adds, deletes, overrides, holidays. */
     private fun whatWaits() = listOf(
-        """PATCH /sync/courses/client:$term:$COURSE/override | Bearer access-1 | null | {"ignore_assignments":true,"hlc":<time>}""",
-        """PATCH /sync/assignments/8/override | Bearer access-1 | null | {"local_status":"locally_completed","hlc":<time>}""",
+        """PATCH /sync/courses/client:$term:$COURSE/override | Bearer access-1 | null | {"ignore_assignments":true,"age_ms":<age>}""",
+        """PATCH /sync/assignments/8/override | Bearer access-1 | null | {"local_status":"locally_completed","age_ms":<age>}""",
         "POST /sync/courses/upload | Bearer access-1 | null | " +
-            """{"courses":[${addRow()}],"adds":[{"course_key":"client:$term:$ADDED","hlc":1000}]}""",
+            """{"courses":[${addRow()}],"adds":[{"course_key":"client:$term:$ADDED","age_ms":<age>}]}""",
         "DELETE /sync/courses/client:$term:$GONE | Bearer access-1 | null | ",
-        """PATCH /sync/courses/client:$term:$COURSE/override | Bearer access-1 | null | {"color_hex":"#ABCDEF","hlc":<time>}""",
-        """PUT /sync/holiday-overrides/$HOLIDAY | Bearer access-1 | null | {"notify":false,"hlc":<time>}""",
+        """PATCH /sync/courses/client:$term:$COURSE/override | Bearer access-1 | null | {"color_hex":"#ABCDEF","age_ms":<age>}""",
+        """PUT /sync/holiday-overrides/$HOLIDAY | Bearer access-1 | null | {"notify":false,"age_ms":<age>}""",
     )
 
     private fun addRow() = """{"semester":"$term","course_no":"$ADDED","course_name":"Added here","credits":0.0,""" +
@@ -308,7 +308,7 @@ class BackgroundPullRequestsTest {
      * Colors no longer ride the course upload on `/v4`, so this PATCH is the one way a fill goes.
      */
     @Test
-    fun `a color the background moved, refused as ahead once its switch went off, is kept and not sent again`() {
+    fun `a color the background moved, refused with a 409 once its switch went off, is kept and not sent again`() {
         val first = Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = moodleId())
         val second = Course(courseNo = OTHER, courseName = "Other", moodleIdNumber = "$term$OTHER")
         runBlocking { w.dataCache.saveCourses(listOf(first, second), term, signIn) }
@@ -346,7 +346,7 @@ class BackgroundPullRequestsTest {
         const val OTHER = "CS1002"
 
         /** The color the course that moved takes, as the class table's pick gives it one. */
-        const val MOVED_COLOR = """PATCH /sync/courses/{key}/override | Bearer access-1 | null | {"color_hex":"#DDA0DD","hlc":<time>}"""
+        const val MOVED_COLOR = """PATCH /sync/courses/{key}/override | Bearer access-1 | null | {"color_hex":"#DDA0DD","age_ms":<age>}"""
 
         const val STUDENT = "B00015999"
 

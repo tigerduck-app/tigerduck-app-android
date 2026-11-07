@@ -5,9 +5,6 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
-import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
@@ -20,8 +17,7 @@ class FullSyncSnapshotTest {
 
     private val v4 = "http://127.0.0.1:9/v4"
 
-    private fun v4(fixture: String, heard: (Long) -> Unit = {}) =
-        parseFullSync(JSONObject(syncFixture("v4/$fixture")), heard = heard)
+    private fun v4(fixture: String) = parseFullSync(JSONObject(syncFixture("v4/$fixture")))
 
     @Test
     fun `a v4 snapshot fills every protocol 2 field`() {
@@ -40,19 +36,13 @@ class FullSyncSnapshotTest {
         assertEquals(listOf("$v4/sync/full"), backend.sent.map { it.url })
     }
 
-    /** A clock that has heard nothing, its wall clock in 2020: its next stamp shows what it hears. */
-    private fun quietClock() = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { EARLY_MS })
-
     @Test
-    fun `a snapshot fetched from v4 fills its stamps, and the clock hears the largest`() = runTest {
+    fun `a snapshot fetched from v4 fills its stamps`() = runTest {
         val backend = RecordingBackend().apply { answer("/v4/sync/full", 200, syncFixture("v4/full.json")) }
-        val clock = quietClock()
 
-        val result = syncApiClientAt(v4, backend.client, clock).fetchFullSync(testSignIn())
+        val result = syncApiClientAt(v4, backend.client).fetchFullSync(testSignIn())
 
         assertEquals(V4_SNAPSHOT.copy(rosterRequests = listOf("1151")), result.copy(fetchedAtMs = 0L))
-        // The mark stored ahead of the backend's clock, as in the parser's own test, plus one tick.
-        assertEquals(1_792_900_000_004L + 1, clock.stampMs())
     }
 
     /** Protocol 2 keeps them all (LWW D11): none older than 30 days or beside a listed course is left out. */
@@ -101,50 +91,6 @@ class FullSyncSnapshotTest {
     }
 
     @Test
-    fun `the parser hears the largest clock value it reads, once`() {
-        val heard = mutableListOf<Long>()
-
-        v4("full.json") { heard += it }
-
-        // A mark stored ahead of the backend's clock as the snapshot began, as five seconds' skew allows.
-        assertEquals(listOf(1792900000004000L), heard)
-    }
-
-    @Test
-    fun `every stamp the parser reads can be the one it hears`() {
-        val later = 1793000000000000L
-        val stamps: List<(JSONObject) -> Unit> = listOf(
-            { it.put("server_hlc", later) },
-            { it.put("courses_reset_hlc", later) },
-            { it.getJSONObject("term_resets").put("1151", later) },
-            { it.getJSONArray("assignment_overrides").getJSONObject(0).put("local_status_hlc", later) },
-            { it.getJSONArray("holiday_overrides").getJSONObject(1).put("hlc", later) },
-            { it.getJSONArray("courses").getJSONObject(0).put("added_hlc", later) },
-            { it.getJSONArray("course_overrides").getJSONObject(0).put("color_hex_hlc", later) },
-            { it.getJSONArray("course_overrides").getJSONObject(0).getJSONObject("custom_names_hlc").put("zh", later) },
-            { it.getJSONArray("course_overrides").getJSONObject(1).put("ignore_assignments_hlc", later) },
-            { it.getJSONArray("course_tombstones").getJSONObject(2).put("hlc", later) },
-        )
-        for ((i, stamp) in stamps.withIndex()) {
-            val json = JSONObject(syncFixture("v4/full.json")).also(stamp)
-            val heard = mutableListOf<Long>()
-
-            parseFullSync(json) { heard += it }
-
-            assertEquals("stamp $i", listOf(later), heard)
-        }
-    }
-
-    @Test
-    fun `a snapshot with no clock value is heard by nothing`() {
-        val heard = mutableListOf<Long>()
-
-        parseFullSync(JSONObject("""{"current_revision": 3, "assignments": [], "course_tombstones": []}""")) { heard += it }
-
-        assertEquals(emptyList<Long>(), heard)
-    }
-
-    @Test
     fun `a snapshot without assignments reads only its revision`() = runTest {
         val backend = RecordingBackend().apply {
             answer("/v4/sync/full", 200, """{"current_revision": 9, "courses": [{"course_no": "XA0000001"}]}""")
@@ -159,9 +105,6 @@ class FullSyncSnapshotTest {
     }
 
     internal companion object {
-        /** 2020-09-13, a wall clock behind every clock value the fixtures hold. */
-        const val EARLY_MS = 1_600_000_000_000L
-
         /** The rows `sync/v4/full.json` holds, as every field the app read before protocol 2 reads them. */
         private val ROWS = BackendSyncResult(
             ignoredIds = setOf("9001", "9004"),

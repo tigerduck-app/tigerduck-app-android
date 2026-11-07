@@ -65,10 +65,10 @@ class CourseIgnoreSyncTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = CourseIgnoreSync(
         dataCache = cache,
-        writer = CourseIgnoreWriter { target, ignore, moodleCourseId, _, madeAtMs ->
+        writer = CourseIgnoreWriter { target, ignore, moodleCourseId, _, madeAt, _ ->
             val request = Sent(target.courseKey.orEmpty(), ignore, moodleCourseId)
             sent += request
-            stamps += madeAtMs
+            stamps += madeAt?.wallMs
             // Stored: an answer with the setting in it; dropped unread by an older backend: none.
             when (answer(request)) {
                 null -> WriteAnswer.NOT_SENT

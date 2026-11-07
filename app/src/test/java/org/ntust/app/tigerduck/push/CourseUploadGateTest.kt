@@ -121,7 +121,7 @@ class CourseUploadGateTest {
         api.uploadCourses(roster("CS1"), "1151", signIn)
         api.uploadCourses(roster("CS1"), "1142", signIn)
 
-        api.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null)
+        api.deleteAllCoursesAnswered("1151", signIn, resetAt = null)
         api.uploadCourses(roster("CS1"), "1151", signIn)
         api.uploadCourses(roster("CS1"), "1142", signIn)
 

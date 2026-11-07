@@ -231,7 +231,7 @@ class SynchronizerBackgroundTest {
         context, w, backend.client, idleScope,
         ignores = CourseIgnoreSync(
             w.dataCache,
-            writer = { _, ignore, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
+            writer = { _, ignore, _, _, _, _ -> WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore)) },
             effects = { whileIgnoring() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,

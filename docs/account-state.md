@@ -133,7 +133,6 @@ Scopes:
 | prefs | `tigerduck_permissions` | keys | |
 | prefs | `tigerduck_prefs` | keys | |
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
-| prefs | `tigerduck_sync_clock` | keys | |
 | prefs | `tls_pin_acceptances` | keys | |
 | prefs | `wear_bridge_state` | keys | |
 
@@ -369,11 +368,6 @@ into `library_password_refusals` when it opens.
 | tigerduck_permissions | `declined_*` | device | |
 | tigerduck_permissions | `granted_*` | device | |
 | tigerduck_permissions | `muted_*` | device | |
-| tigerduck_sync_clock | `backendKey` | device | |
-| tigerduck_sync_clock | `heardAtMs` | device | |
-| tigerduck_sync_clock | `heardUs` | device | |
-| tigerduck_sync_clock | `lastIssuedMs` | device | |
-| tigerduck_sync_clock | `lastSeenUs` | device | |
 | tls_pin_acceptances | `acceptances` | device | |
 | tls_pin_acceptances | `cancelledAt.*` | device | |
 | wear_bridge_state | `libraryCredentialEpoch` | device | |
@@ -386,18 +380,15 @@ before the count; the latch takes it up into `stored_password_refusals` when it 
 zoom and desktop choice go with the in-app browser's clearing (`BrowserDataCleaner.clear()`),
 which `AccountSessionEffects` runs after each sign-out and sign-in.
 
-`tigerduck_sync_clock` is TigerSync's clock (`SyncClock`): the last stamp this device issued, the
-last backend clock value it saw, and the last `X-TigerSync-Clock` heard with the time it came, all
-of the one backend `backendKey` names. It is the device's, not an account's, and is kept across a
-sign-out by the clock spec (`tigersync-clock`, "The clock state survives relaunch"): a stamp after
-a sign-out must still come after every value this device issued or saw. A full reset leaves it
-too. A move of the endpoint to another backend forgets the values, which say nothing of it.
-
 `tigerduck_outbox` holds the time this build first ran (`OldEntryTime`), recorded once as the
 process starts, before anything writes a queue. An edit an older build queued with no time is
 sent with the earliest time it is known to have existed, which that first run bounds (X1). It is
 the device's, not an account's: the queues' own files are cleared at a sign-out, and their entries
 with them. A full reset leaves it too.
+
+Builds before `age_ms` kept TigerSync's own clock in `tigerduck_sync_clock`. Every write now sends
+its age, which the backend stamps itself, and `DataMigration` deletes that file once
+(`migrate5to6`).
 
 ## DataCache
 
@@ -426,7 +417,9 @@ Under `cacheDir/TigerDuckCache/`, `filesDir/TigerDuckData/` and, for the downloa
 | cache | `moodle_files/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `moodle_open/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_adds.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `pending_course_add_clocks.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_add_times.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `pending_course_delete_clocks.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_deletes.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_ignores.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_overrides.json` | school | `DataCache.kt` `clearAllUserData` |

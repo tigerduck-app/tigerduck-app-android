@@ -67,7 +67,7 @@ internal class ForegroundSteps(
 
     override fun endCourseSync(courseSync: DataCache.CourseSync) = dataCache.endCourseSync(courseSync)
 
-    override suspend fun stampDeletes(): Long = pendingCourseDeletes.stamp()
+    override suspend fun stampDeletes(): Long = pendingCourseDeletes.stamp().at
 
     override suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult {
         // An add back made from here on is newer than a course reset the snapshot reads. One

@@ -15,15 +15,16 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
- * A course hide or add that waited on this phone goes with the time it was made (#591), which
- * the backend applies only when later than the course's last add, hide and reset, as on the
- * iPhone since tigerduck-app#910; one refused as ahead of the backend's clock goes again stamped
- * from the refusal's clock ([V4WritesTest]). Play only: an F-Droid build has no TigerSync, and
- * sends none of these.
+ * A course hide or add that waited on this phone goes with its age from the time it was made
+ * (#591, `age_ms`), which the backend applies only when later than the course's last add, hide
+ * and reset, as on the iPhone since tigerduck-app#910. Play only: an F-Droid build has no
+ * TigerSync, and sends none of these.
  */
 class CourseMembershipStampTest {
 
@@ -43,17 +44,17 @@ class CourseMembershipStampTest {
         assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-stamp-test", Context.MODE_PRIVATE))
         tokens.save("access", "refresh", Long.MAX_VALUE)
-        api = PushApiClient(backend.client, prefs, AuthTokenManager(tokens, backend.client, prefs, "device-1"))
+        api = PushApiClient(backend.client, prefs, AuthTokenManager(tokens, backend.client, prefs, "device-1"), DeviceClocks.wallOnly { NOW })
     }
 
     // Hides
 
     @Test
-    fun `a queued hide goes with its time, in microseconds, and no protocol header`() = runTest {
-        api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT)
+    fun `a queued hide goes with its age, in milliseconds, and no protocol header`() = runTest {
+        api.deleteCourseAnswered(KEY, signIn, hiddenAt = EditTime(AT))
 
         val sent = backend.received(DELETE).single()
-        assertEquals("hlc=$HLC", sent.query)
+        assertEquals("age_ms=$AGE", sent.query)
         assertNull(sent.protocol)
     }
 
@@ -61,7 +62,7 @@ class CourseMembershipStampTest {
     fun `a hide refused with another 409 fails and is not sent again`() = runTest {
         backend.answer(DELETE, 409, """{"error":"conflict","message":"made up"}""")
 
-        assertTrue(runCatching { api.deleteCourseAnswered(KEY, signIn, hiddenAt = AT) }.isFailure)
+        assertTrue(runCatching { api.deleteCourseAnswered(KEY, signIn, hiddenAt = EditTime(AT)) }.isFailure)
 
         assertEquals(1, backend.received(DELETE).size)
     }
@@ -70,7 +71,7 @@ class CourseMembershipStampTest {
 
     @Test
     fun `a queued add goes alone with its time, and no protocol header or force key`() = runTest {
-        val accepted = api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
+        val accepted = api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to EditTime(AT)))
 
         val sent = backend.received(UPLOAD).single()
         assertNull(sent.protocol)
@@ -78,7 +79,8 @@ class CourseMembershipStampTest {
         assertEquals(1, body.getJSONArray("courses").length())
         val add = body.getJSONArray("adds").getJSONObject(0)
         assertEquals(KEY, add.getString("course_key"))
-        assertEquals(HLC, add.getLong("hlc"))
+        assertEquals(AGE, add.getLong("age_ms"))
+        assertFalse(add.has("hlc"))
         assertFalse(body.has("force_keys"))
         assertEquals(emptyList<String>(), accepted)
     }
@@ -88,7 +90,7 @@ class CourseMembershipStampTest {
     fun `an add the backend answered but did not apply counts as settled`() = runTest {
         backend.answer(UPLOAD, 200, """{"accepted_keys":[],"adds":[{"course_key":"$KEY","applied":false,"hlc":1}]}""")
 
-        val answer = api.uploadCoursesAnswered(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
+        val answer = api.uploadCoursesAnswered(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to EditTime(AT)))
 
         assertEquals(emptyList<String>(), answer!!.accepted)
         assertEquals(listOf(NO), answer.refusedAdds)
@@ -103,7 +105,8 @@ class CourseMembershipStampTest {
         assertNull(sent.protocol)
         val add = JSONObject(sent.body).getJSONArray("adds").getJSONObject(0)
         assertEquals(KEY, add.getString("course_key"))
-        assertEquals(0L, add.getLong("hlc"))
+        assertEquals("the oldest, as before age_ms", 0L, add.getLong("hlc"))
+        assertFalse(add.has("age_ms"))
     }
 
     private fun course() = Course(courseNo = NO, courseName = NO, isManual = true)
@@ -115,6 +118,7 @@ class CourseMembershipStampTest {
         const val DELETE = "DELETE /sync/courses/$KEY"
         const val UPLOAD = "POST /sync/courses/upload"
         const val AT = 1_790_000_000_500L
-        const val HLC = 1_790_000_000_500_000L
+        const val NOW = 1_790_000_003_000L
+        const val AGE = NOW - AT
     }
 }

@@ -387,7 +387,7 @@ class SyncWiringTest {
         assertTrue("the holiday choices are no longer an outbox channel", "OutboxChannelId.HOLIDAYS" in source("data/PendingHolidayOverrides.kt").joinToString("\n"))
         // Before the fetch, and the snapshot applied after it, keeping what waits: SynchronizerOrderTest.
         assertCalls("sync/reconcile/HolidaysReconciler.kt", "apply", "HolidayOverrideApply.applyStamped(")
-        assertCalls("data/HolidayOverrideApply.kt", "applyStamped", "pending.keptOver(serverHlc)")
+        assertCalls("data/HolidayOverrideApply.kt", "applyStamped", "pending.keptOver()")
     }
 
     /** tigerduck-app-android#404: applied after the sign-out cleared them, the departing account's choices came back. */

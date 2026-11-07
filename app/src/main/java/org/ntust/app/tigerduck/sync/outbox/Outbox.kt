@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync.outbox
 
 import org.ntust.app.tigerduck.auth.session.LateAccountScoped
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,7 +16,7 @@ import javax.inject.Singleton
  * leaves to the outbox is what its channels hold in memory for the account.
  */
 @Singleton
-class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChannel>) : LateAccountScoped {
+class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChannel>) : LateAccountScoped, EditFloors {
 
     private val channels: List<OutboxChannel> = channels.sortedBy { it.id }.also { sorted ->
         val ids = sorted.map { it.id }
@@ -43,6 +44,17 @@ class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChann
 
     /** Every field an edit waits for, in any channel: [holds] for many fields at once. */
     suspend fun heldFields(): Set<String> = channels.flatMapTo(HashSet()) { it.heldFields() }
+
+    /** Each channel's edits of [key] made at or after [start] count from [end] at least ([EditFloors]). */
+    override suspend fun raise(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        for (channel in channels) channel.raiseFloors(key, start, end, signIn)
+    }
+
+    /** The latest floor any channel keeps for its edit of [key] made at [madeAt] ([EditFloors]). */
+    override suspend fun floorOf(key: String, madeAt: EditTime, signIn: SignIn): EditTime? {
+        if (!signIn.isCurrent) return null
+        return channels.mapNotNull { it.floorOf(key, madeAt) }.latest()
+    }
 
     /** At the school's sign-out: each channel forgets its parked-retry flags and the attempts it counted in memory. */
     override suspend fun forgetAccount() {

@@ -13,8 +13,6 @@ import org.ntust.app.tigerduck.di.NetworkModule
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
 import org.ntust.app.tigerduck.shared.tls.PinnedTrustManager
 import org.ntust.app.tigerduck.shared.tls.PinPolicy
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
 import java.io.File
 import java.security.cert.X509Certificate
 import javax.net.ssl.X509ExtendedTrustManager
@@ -126,8 +124,7 @@ class AllHttpsClientsPinnedTest {
         val tls = PinnedTls(PinnedTrustManager(NoTrust, { _, _, _ -> emptyList() }, { PinPolicy(appVersion = 1) }, {}))
         val demoMode = DemoModeInterceptor(DebugFixtureStore(context))
 
-        val clock = SyncClock(SyncClockStore(context), AppPreferences(context))
-        assertSame(tls.socketFactory, NetworkModule.provideOkHttpClient(AppPreferences(context), demoMode, tls, clock).sslSocketFactory)
+        assertSame(tls.socketFactory, NetworkModule.provideOkHttpClient(AppPreferences(context), demoMode, tls).sslSocketFactory)
         assertSame(tls.socketFactory, NtustSessionManager(AppPreferences(context), demoMode, tls).client.sslSocketFactory)
     }
 

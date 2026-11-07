@@ -33,9 +33,8 @@ import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.reconcile.PullHolds
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.robolectric.RobolectricTestRunner
@@ -48,7 +47,7 @@ import java.io.File
  * client and real files, against a backend that records what reaches it. On Robolectric, for the
  * reminders a change re-arms.
  *
- * A change goes by its course's key, stamped as it was made, one an older build wrote with no time
+ * A change goes by its course's key, aged from when it was made, one an older build wrote with no time
  * goes with its old-entry time (Review Focus 1), the reply's clock is the field's acknowledgment,
  * and a reply that says the backend kept a later setting puts it on this phone unless a newer
  * change waits or this phone's setting is no longer the one answered (LWW D12). The queue half is
@@ -105,7 +104,7 @@ class CourseIgnoreChannelTest {
         var sendsAsked = 0
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, ignore, _, _, _ ->
+            CourseIgnoreWriter { target, ignore, _, _, _, _ ->
                 sent += target.courseKey to ignore
                 if (ignore == null) {
                     fillOut.complete(Unit)
@@ -152,7 +151,7 @@ class CourseIgnoreChannelTest {
         var sendsAsked = 0
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, ignore, _, _, _ ->
+            CourseIgnoreWriter { target, ignore, _, _, _, _ ->
                 sent += target.courseKey to ignore
                 if (ignore == null) {
                     fillOut.complete(Unit)
@@ -195,7 +194,7 @@ class CourseIgnoreChannelTest {
         var held = false
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, ignore, _, _, _ ->
+            CourseIgnoreWriter { target, ignore, _, _, _, _ ->
                 sent += target.courseKey
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
@@ -223,8 +222,8 @@ class CourseIgnoreChannelTest {
         val stamps = mutableListOf<Long?>()
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, ignore, _, _, madeAtMs ->
-                stamps += madeAtMs
+            CourseIgnoreWriter { _, ignore, _, _, madeAt, _ ->
+                stamps += madeAt?.wallMs
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
             CourseIgnoreEffects {},
@@ -252,7 +251,7 @@ class CourseIgnoreChannelTest {
         var clockMs = 1_000L
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, ignore, _, _, _ ->
+            CourseIgnoreWriter { _, ignore, _, _, _, _ ->
                 sent += ignore
                 if (sent.size > 1) throw PushApiException("patchCourseIgnore failed: HTTP 422", 422)
                 firstOut.complete(Unit)
@@ -291,7 +290,7 @@ class CourseIgnoreChannelTest {
         var clockMs = 1_000L
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, ignore, _, _, _ ->
+            CourseIgnoreWriter { _, ignore, _, _, _, _ ->
                 sent += ignore
                 if (ignore == true) {
                     firstOut.complete(Unit)
@@ -329,17 +328,17 @@ class CourseIgnoreChannelTest {
     private val v4 = "http://127.0.0.1:9/v4"
     private val v4Backend = RecordingBackend()
 
-    /** The wall clock the sync clock and the old-entry time read; a test moves it. */
+    /** The wall clock the device's clocks and the old-entry time read; a test moves it. */
     private var nowMs = 1_790_000_500_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { nowMs })
+    private val deviceClocks = DeviceClocks.wallOnly { nowMs }
     private val ack = AckClock()
     private val oldEntryTime = OldEntryTime(context.getSharedPreferences("tigerduck_outbox", 0), Dispatchers.Unconfined) { nowMs }
     private val queueFile = File(context.filesDir, "TigerDuckData/pending_course_ignores.json")
 
-    /** The sync as the app builds it, over the client at `/v4`, stamping with [syncClock]. */
+    /** The sync as the app builds it, over the client at `/v4`, its edits timed by [deviceClocks]. */
     private fun TestScope.v4Ignores() = CourseIgnoreSync(
-        cache, pushApiClientAt(v4, v4Backend.client, prefs, syncClock), prefs, AssignmentNotificationScheduler(context),
-        syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
+        cache, pushApiClientAt(v4, v4Backend.client, prefs, deviceClocks), prefs, AssignmentNotificationScheduler(context),
+        clocks = deviceClocks, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
     )
 
     private fun v4Patch(courseNo: String, body: String) = listOf("PATCH", "$v4/sync/courses/client:$term:$courseNo/override", listOf(bearer), json, body)
@@ -364,20 +363,20 @@ class CourseIgnoreChannelTest {
     }
 
     @Test
-    fun `on v4 a change goes by its course's key, stamped as it was made, and its reply's clock acknowledges it`() = runTest {
+    fun `on v4 a change goes by its course's key, aged from when it was made, and its reply's clock acknowledges it`() = runTest {
         queue(change("AAA", moodleCourseId = 7))
         v4Backend.answer(v4PathOf("AAA"), 200, syncFixture("v4/answer-course-override.json"), mapOf("X-TigerSync-Clock" to "$CLOCK_US"))
 
         v4Ignores().retryPending(signIn)
 
-        assertEquals(listOf(v4Patch("AAA", """{"ignore_assignments":true,"moodle_course_id":7,"hlc":1790000000123000}""")), v4Backend.sent.map { it.shape() })
+        assertEquals(listOf(v4Patch("AAA", """{"ignore_assignments":true,"moodle_course_id":7,"age_ms":${nowMs - madeAtMs}}""")), v4Backend.sent.map { it.shape() })
         assertEquals(CLOCK_US, ack.lastAck(field("AAA")))
         assertEquals(emptyList<PendingCourseIgnore>(), waiting())
     }
 
     /** Review Focus 1: never its send time, and never refused for want of a stamp. */
     @Test
-    fun `an entry an older build wrote goes out on v4 stamped with its old-entry time`() = runTest {
+    fun `an entry an older build wrote goes out on v4 aged from its old-entry time`() = runTest {
         olderBuildWrote(
             """[{"semester":"$term","courseNo":"AAA","moodleId":"${term}AAA","ignore":true,"changedAtMs":1000,"attempts":0}]""",
             fileMs = FILE_MS, firstRunMs = FIRST_RUN_MS,
@@ -392,7 +391,7 @@ class CourseIgnoreChannelTest {
         prefs.syncCourses = true
         ignores.retryPending(signIn)
 
-        assertEquals(listOf(v4Patch("AAA", """{"ignore_assignments":true,"hlc":${FILE_MS * 1_000}}""")), v4Backend.sent.map { it.shape() })
+        assertEquals(listOf(v4Patch("AAA", """{"ignore_assignments":true,"age_ms":${nowMs - FILE_MS}}""")), v4Backend.sent.map { it.shape() })
     }
 
     @Test
@@ -435,7 +434,7 @@ class CourseIgnoreChannelTest {
         var effects = 0
         ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, _, _, pinned, _ ->
+            CourseIgnoreWriter { target, _, _, pinned, _, _ ->
                 sent += target.courseKey.orEmpty()
                 if (target.courseKey == "client:$term:AAA" && sent.size == 1) {
                     // AAA tapped off and on again while its PATCH is out, the second offline.
@@ -455,7 +454,7 @@ class CourseIgnoreChannelTest {
             CourseIgnoreEffects { effects++ },
             sends = { CourseIgnoreSync.syncsCourseIgnores(prefs) },
             clock = { nowMs++ },
-            outbox = IgnoreOutbox({ nowMs++ }, AckClock(), backgroundScope, null),
+            outbox = IgnoreOutbox(DeviceClocks.wallOnly { nowMs++ }, AckClock(), backgroundScope, null),
         )
         queue(change("AAA"), change("BBB", changedAtMs = 2_000L))
 
@@ -466,14 +465,14 @@ class CourseIgnoreChannelTest {
     }
 
     @Test
-    fun `on v4 a change refused as ahead once more is a retry, not a refusal`() = runTest {
+    fun `on v4 a change refused with a 409 goes once and is counted, as any refusal`() = runTest {
         queue(change("AAA"))
-        repeat(2) { v4Backend.answer(v4PathOf("AAA"), 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}")) }
+        v4Backend.answer(v4PathOf("AAA"), 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}"))
 
         v4Ignores().retryPending(signIn)
 
-        assertEquals(2, v4Backend.sent.size)
-        assertEquals(listOf(0), waiting().map { it.attempts })
+        assertEquals(1, v4Backend.sent.size)
+        assertEquals(listOf(1), waiting().map { it.attempts })
     }
 
     /** The gap between the sign-in's end and the wipe: the entries are still on disk, and stay as they are. */
@@ -505,7 +504,7 @@ class CourseIgnoreChannelTest {
         val ack = AckClock()
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, _, _, _, _ ->
+            CourseIgnoreWriter { _, _, _, _, _, _ ->
                 // The student signs out, and the next signs in and ignores the same course.
                 series.end()
                 cache.clearAllUserData()
@@ -516,7 +515,7 @@ class CourseIgnoreChannelTest {
             CourseIgnoreEffects {},
             sends = { true },
             clock = { nowMs },
-            outbox = IgnoreOutbox({ nowMs }, ack, backgroundScope, null),
+            outbox = IgnoreOutbox(DeviceClocks.wallOnly { nowMs }, ack, backgroundScope, null),
         )
         queue(change("AAA"))
 
@@ -546,23 +545,23 @@ class CourseIgnoreChannelTest {
         fetchedAtMs = fetchedAtMs,
     )
 
-    /** Each change is stamped by the sync clock, a tap's and Use Local's alike, not by the wall clock. */
+    /** Each change goes with its age from the moment it was made, a tap's and Use Local's alike. */
     @Test
-    fun `on v4 a tap and Use Local's set are stamped by the sync clock`() = runTest {
+    fun `on v4 a tap and Use Local's set go with their ages`() = runTest {
         val ignores = v4Ignores()
         ignores.setIgnored(term, "AAA", "${term}AAA", null, ignore = true, signIn = signIn)
         cache.saveIgnoredCourses(setOf("$term:AAA", "$term:BBB"), signIn)
 
         ignores.pushLocal(null, signIn)
 
-        val stamps = v4Backend.sent.map { Regex(""""hlc":(\d+)""").find(it.body.orEmpty())?.groupValues?.get(1)?.toLong() }
-        assertEquals(3, stamps.size)
-        assertTrue("stamped by the sync clock: $stamps", stamps.all { it != null && it / 1_000 in nowMs..nowMs + 10 })
+        val ages = v4Backend.sent.map { Regex(""""age_ms":(\d+)""").find(it.body.orEmpty())?.groupValues?.get(1)?.toLong() }
+        assertEquals("each made now, as the student acted", listOf(0L, 0L, 0L), ages)
+        assertTrue("no hlc", v4Backend.sent.none { "hlc" in it.body.orEmpty() })
     }
 
     /** LWW D13's stamp-0 setting: kept only where none waits, and sent as the oldest. */
     @Test
-    fun `a setting queued as the oldest goes stamped 0, and leaves a waiting change as it is`() = runTest {
+    fun `a setting queued as the oldest goes as hlc 0, and leaves a waiting change as it is`() = runTest {
         val ignores = v4Ignores()
         queue(change("AAA"))
 
@@ -573,16 +572,16 @@ class CourseIgnoreChannelTest {
 
         assertEquals(
             listOf(
-                v4Patch("AAA", """{"ignore_assignments":true,"hlc":1790000000123000}"""),
+                v4Patch("AAA", """{"ignore_assignments":true,"age_ms":${nowMs - madeAtMs}}"""),
                 v4Patch("BBB", """{"ignore_assignments":true,"hlc":0}"""),
             ),
             v4Backend.sent.map { it.shape() },
         )
     }
 
-    /** The fill-in is no user's edit: on v4 it is stamped as it goes. */
+    /** The fill-in is no user's edit: on v4 it goes as made now, 0 old. */
     @Test
-    fun `on v4 the numeric Moodle id's fill-in goes by the course's key, stamped as it goes`() = runTest {
+    fun `on v4 the numeric Moodle id's fill-in goes by the course's key, made now`() = runTest {
         cache.saveCourses(listOf(Course(courseNo = "AAA", courseName = "A", moodleIdNumber = "${term}AAA", moodleNumericCourseId = 41)), term, signIn)
         val snapshot = BackendSyncResult(
             ignoredIds = emptySet(),
@@ -603,9 +602,7 @@ class CourseIgnoreChannelTest {
 
         val sent = v4Backend.sent.single()
         assertEquals(listOf("PATCH", "$v4/sync/courses/client:$term:AAA/override"), sent.shape().take(2))
-        val stamp = Regex(""""hlc":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
-        assertTrue("stamped by the sync clock as it went: ${sent.body}", stamp != null && stamp / 1_000 in nowMs..nowMs + 10)
-        assertEquals("""{"moodle_course_id":41,"hlc":$stamp}""", sent.body)
+        assertEquals("""{"moodle_course_id":41,"age_ms":0}""", sent.body)
     }
 
     private companion object {

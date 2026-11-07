@@ -8,18 +8,15 @@ import java.io.IOException
 /**
  * Why the backend refused a request: its status, and the code its body names.
  *
- * `/v4` answers every error in one envelope, `{"error": "clock_ahead", "message": …}`, and its
+ * `/v4` answers every error in one envelope, `{"error": "course_not_found", "message": …}`, and its
  * clients branch on `error` alone (`docs/api-v4.md` on tigerduck-backend, "Error envelope"). `/v3`
- * says a route's code in `detail`, `{"detail": "clock_ahead"}`, and elsewhere prose, a list of
+ * says a route's code in `detail`, `{"detail": "course_not_found"}`, and elsewhere prose, a list of
  * validation errors or plain text; its change feed and settings conflict already carry `error`.
  * So the code is `error`, else `detail`, each only when it is one word of `[a-z_]`, else null.
  * Prose is never a code, so a proxy's page or a sentence says nothing a reader can branch on,
  * whichever version answered.
  */
 data class BackendError(val status: Int, val code: String?) {
-
-    /** 409 `clock_ahead`: the edit's `hlc` is more than 5 s ahead of the backend's clock. */
-    val isClockAhead: Boolean get() = status == 409 && code == CLOCK_AHEAD
 
     /**
      * The change feed no longer keeps the changes after the revision it was asked for, and only
@@ -43,7 +40,6 @@ data class BackendError(val status: Int, val code: String?) {
     val refusesSession: Boolean get() = status == 401
 
     companion object {
-        const val CLOCK_AHEAD = "clock_ahead"
         const val SYNC_REVISION_EXPIRED = "sync_revision_expired"
 
         private val RETIRING = setOf("api_retired", "app_version_retired")

@@ -15,15 +15,18 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.cache.QueueFile
+import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
 import org.ntust.app.tigerduck.network.MoodleCourseIds
-import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -38,9 +41,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 
-/** Sends a course's setting and numeric Moodle id with the answer; see `PushApiClient.patchCourseIgnoreAnswered`. */
+/**
+ * Sends a course's setting and numeric Moodle id with the answer, while [allowed], the queue's gate,
+ * asked again right before it goes, lets it; see `PushApiClient.patchCourseIgnoreAnswered`.
+ */
 internal fun interface CourseIgnoreWriter {
-    suspend fun write(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): WriteAnswer
+    suspend fun write(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean): WriteAnswer
 }
 
 /**
@@ -64,8 +70,8 @@ internal class CallersScope : CoroutineScope {
 
 /** The clocks and the outbox a course ignore queue is built with: see [CourseIgnoreQueue]. */
 internal class IgnoreOutbox(
-    /** The time a change is stamped with: the sync clock's. */
-    val stamp: () -> Long,
+    /** The clocks a change's time is read by. */
+    val clocks: DeviceClocks,
     val ack: AckClock,
     val scope: CoroutineScope,
     val oldEntryTime: OldEntryTime?,
@@ -79,10 +85,10 @@ internal class IgnoreOutbox(
  * The changes wait in an [OutboxLane] over the queue's own file, one per course
  * ([SyncField.ignore]), oldest first, one PATCH at a time, through the answered form. A change the
  * backend refuses [CourseIgnoreSync.MAX_ATTEMPTS] times is parked, as before: it keeps its value,
- * and only the first retry of a process sends it again. A change goes by its course's key stamped
- * as it was made, one an older build wrote with no time goes with its old-entry time (X1), and a
- * reply that says the backend kept a later setting puts it on this phone unless a newer change
- * waits (LWW D12). The fill-in is no user's edit: it goes unstamped, the client stamping it.
+ * and only the first retry of a process sends it again. A change goes by its course's key with its
+ * age (`age_ms`) from when it was made, one an older build wrote with no time from its old-entry
+ * time (X1), and a reply that says the backend kept a later setting puts it on this phone unless a
+ * newer change waits (LWW D12). The fill-in is sent as it is made: 0 old.
  */
 internal class CourseIgnoreQueue(
     private val dataCache: DataCache,
@@ -124,21 +130,24 @@ internal class CourseIgnoreQueue(
                 withTime = { change, atMs -> change.copy(madeAtMs = atMs) },
                 oldEntryTimeMs = { outbox.oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.COURSE_IGNORES)) ?: 0L },
             ),
+            floors = EntryFloors(PendingCourseIgnore::madeAt, { it.madeAtClocks?.floor?.time }, PendingCourseIgnore::withFloor),
         ),
         outbox.ack,
         outbox.scope,
         ::sendNow,
     )
 
-    /** A change of [semester]'s [courseNo] made now: its time as the clock reads it, and its stamp. */
-    fun changeNow(semester: String, courseNo: String, moodleId: String, moodleCourseId: Int?, ignore: Boolean) =
-        PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, clock(), madeAtMs = madeAt())
+    /** A change of [semester]'s [courseNo] made now: its time as the clock reads it, and by the device's clocks. */
+    fun changeNow(semester: String, courseNo: String, moodleId: String, moodleCourseId: Int?, ignore: Boolean): PendingCourseIgnore {
+        val madeAt = madeAt()
+        return PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, clock(), madeAtMs = madeAt.wallMs, madeAtClocks = EditClocks.of(madeAt))
+    }
 
-    /** The stamp of every change of a batch, taken once for the batch: the sync clock's. */
-    fun madeAt(): Long = outbox.stamp()
+    /** The time of every change of a batch, taken once for the batch, by the device's clocks. */
+    fun madeAt(): EditTime = outbox.clocks.now()
 
     /**
-     * A change of the course [key] names to [ignore], made at [now] and stamped [madeAtMs], its batch's ([madeAt]), by
+     * A change of the course [key] names to [ignore], made at [now] and timed [madeAt], its batch's, by
      * the Moodle id the backend's row [serverRow] has, else this phone's course's, else the one the
      * backend keys a course added by hand by.
      */
@@ -147,7 +156,7 @@ internal class CourseIgnoreQueue(
         ignore: Boolean,
         serverRow: CourseOverrideResult?,
         now: Long,
-        madeAtMs: Long,
+        madeAt: EditTime,
     ): PendingCourseIgnore {
         val semester = CourseIgnores.semesterOf(key)
         val courseNo = key.substringAfter(':')
@@ -162,7 +171,8 @@ internal class CourseIgnoreQueue(
             moodleCourseId = serverRow?.moodleNumericCourseId ?: course?.moodleNumericCourseId,
             ignore = ignore,
             changedAtMs = now,
-            madeAtMs = madeAtMs,
+            madeAtMs = madeAt.wallMs,
+            madeAtClocks = EditClocks.of(madeAt),
         )
     }
 
@@ -203,13 +213,13 @@ internal class CourseIgnoreQueue(
     }
 
     /**
-     * Keeps [change] stamped 0, the oldest stamp there is, unless a change of its course waits: a
+     * Keeps [change] at the oldest time there is ([EditTime.OLDEST]), unless a change of its course waits: a
      * setting this phone held before the category ever synced, which fills only a field the
      * backend holds no stamp for (LWW D13), as a category's first sync queues it. Sends nothing.
      * False once [signIn] has ended.
      */
     suspend fun queueAsOldest(change: PendingCourseIgnore, signIn: SignIn): Boolean = mutex.withLock {
-        lane.edit(signIn) { rows -> if (rows.any { it.key == change.key }) rows else rows.with(change.copy(madeAtMs = OLDEST)) }
+        lane.edit(signIn) { rows -> if (rows.any { it.key == change.key }) rows else rows.with(change.copy(madeAtMs = EditTime.OLDEST.wallMs, madeAtClocks = null)) }
     }
 
     /**
@@ -248,6 +258,12 @@ internal class CourseIgnoreQueue(
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
 
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn)
+    }
+
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt)
+
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */
     override fun forgetMemory() {
         parkedRequeued.set(false)
@@ -269,14 +285,13 @@ internal class CourseIgnoreQueue(
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
                 if (!current || !sends()) return SendResult.NotSent
-                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAtMs)
+                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt, sends)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "course ignore PATCH failed: ${e.logSummary()}")
-            // Refused again once stamped again after a clock_ahead: nothing about the change itself.
-            return if (e.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(e)
+            return SendResult.afterFailure(e)
         }
         if (!answer.sent) return SendResult.NotSent
         // A backend that predates the field drops it unread: not stored, a refusal.
@@ -327,7 +342,7 @@ internal class CourseIgnoreQueue(
             sendMutex.withLock {
                 if (!signIn.isCurrent) return
                 try {
-                    writer.write(CourseRef(SyncField.courseKey(semester, courseNo)), null, numericId, signIn, null)
+                    writer.write(CourseRef(SyncField.courseKey(semester, courseNo)), null, numericId, signIn, null, sends)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -352,9 +367,6 @@ internal class CourseIgnoreQueue(
 
         // The reply's field (`docs/api-v4.md`, "Course override"), and its name in `applied`.
         const val IGNORE = "ignore_assignments"
-
-        // The stamp of a setting queued as the oldest there is (LWW D13).
-        const val OLDEST = 0L
     }
 }
 
