@@ -116,7 +116,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 val endTime = first.endTime
                 Box(
                     modifier = GlanceModifier
-                        .background(ColorProvider(colors.highlight))
+                        .accentBackground(colors, WidgetAccentMark.Badge)
                         .cornerRadius(10.dp.scaled)
                         .padding(horizontal = 8.dp.scaled, vertical = 2.dp.scaled),
                 ) {
@@ -350,7 +350,7 @@ private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetCo
     Column(modifier = GlanceModifier.fillMaxSize()) {
         Box(
             modifier = GlanceModifier
-                .background(ColorProvider(colors.highlight))
+                .accentBackground(colors, WidgetAccentMark.Badge)
                 .cornerRadius(12.dp.scaled)
                 .padding(horizontal = 10.dp.scaled, vertical = 3.dp.scaled),
         ) {
@@ -395,7 +395,7 @@ private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetCo
         ) {
             Box(
                 modifier = GlanceModifier.width(filledWidth).fillMaxHeight()
-                    .background(ColorProvider(colors.highlight))
+                    .accentBackground(colors, WidgetAccentMark.Bar)
                     .cornerRadius(2.5.dp.scaled),
             ) {}
         }
@@ -412,7 +412,7 @@ private fun OngoingMiniCard(block: CourseBlock, state: WidgetState, colors: Widg
     Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
         Box(
             modifier = GlanceModifier
-                .background(ColorProvider(colors.highlight))
+                .accentBackground(colors, WidgetAccentMark.Badge)
                 .cornerRadius(6.dp.scaled)
                 .padding(horizontal = 5.dp.scaled, vertical = 1.dp.scaled),
         ) {
@@ -457,7 +457,7 @@ private fun OngoingMiniCard(block: CourseBlock, state: WidgetState, colors: Widg
     ) {
         Box(
             modifier = GlanceModifier.width(filledWidth).fillMaxHeight()
-                .background(ColorProvider(colors.highlight))
+                .accentBackground(colors, WidgetAccentMark.Bar)
                 .cornerRadius(1.5.dp.scaled),
         ) {}
     }

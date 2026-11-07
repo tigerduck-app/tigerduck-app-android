@@ -4,12 +4,15 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.toned
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.CourseChangeInkDark
 import org.ntust.app.tigerduck.ui.component.CourseChangeInkLight
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
+import org.ntust.app.tigerduck.ui.theme.readableOnGradient
 import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 
@@ -23,6 +26,11 @@ data class WidgetColors(
     val emptyCell: Color,
     /** Text and icons on [highlight]: white, or dark on a light accent of the user's own. */
     val onHighlight: Color = Color.White,
+    /**
+     * The accent's gradient, each stop as this theme draws it, while Settings' widgets switch is
+     * on; the accent's own fills draw it in its style, and [highlight] is its first stop.
+     */
+    val highlightGradient: AccentGradient? = null,
 )
 
 object WidgetTheme {
@@ -101,6 +109,31 @@ fun resolveWidgetAccentColor(prefs: AppPreferences, isDark: Boolean): Color =
 /** Text and icons on [resolveWidgetAccentColor]'s accent. */
 fun resolveWidgetOnAccentColor(prefs: AppPreferences, isDark: Boolean): Color =
     AccentPolicy.onAccent(prefs.accentColorHex, isDark) ?: Color.White
+
+/** The widgets' accent in [isDark]'s theme: [color] its first stop, [gradient] the whole of it, and the text on it. */
+data class WidgetAccent(val color: Color, val onColor: Color, val gradient: AccentGradient?)
+
+/**
+ * The accent every widget draws: [resolveWidgetAccentColor], and while Settings' widgets switch is
+ * on its gradient, each stop as the app draws it in [isDark]'s theme. Text on a gradient's fill
+ * reads on its middle, where a badge's label sits.
+ */
+fun resolveWidgetAccent(prefs: AppPreferences, isDark: Boolean): WidgetAccent {
+    val onFirst = resolveWidgetOnAccentColor(prefs, isDark)
+    val gradient = prefs.deviceAccents.widgets?.toned { AccentPolicy.fixedColor(it, isDark).toArgb() }
+    return WidgetAccent(
+        color = resolveWidgetAccentColor(prefs, isDark),
+        onColor = gradient?.let { readableOnGradient(it, onFirst) } ?: onFirst,
+        gradient = gradient,
+    )
+}
+
+/** [resolveWidgetAccent] as the colors of a widget of [isDark]'s theme. */
+fun widgetColorsWithAccent(prefs: AppPreferences, isDark: Boolean): WidgetColors {
+    val accent = resolveWidgetAccent(prefs, isDark)
+    return (if (isDark) WidgetTheme.Dark else WidgetTheme.Light)
+        .copy(highlight = accent.color, onHighlight = accent.onColor, highlightGradient = accent.gradient)
+}
 
 /**
  * The ink a school's course change is marked in on a widget of [isDark]'s

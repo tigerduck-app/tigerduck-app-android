@@ -66,9 +66,8 @@ abstract class BaseClassTableWidget(
             // prefs-derived state has to live inside provideContent.
             val tick = currentState(WidgetState.TickKey) ?: 0L
             val isDark = resolveWidgetIsDark(prefs, context)
-            val accent = resolveWidgetAccentColor(prefs, isDark)
-            val colors = (if (isDark) WidgetTheme.Dark else WidgetTheme.Light)
-                .copy(highlight = accent, onHighlight = resolveWidgetOnAccentColor(prefs, isDark))
+            // The accent, its gradient while Settings' widgets switch is on.
+            val colors = widgetColorsWithAccent(prefs, isDark)
             // The interface style, for the Week grid, which draws as the class table
             // does, and the Today list's course colors.
             val style = VisualStylePolicy(prefs.visualPreset)
