@@ -20,10 +20,13 @@ import org.ntust.app.tigerduck.browser.BrowserDownloads
 import org.ntust.app.tigerduck.browser.BrowserSession
 import org.ntust.app.tigerduck.browser.BrowserSettings
 import org.ntust.app.tigerduck.browser.BrowserSignIns
+import org.ntust.app.tigerduck.browser.BrowserSiteSignIn
 import org.ntust.app.tigerduck.browser.MediaStoreDownloadTransfer
 import org.ntust.app.tigerduck.browser.MoodleBrowserSignIn
 import org.ntust.app.tigerduck.browser.MoodleWebSessionSignIn
+import org.ntust.app.tigerduck.browser.PinnedPageCertificate
 import org.ntust.app.tigerduck.browser.SchoolBrowserSignIn
+import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
@@ -95,7 +98,7 @@ object BrowserModule {
         session: AccountSession,
         cleanup: BrowserCleanup,
     ): BrowserSignIns {
-        val usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() }
+        val usable = browserUsable(cleanup)
         val webSession = MoodleWebSessionSignIn(
             run = tokenService::signInToWebsite,
             session = session,
@@ -137,4 +140,31 @@ object BrowserModule {
         // Moodle's first: its site is the school's too.
         return BrowserSignIns(listOf(MoodleBrowserSignIn(autologin, webSession), school))
     }
+
+    /**
+     * The school sites' own sign-in forms, filled with the stored school account, the password
+     * only where the page's own certificate is the one a pinned request to the page met.
+     */
+    @Provides
+    @Singleton
+    fun provideBrowserSiteSignIn(
+        authService: AuthService,
+        cleanup: BrowserCleanup,
+        tls: PinnedTls,
+        demoMode: DemoModeInterceptor,
+    ): BrowserSiteSignIn {
+        val pinned = PinnedPageCertificate(PinnedPageCertificate.client(tls, demoMode))
+        return BrowserSiteSignIn(
+            signedIn = { authService.canAskSchool },
+            studentId = { authService.storedStudentId },
+            password = { authService.storedPassword },
+            usable = browserUsable(cleanup),
+            generation = { BrowserSession.generation.value },
+            pinnedLeaf = pinned::leaf,
+        )
+    }
+
+    /** Whether the browser can be used: no deletion, clearing or owed clearing under way. */
+    private fun browserUsable(cleanup: BrowserCleanup): () -> Boolean =
+        { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() }
 }

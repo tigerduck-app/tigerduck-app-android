@@ -1,0 +1,8 @@
+{
+  "name": "tigerduck-page-scripts",
+  "private": true,
+  "description": "Runs the browser's page scripts in jsdom; see site-sign-in.test.cjs.",
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}

@@ -18,10 +18,12 @@ import org.ntust.app.tigerduck.util.logSummary
  * holds, in a run of its own, and the browser gets the cookies the site set for itself, with that
  * SSO session, as on the iPhone: a site may send the browser through SSO again at any time (course
  * selection does on its very next page), which passes by itself only for a browser that holds SSO's
- * session. No password goes into a page. With no SSO session the run can
+ * session. It puts no password into a page. With no SSO session the run can
  * use, [warm] signs the app in to SSO again by the way of [target]'s site, through the app's own
  * guarded sign-in, whatever the app thinks of its session, and the run goes once more. ssoam's
- * NetIQ page and a site's own password form are the student's to sign in to: never taken over.
+ * NetIQ page and a site's own password form are never taken over: they show as they are, and the
+ * student signs in there. [BrowserSiteSignIn] fills the forms the school sites list, never
+ * submitting one.
  *
  * The browser signs a site in by itself only from a page the app opened or a school page
  * ([signsInFrom]); another site sending it to SSO's sign-in page gets the sign-in screen, and the

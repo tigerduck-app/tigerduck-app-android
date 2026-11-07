@@ -43,6 +43,19 @@ object BrowserSchoolSites {
         return forUrl(url)?.signInLink(page)
     }
 
+    /** The form the page at [url] signs in with, for the exact https origins and paths the sites list; its query is not read. */
+    fun signInForm(url: String): SiteSignInForm? {
+        val page = page(url) ?: return null
+        return all.firstOrNull { page.host in it.hosts }?.signInForms?.get(page.path)
+    }
+
+    /** [url]'s https origin and encoded path; null for another scheme or port, or a user in it. */
+    fun page(url: String): SitePage? {
+        val parsed = url.toHttpUrlOrNull() ?: return null
+        if (!parsed.isHttps || parsed.port != 443 || parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return null
+        return SitePage(parsed.host, parsed.encodedPath)
+    }
+
     /** CSS also matches controls a site draws after its first page loads. Moodle keeps its tidy script. */
     val logoutScripts: List<Pair<String, Set<String>>> = all.filter { it !== MoodleSite && it.logoutSelectors.isNotEmpty() }.map { site ->
         val css = Gson().toJson(site.logoutSelectors.joinToString(", ") + " { display: none !important; }")

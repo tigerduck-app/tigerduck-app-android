@@ -4,4 +4,5 @@ object StudentPaySite : SchoolSite {
     override val hosts = setOf("studentpay.ntust.edu.tw")
     override val logoutRules = listOf(SiteLogoutRule("/Logout.aspx"))
     override val logoutSelectors = logoutRules.flatMap { it.selectors(hosts) }
+    override val signInForms = mapOf("/" to SiteSignInForm(studentId = "studentno", password = "password"))
 }
