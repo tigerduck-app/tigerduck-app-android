@@ -77,7 +77,7 @@ class AccentBrushTest {
         val mesh = gradient(0x000000, 0x000000, 0x000000, 0x000000, 0xFFFFFF, style = AccentGradientStyle.Mesh)
 
         assertEquals(Color(0xFF1C1C1E), readableOnGradient(mesh, onFirst = Color.White, meshDrawn = true))
-        // Below Android 13 the stand-in runs from black to white, whose middle is grey, where white reads better.
+        // Below Android 13 the stand-in runs from black to white, whose middle is gray, where white reads better.
         assertEquals(Color.White, readableOnGradient(mesh, onFirst = Color.White, meshDrawn = false))
     }
 }
