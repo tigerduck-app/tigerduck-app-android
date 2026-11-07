@@ -91,7 +91,7 @@ internal fun AddCourseSheet(
     val context = LocalContext.current
     val access = remember { EntryPointAccessors.fromApplication(context.applicationContext, CourseCatalogAccess::class.java) }
     val scope = rememberCoroutineScope()
-    val model = remember { CourseSearchModel(scope, access.courseCatalogFiles(), label = courseService::applyAbbreviations) }
+    val model = remember(semester) { CourseSearchModel(scope, access.courseCatalogFiles(), label = courseService::applyAbbreviations) }
     val fetch = rememberCatalogFetch(access)
     val language = remember { courseService.preferredCourseApiLanguage() }
     var searchText by remember { mutableStateOf("") }
@@ -99,15 +99,16 @@ internal fun AddCourseSheet(
     // The search field takes focus once, as the sheet opens, and not again back from the filters.
     var focused by remember { mutableStateOf(false) }
     // The courses added while this sheet is open, kept across searches: each stays tappable, and
-    // a second tap takes it back out. Courses already on the class table are not in it.
-    var sessionAddedCourseNos by remember { mutableStateOf<Set<String>>(emptySet()) }
+    // a second tap takes it back out. Courses already on the class table are not in it. The model
+    // and this start again for another term, which the class table can move to under the sheet.
+    var sessionAddedCourseNos by remember(semester) { mutableStateOf<Set<String>>(emptySet()) }
     val query = searchText.trim()
     val table = remember(tableCourses) {
         tableCourses.map { CourseSearchTableCourse(it.courseNo, it.displayName, CourseSearch.slots(it.schedule)) }
     }
 
     // Every keystroke searches the stored catalog at once: no wait, and no request to the school.
-    LaunchedEffect(query, model.filters.searched, model.searchAgainCount) {
+    LaunchedEffect(model, semester, query, model.filters.searched, model.searchAgainCount) {
         model.search(query, semester, fetch)
     }
 
