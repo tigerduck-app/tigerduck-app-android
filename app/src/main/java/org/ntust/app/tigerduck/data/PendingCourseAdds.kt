@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.cache.QueueFile
+import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.PushApiClient
@@ -20,7 +21,9 @@ import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -32,8 +35,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Uploads one term's courses as sign-in [signIn], each add in [addedAt] with its time; see
- * [PushApiClient.uploadCoursesAnswered].
+ * Uploads one term's courses as sign-in [signIn], each add in [addedAt] with the time its age is
+ * counted from; see [PushApiClient.uploadCoursesAnswered].
  */
 internal fun interface CourseUploader {
     suspend fun upload(
@@ -41,7 +44,7 @@ internal fun interface CourseUploader {
         semester: String,
         forceKeys: List<String>,
         signIn: SignIn,
-        addedAt: Map<String, Long>,
+        addedAt: Map<String, EditTime>,
     ): CourseUploadAnswer?
 }
 
@@ -85,12 +88,13 @@ class PendingCourseAdds internal constructor(
         ackClock: AckClock? = null,
         @ApplicationScope scope: CoroutineScope? = null,
         oldEntryTime: OldEntryTime? = null,
+        arrivals: AnswerArrivals? = null,
     ) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
             pushApiClient.uploadCoursesAnswered(courses, semester, signIn, forceKeys, addedAt = addedAt)
         },
-        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime),
+        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime, arrivals),
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_ADDS
@@ -103,6 +107,7 @@ class PendingCourseAdds internal constructor(
         dataCache, uploader, outbox,
         waiting = { lane.entries() },
         settle = { signIn, change -> lane.edit(signIn, change) },
+        ageFrom = { add, madeAt -> lane.ageFrom(add, madeAt) },
     )
 
     private val lane: OutboxLane<CourseAdd> = OutboxLane(
@@ -123,31 +128,32 @@ class PendingCourseAdds internal constructor(
         ),
         outbox.ack,
         outbox.scope,
+        outbox.arrivals,
         sends::sendRequested,
     )
 
     /**
      * Uploads [courseNo], just added to [semester]'s list [courses], forcing it
      * past a tombstone as an add does, with [addedAt], the add's moment
-     * ([PendingCourseDeletes.stamp]): the backend applies it only when later
+     * ([PendingCourseDeletes.stamp]), as its age: the backend applies it only when later
      * than the course's last add, hide and reset, so an add kept offline loses
      * to a hide or a reset made since on another device (#591). Kept until the
      * backend accepts or settles it, and kept while course sync is off, until it
      * is on (LWW D12).
      */
-    suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: Long? = null, signIn: SignIn) {
-        val kept = lane.edit(signIn) { it.asked(CourseAdd(semester, courseNo, addedAt)) }
+    suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: EditTime? = null, signIn: SignIn) {
+        val kept = lane.edit(signIn) { it.asked(CourseAdd(semester, courseNo, addedAt?.wallMs, addedAt?.let(EditClocks::of))) }
         if (!kept) return
         trySend(semester, listOf(courseNo), signIn, courses)
     }
 
     /**
-     * Keeps an add of [courseNo] in [semester] stamped 0, the oldest (LWW D13), unless one waits
+     * Keeps an add of [courseNo] in [semester] at the oldest time ([EditTime.OLDEST], LWW D13), unless one waits
      * for the course: it fills only what the backend holds no stamp for. Sends nothing.
      */
     suspend fun queueAsOldest(semester: String, courseNo: String, signIn: SignIn): Boolean =
         lane.edit(signIn) { adds ->
-            if (adds.any { it.field == membershipField(semester, courseNo) }) adds else adds + CourseAdd(semester, courseNo, 0L)
+            if (adds.any { it.field == membershipField(semester, courseNo) }) adds else adds + CourseAdd(semester, courseNo, EditTime.OLDEST.wallMs)
         }
 
     /**
@@ -269,12 +275,17 @@ class PendingCourseAdds internal constructor(
     private suspend fun waiting(): Map<String, List<String>> = dataCache.loadPendingCourseAdds()
 
     // [add] kept in place of the add waiting for its course, or last: an add asked again keeps
-    // the later moment, the newer add's, and one asked with none has none.
+    // the later moment, the newer add's, with its clocks, and one asked with none has none.
     private fun List<CourseAdd>.asked(add: CourseAdd): List<CourseAdd> {
         val at = indexOfFirst { it.field == add.field }
         if (at < 0) return this + add
-        val time = add.addedAtMs?.let { maxOf(this[at].addedAtMs ?: 0L, it) }
-        return toMutableList().also { it[at] = add.copy(addedAtMs = time) }
+        val waiting = this[at]
+        val kept = when {
+            add.addedAtMs == null -> add.copy(clocks = null)
+            (waiting.addedAtMs ?: 0L) > add.addedAtMs -> add.copy(addedAtMs = waiting.addedAtMs, clocks = waiting.clocks)
+            else -> add
+        }
+        return toMutableList().also { it[at] = kept }
     }
 
     companion object {

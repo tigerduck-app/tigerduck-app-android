@@ -174,7 +174,7 @@ class OldEntryTimeTest {
             LanePolicy(Edit::field, 5, onDisk(), untimed = UntimedEntries({ it.madeAtMs }, { e, t -> e.copy(madeAtMs = t) }, { times.oldEntryTimeMs(file) })),
             AckClock(),
             backgroundScope,
-            backend::send,
+            send = backend::send,
         )
         val signIn = series.current
         val first = launch { lane.drain(signIn, fields = setOf("f1")) }

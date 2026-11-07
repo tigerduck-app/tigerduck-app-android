@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.model.UnsentMark
@@ -1319,25 +1320,14 @@ class DataCache @Inject constructor(
     // --- When each pending course add was asked (semester → course number → stamp) ---
     // Beside pending_course_adds.json rather than in it, so that file keeps
     // the shape older installs wrote; an add with no time here, one an older
-    // install queued, goes unstamped. See PendingCourseAdds, the only writer.
+    // install queued, goes with its old-entry time. See PendingCourseAdds, the only writer.
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseAddTimes(times: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
         saveToUserData(times, QueueFile.COURSE_ADD_TIMES.fileName, signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
-    suspend fun loadPendingCourseAddTimes(): Map<String, Map<String, Long>> {
-        val type = object : TypeToken<Map<String?, Map<String?, Long?>?>>() {}.type
-        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, QueueFile.COURSE_ADD_TIMES.fileName)
-            .orEmpty()
-            .mapNotNull { (semester, entries) ->
-                val kept = entries.orEmpty().mapNotNull { (courseNo, addedAt) ->
-                    if (courseNo.isNullOrBlank() || addedAt == null) null else courseNo to addedAt
-                }.toMap()
-                if (semester.isNullOrBlank() || kept.isEmpty()) null else semester to kept
-            }
-            .toMap()
-    }
+    suspend fun loadPendingCourseAddTimes(): Map<String, Map<String, Long>> = loadTermMoments(QueueFile.COURSE_ADD_TIMES)
 
     // --- Pending course deletes (semester → course number → when it was asked) ---
     // Courses deleted on the class table whose backend DELETE has not
@@ -1350,17 +1340,30 @@ class DataCache @Inject constructor(
         saveToUserData(pending, QueueFile.COURSE_DELETES.fileName, signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
-    suspend fun loadPendingCourseDeletes(): Map<String, Map<String, Long>> {
+    suspend fun loadPendingCourseDeletes(): Map<String, Map<String, Long>> = loadTermMoments(QueueFile.COURSE_DELETES)
+
+    // [queue] (term → course number → moment), with no null or blank entry, and no term left with none.
+    private suspend fun loadTermMoments(queue: QueueFile): Map<String, Map<String, Long>> {
         val type = object : TypeToken<Map<String?, Map<String?, Long?>?>>() {}.type
-        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, QueueFile.COURSE_DELETES.fileName)
-            .orEmpty()
-            .mapNotNull { (semester, entries) ->
-                val kept = entries.orEmpty().mapNotNull { (courseNo, queuedAt) ->
-                    if (courseNo.isNullOrBlank() || queuedAt == null) null else courseNo to queuedAt
-                }.toMap()
-                if (semester.isNullOrBlank() || kept.isEmpty()) null else semester to kept
-            }
-            .toMap()
+        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, queue.fileName).orEmpty().mapNotNull { (semester, entries) ->
+            val kept = entries.orEmpty().mapNotNull { (courseNo, at) -> if (courseNo.isNullOrBlank() || at == null) null else courseNo to at }.toMap()
+            if (semester.isNullOrBlank() || kept.isEmpty()) null else semester to kept
+        }.toMap()
+    }
+
+    // --- The device clocks of the course adds' and deletes' moments (moment → clocks) ---
+    // QueueFile.COURSE_ADD_CLOCKS and COURSE_DELETE_CLOCKS; see EditClocks. New files: a moment
+    // with none here, one an older install queued, ages by the wall clock.
+
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveEditClocks(queue: QueueFile, clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean =
+        saveToUserData(clocks.mapKeys { (at, _) -> at.toString() }, queue.fileName, signIn)
+
+    /** An entry whose moment or clocks do not read is left out. */
+    suspend fun loadEditClocks(queue: QueueFile): Map<Long, EditClocks> {
+        val type = object : TypeToken<Map<String?, EditClocks?>>() {}.type
+        return loadFromUserData<Map<String?, EditClocks?>>(type, queue.fileName).orEmpty()
+            .mapNotNull { (at, clocks) -> at?.toLongOrNull()?.let { moment -> clocks?.let { moment to it } } }.toMap()
     }
 
     // --- Pending course overrides (a colour, or a name in one locale) ---
@@ -1628,13 +1631,9 @@ class DataCache @Inject constructor(
                     ).forEach { name ->
                         runCatching { File(userDataDir, name).delete() }
                     }
+                    for (clocks in listOf(QueueFile.COURSE_ADD_CLOCKS.fileName, QueueFile.COURSE_DELETE_CLOCKS.fileName)) runCatching { File(userDataDir, clocks).delete() }
                     runCatching {
-                        userDataDir.listFiles { _, name ->
-                            name.startsWith("manual_courses_") && name.endsWith(
-                                ".json"
-                            )
-                        }
-                            ?.forEach { it.delete() }
+                        userDataDir.listFiles { _, name -> name.startsWith("manual_courses_") && name.endsWith(".json") }?.forEach { it.delete() }
                     }
                     runCatching { deleteUnfinishedWrites(userDataDir) }
                 }

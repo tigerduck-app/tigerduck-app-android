@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.time.AcademicTerm
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
@@ -27,10 +28,11 @@ import org.ntust.app.tigerduck.util.logSummary
  * Sends [change], a course's color or its name in one locale, to the course [target] names, as
  * sign-in [signIn], and says what the backend answered; see
  * [org.ntust.app.tigerduck.push.PushApiClient.patchCourseOverrideAnswered]. [allowed] is read once
- * more right before the request goes, after whatever suspends in between.
+ * more right before the request goes, after whatever suspends in between. [madeAt] is the time the
+ * change's age is counted from.
  */
 internal fun interface CourseOverrideWriter {
-    suspend fun write(change: PendingCourseOverride, target: CourseRef, signIn: SignIn, allowed: () -> Boolean): WriteAnswer
+    suspend fun write(change: PendingCourseOverride, target: CourseRef, signIn: SignIn, allowed: () -> Boolean, madeAt: EditTime?): WriteAnswer
 }
 
 /**
@@ -166,7 +168,7 @@ internal fun fieldOf(row: PendingCourseOverride): String {
  * The course channel's sends, one waiting change at a time as its lane hands it over, read as the
  * request is about to go: its kind's gate ([sends]), the PATCH ([writer]), and what became of it.
  * [waiting] reads the lane's changes, and [landed] runs once the backend has a change, before the
- * lane lets it go and hands over the next.
+ * lane lets it go and hands over the next. [ageFrom] is the lane's: the time a change's age counts from.
  */
 internal class CourseOverrideSends(
     private val dataCache: DataCache,
@@ -176,6 +178,7 @@ internal class CourseOverrideSends(
     private val catalogue: () -> List<String>,
     private val waiting: suspend () -> List<PendingCourseOverride>,
     private val landed: suspend () -> Unit,
+    private val ageFrom: (PendingCourseOverride, EditTime) -> EditTime = { _, madeAt -> madeAt },
 ) {
     /**
      * The lane's send of [change] under [signIn]. Not sent while its kind does not go, or once
@@ -190,7 +193,7 @@ internal class CourseOverrideSends(
         val answer = try {
             // The request carries [signIn], so a sign-out after the check sends it without a token
             // rather than with the next account's.
-            writer.write(change, CourseRef(place?.key), signIn, allowed)
+            writer.write(change, CourseRef(place?.key), signIn, allowed, change.madeAt?.let { ageFrom(change, it) })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -204,8 +207,7 @@ internal class CourseOverrideSends(
     }
 
     /**
-     * What [change]'s failed PATCH comes to. Refused as ahead of the backend's clock once more,
-     * after the client's one restamp, it says nothing about the change. A 404 for a course no
+     * What [change]'s failed PATCH comes to. A 404 for a course no
      * longer cached in the term it was made in lets it go at once: the row went with the course,
      * no upload brings it back, and kept it would be sent, and refused, after every one. A course
      * still on this phone that the backend does not have yet (404 `course_not_found`, as a rename
@@ -215,7 +217,6 @@ internal class CourseOverrideSends(
      * [PendingCourseOverrides.MAX_ATTEMPTS], never lets it go.
      */
     private suspend fun afterFailure(change: PendingCourseOverride, e: Exception): SendResult {
-        if (e.backendError()?.isClockAhead == true) return SendResult.Retry
         if (courseGone(e, change)) {
             Log.w(TAG, "course override let go: its course has left this phone")
             return SendResult.Sent(null)

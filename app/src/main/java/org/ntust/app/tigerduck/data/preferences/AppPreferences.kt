@@ -1157,11 +1157,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putIds("holidayOverridesAwaitingUpload", value).apply()
 
     /**
-     * When each holiday's choice was last made here, epoch ms by holiday id: the `hlc` its upload
-     * sends, so a retry is no newer than the choice. None for a choice made before the time was
+     * When each holiday's choice was last made here, by holiday id: its upload's age is counted
+     * from it, so a retry is no newer than the choice. None for a choice made before the time was
      * kept. Dropped for a holiday a pull replaces; the iPhone's `holidayOverrideEditTimes`.
      */
-    var holidayOverrideEditTimes: Map<Int, Long>
+    var holidayOverrideEditTimes: Map<Int, org.ntust.app.tigerduck.sync.EditTime>
         get() = prefs.getTimesById("holidayOverrideEditTimes")
         set(value) = prefs.edit().putTimesById("holidayOverrideEditTimes", value).apply()
 

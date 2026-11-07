@@ -217,7 +217,7 @@ class SchoolUploadsTest {
         val added = Course(courseNo = HAND, courseName = "Added here", isManual = true)
         cache.saveCourses(listOf(added), TERM, signIn)
 
-        adds.send(listOf(added), TERM, HAND, addedAt = 1_800_000_000_000L, signIn = signIn)
+        adds.send(listOf(added), TERM, HAND, addedAt = EditTime(1_800_000_000_000L), signIn = signIn)
 
         assertFalse("this process has not pulled", gate.hasPulled(signIn))
         assertEquals(listOf(listOf(HAND)), termUploads().map { it.first })

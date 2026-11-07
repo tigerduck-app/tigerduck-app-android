@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.util.logSummary
 
 /**
@@ -36,7 +37,8 @@ import org.ntust.app.tigerduck.util.logSummary
  * - **Outcomes** ([SendResult]). [SendResult.Sent] takes the entry out, unless a newer edit of its
  *   field replaced it while it was in flight: that one goes next, after the reply (refactor-v4 R4,
  *   R10). The reply's clock is recorded in [AckClock] first, so a pull in between holds the field
- *   by one or the other. [SendResult.NotSent] and [SendResult.Retry] keep it as it is.
+ *   by one or the other, and the reply's arrival in [AnswerArrivals]: the edit that replaced it
+ *   counts its age from there ([ageFrom]). [SendResult.NotSent] and [SendResult.Retry] keep it as it is.
  *   [SendResult.Refused] counts one attempt, and at the policy's `maxAttempts` the entry parks:
  *   kept at this phone's value, and not sent until [requeueParked] gives it one more try.
  *   [SendResult.WaitsForUpload] parks it at once. An entry leaves only when sent, superseded or
@@ -65,6 +67,7 @@ class OutboxLane<E : Any>(
     private val policy: LanePolicy<E>,
     private val ack: AckClock,
     private val scope: CoroutineScope,
+    private val arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
     private val send: suspend (E, SignIn) -> SendResult,
 ) {
     // A read and write of the store: held for the file's read and write alone, never across a
@@ -148,14 +151,26 @@ class OutboxLane<E : Any>(
 
     /**
      * Records that [entry]'s send under [signIn] landed, answered at the backend's clock
-     * [serverClockUs], as its field's acknowledgment. The lane does this as it stores a
-     * [SendResult.Sent], before the entry goes. A channel whose send lets the entry go itself, or
-     * clears what a pull reads as it waiting, records it first too, so a pull in between holds the
-     * field by one or the other. Recording it twice changes nothing.
+     * [serverClockUs], as its field's acknowledgment, and the answer's arrival here
+     * ([AnswerArrivals]). The lane does this as it stores a [SendResult.Sent], before the entry
+     * goes. A channel whose send lets the entry go itself, or clears what a pull reads as it
+     * waiting, records it first too, so a pull in between holds the field by one or the other.
+     * Recording it twice changes nothing but the arrival, a moment later. No clock, no answer:
+     * an entry let go unsent records nothing.
      */
     fun acknowledge(entry: E, serverClockUs: Long?, signIn: SignIn) {
-        serverClockUs?.let { ack.acknowledged(policy.field(entry), it, signIn) }
+        val clockUs = serverClockUs ?: return
+        val field = policy.field(entry)
+        ack.acknowledged(field, clockUs, signIn)
+        arrivals.arrived(field, signIn)
     }
+
+    /**
+     * The moment [entry], made at [madeAt], counts its age from as it is sent now: [madeAt], or the
+     * arrival of the answer to an earlier send of its field that came after it ([AnswerArrivals]),
+     * so it lands after that send. Read at each send, a retry's included.
+     */
+    fun ageFrom(entry: E, madeAt: EditTime): EditTime = arrivals.ageFrom(policy.field(entry), madeAt)
 
     /**
      * Sends what waits under [signIn], oldest first, each entry once, and an entry edited again

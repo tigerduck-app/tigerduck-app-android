@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
 import org.ntust.app.tigerduck.data.CourseIgnores
+import org.ntust.app.tigerduck.sync.EditTime
 
 /**
  * A change to whether a course's assignments are ignored that the backend
@@ -28,11 +29,17 @@ data class PendingCourseIgnore(
     /** How many times the backend refused it; see CourseIgnoreSync, which parks it after five. */
     val attempts: Int = 0,
     /**
-     * Sent as the change's `hlc`: the time it was made, which a new change takes from [changedAtMs].
-     * Null on a row written before it was kept (Gson skips the default), which goes out unstamped.
+     * The time the change's age is counted from at each send (`age_ms`), epoch ms, which a new
+     * change takes from [changedAtMs]. Null on a row written before it was kept (Gson skips the
+     * default), which the queue gives its old-entry time as it reads it.
      */
     val madeAtMs: Long? = changedAtMs,
+    /** The device clocks at [madeAtMs], which age it while the boot lasts; null on a row an older build wrote. */
+    val madeAtClocks: EditClocks? = null,
 ) {
+    /** When the change was made, by the device's clocks; null with no time kept. */
+    val madeAt: EditTime? get() = madeAtMs?.let { editTimeOf(it, madeAtClocks) }
+
     /** Whether [other] is this change, however many times either was refused. */
     fun isSameChange(other: PendingCourseIgnore): Boolean = copy(attempts = 0) == other.copy(attempts = 0)
 

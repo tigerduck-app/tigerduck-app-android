@@ -26,9 +26,8 @@ import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.SchoolUploads
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.sync.TermResets
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
@@ -36,7 +35,7 @@ import org.ntust.app.tigerduck.util.testSignIn
 /**
  * What Use Local for courses sends, request by request, through [PushCourseSyncBackend] as Settings
  * builds it: a term's reset, its upload with its hand-adds and no colors, the deletes of its hidden
- * courses, and each color and name as its course's stamped override, a name the names conflict
+ * courses, and each color and name as its course's override with its age, a name the names conflict
  * holds through the course outbox.
  */
 class UseLocalRequestsTest {
@@ -95,17 +94,16 @@ class UseLocalRequestsTest {
         )
         val v4Context = JvmContext()
         val v4Prefs = AppPreferences(v4Context).also(setUp)
-        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { WALL_MS })
-        clock.heardInSnapshot(BACKEND_US)
+        val clock = DeviceClocks.wallOnly { WALL_MS }
         val v4Api = pushApiClientAt(base, v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
         return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache, termResets(cache, v4Api)), v4, cache, outbox).also { built = it }
     }
 
-    private fun hlcOf(sent: RecordingBackend.Sent): Long? =
-        sent.body?.takeIf { it.isNotEmpty() }?.let { JSONObject(it).optLong("hlc").takeIf { hlc -> hlc > 0 } }
-            ?: Regex("[?&]hlc=(\\d+)").find(sent.url)?.groupValues?.get(1)?.toLong()
+    private fun ageOf(sent: RecordingBackend.Sent): Long? =
+        sent.body?.takeIf { it.isNotEmpty() }?.let { JSONObject(it).opt("age_ms") as? Number }?.toLong()
+            ?: Regex("[?&]age_ms=(\\d+)").find(sent.url)?.groupValues?.get(1)?.toLong()
 
     @Test
     fun `a term whose portal courses are not cached is not reset, and its names are not sent`() = runTest {
@@ -129,7 +127,7 @@ class UseLocalRequestsTest {
     }
 
     @Test
-    fun `each color override's stamp is later than the reset's`() = runTest {
+    fun `each color override goes made now after the reset, so the backend stamps it later`() = runTest {
         val onV4 = onV4()
         val (courses, v4) = onV4.courses to onV4.backend
         val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
@@ -153,32 +151,32 @@ class UseLocalRequestsTest {
                 "PATCH http://127.0.0.1:9/v4/sync/courses/client:1151:CS1/override",
                 "PATCH http://127.0.0.1:9/v4/sync/courses/client:1151:MY1/override",
             ),
-            v4.sent.map { "${it.method} ${it.url.substringBefore("&hlc").substringBefore("?hlc")}" },
+            v4.sent.map { "${it.method} ${it.url.substringBefore("&age_ms").substringBefore("?age_ms")}" },
         )
         val upload = JSONObject(v4.sent[1].body!!)
         assertTrue("no colors ride a v4 upload", !upload.has("course_overrides"))
-        val reset = hlcOf(v4.sent[0])!!
+        val reset = ageOf(v4.sent[0])!!
         val add = upload.getJSONArray("adds").getJSONObject(0)
         assertEquals("client:1151:MY1", add.getString("course_key"))
-        val stamps = listOf(reset, add.getLong("hlc")) + v4.sent.drop(2).map { hlcOf(it)!! }
-        // Stamped from one clock in the order sent: each later than the reset, though the phone's own
-        // clock is behind every one of them, as a stamp from it would be at or before the reset.
-        assertEquals(stamps.sorted().distinct(), stamps)
-        assertTrue("the reset is past the wall clock", reset > WALL_MS * 1_000)
+        val ages = listOf(reset, add.getLong("age_ms")) + v4.sent.drop(2).map { ageOf(it)!! }
+        // Each made now, 0 old: the backend stamps each as it arrives, in the order sent, each after
+        // the reset, whatever the phone's own clock reads.
+        assertEquals(List(ages.size) { 0L }, ages)
         assertEquals(
             listOf(mapOf("color_hex" to "#FF0000"), mapOf("custom_name" to "Calc", "locale" to "en"), mapOf("color_hex" to "#00FF00")),
-            v4.sent.drop(3).map { sent -> JSONObject(sent.body!!).asMap() - "hlc" },
+            v4.sent.drop(3).map { sent -> JSONObject(sent.body!!).asMap() - "age_ms" },
         )
         assertEquals("a name that went waits for nothing", emptyList<Any>(), onV4.cache.loadPendingCourseOverrides())
     }
 
     /**
      * A base that names no API version takes `/v4`'s rules as it takes its requests: each color goes
-     * as its course's stamped override, and the hand-added course as an add stamped after the reset,
-     * so neither is lost to the reset. Under `/v3`'s rules no color went, and the add went as the oldest.
+     * as its course's override with its age, and the hand-added course as an add made now, after the
+     * reset, so neither is lost to the reset. Under `/v3`'s rules no color went, and the add went as
+     * the oldest.
      */
     @Test
-    fun `on a base that names no version Use Local stamps each color override and its hand-adds`() = runTest {
+    fun `on a base that names no version Use Local sends each color override and its hand-adds with their ages`() = runTest {
         val onV4 = onV4(base = "http://127.0.0.1:9")
         val (courses, sent) = onV4.courses to onV4.backend
         val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
@@ -194,12 +192,13 @@ class UseLocalRequestsTest {
                 "PATCH http://127.0.0.1:9/sync/courses/client:1151:CS1/override",
                 "PATCH http://127.0.0.1:9/sync/courses/client:1151:MY1/override",
             ),
-            sent.sent.map { "${it.method} ${it.url.substringBefore("&hlc").substringBefore("?hlc")}" },
+            sent.sent.map { "${it.method} ${it.url.substringBefore("&age_ms").substringBefore("?age_ms")}" },
         )
-        val reset = hlcOf(sent.sent[0])!!
+        val reset = ageOf(sent.sent[0])!!
         val add = JSONObject(sent.sent[1].body!!).getJSONArray("adds").getJSONObject(0)
         assertEquals("client:1151:MY1", add.getString("course_key"))
-        assertTrue("the add is stamped after the reset", add.getLong("hlc") > reset)
+        // Both made now: the add, sent after the reset, arrives after it and is stamped after it.
+        assertEquals(listOf(0L, 0L), listOf(reset, add.getLong("age_ms")))
     }
 
     /**
@@ -352,7 +351,7 @@ class UseLocalRequestsTest {
             customNames = mapOf("CS1" to mapOf("en" to "Calc", "zh" to "微積分")),
         )
 
-        val overrides = v4.sent.filter { it.url.endsWith("/override") }.map { JSONObject(it.body!!).asMap() - "hlc" }
+        val overrides = v4.sent.filter { it.url.endsWith("/override") }.map { JSONObject(it.body!!).asMap() - "age_ms" }
         assertEquals(listOf(mapOf("color_hex" to "#FF0000")), overrides)
     }
 
@@ -416,7 +415,7 @@ class UseLocalRequestsTest {
         val manager = AuthTokenManager(tokens, v4.client, v4Prefs, "device-1")
         val current = manager.session.signIns.current
         assertTrue(v4Prefs.school.pendingConflictCategories.set(setOf("course_names"), current))
-        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { WALL_MS })
+        val clock = DeviceClocks.wallOnly { WALL_MS }
         val api = PushApiClient(v4.client, v4Prefs, manager, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, api, v4Prefs)
@@ -439,7 +438,7 @@ class UseLocalRequestsTest {
         customNames = mapOf("CS1" to mapOf("en" to "Old")),
     )
 
-    private fun OnV4.overridesSent() = backend.sent.filter { it.url.endsWith("/override") }.map { JSONObject(it.body!!).asMap() - "hlc" }
+    private fun OnV4.overridesSent() = backend.sent.filter { it.url.endsWith("/override") }.map { JSONObject(it.body!!).asMap() - "age_ms" }
 
     @Test
     fun `on v4 a color changed after Use Local read it goes as it is when its override goes`() = runTest {
@@ -520,8 +519,7 @@ class UseLocalRequestsTest {
     }
 
     private companion object {
-        /** The phone's wall clock, and the backend's time it heard, ten minutes later. */
+        /** The phone's wall clock, which stands still: every edit Use Local sends goes 0 old. */
         const val WALL_MS = 1_790_000_000_000L
-        const val BACKEND_US = (WALL_MS + 600_000) * 1_000
     }
 }

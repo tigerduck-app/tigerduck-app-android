@@ -20,8 +20,9 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
-import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -38,8 +39,8 @@ class PushApiClient @Inject constructor(
     baseClient: OkHttpClient,
     private val prefs: AppPreferences,
     private val authTokenManager: AuthTokenManager,
-    /** What a write is stamped by, and hears its answers; null only in tests, for the wall clock. */
-    syncClock: SyncClock? = null,
+    /** What a write's age is read by as it is sent (`age_ms`); the wall clock alone in tests. */
+    private val clocks: DeviceClocks = DeviceClocks.WALL,
     uploadNews: dagger.Lazy<CourseUploadListener>? = null,
 ) {
     // Whether a write goes, as the switches stand at each read; the re-enable hold is the callers'.
@@ -69,13 +70,12 @@ class PushApiClient @Inject constructor(
     private val deletes by lazy { BackendServices(PushApi::class.java, deleteClient) }
     private val uploads = BackendServices(PushApi::class.java) { request -> uploadCall(request) }
 
-    // The sync writes, each in a file of its own beside this one, stamped by one clock.
-    private val clock = WriteClock(syncClock)
-    private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader, clock)
-    private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, clock, uploadNews)
+    // The sync writes, each in a file of its own beside this one, each aged by the device's clocks.
+    private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader, clocks)
+    private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, clocks, uploadNews)
 
-    /** The stamp of an edit made now, by the clock the writes take theirs from: for a caller's own adds. */
-    internal fun stampMs(): Long = clock.stampMs()
+    /** The time of an edit made now, by the clocks the writes read their ages by: for a caller's own adds. */
+    internal fun editedNow(): EditTime = clocks.now()
 
     /**
      * The Bearer Authorization header of a request of [signIn]'s, signing in
@@ -150,8 +150,8 @@ class PushApiClient @Inject constructor(
     }
 
     /** One holiday's choice, with the backend's answer; see [OverrideRequests.putHoliday]. */
-    suspend fun putHolidayOverrideAnswered(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
-        overrides.putHoliday(holidayId, notify, signIn, madeAtMs)
+    suspend fun putHolidayOverrideAnswered(holidayId: Int, notify: Boolean, signIn: SignIn, madeAt: EditTime?): WriteAnswer =
+        overrides.putHoliday(holidayId, notify, signIn, madeAt)
 
     suspend fun updateDevicePreferences(
         deviceId: String,
@@ -215,18 +215,18 @@ class PushApiClient @Inject constructor(
     }
 
     /** One assignment's mark, with the backend's answer; see [OverrideRequests.patchMark]. */
-    suspend fun patchAssignmentOverrideAnswered(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
-        overrides.patchMark(assignmentId, localStatus, signIn, madeAtMs)
+    suspend fun patchAssignmentOverrideAnswered(assignmentId: Int, localStatus: String, signIn: SignIn, madeAt: EditTime?): WriteAnswer =
+        overrides.patchMark(assignmentId, localStatus, signIn, madeAt)
 
     /** One course's color, or its name in [locale], with the backend's answer; see [OverrideRequests.patchCourse]. */
     suspend fun patchCourseOverrideAnswered(
         target: CourseRef, signIn: SignIn, colorHex: String? = null, customName: String? = null, locale: String? = null,
-        allowed: () -> Boolean = { true }, madeAtMs: Long? = null,
-    ): WriteAnswer = overrides.patchCourse(target, signIn, colorHex, customName, locale, allowed, madeAtMs)
+        allowed: () -> Boolean = { true }, madeAt: EditTime? = null,
+    ): WriteAnswer = overrides.patchCourse(target, signIn, colorHex, customName, locale, allowed, madeAt)
 
     /** Whether a course's assignments are ignored, with the backend's answer; see [OverrideRequests.patchIgnore]. */
-    suspend fun patchCourseIgnoreAnswered(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
-        overrides.patchIgnore(target, ignore, moodleCourseId, signIn, madeAtMs)
+    suspend fun patchCourseIgnoreAnswered(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?): WriteAnswer =
+        overrides.patchIgnore(target, ignore, moodleCourseId, signIn, madeAt)
 
     private val assignmentUploads = UploadLedger(
         store = object : UploadLedgerStore {
@@ -305,25 +305,25 @@ class PushApiClient @Inject constructor(
     /** [uploadCoursesAnswered]'s course numbers settled: see [CourseSyncRequests.uploadCoursesAnswered]. */
     suspend fun uploadCourses(
         courses: List<Course>, semester: String, signIn: SignIn, forceKeys: List<String> = emptyList(), resend: Boolean = false,
-        rosterTerms: List<String> = emptyList(), addedAt: Map<String, Long> = emptyMap(),
+        rosterTerms: List<String> = emptyList(), addedAt: Map<String, EditTime> = emptyMap(),
     ): List<String>? = uploadCoursesAnswered(courses, semester, signIn, forceKeys, resend, rosterTerms, addedAt)?.settled
 
     /** See [CourseSyncRequests.uploadCoursesAnswered]. */
     suspend fun uploadCoursesAnswered(
         courses: List<Course>, semester: String, signIn: SignIn, forceKeys: List<String> = emptyList(), resend: Boolean = false,
-        rosterTerms: List<String> = emptyList(), addedAt: Map<String, Long> = emptyMap(),
+        rosterTerms: List<String> = emptyList(), addedAt: Map<String, EditTime> = emptyMap(),
     ): CourseUploadAnswer? = courseSync.uploadCoursesAnswered(courses, semester, signIn, forceKeys, resend, rosterTerms, addedAt)
 
     /** See [CourseSyncRequests.serverDropped]. */
     suspend fun serverDropped(semester: String, courseNos: Collection<String>) = courseSync.serverDropped(semester, courseNos)
 
     /** A course's delete, with the backend's answer; see [CourseSyncRequests.deleteCourse]. */
-    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: CourseDeleteKind? = null): WriteAnswer =
+    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: EditTime?, kind: CourseDeleteKind? = null): WriteAnswer =
         courseSync.deleteCourse(courseKey, signIn, hiddenAt, kind)
 
     /** A term's reset, or every term's, with the backend's answer; see [CourseSyncRequests.deleteAllCourses]. */
-    suspend fun deleteAllCoursesAnswered(semester: String?, signIn: SignIn, resetAtMs: Long?): WriteAnswer =
-        courseSync.deleteAllCourses(semester, signIn, resetAtMs)
+    suspend fun deleteAllCoursesAnswered(semester: String?, signIn: SignIn, resetAt: EditTime?): WriteAnswer =
+        courseSync.deleteAllCourses(semester, signIn, resetAt)
 }
 
 /**

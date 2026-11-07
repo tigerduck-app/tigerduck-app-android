@@ -106,7 +106,7 @@ class MembershipPullTest {
         w.dataCache.saveCourses(local, term, signIn)
         w.dataCache.saveDeletedCourseNos(setOf("$term:D", "$term:F"), signIn)
         // F's delete waits: refused for now, so it stays this phone's.
-        assertTrue(rig.deletes.keep(term, "F", 1L, signIn))
+        assertTrue(rig.deletes.keep(term, "F", EditTime(1L), signIn))
         listOf("client:$term:F", "client%3A$term%3AF").forEach { backend.answer("DELETE /v4/sync/courses/$it", 503, 503, 503) }
         val snapshot = JSONObject()
             .put("current_revision", 3)
@@ -158,7 +158,7 @@ class MembershipPullTest {
     fun `a delete waiting as the term's step runs keeps its hide, though the pull read the outbox before it`() = runBlocking {
         w.dataCache.saveCourses(listOf(Course(courseNo = "C", courseName = "School C", moodleIdNumber = "${term}C")), term, signIn)
         w.dataCache.saveDeletedCourseNos(setOf("$term:F"), signIn)
-        assertTrue(rig.deletes.keep(term, "F", 1L, signIn))
+        assertTrue(rig.deletes.keep(term, "F", EditTime(1L), signIn))
         val result = org.ntust.app.tigerduck.push.parseFullSync(
             JSONObject().put("current_revision", 3).put("server_hlc", 1_793_000_000_000_000L).put("assignments", JSONArray())
                 .put("courses", JSONArray().put(row("C")).put(row("F"))).put("course_tombstones", JSONArray()),

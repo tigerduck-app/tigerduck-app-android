@@ -64,6 +64,8 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
 import org.ntust.app.tigerduck.widget.WidgetUpdater
@@ -212,7 +214,8 @@ internal fun accountWorld(
             sessionManager = sessionManager,
             stores = SchoolStores(
                 { BulletinReadStateStore(context) }, { appPrefs }, { latch }, { ClubSubscriptions(context) },
-                { ClubActivities(context, ClubApiClient(OkHttpClient())) }, { imported }, { outbox }, { dataCache },
+                { ClubActivities(context, ClubApiClient(OkHttpClient())) }, { imported }, { outbox }, { AnswerArrivals(context, DeviceClocks.WALL) },
+                { dataCache },
             ),
             pushRegistration = pushRegistration,
             demoAccount = demoAccount,

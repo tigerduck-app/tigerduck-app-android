@@ -86,7 +86,7 @@ class PendingCourseOverridesTest {
         // none, and the hold is read once more after the header is made, right before the request.
         overrides = PendingCourseOverrides(
             cache,
-            { change, _, pinned, stillAllowed ->
+            { change, _, pinned, stillAllowed, _ ->
                 beforeHeader()
                 if (!pinned.isCurrent) throw NotSignedInException()
                 if (!stillAllowed()) return@PendingCourseOverrides WriteAnswer.NOT_SENT
@@ -352,7 +352,7 @@ class PendingCourseOverridesTest {
         now = 1L
         val restarted = PendingCourseOverrides(
             cache,
-            { _, _, _, _ -> throw IOException("offline") },
+            { _, _, _, _, _ -> throw IOException("offline") },
             records = { true },
             sends = { true },
             clock = { now++ },

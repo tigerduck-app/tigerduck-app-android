@@ -249,13 +249,13 @@ class LwwPullTest {
 
     /**
      * Each step decides in its own write, from its channel's edits waiting there: an edit kept
-     * while the pull runs is kept all the same, and so is a holiday chosen after the snapshot began
-     * whose choice is not waiting yet.
+     * while the pull runs is kept all the same, and so is a holiday chosen and acknowledged after
+     * the snapshot began, by the backend's clock against the snapshot's.
      */
     @Test
     fun `each step keeps the edits its channel holds as it writes, though the pull read the outbox before them`() = runBlocking {
         seed()
-        w.appPrefs.holidayOverrideEditTimes = mapOf(10 to serverHlc / 1000 + 1)
+        ack.acknowledged(SyncField.holiday(10), serverHlc + 1, signIn)
         val pass = pass(snapshot(), SyncMode.FOREGROUND)
 
         for (step in reconcilers()) step.reconcile(pass)

@@ -28,8 +28,8 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -44,7 +44,7 @@ import java.io.File
  * The course adds as an outbox channel ([PendingCourseAdds]), over real files and the real backend
  * client, against a backend that records what reaches it.
  *
- * The adds an older build kept go stamped (Review Focus 1), an add made with course sync off is
+ * The adds an older build kept go with their ages (Review Focus 1), an add made with course sync off is
  * kept, a refusal is the backend's to settle unless the course was added again, and a landed
  * upload is acknowledged and tells the outbox.
  */
@@ -76,7 +76,7 @@ class CourseAddsChannelTest {
 
     /** The wall clock, which a test moves. */
     private var nowMs = FIRST_RUN_MS
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)), { nowMs })
+    private val deviceClocks = DeviceClocks.wallOnly { nowMs }
     private val ack = AckClock()
 
     // This build first ran at FIRST_RUN_MS, and it is NOW_MS since.
@@ -88,7 +88,7 @@ class CourseAddsChannelTest {
     private fun TestScope.v4Adds(outbox: (() -> Outbox)? = null) = PendingCourseAdds(
         cache,
         pushApiClientAt(
-            v4, backend.client, prefs, syncClock,
+            v4, backend.client, prefs, deviceClocks,
             uploadNews = outbox?.let { get -> CourseUploadListener { _, _, _, signIn -> get().courseUploadLanded(signIn) } },
         ),
         SyncPolicies(prefs), ack, backgroundScope, oldEntryTime,
@@ -125,8 +125,8 @@ class CourseAddsChannelTest {
         cache.saveCourses(listOf(typed), term, signIn)
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> throw java.io.IOException("offline") })
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L, signIn = signIn)
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn)
         assertEquals(mapOf(term to mapOf(typed.courseNo to 6_000L)), cache.loadPendingCourseAddTimes())
     }
 
@@ -139,7 +139,7 @@ class CourseAddsChannelTest {
             if (refusals++ < 6) throw PushApiException("uploadCourses failed: HTTP 422", 422)
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn)
 
         repeat(6) { adds.drain(signIn) }
 
@@ -165,15 +165,15 @@ class CourseAddsChannelTest {
         }
         val adds = PendingCourseAdds(cache, { courses, _, _, _, addedAt ->
             gate()
-            events += "upload ${addedAt.values.single()}"
+            events += "upload ${addedAt.values.single().wallMs}"
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
-        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn) }
+        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
         out.await()
         val delete = launch { adds.removing { events += "DELETE" } }
         runCurrent()
-        val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L, signIn = signIn) }
+        val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn) }
         settle { cache.loadPendingCourseAddTimes()[term]?.get(typed.courseNo) == 6_000L }
         release.complete(Unit)
         first.join()
@@ -202,7 +202,7 @@ class CourseAddsChannelTest {
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
-        val caller = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn) }
+        val caller = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
         out.await()
         val delete = launch { adds.removing { events += "DELETE" } }
         runCurrent()
@@ -229,13 +229,13 @@ class CourseAddsChannelTest {
     private val two = Course(courseNo = "CS1002", courseName = "Two")
 
     /**
-     * Review Focus 1: an add an older build kept goes out once on `/v4`, stamped with its own time,
-     * or, with none, with its old-entry time (X1): the queue file's time, which an older build
+     * Review Focus 1: an add an older build kept goes out once on `/v4`, aged from its own time,
+     * or, with none, from its old-entry time (X1): the queue file's time, which an older build
      * wrote before this build first ran, never the time it is sent. That time is written back at
      * the first load, before anything else writes the file, and stays.
      */
     @Test
-    fun `an entry an older build wrote goes out on v4 stamped`() = runTest {
+    fun `an entry an older build wrote goes out on v4 aged by the wall clock`() = runTest {
         anOlderBuildQueued()
         cache.saveCourses(listOf(one, two), "1141", signIn)
         val adds = v4Adds()
@@ -248,10 +248,11 @@ class CourseAddsChannelTest {
         backend.answer(upload, 200, """{"accepted_keys":["client:1141:CS1001","client:1141:CS1002"]}""")
         adds.drain(signIn)
 
-        val body = """{"courses":[${row(one, "1141")},${row(two, "1141")}],""" +
-            """"adds":[{"course_key":"client:1141:CS1001","hlc":1700000000000000},{"course_key":"client:1141:CS1002","hlc":${FILE_MS * 1_000}}]}"""
+        // Each send reads its ages again: the retry's are a minute older.
+        fun body(atMs: Long) = """{"courses":[${row(one, "1141")},${row(two, "1141")}],""" +
+            """"adds":[{"course_key":"client:1141:CS1001","age_ms":${atMs - 1_700_000_000_000L}},{"course_key":"client:1141:CS1002","age_ms":${atMs - FILE_MS}}]}"""
         assertEquals(
-            List(2) { listOf("POST", "$v4/sync/courses/upload", listOf(bearer), json, body) },
+            listOf(NOW_MS, nowMs).map { listOf("POST", "$v4/sync/courses/upload", listOf(bearer), json, body(it)) },
             backend.sent.map { it.shape() },
         )
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -265,7 +266,7 @@ class CourseAddsChannelTest {
         prefs.syncCourses = false
         val adds = v4Adds()
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), backend.sent.toList())
         assertEquals(mapOf(term to mapOf(typed.courseNo to 1_790_000_000_123L)), cache.loadPendingCourseAddTimes())
         assertEquals(setOf(field(typed)), adds.heldFields())
@@ -278,7 +279,8 @@ class CourseAddsChannelTest {
             listOf(
                 listOf(
                     "POST", "$v4/sync/courses/upload", listOf(bearer), json,
-                    """{"courses":[${row(typed)}],"adds":[{"course_key":"${key(typed)}","hlc":1790000000123000}]}""",
+                    // Made 123 ms past the wall clock now, as no clock reads: an age is never below 0.
+                    """{"courses":[${row(typed)}],"adds":[{"course_key":"${key(typed)}","age_ms":0}]}""",
                 ),
             ),
             backend.sent.map { it.shape() },
@@ -293,7 +295,7 @@ class CourseAddsChannelTest {
         val adds = v4Adds()
         backend.answer(upload, 200, """{"accepted_keys":[],"adds":[{"course_key":"${key(typed)}","applied":false,"hlc":1790000000999000}]}""")
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
 
         assertEquals(listOf(typed.courseNo), cache.loadServerKnownNos()[term])
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -322,15 +324,15 @@ class CourseAddsChannelTest {
             }
             val sent = mutableListOf<Long>()
             val adds = PendingCourseAdds(cache, { _, _, _, _, addedAt ->
-                sent += addedAt.values.single()
+                sent += addedAt.values.single().wallMs
                 gate()
                 // The first is refused, a hide elsewhere being newer; the re-add after it lands.
                 if (sent.size == 1) CourseUploadAnswer(emptyList(), listOf(typed.courseNo)) else CourseUploadAnswer(listOf(typed.courseNo), emptyList())
             }, MembershipOutbox(SyncPolicies(prefs), scope = backgroundScope))
 
-            val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn) }
+            val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
             out.await()
-            val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L, signIn = signIn) }
+            val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn) }
             settle { cache.loadPendingCourseAddTimes()[term]?.get(typed.courseNo) == 6_000L }
             release.complete(Unit)
             first.join()
@@ -353,7 +355,7 @@ class CourseAddsChannelTest {
 
         val ended = series.end()
         adds.drain(ended)
-        adds.send(listOf(one, two), "1141", "CS1009", addedAt = 2L, signIn = ended)
+        adds.send(listOf(one, two), "1141", "CS1009", addedAt = EditTime(2L), signIn = ended)
         adds.queueAsOldest("1141", "CS1010", ended)
         adds.listed(listOf(org.ntust.app.tigerduck.push.ServerCourse(courseNo = "CS1001", courseName = "One", semester = "1141")), ended)
         adds.forgetAll(ended)
@@ -378,8 +380,8 @@ class CourseAddsChannelTest {
         backend.answer(upload, 500, "{}")
         backend.answer(upload, 500, "{}")
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
-        adds.send(listOf(untyped), term, untyped.courseNo, addedAt = 1_790_000_000_124L, signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
+        adds.send(listOf(untyped), term, untyped.courseNo, addedAt = EditTime(1_790_000_000_124L), signIn = signIn)
         assertTrue(outbox.holds(field(typed)) && outbox.holds(field(untyped)))
         assertEquals(emptyList<SignIn>(), probe.requeued)
 
@@ -395,11 +397,11 @@ class CourseAddsChannelTest {
 
     /** LWW D13's stamp-0 add: kept only where none waits, and sent as the oldest. */
     @Test
-    fun `an add queued as the oldest goes stamped 0, and leaves a waiting add as it is`() = runTest {
+    fun `an add queued as the oldest goes as old as the wall clock reads, and leaves a waiting add as it is`() = runTest {
         cache.saveCourses(listOf(typed, untyped), term, signIn)
         val adds = v4Adds()
         backend.answer(upload, 500, "{}")
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = 1_790_000_000_123L, signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
 
         assertTrue(adds.queueAsOldest(term, typed.courseNo, signIn))
         assertTrue(adds.queueAsOldest(term, untyped.courseNo, signIn))
@@ -408,22 +410,18 @@ class CourseAddsChannelTest {
         backend.sent.clear()
         adds.drain(signIn)
         assertEquals(
-            """{"courses":[${row(typed)},${row(untyped)}],"adds":[{"course_key":"${key(typed)}","hlc":1790000000123000},""" +
-                """{"course_key":"${key(untyped)}","hlc":0}]}""",
+            """{"courses":[${row(typed)},${row(untyped)}],"adds":[{"course_key":"${key(typed)}","age_ms":0},""" +
+                """{"course_key":"${key(untyped)}","age_ms":$nowMs}]}""",
             backend.sent.single().body,
         )
     }
 
-    /**
-     * Refused as ahead of the backend's clock again after the client's one restamp, an add says
-     * nothing about itself: it goes again at the next sync, a retry, not one of its refusals,
-     * which `SendResult.afterFailure` would count a 409 as.
-     */
+    /** A 409 is a refusal like any other, as `SendResult.afterFailure` reads it, and is not sent again. */
     @Test
-    fun `on v4 an add refused as ahead once more is a retry, not a refusal`() = runTest {
+    fun `on v4 an add refused with a 409 is a refusal, sent once`() = runTest {
         cache.saveCourses(listOf(typed), term, signIn)
-        val client = pushApiClientAt(v4, backend.client, prefs, syncClock)
-        repeat(2) { backend.answer(upload, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${NOW_MS * 1_000}")) }
+        val client = pushApiClientAt(v4, backend.client, prefs, deviceClocks)
+        backend.answer(upload, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${NOW_MS * 1_000}"))
         val add = CourseAdd(term, typed.courseNo, 1_790_000_000_123L)
         val sends = CourseAddSends(
             cache,
@@ -436,8 +434,8 @@ class CourseAddsChannelTest {
         var result: SendResult? = null
         sends.asking(term, listOf(typed.courseNo), null) { result = sends.sendRequested(add, signIn) }
 
-        assertEquals(2, backend.sent.size)
-        assertEquals(SendResult.Retry, result)
+        assertEquals(1, backend.sent.size)
+        assertEquals(SendResult.Refused, result)
     }
 
     /** Another channel, which hears when a course upload has landed. */

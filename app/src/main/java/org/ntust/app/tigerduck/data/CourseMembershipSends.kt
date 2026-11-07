@@ -7,10 +7,10 @@ package org.ntust.app.tigerduck.data
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,23 +21,15 @@ import java.util.concurrent.atomic.AtomicReference
  * [org.ntust.app.tigerduck.push.PushApiClient.deleteCourseAnswered].
  */
 internal fun interface AnsweredCourseDeleter {
-    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long, kind: CourseDeleteKind?): WriteAnswer
+    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: EditTime, kind: CourseDeleteKind?): WriteAnswer
 }
-
-/**
- * What a course add's or delete's failed send comes to. Refused as ahead of the backend's clock
- * once more, after the client's one restamp (409 `clock_ahead`), it says nothing about the edit,
- * which goes again at the next sync ([SendResult.Retry]): [SendResult.afterFailure] would count
- * the 409 as one of its refusals. Any other failure is as that reads it.
- */
-private fun afterSendFailure(failure: Exception): SendResult =
-    if (failure.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(failure)
 
 /**
  * The course adds' sends. One send is a term's upload of the adds a caller asked for ([asking]):
  * the lane hands over the first of them still waiting ([sendRequested]), and that upload carries
  * them all; any other of them the lane hands over after it sends nothing more. [waiting] reads
- * the lane's adds, and [settle] changes them in one step with the lane's own writes.
+ * the lane's adds, and [settle] changes them in one step with the lane's own writes. [ageFrom] is
+ * the lane's: the time each add's age is counted from.
  */
 internal class CourseAddSends(
     private val dataCache: DataCache,
@@ -45,6 +37,7 @@ internal class CourseAddSends(
     private val outbox: MembershipOutbox,
     private val waiting: suspend () -> List<CourseAdd>,
     private val settle: suspend (SignIn, (List<CourseAdd>) -> List<CourseAdd>) -> Boolean,
+    private val ageFrom: (CourseAdd, EditTime) -> EditTime = { _, madeAt -> madeAt },
 ) {
     // The request the send under way is for, set under the send lock, so one at a time.
     private val request = AtomicReference<Request?>(null)
@@ -72,7 +65,7 @@ internal class CourseAddSends(
 
     /**
      * [asked]'s adds still waiting, read with their moments in one step under the lane's lock they
-     * change under (a timed add read without its moment would go unstamped), checked right before
+     * change under (a timed add read without its moment would go as the oldest), checked right before
      * the request: an add whose course has left this phone's cache or been deleted since is let
      * go unsent. The adds go in one upload with their moments, alone: every other course of an
      * upload counts as the school's roster. Each has its moment, one an older install kept with
@@ -99,7 +92,7 @@ internal class CourseAddSends(
         for (add in taken.adds) results[add] = taken.resultOf(add, outbox.keepsUnsent())
         val done = results.filterValues { it is SendResult.Sent }.keys
         // Acknowledged before the adds go, so a pull in between holds the course by one or the other.
-        done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.ack.acknowledged(add.field, it, signIn) } }
+        done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.answered(add.field, it, signIn) } }
         // Only an add still as it was sent: one added again meanwhile has a newer moment, which
         // this answer, to the older add, does not settle.
         if (done.isNotEmpty()) settle(signIn) { adds -> adds.filterNot { it in done } }
@@ -124,11 +117,11 @@ internal class CourseAddSends(
     }
 
     // One upload of [adds], each forced past a tombstone in the adds' order, and each timed one with
-    // its moment, in the order the times file had them in the read the adds came from
-    // ([CourseAdd.momentAt]), as the body always listed them.
+    // its age from its moment ([ageFrom]), in the order the times file had them in the read the adds
+    // came from ([CourseAdd.momentAt]), as the body always listed them.
     private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
-        val addedAt = adds.filter { it.addedAtMs != null }.sortedBy { it.momentAt }.associate { it.courseNo to it.addedAtMs!! }
+        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.addedAt?.let { add.courseNo to ageFrom(add, it) } }.toMap()
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
@@ -161,7 +154,7 @@ internal class CourseAddSends(
         // waits for the next sync. One sent while course sync is off is kept only where it is
         // kept until sync is on (MembershipOutbox.keepsUnsent), else let go, as before.
         fun resultOf(add: CourseAdd, keepsUnsent: Boolean): SendResult = when {
-            failure != null -> afterSendFailure(failure)
+            failure != null -> SendResult.afterFailure(failure)
             unsent -> if (keepsUnsent) SendResult.NotSent else SendResult.Sent(null)
             add.courseNo in accepted || add.courseNo in refusedNos -> SendResult.Sent(serverClockUs)
             else -> SendResult.Retry
@@ -183,7 +176,8 @@ internal class CourseAddSends(
  * The course deletes' sends: one DELETE per hold of the send lock ([one]), with no kind, so the
  * backend decides from its row, as the iPhone's does: a school course is hidden, one added by hand
  * removed. [waiting] reads the queue's deletes, and [underQueueLock] runs a step under the queue's
- * own lock, which every keep, send and forget of a delete takes.
+ * own lock, which every keep, send and forget of a delete takes. [ageFrom] is the lane's: the time
+ * a delete's age is counted from.
  */
 internal class CourseDeleteSends(
     private val dataCache: DataCache,
@@ -193,6 +187,7 @@ internal class CourseDeleteSends(
     private val underQueueLock: suspend (suspend () -> Unit) -> Unit,
     // The kind a delete names, read as it goes (tigerduck-app-android#698).
     private val kindOf: suspend (CourseDelete) -> CourseDeleteKind?,
+    private val ageFrom: (CourseDelete, EditTime) -> EditTime = { _, madeAt -> madeAt },
 ) {
     // Whether the send under the lock may still make its one request: a removal kept while it was
     // in flight goes at its own turn of the lock, as before, not on the back of this one.
@@ -216,17 +211,17 @@ internal class CourseDeleteSends(
         if (!oneRequest.compareAndSet(true, false)) return SendResult.NotSent
         val answer = try {
             // The request itself carries [signIn]: a sign-out after the check sends it without a
-            // token rather than with the next account's. With the moment it was asked, the backend
-            // applies it only when later than the course's last add, hide and reset: a hide queued
-            // offline loses to an add made since on another device, and a retry after a lost reply
-            // changes nothing (#591).
+            // token rather than with the next account's. With its age from the moment it was asked,
+            // the backend applies it only when later than the course's last add, hide and reset: a
+            // hide queued offline loses to an add made since on another device, and a retry after a
+            // lost reply lands on about the same stamp (#591).
             val kind = kindOf(delete)
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, kind)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, ageFrom(delete, delete.madeAt), kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "course delete failed, kept for the next sync: ${e.logSummary()}")
-            return afterSendFailure(e)
+            return SendResult.afterFailure(e)
         }
         // Nothing went, course sync being off: kept until it is on, where edits wait for it.
         if (!answer.sent) return if (outbox.keepsUnsent()) SendResult.NotSent else SendResult.Sent(null)

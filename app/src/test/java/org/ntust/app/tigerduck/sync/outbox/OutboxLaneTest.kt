@@ -39,7 +39,7 @@ class OutboxLaneTest {
     private val clockUs = EARLIEST_CLOCK_US + 1_000_000
 
     private fun TestScope.lane(store: FakeStore, policy: LanePolicy<Edit> = LanePolicy(Edit::field, 5, onDisk())) =
-        OutboxLane(OutboxChannelId.MARKS, store, policy, ack, backgroundScope, backend::send)
+        OutboxLane(OutboxChannelId.MARKS, store, policy, ack, backgroundScope, send = backend::send)
 
     @Test
     fun `one request is in flight at a time, and a second drain waits for it`() = runTest {
@@ -190,7 +190,7 @@ class OutboxLaneTest {
         }
         backend.answer = { SendResult.Sent(clockUs) }
 
-        OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, backgroundScope, backend::send)
+        OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, backgroundScope, send = backend::send)
             .drain(series.current)
 
         assertEquals(listOf<Long?>(clockUs), acknowledgedAtRemoval)
@@ -577,7 +577,7 @@ class OutboxLaneTest {
     fun `a send now of a channel's own write counts as under way from before the write`() = runBlocking {
         val store = FakeStore(listOf(Edit("f1", "old", madeAtMs = 1)))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, backend::send)
+        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, send = backend::send)
         val newTried = CountDownLatch(1)
         backend.answer = { edit -> if (edit.value == "new") SendResult.Retry.also { newTried.countDown() } else null }
         val signIn = series.current
@@ -617,7 +617,7 @@ class OutboxLaneTest {
     fun `a send now counts as under way from before its edit is kept, whichever thread takes the edit`() = runBlocking {
         val store = FakeStore(listOf(Edit("f1", "old", madeAtMs = 1)))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, backend::send)
+        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, send = backend::send)
         val newTried = CountDownLatch(1)
         backend.answer = { edit -> if (edit.value == "new") SendResult.Retry.also { newTried.countDown() } else null }
         val signIn = series.current

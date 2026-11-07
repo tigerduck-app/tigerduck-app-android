@@ -94,8 +94,8 @@ class OutboxDrainWiringTest {
         rig.ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
-        rig.adds.send(listOf(kept, added), TERM, ADDED, addedAt = 1L, signIn = signIn)
-        assertTrue(rig.deletes.keep(TERM, GONE, queuedAt = 5L, signIn = signIn))
+        rig.adds.send(listOf(kept, added), TERM, ADDED, addedAt = EditTime(1L), signIn = signIn)
+        assertTrue(rig.deletes.keep(TERM, GONE, queuedAt = EditTime(5L), signIn = signIn))
         rig.overrides.queue(
             listOf(PendingCourseOverrides.Change(MOODLE_ID, colorHex = "#ABCDEF", semester = TERM, courseNo = COURSE)),
             rig.overrides.reserveVersion(), signIn,

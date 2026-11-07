@@ -30,8 +30,7 @@ import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.Outbox
@@ -41,8 +40,8 @@ import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
 
 /**
- * The marks' queue over the real backend client and real files. Each tap is stamped by the sync
- * clock, a mark an older build wrote with no time goes with its old-entry time (Review Focus 1),
+ * The marks' queue over the real backend client and real files. Each tap goes with its age by the
+ * device's clocks, a mark an older build wrote with no time goes with its old-entry time (Review Focus 1),
  * an edit made with marks off is kept and goes once they are on, and the reply's clock is the
  * mark's acknowledgment. A reply never writes a mark on this phone: when the backend kept a later
  * mark, the next pull applies it (LWW D12). The queue is the outbox's marks channel, registered
@@ -79,21 +78,21 @@ class UnsentMarksChannelTest {
     private val v4Backend = RecordingBackend()
     private val v4MarkPath = "/v4/sync/assignments/7/override"
 
-    /** The wall clock the sync clock and the old-entry time read; a test moves it. */
+    /** The wall clock the device's clocks and the old-entry time read; a test moves it. */
     private var nowMs = 1_790_000_500_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { nowMs })
+    private val deviceClocks = DeviceClocks.wallOnly { nowMs }
     private val ack = AckClock()
     private val oldEntryTime = OldEntryTime(context.getSharedPreferences("tigerduck_outbox", 0), Dispatchers.Unconfined) { nowMs }
     private val queueFile = File(context.filesDir, "TigerDuckData/unsent_marks.json")
 
-    /** The queue as the app builds it, over the client at `/v4`, stamping with [syncClock]. */
+    /** The queue as the app builds it, over the client at `/v4`, its edits timed by [deviceClocks]. */
     private fun TestScope.v4Marks() = UnsentMarks(
-        cache, pushApiClientAt(v4, v4Backend.client, prefs, syncClock), prefs,
-        syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
+        cache, pushApiClientAt(v4, v4Backend.client, prefs, deviceClocks), prefs,
+        clocks = deviceClocks, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
     )
 
-    private fun hlcOf(sent: RecordingBackend.Sent): Long? =
-        Regex(""""hlc":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
+    private fun ageOf(sent: RecordingBackend.Sent): Long? =
+        Regex(""""age_ms":(\d+)""").find(sent.body.orEmpty())?.groupValues?.get(1)?.toLong()
 
     /** This build first ran at [firstRunMs]; an older build wrote the queue file [rows] at [fileMs]. */
     private fun olderBuildWrote(rows: String, fileMs: Long, firstRunMs: Long) {
@@ -205,7 +204,7 @@ class UnsentMarksChannelTest {
     // --- /v4: the outbox's marks channel ---
 
     @Test
-    fun `on v4 a tap goes stamped by the sync clock, and the reply's clock is the mark's acknowledgment`() = runTest {
+    fun `on v4 a tap goes with its age, and the reply's clock is the mark's acknowledgment`() = runTest {
         v4Backend.answer(v4MarkPath, 200, syncFixture("v4/answer-mark-applied.json"), mapOf("X-TigerSync-Clock" to "1790000500002000"))
         // The tap's own write, as Home makes it.
         assertTrue(cache.saveIgnoredAssignments(setOf("7"), signIn))
@@ -215,8 +214,8 @@ class UnsentMarksChannelTest {
 
         val sent = v4Backend.sent.single()
         assertEquals(listOf("PATCH", "$v4/sync/assignments/7/override", listOf(bearer)), listOf(sent.method, sent.url, sent.headers))
-        // Nothing heard yet: the wall clock, a tick on.
-        assertEquals("""{"local_status":"ignored","hlc":${(nowMs + 1) * 1_000}}""", sent.body)
+        // Sent as it was made: 0 old.
+        assertEquals("""{"local_status":"ignored","age_ms":0}""", sent.body)
         assertEquals(1_790_000_500_002_000L, ack.lastAck(SyncField.mark("7")))
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
         assertEquals("a mark the backend took, as this phone has it, writes nothing", adopted, cache.marksAdoptedVersion.value)
@@ -224,7 +223,7 @@ class UnsentMarksChannelTest {
     }
 
     @Test
-    fun `an entry an older build wrote goes out on v4 stamped with its file's time, kept on disk before it goes`() = runTest {
+    fun `an entry an older build wrote goes out on v4 aged from its file's time, kept on disk before it goes`() = runTest {
         val fileMs = nowMs - 300_000
         olderBuildWrote("[$untimed7]", fileMs = fileMs, firstRunMs = nowMs - 200_000)
         v4Backend.answer(v4MarkPath, 503, """{"error":"internal","message":"down"}""")
@@ -236,7 +235,8 @@ class UnsentMarksChannelTest {
         nowMs += 60_000
         marks.drain(signIn)
 
-        assertEquals(listOf(fileMs * 1_000, fileMs * 1_000), v4Backend.sent.map(::hlcOf))
+        // By the wall clock, the only one an older build's entry has: grown on the retry.
+        assertEquals(listOf(300_000L, 360_000L), v4Backend.sent.map(::ageOf))
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
     }
 
@@ -249,7 +249,7 @@ class UnsentMarksChannelTest {
         v4Marks().drain(signIn)
 
         // Each with its own time where it has one, never the time it was sent.
-        assertEquals(listOf(firstRunMs * 1_000, (nowMs - 400_000) * 1_000), v4Backend.sent.map(::hlcOf))
+        assertEquals(listOf(200_000L, 400_000L), v4Backend.sent.map(::ageOf))
     }
 
     /** The gap between the sign-in's end and the wipe: the file is still there, and stays as it is. */
@@ -278,12 +278,12 @@ class UnsentMarksChannelTest {
         val marks = v4Marks()
         prefs.syncAssignments = false
         marks.send("7", "ignored", signIn)
-        val sevenAt = nowMs + 1
+        val sevenAt = nowMs
         nowMs += 1_000
         prefs.syncAssignments = true
         prefs.cloudSyncEnabled = false
         marks.send("8", "none", signIn)
-        val eightAt = nowMs + 1
+        val eightAt = nowMs
         marks.drain(signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(listOf("7" to sevenAt, "8" to eightAt), cache.loadUnsentMarks().map { it.assignmentId to it.madeAtMs })
@@ -293,7 +293,7 @@ class UnsentMarksChannelTest {
         marks.drain(signIn)
 
         assertEquals(listOf("$v4/sync/assignments/7/override", "$v4/sync/assignments/8/override"), v4Backend.sent.map { it.url })
-        assertEquals("each with the time it was made", listOf(sevenAt * 1_000, eightAt * 1_000), v4Backend.sent.map(::hlcOf))
+        assertEquals("each aged from the time it was made", listOf(nowMs - sevenAt, nowMs - eightAt), v4Backend.sent.map(::ageOf))
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
     }
 
@@ -532,19 +532,17 @@ class UnsentMarksChannelTest {
     }
 
     @Test
-    fun `on v4 a mark refused as ahead twice is kept uncounted, and a refusal is counted`() = runTest {
-        repeat(2) {
-            v4Backend.answer(v4MarkPath, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${(nowMs - 60_000) * 1_000}"))
-        }
+    fun `on v4 a mark refused with a 409 goes once and is counted, as any refusal`() = runTest {
+        v4Backend.answer(v4MarkPath, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${(nowMs - 60_000) * 1_000}"))
         val marks = v4Marks()
 
         marks.send("7", "ignored", signIn)
-        assertEquals("stamped, then stamped again", 2, v4Backend.sent.size)
-        assertEquals(0, cache.loadUnsentMarks().single().attempts)
+        assertEquals("never sent again on its own", 1, v4Backend.sent.size)
+        assertEquals(1, cache.loadUnsentMarks().single().attempts)
 
         v4Backend.answer(v4MarkPath, 404, syncFixture("v4/error-not-found.json"))
         marks.drain(signIn)
-        assertEquals(1, cache.loadUnsentMarks().single().attempts)
+        assertEquals(2, cache.loadUnsentMarks().single().attempts)
     }
 
     @Test
@@ -571,18 +569,18 @@ class UnsentMarksChannelTest {
     }
 
     @Test
-    fun `a mark queued as the oldest is stamped 0, and only when none waits for its assignment`() = runTest {
+    fun `a mark queued as the oldest goes as old as the wall clock reads, and only when none waits for its assignment`() = runTest {
         val marks = v4Marks()
         prefs.syncAssignments = false
         marks.send("8", "ignored", signIn)
         marks.queueAsOldest("7", "ignored", signIn)
         marks.queueAsOldest("8", "none", signIn)
-        assertEquals(listOf(Triple("8", "ignored", nowMs + 1), Triple("7", "ignored", 0L)), cache.loadUnsentMarks().map { Triple(it.assignmentId, it.status, it.madeAtMs) })
+        assertEquals(listOf(Triple("8", "ignored", nowMs), Triple("7", "ignored", 0L)), cache.loadUnsentMarks().map { Triple(it.assignmentId, it.status, it.madeAtMs) })
 
         prefs.syncAssignments = true
         marks.drain(signIn)
 
-        assertEquals(listOf((nowMs + 1) * 1_000, 0L), v4Backend.sent.map(::hlcOf))
+        assertEquals(listOf(0L, nowMs), v4Backend.sent.map(::ageOf))
     }
 
     @Test

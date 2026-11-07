@@ -8,18 +8,29 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.QueueFile
+import org.ntust.app.tigerduck.data.model.EditClocks
+import org.ntust.app.tigerduck.data.model.editTimeOf
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.SyncPolicy
+import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 
-/** A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has one. */
-internal data class CourseAdd(val semester: String, val courseNo: String, val addedAtMs: Long?) {
+/**
+ * A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has
+ * one, and the device clocks at that moment ([clocks]), where kept.
+ */
+internal data class CourseAdd(val semester: String, val courseNo: String, val addedAtMs: Long?, val clocks: EditClocks? = null) {
     val field: String get() = membershipField(semester, courseNo)
+
+    /** When the add was asked, by the device's clocks; null with no moment kept. */
+    val addedAt: EditTime? get() = addedAtMs?.let { editTimeOf(it, clocks) }
 
     /**
      * Where the add's moment stood in the times file in the read that gave this add, the one
@@ -34,9 +45,12 @@ internal data class CourseAdd(val semester: String, val courseNo: String, val ad
     fun readWithMomentAt(at: Int?): CourseAdd = also { momentAt = at ?: Int.MAX_VALUE }
 }
 
-/** A course deleted from [semester] whose DELETE waits, with the moment it was asked. */
-internal data class CourseDelete(val semester: String, val courseNo: String, val queuedAt: Long) {
+/** A course deleted from [semester] whose DELETE waits, with the moment it was asked and the device clocks then, where kept. */
+internal data class CourseDelete(val semester: String, val courseNo: String, val queuedAt: Long, val clocks: EditClocks? = null) {
     val field: String get() = membershipField(semester, courseNo)
+
+    /** When the delete was asked, by the device's clocks. */
+    val madeAt: EditTime get() = editTimeOf(queuedAt, clocks)
 }
 
 /** The field an add, a hide and a removal of [courseNo] in [semester] all edit. */
@@ -49,32 +63,54 @@ private fun <E> List<E>.byTerm(semester: (E) -> String): Map<String, List<E>> = 
 /**
  * The adds' lane store: `pending_course_adds.json` (term to course numbers) and, beside it,
  * `pending_course_add_times.json` (term to course number to moment), as the queue kept them, so an
- * older install's file, whose adds have no moment, reads as it is. The adds go in the files' order.
+ * older install's file, whose adds have no moment, reads as it is, and the moments' device clocks
+ * (`pending_course_add_clocks.json`, [MomentClocks]). The adds go in the files' order.
  */
 internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<CourseAdd> {
+    private val clocks = MomentClocks(dataCache, QueueFile.COURSE_ADD_CLOCKS)
+
     override suspend fun load(): List<CourseAdd> {
         val times = dataCache.loadPendingCourseAddTimes()
+        val clocksOf = clocks.load()
         return dataCache.loadPendingCourseAdds().flatMap { (semester, nos) ->
             val order = times[semester].orEmpty().keys.withIndex().associate { (at, courseNo) -> courseNo to at }
-            nos.distinct().map { CourseAdd(semester, it, times[semester]?.get(it)).readWithMomentAt(order[it]) }
+            nos.distinct().map { courseNo ->
+                val at = times[semester]?.get(courseNo)
+                CourseAdd(semester, courseNo, at, at?.let(clocksOf::get)).readWithMomentAt(order[courseNo])
+            }
         }
     }
 
     /**
      * A moment is written before its add and goes after it, so an add with a moment is never read
-     * without it: sent unstamped, it would count from when it arrives and win over a hide made
-     * after it elsewhere. A file the change leaves as it is is not written.
+     * without it: sent as the oldest, it would lose to every hide and reset, an older one made
+     * elsewhere included. Its clocks go with it, and a moment read without them ages by the wall
+     * clock. A file the change leaves as it is is not written.
      */
     override suspend fun save(entries: List<CourseAdd>, signIn: SignIn): Boolean {
         val before = dataCache.loadPendingCourseAdds()
         val timesBefore = dataCache.loadPendingCourseAddTimes()
         val after = entries.byTerm { it.semester }.mapValues { (_, adds) -> adds.map { it.courseNo } }
         val timesAfter = momentsInPlace(entries, timesBefore)
+        val clocksAfter = entries.mapNotNull { add -> add.addedAtMs?.let { at -> add.clocks?.let { at to it } } }.toMap()
         val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
         suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, signIn)
         suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, signIn)
-        return if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes()
+        suspend fun saveClocks() = clocks.save(clocksAfter, signIn)
+        return if (added) saveClocks() && saveTimes() && saveAdds() else saveAdds() && saveTimes() && saveClocks()
     }
+}
+
+/**
+ * The device clocks of the course list's moments ([EditClocks]), by moment, in [file]: each add's
+ * or delete's, as its lane store writes it with the entries. A file the entries leave as it is is
+ * not written.
+ */
+internal class MomentClocks(private val dataCache: DataCache, private val file: QueueFile) {
+    suspend fun load(): Map<Long, EditClocks> = dataCache.loadEditClocks(file)
+
+    suspend fun save(clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean =
+        clocks == load() || dataCache.saveEditClocks(file, clocks, signIn)
 }
 
 /**
@@ -97,20 +133,44 @@ private fun momentsInPlace(entries: List<CourseAdd>, before: Map<String, Map<Str
     return kept
 }
 
-/** The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read through [load]. */
+/**
+ * The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read
+ * through [load], and the moments' device clocks (`pending_course_delete_clocks.json`), written
+ * before the deletes, as a delete read without them ages by the wall clock.
+ */
 internal class CourseDeletesStore(
     private val dataCache: DataCache,
     private val load: suspend () -> Map<String, Map<String, Long>>,
 ) : LaneStore<CourseDelete> {
-    override suspend fun load(): List<CourseDelete> = deletesOf(load.invoke())
+    private val clocks = MomentClocks(dataCache, QueueFile.COURSE_DELETE_CLOCKS)
 
-    override suspend fun save(entries: List<CourseDelete>, signIn: SignIn): Boolean =
-        dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn)
+    override suspend fun load(): List<CourseDelete> {
+        val clocksOf = clocks.load()
+        return deletesOf(load.invoke(), clocksOf::get)
+    }
+
+    override suspend fun save(entries: List<CourseDelete>, signIn: SignIn): Boolean {
+        val kept = entries.mapNotNull { delete -> delete.clocks?.let { delete.queuedAt to it } }.toMap()
+        return clocks.save(kept, signIn) && dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn)
+    }
 }
 
-/** The deletes [byTerm] holds (term to course number to moment), in its order. */
-internal fun deletesOf(byTerm: Map<String, Map<String, Long>>): List<CourseDelete> =
-    byTerm.flatMap { (semester, entries) -> entries.map { (courseNo, at) -> CourseDelete(semester, courseNo, at) } }
+/** The deletes [byTerm] holds (term to course number to moment), in its order, each with its moment's [clocks]. */
+internal fun deletesOf(byTerm: Map<String, Map<String, Long>>, clocks: (Long) -> EditClocks? = { null }): List<CourseDelete> =
+    byTerm.flatMap { (semester, entries) -> entries.map { (courseNo, at) -> CourseDelete(semester, courseNo, at, clocks(at)) } }
+
+/** The deletes [this] holds (term to course number to moment) but [courseNo]'s in [semester], when [asked] by its moment. */
+internal fun Map<String, Map<String, Long>>.without(
+    semester: String,
+    courseNo: String,
+    asked: (queuedAt: Long) -> Boolean,
+): Map<String, Map<String, Long>> {
+    val entries = this[semester].orEmpty()
+    val queuedAt = entries[courseNo] ?: return this
+    if (!asked(queuedAt)) return this
+    val kept = entries - courseNo
+    return if (kept.isEmpty()) this - semester else this + (semester to kept)
+}
 
 /** [deletes] as the file holds them: term to course number to moment, each term's in order. */
 internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String, Long>> =
@@ -124,6 +184,9 @@ internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String,
  * - [policies] are read once per question.
  * - [ack] is the outbox's [AckClock], [scope] the application's, where a send runs to its end.
  * - [oldEntryTime] gives an add an older build kept with no moment its old-entry time (X1).
+ * - [arrivals] are the answers' arrivals by field, which the adds and the deletes share: a delete
+ *   asked while its course's add was out counts its age from that add's answer, and so the other
+ *   way round ([AnswerArrivals]).
  *
  * A course upload that lands, the adds' as any other, is told to the outbox by the client that
  * sent it ([org.ntust.app.tigerduck.push.CourseUploadListener]).
@@ -133,8 +196,11 @@ internal class MembershipOutbox(
     ack: AckClock? = null,
     scope: CoroutineScope? = null,
     val oldEntryTime: OldEntryTime? = null,
+    arrivals: AnswerArrivals? = null,
 ) {
     val ack: AckClock = ack ?: AckClock()
+
+    val arrivals: AnswerArrivals = arrivals ?: AnswerArrivals.inMemory()
 
     val scope: CoroutineScope = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
@@ -145,4 +211,10 @@ internal class MembershipOutbox(
      * (LWW D12, [SyncPolicy.keeps]): on every build with TigerSync, and with no policy to read.
      */
     fun keepsUnsent(): Boolean = policy()?.keeps(SyncCategory.COURSES) ?: true
+
+    /** An answer under [signIn] acknowledged [field]'s write at the backend's clock [serverClockUs], and arrived now. */
+    fun answered(field: String, serverClockUs: Long, signIn: SignIn) {
+        ack.acknowledged(field, serverClockUs, signIn)
+        arrivals.arrived(field, signIn)
+    }
 }

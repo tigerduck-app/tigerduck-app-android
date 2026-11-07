@@ -14,7 +14,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
-import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -80,28 +80,29 @@ internal fun syncFixture(path: String): String =
 
 /**
  * A [SyncApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
- * reaching nothing but [backend], its snapshots heard by [clock].
+ * reaching nothing but [backend].
  */
-internal fun syncApiClientAt(base: String, backend: OkHttpClient, clock: SyncClock? = null): SyncApiClient {
+internal fun syncApiClientAt(base: String, backend: OkHttpClient): SyncApiClient {
     val context = JvmContext()
     val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = base }
     // Never the real backend, even past the recording one.
     assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
     val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
-    return SyncApiClient(AuthTokenManager(tokens, backend, prefs, "device-1"), prefs, backend, clock)
+    return SyncApiClient(AuthTokenManager(tokens, backend, prefs, "device-1"), prefs, backend)
 }
 
 /**
  * A [PushApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
- * reaching nothing but [backend]; [prefs] for a test that turns the switches, [clock] for one
- * whose `/v4` writes it stamps, and [uploadNews] for one that hears each course upload that landed.
+ * reaching nothing but [backend]; [prefs] for a test that turns the switches, [clocks] for one
+ * that reads its writes' ages by its own clocks, and [uploadNews] for one that hears each course
+ * upload that landed.
  */
 internal fun pushApiClientAt(
     base: String,
     backend: OkHttpClient,
     prefs: AppPreferences = AppPreferences(JvmContext()),
-    clock: SyncClock? = null,
+    clocks: DeviceClocks = DeviceClocks.WALL,
     uploadNews: CourseUploadListener? = null,
 ): PushApiClient {
     prefs.announcementApiBaseUrlOverride = base
@@ -109,5 +110,5 @@ internal fun pushApiClientAt(
     assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
     val tokens = V3TokenStore(JvmContext().getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
-    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clock, uploadNews?.let { dagger.Lazy { it } })
+    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clocks, uploadNews?.let { dagger.Lazy { it } })
 }

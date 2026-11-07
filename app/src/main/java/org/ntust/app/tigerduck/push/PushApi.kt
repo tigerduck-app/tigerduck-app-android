@@ -82,7 +82,7 @@ internal interface PushApi {
     fun coursesUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
 
     /**
-     * [hlc] the hide's time, in microseconds since the epoch; [kind] `hide` or `remove`
+     * [ageMs] the hide's age at this send, in ms (`age_ms`); [kind] `hide` or `remove`
      * (`CourseDeleteKind`), or null for none, where the backend decides from its row.
      */
     @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
@@ -90,16 +90,16 @@ internal interface PushApi {
         @Header("Authorization") auth: String,
         @Path("courseKey", encoded = true) courseKey: String,
         @Body empty: RequestBody,
-        @Query("hlc") hlc: Long,
+        @Query(AGE_MS) ageMs: Long,
         @Query("kind") kind: String?,
     ): Call
 
-    /** [semester] form-encoded already (`URLEncoder`), or null for every term; [hlc] the reset's. */
+    /** [semester] form-encoded already (`URLEncoder`), or null for every term; [ageMs] the reset's age. */
     @HTTP(method = "DELETE", path = "sync/courses", hasBody = true)
     fun removeCourses(
         @Header("Authorization") auth: String,
         @Query("semester", encoded = true) semester: String?,
         @Body empty: RequestBody,
-        @Query("hlc") hlc: Long,
+        @Query(AGE_MS) ageMs: Long,
     ): Call
 }

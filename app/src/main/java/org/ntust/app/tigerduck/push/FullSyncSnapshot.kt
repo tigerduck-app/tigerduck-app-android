@@ -136,10 +136,9 @@ data class BackendSyncResult(
 
 /**
  * The snapshot `GET /sync/full` answers, as the syncs read it; its `roster_requests` are
- * [parseRosterRequests]'s, and its fetch time the caller's. [heard] is told the largest clock value
- * read, which no edit this device makes may be stamped below (LWW D4).
+ * [parseRosterRequests]'s, and its fetch time the caller's.
  */
-internal fun parseFullSync(json: JSONObject, heard: (Long) -> Unit = {}): BackendSyncResult {
+internal fun parseFullSync(json: JSONObject): BackendSyncResult {
     // The snapshot's assignment rows are not read as assignments: every
     // cached assignment comes from Moodle itself (MoodleService). They
     // only key the overrides below by server row id, for a server whose
@@ -165,7 +164,7 @@ internal fun parseFullSync(json: JSONObject, heard: (Long) -> Unit = {}): Backen
         holidayOverrides = parseHolidayOverrides(json),
         marks = marks.stamped,
     )
-    return result.withSnapshotStamps(json).also { read -> read.clockValues().maxOrNull()?.let(heard) }
+    return result.withSnapshotStamps(json)
 }
 
 /** Each snapshot assignment row's server id, to the Moodle assignment id it carries. */

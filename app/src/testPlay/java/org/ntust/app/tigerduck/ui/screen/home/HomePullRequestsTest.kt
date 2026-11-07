@@ -26,8 +26,8 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.V4WriteRules
 import org.ntust.app.tigerduck.sync.appBackendClient
 import org.ntust.app.tigerduck.sync.appSyncRig
@@ -41,8 +41,8 @@ import org.robolectric.annotation.Config
  * queue, the snapshot, then what the snapshot asks for. Pinned so a change to how the sync is put
  * together sends the same bytes. Over the clients and queues as the app builds them, behind `/v4`'s
  * rules for a write ([V4WriteRules]), a setting the released build left naming `/v3`. Made-up
- * accounts and course numbers; times in a body, which the queues take from the clock, read as
- * `<time>`.
+ * accounts and course numbers; times in a body read as `<time>`, and each edit's age, which the
+ * queues take from the clock, as `<age>`.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -78,8 +78,8 @@ class HomePullRequestsTest {
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         // As the app builds its clients and queues, under /v4's rules for a write.
-        val clock = SyncClock(SyncClockStore(context), prefs)
-        val client = appBackendClient(prefs, clock, backend.client, rules)
+        val clock = DeviceClocks.WALL
+        val client = appBackendClient(prefs, backend.client, rules)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client)
         rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS)).home
         runBlocking {
@@ -100,7 +100,7 @@ class HomePullRequestsTest {
             // The how-many-th request to this endpoint the i-th one is.
             all[backend.endpoints().subList(0, i).count { it == endpoint }]
         }
-        val body = request.body.replace(Regex("""\d{12,}"""), "<time>")
+        val body = request.body.replace(Regex(""""age_ms":\d+"""), "\"age_ms\":<age>").replace(Regex("""\d{12,}"""), "<time>")
         "$endpoint | ${request.authorization} | ${request.protocol} | $body"
     }
 
@@ -140,8 +140,8 @@ class HomePullRequestsTest {
         rig.ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
-        rig.adds.send(listOf(kept, added), TERM, ADDED, addedAt = 1L, signIn = signIn)
-        assertTrue(rig.deletes.keep(TERM, GONE, queuedAt = 5L, signIn = signIn))
+        rig.adds.send(listOf(kept, added), TERM, ADDED, addedAt = EditTime(1L), signIn = signIn)
+        assertTrue(rig.deletes.keep(TERM, GONE, queuedAt = EditTime(5L), signIn = signIn))
         rig.overrides.queue(
             listOf(PendingCourseOverrides.Change(MOODLE_ID, colorHex = "#ABCDEF", semester = TERM, courseNo = COURSE)),
             rig.overrides.reserveVersion(), signIn,
@@ -180,12 +180,12 @@ class HomePullRequestsTest {
         /** As the sync sends them; see the test. */
         val EXPECTED_PULL = listOf(
             // What waits, in the order the retries run: ignores, marks, adds, deletes, overrides, holidays.
-            """PATCH /sync/courses/client:1141:CS1001/override | Bearer access-1 | null | {"ignore_assignments":true,"hlc":<time>}""",
-            """PATCH /sync/assignments/8/override | Bearer access-1 | null | {"local_status":"locally_completed","hlc":<time>}""",
-            """POST /sync/courses/upload | Bearer access-1 | null | {"courses":[$ADD_ROW],"adds":[{"course_key":"client:1141:AD1001","hlc":1000}]}""",
+            """PATCH /sync/courses/client:1141:CS1001/override | Bearer access-1 | null | {"ignore_assignments":true,"age_ms":<age>}""",
+            """PATCH /sync/assignments/8/override | Bearer access-1 | null | {"local_status":"locally_completed","age_ms":<age>}""",
+            """POST /sync/courses/upload | Bearer access-1 | null | {"courses":[$ADD_ROW],"adds":[{"course_key":"client:1141:AD1001","age_ms":<age>}]}""",
             "DELETE /sync/courses/client:1141:GO1001 | Bearer access-1 | null | ",
-            """PATCH /sync/courses/client:1141:CS1001/override | Bearer access-1 | null | {"color_hex":"#ABCDEF","hlc":<time>}""",
-            """PUT /sync/holiday-overrides/3 | Bearer access-1 | null | {"notify":false,"hlc":<time>}""",
+            """PATCH /sync/courses/client:1141:CS1001/override | Bearer access-1 | null | {"color_hex":"#ABCDEF","age_ms":<age>}""",
+            """PUT /sync/holiday-overrides/3 | Bearer access-1 | null | {"notify":false,"age_ms":<age>}""",
             // The snapshot.
             "GET /sync/full | Bearer access-1 | null | ",
             // What it asks for: the term the server holds nothing of.

@@ -77,8 +77,8 @@ data class AnonymousDeviceRequest(
  */
 data class HolidayOverrideRequest(
     @SerializedName("notify") val notify: Boolean,
-    /** The time the choice was made, in the backend's clock; null sends none. */
-    @SerializedName("hlc") val hlc: Long? = null,
+    /** The choice's age at this send, in ms (`age_ms`), which the backend stamps it by. */
+    @SerializedName("age_ms") val ageMs: Long,
 )
 
 data class UpdateDevicePreferencesRequest(

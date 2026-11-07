@@ -18,6 +18,8 @@ import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 
 /**
  * Holiday choices whose PUT has not landed ([PendingHolidayOverrides]). A
@@ -56,9 +58,9 @@ class PendingHolidayOverridesTest {
         prefs = AppPreferences(JvmContext())
         holidays = PendingHolidayOverrides(
             prefs = prefs,
-            writer = HolidayOverrideWriter { id, notify, signIn, madeAtMs ->
+            writer = HolidayOverrideWriter { id, notify, signIn, madeAt ->
                 signIns += signIn
-                stamps += madeAtMs
+                stamps += madeAt?.wallMs
                 sent += id to notify
                 answer(id, notify)
                 if (signOutAtTheAnswer) {
@@ -70,7 +72,7 @@ class PendingHolidayOverridesTest {
                 tookIf(delivered)
             },
             syncs = { syncs },
-            clock = { now },
+            clocks = DeviceClocks.wallOnly { now },
         )
     }
 
@@ -166,15 +168,15 @@ class PendingHolidayOverridesTest {
         tap(9, notify = true)
         now = 3_000L
         tap(5, notify = true)
-        assertEquals(mapOf(9 to 2_000L, 5 to 3_000L), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(9 to EditTime(2_000L), 5 to EditTime(3_000L)), prefs.holidayOverrideEditTimes)
 
         now = 5_000L
         HolidayOverrideApply.applyStamped(
-            mapOf(5 to StampedValue(true, 1L)), serverHlc = now * 1_000, keeps = { false }, signIn = signIn, pending = holidays, calendar = calendar,
+            mapOf(5 to StampedValue(true, 1L)), keeps = { false }, signIn = signIn, pending = holidays, calendar = calendar,
         )
 
         assertEquals(setOf(5), prefs.holidayNotifyOverrides)
-        assertEquals(mapOf(5 to 3_000L), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(5 to EditTime(3_000L)), prefs.holidayOverrideEditTimes)
     }
 
     @Test
@@ -238,7 +240,7 @@ class PendingHolidayOverridesTest {
 
         assertEquals(emptyList<Pair<Int, Boolean>>(), sent)
         assertEquals("nothing for the next account to send", emptySet<Int>(), holidays.waitingIds)
-        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals(emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes)
         assertEquals(mapOf(3 to times.getValue(3)), times)
     }
 
@@ -252,7 +254,7 @@ class PendingHolidayOverridesTest {
         // The server knows 5 and 9 but not 3, and still has the 5 this phone took back.
         val calendar = AcademicCalendarStore(JvmContext(), OkHttpClient(), prefs)
         HolidayOverrideApply.applyStamped(
-            mapOf(5 to StampedValue(true, 1L), 9 to StampedValue(true, 1L)), serverHlc = now * 1_000, keeps = { false },
+            mapOf(5 to StampedValue(true, 1L), 9 to StampedValue(true, 1L)), keeps = { false },
             signIn = signIn, pending = holidays, calendar = calendar,
         )
 
@@ -289,7 +291,7 @@ class PendingHolidayOverridesTest {
         prefs.forgetHolidayOverrides()
         series.open()
         prefs.holidayNotifyOverrides = setOf(3)
-        prefs.holidayOverrideEditTimes = mapOf(3 to now)
+        prefs.holidayOverrideEditTimes = mapOf(3 to EditTime(now))
         prefs.holidayOverridesAwaitingUpload = setOf(3)
         gate.complete(Unit)
         first.join()
@@ -301,12 +303,12 @@ class PendingHolidayOverridesTest {
     fun `the sign-out forgets both sets`() {
         prefs.holidayNotifyOverrides = setOf(3)
         prefs.holidayOverridesAwaitingUpload = setOf(3)
-        prefs.holidayOverrideEditTimes = mapOf(3 to 1_000L)
+        prefs.holidayOverrideEditTimes = mapOf(3 to EditTime(1_000L))
 
         prefs.forgetHolidayOverrides()
 
         assertEquals(emptySet<Int>(), prefs.holidayNotifyOverrides)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals(emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes)
     }
 }

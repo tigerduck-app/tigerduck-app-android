@@ -11,13 +11,16 @@ package org.ntust.app.tigerduck.push
 
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 
 internal object CourseUploadPayload {
 
     /**
-     * The body for [courses] in [semester]: the courses, and [adds], by key, each hand-add's stamp
-     * in epoch ms ([handAdds]). No `course_overrides`, which the backend refuses: a color goes only
-     * as its course's override PATCH. No `force_keys` either: an add lifts a tombstone by its stamp.
+     * The body for [courses] in [semester]: the courses, and [adds], by key, each hand-add with its
+     * age (`age_ms`) as [clocks] reads it now, from its time ([handAdds]). No `course_overrides`,
+     * which the backend refuses: a color goes only as its course's override PATCH. No `force_keys`
+     * either: an add lifts a tombstone by its stamp, its arrival less its age.
      *
      * [rosterTerms] names the terms whose listed courses are the school's whole roster (backend
      * 3.10.1): the backend enrolls the listed school courses of each and drops the others. Omitted
@@ -25,10 +28,12 @@ internal object CourseUploadPayload {
      * [CourseUpload.of] for when a fetch sends one, as iOS
      * `PushAPI.CourseUploadRequest.rosterTerms` (tigerduck-app#914).
      */
-    fun build(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, Long>): Map<String, Any> {
+    fun build(
+        courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, EditTime>, clocks: DeviceClocks,
+    ): Map<String, Any> {
         val payload = mutableMapOf<String, Any>("courses" to items(courses, semester))
         if (adds.isNotEmpty()) {
-            payload["adds"] = adds.map { (courseKey, atMs) -> mapOf("course_key" to courseKey, "hlc" to clockOf(atMs)) }
+            payload["adds"] = adds.map { (courseKey, madeAt) -> mapOf("course_key" to courseKey, AGE_MS to clocks.ageMs(madeAt)) }
         }
         if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
         return payload
@@ -54,14 +59,14 @@ internal object CourseUploadPayload {
      * The adds an upload of [courses] must name, by key (X9): every course added by hand
      * ([isAddedByHand]), and every one the caller adds now ([addedAt], [forceKeys]), whoever
      * uploads them, a school roster included. The backend takes every other course of an upload for
-     * the school's roster, and would turn a hand-added one into a school row. Each is stamped with the
-     * caller's [addedAt] entry, else 0, the oldest. Never a copy of a school row merged down from
+     * the school's roster, and would turn a hand-added one into a school row. Each has the caller's
+     * [addedAt] entry as its time, else the oldest ([EditTime.OLDEST]). Never a copy of a school row merged down from
      * the server: named at 0, the row takes an add the student never made, which keeps every
      * roster from dropping it, and a term whose courses are all named goes as no roster.
      */
-    fun handAdds(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): Map<String, Long> =
+    fun handAdds(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, EditTime>): Map<String, EditTime> =
         courses.filter { isAddedByHand(it) || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }
-            .associate { key(semester, it.courseNo) to (addedAt[it.courseNo] ?: 0L) }
+            .associate { key(semester, it.courseNo) to (addedAt[it.courseNo] ?: EditTime.OLDEST) }
 
     /**
      * Whether [course] was added by hand, on this phone or another: added here, with no Moodle id
@@ -87,7 +92,7 @@ internal object CourseUploadPayload {
      * lists no such copy, since the school's fetch tells every copy it lists (`ClassTableCourseMerge
      * .mergeFetched`). Until a pull tells the copy, uploads do not refresh its row.
      */
-    fun sendable(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): List<Course> =
+    fun sendable(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, EditTime>): List<Course> =
         courses.filter { !isUntoldCopy(it) || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }
 
     /** The key the upload route derives for a course: "client:{semester}:{course_no}". */

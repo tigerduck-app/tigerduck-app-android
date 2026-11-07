@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.push
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import org.ntust.app.tigerduck.network.SyncClockInterceptor
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.sync.isPlausibleClockUs
@@ -68,15 +67,16 @@ data class WriteAnswer(
     }
 }
 
-/** Every clock value the reply names: each `hlc` and `…_hlc`, a map's (`custom_names_hlc`) included. */
-internal fun WriteAnswer.clockValues(): Sequence<Long> = values.asSequence()
-    .filter { (name, _) -> name == "hlc" || name.endsWith("_hlc") }
-    .flatMap { (_, value) -> if (value is Map<*, *>) value.values.asSequence() else sequenceOf(value) }
-    .mapNotNull { (it as? Number)?.toLong() }
-
-/** The backend's clock [response] carries (`X-TigerSync-Clock`); null without one that can be a time. */
+/**
+ * The backend's clock [response] carries (`X-TigerSync-Clock`), which every answer of our backend
+ * does, errors too; null without one that can be a time. Kept as the acknowledgment of the field
+ * the write set ([org.ntust.app.tigerduck.sync.AckClock]), the backend's time beside the backend's.
+ */
 internal fun serverClockOf(response: Response): Long? =
-    response.header(SyncClockInterceptor.CLOCK_HEADER)?.trim()?.toLongOrNull()?.takeIf(::isPlausibleClockUs)
+    response.header(CLOCK_HEADER)?.trim()?.toLongOrNull()?.takeIf(::isPlausibleClockUs)
+
+/** The header the backend's clock comes in, in µs. */
+internal const val CLOCK_HEADER = "X-TigerSync-Clock"
 
 /**
  * [response]'s answer, by [WriteAnswer.of]; a refusal is thrown with the backend's code kept

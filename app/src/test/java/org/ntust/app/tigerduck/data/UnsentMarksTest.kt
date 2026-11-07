@@ -56,9 +56,9 @@ class UnsentMarksTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = UnsentMarks(
         dataCache = cache,
-        writer = MarkWriter { id, status, signIn, madeAtMs ->
+        writer = MarkWriter { id, status, signIn, madeAt ->
             signIns += signIn
-            stamps += madeAtMs
+            stamps += madeAt?.wallMs
             sent += id to status
             answer(id, status)
             TOOK

@@ -308,7 +308,7 @@ class SettingsViewModel @Inject constructor(
                     localMarks = {
                         dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments()
                     },
-                    send = { id, status -> pushApiClient.patchAssignmentOverrideAnswered(id, status, signIn, madeAtMs = null) },
+                    send = { id, status -> pushApiClient.patchAssignmentOverrideAnswered(id, status, signIn, madeAt = null) },
                     keep = { id, status -> unsentMarks.keep(id, status, signIn) },
                     pushCourseIgnores = { server ->
                         if (prefs.syncCourses) {

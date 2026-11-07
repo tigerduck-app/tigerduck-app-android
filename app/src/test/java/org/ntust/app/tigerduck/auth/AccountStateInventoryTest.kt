@@ -419,8 +419,8 @@ class AccountStateInventoryTest {
     fun `a late store taken off its list leaves its files to no list`() {
         val problems = edited(
             "SchoolStores.kt",
-            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
-            "listOf(importedClassTables.get(), outbox.get())",
+            "listOf(importedClassTables.get(), outbox.get(), answerArrivals.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), outbox.get(), answerArrivals.get())",
         )
             .problems()
         assertTrue(problems.toString(), "`DataCache` is an account store on no list of SchoolStores" in problems)
@@ -434,10 +434,20 @@ class AccountStateInventoryTest {
     fun `the outbox taken off the late list fails`() {
         val problems = edited(
             "SchoolStores.kt",
-            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
-            "listOf(importedClassTables.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), outbox.get(), answerArrivals.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), answerArrivals.get(), dataCache.get())",
         ).problems()
         assertEquals(listOf("`Outbox` is an account store on no list of SchoolStores"), problems)
+    }
+
+    @Test
+    fun `the answers' arrivals taken off the late list fail`() {
+        val problems = edited(
+            "SchoolStores.kt",
+            "listOf(importedClassTables.get(), outbox.get(), answerArrivals.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
+        ).problems()
+        assertTrue(problems.toString(), "`AnswerArrivals` is an account store on no list of SchoolStores" in problems)
     }
 
     // A clearer that still clears, but that nothing the sign-out runs calls any more.

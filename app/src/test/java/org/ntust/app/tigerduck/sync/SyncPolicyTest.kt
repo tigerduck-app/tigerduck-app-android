@@ -113,7 +113,7 @@ class SyncPolicyTest {
                 "sendsCourseIgnores and sends(ASSIGNMENTS)",
                 CourseIgnoreSync.syncsCourseIgnores(prefs), policy.sendsCourseIgnores && policy.sends(ASSIGNMENTS),
             )
-            check("sendsCourseIgnores", client.patchCourseIgnoreAnswered(KEY, true, null, signIn, madeAtMs = null).sent, policy.sendsCourseIgnores)
+            check("sendsCourseIgnores", client.patchCourseIgnoreAnswered(KEY, true, null, signIn, madeAt = null).sent, policy.sendsCourseIgnores)
             check("uploadsCourses", client.uploadCoursesAnswered(roster, "1151", signIn) != null, policy.uploadsCourses)
             check("sends(COURSES)", sent { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) }, policy.sends(COURSES))
             check("sends(COURSES) is the upload's", policy.uploadsCourses, policy.sends(COURSES))

@@ -10,6 +10,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.model.UnsentMark
@@ -43,7 +44,9 @@ class QueueFileTest {
         assertEquals("pending_course_add_times.json", QueueFile.COURSE_ADD_TIMES.fileName)
         assertEquals("pending_course_deletes.json", QueueFile.COURSE_DELETES.fileName)
         assertEquals("pending_course_overrides.json", QueueFile.COURSE_OVERRIDES.fileName)
-        assertEquals(6, QueueFile.entries.size)
+        assertEquals("pending_course_add_clocks.json", QueueFile.COURSE_ADD_CLOCKS.fileName)
+        assertEquals("pending_course_delete_clocks.json", QueueFile.COURSE_DELETE_CLOCKS.fileName)
+        assertEquals(8, QueueFile.entries.size)
     }
 
     @Test
@@ -73,6 +76,11 @@ class QueueFileTest {
         assertTrue(cache.queueFile(QueueFile.COURSE_DELETES).exists())
         cache.savePendingCourseOverrides(listOf(PendingCourseOverride("mid-1", "#112233", null, null, 3L)), signIn)
         assertTrue(cache.queueFile(QueueFile.COURSE_OVERRIDES).exists())
+        for (clocks in listOf(QueueFile.COURSE_ADD_CLOCKS, QueueFile.COURSE_DELETE_CLOCKS)) {
+            cache.saveEditClocks(clocks, mapOf(9L to EditClocks(elapsedMs = 5L, boot = 7)), signIn)
+            assertTrue(cache.queueFile(clocks).exists())
+            assertEquals(mapOf(9L to EditClocks(elapsedMs = 5L, boot = 7)), cache.loadEditClocks(clocks))
+        }
     }
 
     @Test
