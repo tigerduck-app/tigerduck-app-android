@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.wear.data
 
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.preferencesOf
@@ -10,7 +11,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.ntust.app.tigerduck.shared.WatchClassChange
 import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import java.time.LocalDate
@@ -27,11 +30,10 @@ class SchedulePersistenceTest {
 
     private fun write(
         quietDays: List<String>?,
-        accentEndHex: String? = null,
-        accentDirectionCode: Int? = null,
+        accentGradient: AccentGradient? = null,
     ) = mutablePreferencesOf().also {
         SchedulePersistence.writeSnapshot(
-            it, coursesJson, "#112233", accentEndHex, accentDirectionCode, syncedAtMs = 1_000L,
+            it, coursesJson, "#112233", accentGradient, syncedAtMs = 1_000L,
             loggedIn = true, languageTag = "zh-Hant-TW", disableScreenCaptureProtection = false,
             quietDays = quietDays,
         )
@@ -41,7 +43,7 @@ class SchedulePersistenceTest {
     fun `the interface style the phone sends is stored and read back`() {
         val prefs = write(quietDays = null)
         SchedulePersistence.writeSnapshot(
-            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null, syncedAtMs = 2_000L,
+            prefs, coursesJson, "#112233", accentGradient = null, syncedAtMs = 2_000L,
             loggedIn = true, languageTag = null, disableScreenCaptureProtection = false, quietDays = null,
             visualPreset = "tat",
         )
@@ -52,12 +54,12 @@ class SchedulePersistenceTest {
     fun `a phone that predates the interface style clears an earlier one`() {
         val prefs = write(quietDays = null)
         SchedulePersistence.writeSnapshot(
-            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null, syncedAtMs = 2_000L,
+            prefs, coursesJson, "#112233", accentGradient = null, syncedAtMs = 2_000L,
             loggedIn = true, languageTag = null, disableScreenCaptureProtection = false, quietDays = null,
             visualPreset = "tat",
         )
         SchedulePersistence.writeSnapshot(
-            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null, syncedAtMs = 3_000L,
+            prefs, coursesJson, "#112233", accentGradient = null, syncedAtMs = 3_000L,
             loggedIn = true, languageTag = null, disableScreenCaptureProtection = false, quietDays = null,
             visualPreset = null,
         )
@@ -81,7 +83,7 @@ class SchedulePersistenceTest {
     fun `a payload from a phone that predates quiet days clears the earlier ones`() {
         val prefs = write(listOf("2026-10-09"))
         SchedulePersistence.writeSnapshot(
-            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null,
+            prefs, coursesJson, "#112233", accentGradient = null,
             syncedAtMs = 2_000L, loggedIn = true, languageTag = null,
             disableScreenCaptureProtection = false, quietDays = null,
         )
@@ -113,60 +115,84 @@ class SchedulePersistenceTest {
         assertEquals("zh-Hant-TW", snapshot.languageTag)
         assertTrue(snapshot.quietDays.isEmpty())
         // Nor a gradient: the accent draws alone until the phone's next publish.
-        assertNull(snapshot.accentEndHex)
-        assertNull(snapshot.accentDirection)
+        assertNull(snapshot.accentGradient)
     }
 
-    @Test
-    fun `the gradient the phone sends is stored and read back`() {
-        val snapshot = SchedulePersistence.readSnapshot(write(null, "#AF52DE", 2))
-        assertEquals("#112233", snapshot.accentHex)
-        assertEquals("#AF52DE", snapshot.accentEndHex)
-        assertEquals(AccentGradientDirection.LeftToRight, snapshot.accentDirection)
-    }
+    private val gradient = requireNotNull(
+        AccentGradient.of(listOf(0x112233, 0xAF52DE, 0x34C759), AccentGradientStyle.Mesh),
+    )
 
     @Test
-    fun `the directions from a bottom corner are read back from their codes`() {
-        assertEquals(
-            AccentGradientDirection.BottomLeftToTopRight,
-            SchedulePersistence.readSnapshot(write(null, "#AF52DE", 6)).accentDirection,
-        )
-        assertEquals(
-            AccentGradientDirection.BottomRightToTopLeft,
-            SchedulePersistence.readSnapshot(write(null, "#AF52DE", 7)).accentDirection,
-        )
+    fun `the gradient the phone sends is stored and read back, in every style`() {
+        for (style in AccentGradientStyle.entries) {
+            val sent = gradient.withStyle(style).withDirection(AccentGradientDirection.BottomToTop)
+            val snapshot = SchedulePersistence.readSnapshot(write(null, sent))
+            assertEquals("#112233", snapshot.accentHex)
+            assertEquals(sent, snapshot.accentGradient)
+        }
     }
 
     @Test
     fun `a single color the phone sends next clears the gradient`() {
-        val prefs = write(null, "#AF52DE", 2)
+        val prefs = write(null, gradient)
         SchedulePersistence.writeSnapshot(
-            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null,
+            prefs, coursesJson, "#112233", accentGradient = null,
             syncedAtMs = 2_000L, loggedIn = true, languageTag = null,
             disableScreenCaptureProtection = false, quietDays = null,
         )
-        val snapshot = SchedulePersistence.readSnapshot(prefs)
-        assertNull(snapshot.accentEndHex)
-        assertNull(snapshot.accentDirection)
+        assertNull(SchedulePersistence.readSnapshot(prefs).accentGradient)
+    }
+
+    /**
+     * Upgrade guard: the release before stored a gradient as its end and direction, by these
+     * on-disk names. It draws as two stops of a linear gradient until the phone's next publish.
+     */
+    @Test
+    fun `the end and direction an older watch build stored read as a two-stop linear gradient`() {
+        val stored = preferencesOf(
+            stringPreferencesKey("courses_json") to coursesJson,
+            stringPreferencesKey("accent_hex") to "#112233",
+            stringPreferencesKey("accent_end_hex") to "#AF52DE",
+            intPreferencesKey("accent_direction") to 6,
+        )
+        assertEquals(
+            AccentGradient.of(listOf(0x112233, 0xAF52DE), AccentGradientStyle.Linear, AccentGradientDirection.BottomLeftToTopRight),
+            SchedulePersistence.readSnapshot(stored).accentGradient,
+        )
+        val noDirection = preferencesOf(
+            stringPreferencesKey("accent_hex") to "#112233",
+            stringPreferencesKey("accent_end_hex") to "#AF52DE",
+        )
+        assertEquals(AccentGradientDirection.TopLeftToBottomRight, SchedulePersistence.readSnapshot(noDirection).accentGradient?.direction)
     }
 
     @Test
-    fun `a gradient without a direction, or with one this build does not know, runs top left to bottom right`() {
-        assertEquals(
-            AccentGradientDirection.TopLeftToBottomRight,
-            SchedulePersistence.readSnapshot(write(null, "#AF52DE", null)).accentDirection,
+    fun `the next payload replaces what an older watch build stored`() {
+        val prefs = mutablePreferencesOf(
+            stringPreferencesKey("accent_hex") to "#112233",
+            stringPreferencesKey("accent_end_hex") to "#AF52DE",
+            intPreferencesKey("accent_direction") to 6,
         )
-        assertEquals(
-            AccentGradientDirection.TopLeftToBottomRight,
-            SchedulePersistence.readSnapshot(write(null, "#AF52DE", 99)).accentDirection,
+        SchedulePersistence.writeSnapshot(
+            prefs, coursesJson, "#112233", accentGradient = null,
+            syncedAtMs = 2_000L, loggedIn = true, languageTag = null,
+            disableScreenCaptureProtection = false, quietDays = null,
         )
+        assertNull(SchedulePersistence.readSnapshot(prefs).accentGradient)
     }
 
     @Test
-    fun `a direction sent without an end is no gradient`() {
-        val snapshot = SchedulePersistence.readSnapshot(write(null, null, 2))
-        assertNull(snapshot.accentEndHex)
-        assertNull(snapshot.accentDirection)
+    fun `a stored gradient this build cannot read is none, and the schedule still loads`() {
+        val stored = preferencesOf(
+            stringPreferencesKey("courses_json") to coursesJson,
+            stringPreferencesKey("accent_hex") to "#112233",
+            stringPreferencesKey("accent_gradient") to """{"stops":[1,2],"style":"spiral","direction":"leftToRight"}""",
+            stringPreferencesKey("accent_end_hex") to "#AF52DE",
+        )
+        val snapshot = SchedulePersistence.readSnapshot(stored)
+        assertNull(snapshot.accentGradient)
+        assertEquals("CS101", snapshot.courses.single().courseNo)
+        assertEquals("#112233", snapshot.accentHex)
     }
 
     // ---- the school's course changes ----
@@ -177,7 +203,7 @@ class SchedulePersistenceTest {
 
     private fun writeChanges(prefs: MutablePreferences, courseChanges: String?) =
         SchedulePersistence.writeSnapshot(
-            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null, syncedAtMs = 2_000L,
+            prefs, coursesJson, "#112233", accentGradient = null, syncedAtMs = 2_000L,
             loggedIn = true, languageTag = null, disableScreenCaptureProtection = false, quietDays = null,
             courseChanges = courseChanges,
         )

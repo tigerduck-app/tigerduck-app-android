@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import org.ntust.app.tigerduck.AppLink
+import org.ntust.app.tigerduck.shared.AccentGradient
 import java.util.Date
 
 enum class LiveActivityScenario { IN_CLASS, CLASS_PREPARING, ASSIGNMENT_URGENT }
@@ -33,4 +34,10 @@ data class LiveActivitySnapshot(
      * keeps a swap between the two quiet only while it holds.
      */
     val duringClass: Boolean = false,
+    /**
+     * The accent's gradient, light palette hexes, while Settings' Live Updates switch is on; null
+     * for a single color and the switch off, when the Live Update draws as before. Held in memory
+     * only, as the rest of this is.
+     */
+    val accentGradient: AccentGradient? = null,
 )

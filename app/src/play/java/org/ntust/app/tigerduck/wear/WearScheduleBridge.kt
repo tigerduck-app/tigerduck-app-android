@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.wear
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.wearable.DataMap
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
@@ -26,11 +27,15 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.library.libraryCredentialsForWatch
 import org.ntust.app.tigerduck.network.tls.PinManager
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.WatchClassChange
 import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.toned
 import org.ntust.app.tigerduck.shared.tls.PinAcceptances
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.ByteArrayOutputStream
@@ -115,8 +120,6 @@ class WearScheduleBridge @Inject constructor(
             // On logout, explicitly clear the watch's view.
             emptyList()
         }
-        val accentHex = wearAccentHex(appPreferences)
-        val accentGradient = wearAccentGradient(appPreferences)
         val payload = gson.toJson(courses.map { it.toDto() }).toByteArray()
         val gzipped = ByteArrayOutputStream().also { bos ->
             GZIPOutputStream(bos).use { it.write(payload) }
@@ -144,14 +147,8 @@ class WearScheduleBridge @Inject constructor(
 
         val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
             dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
-            dataMap.putString(WearProtocol.Schedule.KEY_ACCENT, accentHex)
+            dataMap.putAccent(appPreferences)
             dataMap.putString(WearProtocol.Schedule.KEY_VISUAL_PRESET, appPreferences.visualPreset.rawValue)
-            // Left out for a single color: each publish is a whole new item,
-            // so the watch then reads no gradient.
-            if (accentGradient != null) {
-                dataMap.putString(WearProtocol.Schedule.KEY_ACCENT_END, accentGradient.endHex)
-                dataMap.putInt(WearProtocol.Schedule.KEY_ACCENT_DIRECTION, accentGradient.directionCode)
-            }
             dataMap.putLong(WearProtocol.Schedule.KEY_SYNCED_AT, System.currentTimeMillis())
             dataMap.putBoolean(WearProtocol.Schedule.KEY_LOGGED_IN, loggedIn)
             dataMap.putString(WearProtocol.Schedule.KEY_LANGUAGE, languageTag)
@@ -285,26 +282,34 @@ class WearScheduleBridge @Inject constructor(
 internal fun tlsPinsVersion(last: Long, now: Long): Long = maxOf(last + 1, now)
 
 /**
- * The accent the watch is sent, as `#RRGGBB`: the swatch last picked, or the
- * start of the gradient last picked (see [wearAccentGradient] for the rest of
- * it), also while the phone follows the wallpaper, as the watch has no
- * wallpaper colors of its own to follow (see [AccentPolicy]).
+ * The accent the watch is sent, as `#RRGGBB`: the swatch last picked, or the first stop of the
+ * gradient last picked (see [wearAccentGradient] for the rest of it), also while the phone follows
+ * the wallpaper, as the watch has no wallpaper colors of its own to follow (see [AccentPolicy]).
  */
 internal fun wearAccentHex(prefs: AppPreferences): String = wearHex(prefs.accentColorHex)
 
-/** The rest of the accent gradient the watch is sent: its end as `#RRGGBB` and its direction's code. */
-internal data class WearAccentGradient(val endHex: String, val directionCode: Int)
+/**
+ * The gradient the watch is sent, each stop as the watch draws it ([wearHex]), or null while the
+ * accent is a single color or Settings' watch switch is off: the watch then draws [wearAccentHex]
+ * alone, as the iPhone's Apple Watch does. A gradient counts by the rule the phone's own screens
+ * follow, so one an older build picked over goes no more.
+ */
+internal fun wearAccentGradient(prefs: AppPreferences): AccentGradient? =
+    prefs.deviceAccents.watch?.toned { wearRgb(it) }
 
 /**
- * The end and direction of the gradient picked, which the watch draws from
- * [wearAccentHex], or null for a single color. A gradient counts by the rule
- * the phone's own screens follow, so one an older build picked over goes no
- * more.
+ * The accent into a schedule payload: [wearAccentHex], and with [wearAccentGradient] its JSON and,
+ * for a watch of the release before, which knows only an end and a direction, its last stop and
+ * its direction, a linear one's own and any other's from the top left. Left out for a single
+ * color: each publish is a whole new item, so the watch then reads no gradient.
  */
-internal fun wearAccentGradient(prefs: AppPreferences): WearAccentGradient? {
-    val end = AccentPolicy.gradientEnd(prefs.accentColorHex, prefs.accentGradientStartHex, prefs.accentGradientEndHex)
-        ?: return null
-    return WearAccentGradient(wearHex(end), prefs.accentGradientDirection.code)
+internal fun DataMap.putAccent(prefs: AppPreferences) {
+    putString(WearProtocol.Schedule.KEY_ACCENT, wearAccentHex(prefs))
+    val gradient = wearAccentGradient(prefs) ?: return
+    putString(WearProtocol.Schedule.KEY_ACCENT_GRADIENT, gradient.encode())
+    putString(WearProtocol.Schedule.KEY_ACCENT_END, "#%06X".format(gradient.stops.last()))
+    val direction = gradient.direction.takeIf { gradient.style == AccentGradientStyle.Linear } ?: AccentGradientDirection.DEFAULT
+    putInt(WearProtocol.Schedule.KEY_ACCENT_DIRECTION, direction.code)
 }
 
 /**
@@ -312,10 +317,10 @@ internal fun wearAccentGradient(prefs: AppPreferences): WearAccentGradient? {
  * color of the user's own as dark mode draws it, as the watch draws on black,
  * where a dark one would leave its rings and guides invisible.
  */
-private fun wearHex(lightHex: Int): String {
-    val sent = if (AccentPolicy.isPreset(lightHex)) lightHex else AccentPolicy.darkHex(lightHex)
-    return "#%06X".format(0xFFFFFF and sent)
-}
+private fun wearHex(lightHex: Int): String = "#%06X".format(wearRgb(lightHex))
+
+private fun wearRgb(lightHex: Int): Int =
+    0xFFFFFF and if (AccentPolicy.isPreset(lightHex)) lightHex else AccentPolicy.darkHex(lightHex)
 
 /**
  * How far ahead the watch is told about quiet days. Bounded because every day

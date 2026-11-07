@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -47,11 +48,11 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
-import org.ntust.app.tigerduck.ui.theme.AccentGradientBrush
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.toned
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.ui.theme.brush
 import org.ntust.app.tigerduck.ui.theme.readableOnGradient
-import org.ntust.app.tigerduck.util.replaceIosArg
 import kotlin.math.ceil
 
 /**
@@ -80,27 +81,12 @@ internal fun presetColorName(lightHex: Int): String? {
     return accentColorNames.getOrNull(idx)?.let { stringResource(it) }
 }
 
-/**
- * What a gradient from [startHex] to [endHex] is called: a ready-made one by
- * its two colors, "Blue to Purple", and any other the custom gradient.
- */
-@Composable
-internal fun gradientName(startHex: Int, endHex: Int): String {
-    val start = presetColorName(startHex)
-    val end = presetColorName(endHex)
-    return if (start != null && end != null && (startHex to endHex) in AccentPolicy.presetGradients) {
-        stringResource(R.string.settings_accent_gradient_name).replaceIosArg(1, start).replaceIosArg(2, end)
-    } else {
-        stringResource(R.string.settings_accent_gradient_custom)
-    }
-}
-
 /** What the accent picked is called, as the Settings row reads it out. */
 @Composable
-internal fun accentPickName(fixedHex: Int, gradientEnd: Int?, followsWallpaper: Boolean): String = when {
+internal fun accentPickName(accent: AccentGradient, followsWallpaper: Boolean): String = when {
     followsWallpaper -> stringResource(R.string.color_name_wallpaper)
-    gradientEnd != null -> gradientName(fixedHex, gradientEnd)
-    else -> presetColorName(fixedHex) ?: stringResource(R.string.course_color_picker_custom_label)
+    accent.isGradient -> stringResource(R.string.settings_accent_gradient_custom)
+    else -> presetColorName(accent.first) ?: stringResource(R.string.course_color_picker_custom_label)
 }
 
 /** The wallpaper's colors in [isDark]'s mode, as the root theme draws them, or null before Android 12. */
@@ -130,34 +116,31 @@ private fun swatchColor(lightHex: Int, isDark: Boolean): Color =
 internal fun solidSwatch(lightHex: Int, isDark: Boolean): Brush =
     SolidColor(swatchColor(lightHex, isDark))
 
-/** A gradient's swatch along [direction], each end as [isDark]'s theme shows it (see [swatchColor]). */
-internal fun gradientSwatch(startHex: Int, endHex: Int, direction: AccentGradientDirection, isDark: Boolean): Brush =
-    AccentGradientBrush(swatchColor(startHex, isDark), swatchColor(endHex, isDark), direction)
+/** [accent]'s swatch, each stop as [isDark]'s theme shows it (see [swatchColor]). */
+internal fun accentSwatch(accent: AccentGradient, isDark: Boolean): Brush =
+    accent.brush { swatchColor(it, isDark).toArgb() }
+
+/** Each stop as [isDark]'s theme draws it, a custom color made readable on the cards ([AccentPolicy.fixedColor]). */
+internal fun editorTone(isDark: Boolean): (Int) -> Int = { AccentPolicy.fixedColor(it, isDark).toArgb() }
 
 /**
- * The accent [startHex], or with [endHex] the gradient from it, as [isDark]'s
- * theme will draw it, a preset too: the color picker's preview, which a
- * nudge off a preset would otherwise darken in one jump.
+ * [accent] as [isDark]'s theme will draw it, a preset too: the editor's preview, which a nudge off
+ * a preset would otherwise darken in one jump.
  */
-internal fun drawnAccent(startHex: Int, endHex: Int?, direction: AccentGradientDirection, isDark: Boolean): Brush =
-    if (endHex == null) {
-        SolidColor(AccentPolicy.fixedColor(startHex, isDark))
-    } else {
-        AccentGradientBrush(AccentPolicy.fixedColor(startHex, isDark), AccentPolicy.fixedColor(endHex, isDark), direction)
-    }
+internal fun drawnAccent(accent: AccentGradient, isDark: Boolean): Brush = accent.brush(editorTone(isDark))
 
 /** The check on the accent [lightHex]: white on a preset, and on a color of the user's own whatever reads. */
 internal fun checkOn(lightHex: Int, isDark: Boolean): Color = AccentPolicy.onAccent(lightHex, isDark) ?: Color.White
 
 /**
- * The check or arrow on a gradient from [startHex] to [endHex]: what reads on
- * its middle, where it sits, which may not be what reads on its start.
+ * The check or arrow on [accent]'s swatch: on a gradient, what reads on its middle, where it sits,
+ * which may not be what reads on its first color.
  */
-internal fun checkOnGradient(startHex: Int, endHex: Int, isDark: Boolean): Color = readableOnGradient(
-    swatchColor(startHex, isDark),
-    swatchColor(endHex, isDark),
-    onStart = checkOn(startHex, isDark),
-)
+internal fun checkOnAccent(accent: AccentGradient, isDark: Boolean): Color {
+    val onFirst = checkOn(accent.first, isDark)
+    if (!accent.isGradient) return onFirst
+    return readableOnGradient(accent.toned { swatchColor(it, isDark).toArgb() }, onFirst)
+}
 
 /**
  * One swatch on the accent color page: a selectable item named by its color,

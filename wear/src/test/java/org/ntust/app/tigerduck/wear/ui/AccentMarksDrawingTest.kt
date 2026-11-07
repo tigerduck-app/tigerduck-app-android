@@ -2,6 +2,9 @@ package org.ntust.app.tigerduck.wear.ui
 
 import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -11,11 +14,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
-import org.ntust.app.tigerduck.wear.ui.theme.WearAccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 
@@ -30,7 +35,9 @@ import org.robolectric.annotation.GraphicsMode
 class AccentMarksDrawingTest {
 
     private val red = Color(0xFFFF0000)
-    private val blue = Color(0xFF0000FF)
+    private val redToBlue = requireNotNull(
+        AccentGradient.of(listOf(0xFF0000, 0x0000FF), AccentGradientStyle.Linear, AccentGradientDirection.LeftToRight),
+    )
 
     private fun render(width: Int, height: Int, draw: DrawScope.() -> Unit): Bitmap {
         val image = ImageBitmap(width, height)
@@ -52,7 +59,7 @@ class AccentMarksDrawingTest {
     @Test
     fun `the countdown ring runs from the start on its left to the end on its right`() {
         val ring = render(100, 100) {
-            drawCountdownRing(1f, red, WearAccentGradient(blue, AccentGradientDirection.LeftToRight), strokePx = 10f)
+            drawCountdownRing(1f, CountdownRingBrush().of(red, redToBlue, Rect(Offset.Zero, size)), strokePx = 10f)
         }
         assertTrue(ring.towardBlue(2, 50) < 0.15f)
         assertTrue(ring.towardBlue(97, 50) > 0.85f)
@@ -60,7 +67,7 @@ class AccentMarksDrawingTest {
 
     @Test
     fun `with a single color the countdown ring is that color all round`() {
-        val ring = render(100, 100) { drawCountdownRing(1f, red, null, strokePx = 10f) }
+        val ring = render(100, 100) { drawCountdownRing(1f, CountdownRingBrush().of(red, null, Rect(Offset.Zero, size)), strokePx = 10f) }
         assertEquals(0f, ring.towardBlue(2, 50), 0.01f)
         assertEquals(0f, ring.towardBlue(97, 50), 0.01f)
     }
@@ -70,7 +77,7 @@ class AccentMarksDrawingTest {
     @Test
     fun `a quarter of the countdown is drawn solid over a faint track`() {
         val ring = render(100, 100) {
-            drawCountdownRing(0.25f, red, WearAccentGradient(blue, AccentGradientDirection.LeftToRight), strokePx = 10f)
+            drawCountdownRing(0.25f, CountdownRingBrush().of(red, redToBlue, Rect(Offset.Zero, size)), strokePx = 10f)
         }
         // Up and to the right, on the arc.
         assertEquals(1f, ring.alpha(84, 16), 0.05f)
@@ -79,6 +86,26 @@ class AccentMarksDrawingTest {
         assertEquals(0.18f, ring.alpha(2, 50), 0.05f)
         assertTrue(ring.towardBlue(2, 50) < 0.15f)
         assertEquals(0.18f, ring.alpha(50, 97), 0.05f)
+    }
+
+    // The ring animates every frame of its countdown: one brush for its accent and bounds, so a
+    // mesh's runtime shader is not built again for each frame.
+    @Test
+    fun `the ring's brush is the same one while its progress changes`() {
+        val ring = CountdownRingBrush()
+        val seen = mutableListOf<Brush>()
+        for (progress in listOf(1f, 0.75f, 0.5f, 0.25f)) {
+            render(100, 100) {
+                val brush = ring.of(red, redToBlue, Rect(Offset.Zero, size))
+                seen += brush
+                drawCountdownRing(progress, brush, strokePx = 10f)
+            }
+        }
+        assertTrue(seen.all { it === seen.first() })
+
+        // A new accent, or a ring of another size, is a brush of its own.
+        assertNotSame(seen.first(), ring.of(red, null, Rect(Offset.Zero, Size(100f, 100f))))
+        assertNotSame(seen.first(), ring.of(red, redToBlue, Rect(Offset.Zero, Size(50f, 50f))))
     }
 
     // The padding previews are in one neutral color: the accent is the bar's alone (Sam's call).

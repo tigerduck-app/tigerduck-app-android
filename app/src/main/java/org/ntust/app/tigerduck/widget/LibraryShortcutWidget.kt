@@ -38,6 +38,8 @@ import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.activityIntent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.widget.content.WidgetAccentMark
+import org.ntust.app.tigerduck.widget.content.accentBackground
 
 /**
  * 1x1 home-screen widget that deep-links straight to the library QR page.
@@ -64,13 +66,12 @@ class LibraryShortcutWidget(
             @Suppress("UNUSED_VARIABLE")
             val tick = currentState(WidgetState.TickKey) ?: 0L
             val isDark = resolveWidgetIsDark(prefs, context)
-            val accent = resolveWidgetAccentColor(prefs, isDark)
-            val onAccent = resolveWidgetOnAccentColor(prefs, isDark)
+            val accent = resolveWidgetAccent(prefs, isDark)
             CompositionLocalProvider(
                 androidx.glance.LocalContext provides widgetContext(context, prefs.appLanguage),
                 LocalWidgetScale provides WidgetScale.of(prefs),
             ) {
-                LibraryShortcutContent(isDark = isDark, accent = accent, onAccent = onAccent, onTap = tapAction)
+                LibraryShortcutContent(isDark = isDark, accent = accent, onTap = tapAction)
             }
         }
     }
@@ -96,8 +97,7 @@ class LibraryShortcutWidgetReceiver : GlanceAppWidgetReceiver() {
 @Composable
 private fun LibraryShortcutContent(
     isDark: Boolean,
-    accent: Color,
-    onAccent: Color,
+    accent: WidgetAccent,
     onTap: Action,
 ) {
     val background = if (isDark) Color(0xFF1C1C1E) else Color.White
@@ -126,7 +126,8 @@ private fun LibraryShortcutContent(
                 Box(
                     modifier = GlanceModifier
                         .size(32.dp.scaled)
-                        .background(ColorProvider(accent))
+                        // The accent's gradient while Settings' widgets switch is on.
+                        .accentBackground(accent.color, accent.gradient, WidgetAccentMark.Tile)
                         .cornerRadius(10.dp.scaled),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -134,7 +135,7 @@ private fun LibraryShortcutContent(
                         provider = ImageProvider(R.drawable.widget_library_icon),
                         contentDescription = null,
                         modifier = GlanceModifier.size(20.dp.scaled),
-                        colorFilter = ColorFilter.tint(ColorProvider(onAccent)),
+                        colorFilter = ColorFilter.tint(ColorProvider(accent.onFill)),
                     )
                 }
                 Box(modifier = GlanceModifier.height(4.dp.scaled)) {}

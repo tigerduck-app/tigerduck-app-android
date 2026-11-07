@@ -22,7 +22,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.math.max
@@ -203,7 +205,10 @@ class TigerDuckAppThemeTest {
         assertEquals(Color.White, colors?.checkedThumbColor)
     }
 
-    private val purple = Color(0xFFAF52DE)
+    /** A gradient from [orange], as the theme is handed it: its colors as the mode draws them. */
+    private val drawnGradient = requireNotNull(
+        AccentGradient.of(listOf(0xE67E22, 0xAF52DE), AccentGradientStyle.Linear, AccentGradientDirection.BottomToTop),
+    )
 
     private fun brushAndScheme(
         accentGradient: AccentGradient? = null,
@@ -235,18 +240,16 @@ class TigerDuckAppThemeTest {
     }
 
     @Test
-    fun `a gradient fills from the accent to its end, and the accent slots keep its start`() {
-        val (brush, scheme) = brushAndScheme(
-            accentGradient = AccentGradient(purple, AccentGradientDirection.BottomToTop),
-        )
-        assertEquals(AccentGradientBrush(orange, purple, AccentGradientDirection.BottomToTop), brush)
+    fun `a gradient fills with every stop in its style, and the accent slots keep its first`() {
+        val (brush, scheme) = brushAndScheme(accentGradient = drawnGradient)
+        assertEquals(AccentGradientBrush(drawnGradient), brush)
         assertEquals(orange, scheme.primary)
     }
 
     @Test
     fun `the wallpaper's colors fill with their primary, a gradient picked or not`() {
         val (brush, _) = brushAndScheme(
-            accentGradient = AccentGradient(purple, AccentGradientDirection.BottomToTop),
+            accentGradient = drawnGradient,
             useDynamicColor = true,
         )
         assertEquals(SolidColor(dynamicLightColorScheme(composeRule.activity).primary), brush)

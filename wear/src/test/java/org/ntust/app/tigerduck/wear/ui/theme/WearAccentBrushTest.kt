@@ -1,74 +1,77 @@
 package org.ntust.app.tigerduck.wear.ui.theme
 
+import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.GraphicsMode
 
-/** The phone's accent gradient as the watch reads it from a snapshot and paints it. */
+/** The brush a watch mark of the accent paints with: the color alone, or the gradient across the mark. */
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class WearAccentBrushTest {
 
     private val blue = Color(0xFF007AFF)
-    private val purple = Color(0xFFAF52DE)
-    private val bounds = Rect(left = 10f, top = 20f, right = 110f, bottom = 220f)
 
-    @Test
-    fun `with no gradient the accent is one color`() {
-        assertEquals(SolidColor(blue), accentBrush(blue, null, bounds))
-    }
+    private fun gradient(style: AccentGradientStyle, direction: AccentGradientDirection = AccentGradientDirection.LeftToRight) =
+        requireNotNull(AccentGradient.of(listOf(0xFF0000, 0x00FF00, 0x0000FF), style, direction))
 
-    // On the screen's own sides, as the phone draws it, across the mark's bounds.
-    @Test
-    fun `each direction runs across the bounds from its start side to its end side`() {
-        val expected = mapOf(
-            AccentGradientDirection.TopToBottom to (Offset(10f, 20f) to Offset(10f, 220f)),
-            AccentGradientDirection.BottomToTop to (Offset(10f, 220f) to Offset(10f, 20f)),
-            AccentGradientDirection.LeftToRight to (Offset(10f, 20f) to Offset(110f, 20f)),
-            AccentGradientDirection.RightToLeft to (Offset(110f, 20f) to Offset(10f, 20f)),
-            AccentGradientDirection.TopRightToBottomLeft to (Offset(110f, 20f) to Offset(10f, 220f)),
-            AccentGradientDirection.TopLeftToBottomRight to (Offset(10f, 20f) to Offset(110f, 220f)),
-            AccentGradientDirection.BottomLeftToTopRight to (Offset(10f, 220f) to Offset(110f, 20f)),
-            AccentGradientDirection.BottomRightToTopLeft to (Offset(110f, 220f) to Offset(10f, 20f)),
-        )
-        assertEquals(AccentGradientDirection.entries.toSet(), expected.keys)
-        expected.forEach { (direction, ends) ->
-            assertEquals(
-                direction.name,
-                Brush.linearGradient(listOf(blue, purple), start = ends.first, end = ends.second),
-                accentBrush(blue, WearAccentGradient(purple, direction), bounds),
-            )
+    /** [gradient]'s brush laid across [bounds] in a 120 by 240 canvas. */
+    private fun draw(gradient: AccentGradient?, bounds: Rect): Bitmap {
+        val image = ImageBitmap(120, 240)
+        CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(image), Size(120f, 240f)) {
+            drawRect(accentBrush(blue, gradient, bounds))
         }
+        return image.asAndroidBitmap()
+    }
+
+    private fun Bitmap.channel(x: Int, y: Int, shift: Int) = (getPixel(x, y) shr shift) and 0xFF
+
+    @Test
+    fun `a single color is the color alone`() {
+        val bounds = Rect(Offset(10f, 20f), Size(100f, 200f))
+        assertEquals(SolidColor(blue), accentBrush(blue, null, bounds))
+        assertEquals(SolidColor(blue), accentBrush(blue, AccentGradient.color(0x007AFF), bounds))
     }
 
     @Test
-    fun `a snapshot's gradient is its end color and direction`() {
-        assertEquals(
-            WearAccentGradient(purple, AccentGradientDirection.LeftToRight),
-            wearAccentGradient("#AF52DE", AccentGradientDirection.LeftToRight),
-        )
+    fun `a linear gradient runs through each stop across the mark's own bounds`() {
+        val bitmap = draw(gradient(AccentGradientStyle.Linear), Rect(Offset(10f, 20f), Size(100f, 200f)))
+
+        assertTrue(bitmap.channel(11, 100, 16) > 200) // red at the mark's left
+        assertTrue(bitmap.channel(60, 100, 8) > 200) // green half way
+        assertTrue(bitmap.channel(108, 100, 0) > 200) // blue at its right
     }
 
     @Test
-    fun `an end with no direction runs top left to bottom right`() {
-        assertEquals(
-            WearAccentGradient(purple, AccentGradientDirection.TopLeftToBottomRight),
-            wearAccentGradient("#AF52DE", null),
-        )
+    fun `an angular gradient goes clockwise from the top of the mark`() {
+        val bitmap = draw(gradient(AccentGradientStyle.Angular), Rect(Offset(0f, 0f), Size(120f, 240f)))
+
+        assertTrue(bitmap.channel(62, 0, 16) > 200) // red just right of the top
+        // Half way round at the bottom: between green, a third of the way, and blue, two thirds.
+        assertTrue(bitmap.channel(60, 239, 8) in 100..160 && bitmap.channel(60, 239, 0) in 100..160)
+        assertTrue(bitmap.channel(60, 239, 16) < 30)
     }
 
     @Test
-    fun `no end, or an end that is no color, is no gradient`() {
-        assertNull(wearAccentGradient(null, AccentGradientDirection.LeftToRight))
-        assertNull(wearAccentGradient("#AF52", AccentGradientDirection.LeftToRight))
-        assertNull(wearAccentGradient("not a color", AccentGradientDirection.LeftToRight))
-        assertNull(wearAccentGradient("", AccentGradientDirection.LeftToRight))
+    fun `two brushes of the same gradient over the same bounds are equal`() {
+        val bounds = Rect(Offset(10f, 20f), Size(100f, 200f))
+        assertEquals(accentBrush(blue, gradient(AccentGradientStyle.Radial), bounds), accentBrush(blue, gradient(AccentGradientStyle.Radial), bounds))
     }
 }

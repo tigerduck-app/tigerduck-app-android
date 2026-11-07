@@ -32,7 +32,7 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.data.model.RankingStats
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarGrid
 import org.ntust.app.tigerduck.ui.screen.score.RankingsTrendCard
 import org.ntust.app.tigerduck.ui.screen.score.ScoreViewModel
@@ -136,14 +136,11 @@ class OnWallpaperPrimaryTest {
             // round swatch is not white either.
             TigerDuckAppTheme(darkTheme = true, useDynamicColor = true) {
                 AccentColorPage(
-                    fixedHex = 0x007AFF,
-                    gradientEnd = null,
-                    direction = AccentGradientDirection.DEFAULT,
+                    accent = AccentGradient.color(0x007AFF),
                     followsWallpaper = true,
                     isDark = true,
                     onPick = {},
-                    onPickGradient = { _, _ -> },
-                    onPickDirection = {},
+                    onPickAccent = {},
                     onPickWallpaper = {},
                 )
             }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResolver
@@ -61,8 +62,7 @@ class SchedulePersistence(private val context: Context) {
     suspend fun write(
         coursesGzipped: ByteArray,
         accentHex: String,
-        accentEndHex: String?,
-        accentDirectionCode: Int?,
+        accentGradient: AccentGradient?,
         syncedAtMs: Long,
         loggedIn: Boolean,
         languageTag: String?,
@@ -76,7 +76,7 @@ class SchedulePersistence(private val context: Context) {
         languageLock.withLock {
             context.scheduleDataStore.edit { prefs ->
                 writeSnapshot(
-                    prefs, coursesJson, accentHex, accentEndHex, accentDirectionCode, syncedAtMs,
+                    prefs, coursesJson, accentHex, accentGradient, syncedAtMs,
                     loggedIn, languageTag, disableScreenCaptureProtection, quietDays, visualPreset,
                     courseChanges,
                 )
@@ -192,6 +192,9 @@ class SchedulePersistence(private val context: Context) {
         private const val COURSE_NO_TOKEN = "\"courseNo\":"
         private val KEY_COURSES_JSON = stringPreferencesKey("courses_json")
         private val KEY_ACCENT_HEX = stringPreferencesKey("accent_hex")
+        private val KEY_ACCENT_GRADIENT = stringPreferencesKey("accent_gradient")
+
+        // The release before stored a gradient as its end and direction: read until the next payload.
         private val KEY_ACCENT_END_HEX = stringPreferencesKey("accent_end_hex")
         private val KEY_ACCENT_DIRECTION = intPreferencesKey("accent_direction")
         private val KEY_SYNCED_AT = longPreferencesKey("synced_at_ms")
@@ -215,8 +218,7 @@ class SchedulePersistence(private val context: Context) {
             prefs: MutablePreferences,
             coursesJson: String,
             accentHex: String,
-            accentEndHex: String?,
-            accentDirectionCode: Int?,
+            accentGradient: AccentGradient?,
             syncedAtMs: Long,
             loggedIn: Boolean,
             languageTag: String?,
@@ -227,18 +229,12 @@ class SchedulePersistence(private val context: Context) {
         ) {
             prefs[KEY_COURSES_JSON] = coursesJson
             prefs[KEY_ACCENT_HEX] = accentHex
-            // Replaced on every write: a single color, and a phone that
-            // predates gradients, send no end, and the accent then draws alone.
-            if (accentEndHex != null) {
-                prefs[KEY_ACCENT_END_HEX] = accentEndHex
-            } else {
-                prefs.remove(KEY_ACCENT_END_HEX)
-            }
-            if (accentEndHex != null && accentDirectionCode != null) {
-                prefs[KEY_ACCENT_DIRECTION] = accentDirectionCode
-            } else {
-                prefs.remove(KEY_ACCENT_DIRECTION)
-            }
+            // Replaced on every write: a single color, a switch the phone keeps off and a phone
+            // that predates gradients send none, and the accent then draws alone. What the
+            // release before stored goes, so it never comes back.
+            if (accentGradient != null) prefs[KEY_ACCENT_GRADIENT] = accentGradient.encode() else prefs.remove(KEY_ACCENT_GRADIENT)
+            prefs.remove(KEY_ACCENT_END_HEX)
+            prefs.remove(KEY_ACCENT_DIRECTION)
             prefs[KEY_SYNCED_AT] = syncedAtMs
             prefs[KEY_LOGGED_IN] = loggedIn
             if (languageTag != null) prefs[KEY_LANGUAGE] = languageTag
@@ -260,10 +256,10 @@ class SchedulePersistence(private val context: Context) {
         internal fun readSnapshot(prefs: Preferences): WatchSnapshot {
             val json = prefs[KEY_COURSES_JSON]
             val courses: List<Course> = if (json.isNullOrBlank()) emptyList() else parseCourses(json)
-            val accentEndHex = prefs[KEY_ACCENT_END_HEX]
+            val accentHex = prefs[KEY_ACCENT_HEX] ?: DEFAULT_ACCENT
             return WatchSnapshot(
                 courses = courses,
-                accentHex = prefs[KEY_ACCENT_HEX] ?: DEFAULT_ACCENT,
+                accentHex = accentHex,
                 // Distinguish "key absent" (never synced) from "key present, value 0".
                 // Preferences DataStore returns null for unset keys via the indexed accessor.
                 syncedAtMs = prefs[KEY_SYNCED_AT],
@@ -271,17 +267,24 @@ class SchedulePersistence(private val context: Context) {
                 languageTag = prefs[KEY_LANGUAGE],
                 // Absent from a snapshot an older watch build stored.
                 quietDays = WearProtocol.Schedule.decodeQuietDays(prefs[KEY_QUIET_DAYS]),
-                // Absent too from an older build's: the accent draws alone.
-                accentEndHex = accentEndHex,
-                accentDirection = accentEndHex?.let {
-                    prefs[KEY_ACCENT_DIRECTION]?.let(AccentGradientDirection::fromCode)
-                        ?: AccentGradientDirection.DEFAULT
-                },
+                accentGradient = storedGradient(prefs, accentHex),
                 // Absent from an older phone's or watch build's: TigerDuck's cards.
                 visualPreset = prefs[KEY_VISUAL_PRESET],
                 // Absent from an older phone's or watch build's, and dropped when malformed: no changes.
                 courseChanges = WearProtocol.Schedule.decodeCourseChanges(prefs[KEY_COURSE_CHANGES]),
             )
+        }
+
+        /**
+         * The gradient stored, or none for one this build cannot read; a snapshot the release
+         * before stored has an end and a direction instead, two stops of a linear gradient from
+         * [accentHex], and one older still none: the accent then draws alone.
+         */
+        private fun storedGradient(prefs: Preferences, accentHex: String): AccentGradient? {
+            prefs[KEY_ACCENT_GRADIENT]?.let { return AccentGradient.decode(it) }
+            val start = rgbOf(accentHex) ?: return null
+            val end = rgbOf(prefs[KEY_ACCENT_END_HEX]) ?: return null
+            return AccentGradient.legacy(start, end, prefs[KEY_ACCENT_DIRECTION] ?: AccentGradientDirection.DEFAULT.code)
         }
 
         private fun parseCourses(json: String): List<Course> {
@@ -311,17 +314,18 @@ class SchedulePersistence(private val context: Context) {
 
 data class WatchSnapshot(
     val courses: List<Course>,
-    /** The accent; with a gradient, its start. */
+    /** The accent; with a gradient, its first stop. */
     val accentHex: String,
     val syncedAtMs: Long?,
     val loggedIn: Boolean,
     val languageTag: String?,
     /** Days the phone says no class meets for this user; empty from an older phone. */
     val quietDays: Set<LocalDate>,
-    /** The end of the accent gradient, or null for a single color, as from an older phone or watch build. */
-    val accentEndHex: String? = null,
-    /** The way the accent gradient runs, set exactly when [accentEndHex] is. */
-    val accentDirection: AccentGradientDirection? = null,
+    /**
+     * The accent's gradient, each stop as the watch draws it, or null for a single color, a watch
+     * switch the phone keeps off, and an older phone or watch build: [accentHex] then draws alone.
+     */
+    val accentGradient: AccentGradient? = null,
     /**
      * The phone's interface style as it stores it ("default", "tat"), or null from an
      * older phone or watch build; [org.ntust.app.tigerduck.wear.ui.theme.WatchCardStyle]

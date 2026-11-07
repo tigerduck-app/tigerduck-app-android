@@ -42,8 +42,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -73,8 +71,6 @@ import org.ntust.app.tigerduck.wear.data.WatchLibraryServiceHolder
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentGradient
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
-import org.ntust.app.tigerduck.wear.ui.theme.WearAccentGradient
-import org.ntust.app.tigerduck.wear.ui.theme.accentBrush
 import kotlin.math.abs
 
 @Composable
@@ -380,12 +376,14 @@ private fun CountdownRow(countdown: Int) {
     )
     val accent = LocalAccentColor.current
     val gradient = LocalAccentGradient.current
+    // One brush while the ring turns; see CountdownRingBrush.
+    val ring = remember { CountdownRingBrush() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Canvas(modifier = Modifier.size(16.dp)) {
-            drawCountdownRing(progress, accent, gradient, strokePx = 2.dp.toPx())
+            drawCountdownRing(progress, ring.of(accent, gradient, Rect(Offset.Zero, size)), strokePx = 2.dp.toPx())
         }
         Spacer(Modifier.width(6.dp))
         Text(
@@ -393,27 +391,6 @@ private fun CountdownRow(countdown: Int) {
             color = Color.Gray,
         )
     }
-}
-
-/**
- * The countdown's ring: [progress] of it in the accent, from the top and
- * clockwise, over a faint track of the accent all the way round.
- */
-internal fun DrawScope.drawCountdownRing(
-    progress: Float,
-    accent: Color,
-    gradient: WearAccentGradient?,
-    strokePx: Float,
-) {
-    val brush = accentBrush(accent, gradient, Rect(Offset.Zero, size))
-    drawCircle(brush = brush, alpha = 0.18f, style = Stroke(width = strokePx))
-    drawArc(
-        brush = brush,
-        startAngle = -90f,
-        sweepAngle = 360f * progress,
-        useCenter = false,
-        style = Stroke(width = strokePx),
-    )
 }
 
 @Composable

@@ -85,7 +85,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt",
     "kind": "long-file",
-    "count": 1362
+    "count": 1357
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/CredentialManager.kt",
@@ -359,7 +359,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/AppState.kt",
     "kind": "long-file",
-    "count": 755
+    "count": 751
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/AppState.kt",
@@ -1174,23 +1174,6 @@
     "count": 1
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentColorScreen.kt",
-    "kind": "long-file",
-    "count": 409
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentColorScreen.kt",
-    "kind": "long-function",
-    "name": "AccentColorPage(Int, Int?, AccentGradientDirection, Boolean, Boolean, (Int)->Unit, (start:Int,end:Int)->Unit, (AccentGradientDirection)->Unit, ()->Unit, Modifier)",
-    "lines": 135
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentPickerSheet.kt",
-    "kind": "long-function",
-    "name": "AccentPickerSheet(Int, Int?, AccentGradientDirection, Boolean, (start:Int,end:Int?)->Unit, ()->Unit)",
-    "lines": 108
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CloudSyncSettingsScreen.kt",
     "kind": "fdroid-literal",
     "count": 1
@@ -1297,13 +1280,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
     "kind": "long-file",
-    "count": 844
+    "count": 826
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
     "kind": "long-function",
     "name": "SettingsScreen(SettingsViewModel, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit)",
-    "lines": 734
+    "lines": 717
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
@@ -1476,7 +1459,7 @@
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/ui/LibraryQRScreen.kt",
     "kind": "long-file",
-    "count": 497
+    "count": 474
   },
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/ui/LibraryQRScreen.kt",

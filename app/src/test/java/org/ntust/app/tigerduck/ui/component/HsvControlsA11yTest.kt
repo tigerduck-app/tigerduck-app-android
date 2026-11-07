@@ -29,6 +29,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -42,8 +43,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
-import org.ntust.app.tigerduck.ui.screen.settings.AccentPickerSheet
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.ui.screen.settings.AccentGradientEditor
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -248,15 +249,16 @@ class HsvControlsA11yTest {
         const val AFTER = "after the hue bar"
     }
 
+    /** The color code field, whose text is the edited stop's code. */
+    private fun codeField(code: String) = composeRule.onNode(hasSetTextAction() and hasText(code))
+
     @Test
-    fun `in the accent picker, each end of a gradient is adjusted on its own`() {
+    fun `in the accent editor, each stop is adjusted on its own`() {
         composeRule.setContent {
-            AccentPickerSheet(
-                initialStart = 0xFF0000,
-                initialEnd = 0x0000FF,
-                direction = AccentGradientDirection.DEFAULT,
+            AccentGradientEditor(
+                initial = requireNotNull(AccentGradient.of(listOf(0xFF0000, 0x0000FF))),
                 isDark = false,
-                onApply = { _, _ -> },
+                onApply = {},
                 onDismiss = {},
             )
         }
@@ -264,18 +266,18 @@ class HsvControlsA11yTest {
 
         control(R.string.a11y_color_picker_brightness).setTo(0.5f)
         composeRule.waitForIdle()
-        composeRule.onNode(hasText("#800000")).assertExists()
+        codeField("#800000").assertExists()
 
-        composeRule.onNodeWithText(text(R.string.settings_accent_gradient_end)).performClick()
+        composeRule.onNodeWithContentDescription("Color 2").performClick()
         composeRule.waitForIdle()
-        composeRule.onNode(hasText("#0000FF")).assertExists()
+        codeField("#0000FF").assertExists()
         control(R.string.a11y_color_picker_hue).setTo(120f)
         composeRule.waitForIdle()
-        composeRule.onNode(hasText("#00FF00")).assertExists()
+        codeField("#00FF00").assertExists()
 
-        composeRule.onNodeWithText(text(R.string.settings_accent_gradient_start)).performClick()
+        composeRule.onNodeWithContentDescription("Color 1").performClick()
         composeRule.waitForIdle()
-        composeRule.onNode(hasText("#800000")).assertExists()
+        codeField("#800000").assertExists()
     }
 
     @Test
@@ -300,22 +302,15 @@ class HsvControlsA11yTest {
     }
 
     @Test
-    fun `in the accent picker, setting brightness changes the color code field`() {
+    fun `in the accent editor, setting brightness changes the color code field`() {
         composeRule.setContent {
-            AccentPickerSheet(
-                initialStart = 0xFF0000,
-                initialEnd = null,
-                direction = AccentGradientDirection.DEFAULT,
-                isDark = false,
-                onApply = { _, _ -> },
-                onDismiss = {},
-            )
+            AccentGradientEditor(initial = AccentGradient.color(0xFF0000), isDark = false, onApply = {}, onDismiss = {})
         }
         composeRule.waitForIdle()
 
         control(R.string.a11y_color_picker_brightness).setTo(0.5f)
         composeRule.waitForIdle()
 
-        composeRule.onNode(hasText("#800000")).assertExists()
+        codeField("#800000").assertExists()
     }
 }

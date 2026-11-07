@@ -154,8 +154,12 @@ the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps th
 | Store | Name | Scope | Cleared in |
 |---|---|---|---|
 | tigerduck_prefs | `accentColorHex` | device | |
+| tigerduck_prefs | `accentGradient` | device | |
 | tigerduck_prefs | `accentGradientDirection` | device | |
 | tigerduck_prefs | `accentGradientEndHex` | device | |
+| tigerduck_prefs | `accentGradientOnLiveActivities` | device | |
+| tigerduck_prefs | `accentGradientOnWatch` | device | |
+| tigerduck_prefs | `accentGradientOnWidgets` | device | |
 | tigerduck_prefs | `accentGradientStartHex` | device | |
 | tigerduck_prefs | `alwaysShowPeriodsABC` | device | |
 | tigerduck_prefs | `analyticsEnabled` | device | |

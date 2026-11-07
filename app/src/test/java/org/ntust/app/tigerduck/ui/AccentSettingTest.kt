@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -17,7 +16,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.data.preferences.DeviceAccents
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -89,9 +90,9 @@ class AccentSettingTest {
     }
 
     @Test
-    fun `only a pick that changes the fixed accent is announced, as the widgets draw only that`() {
+    fun `only a pick that changes what the widgets draw is announced`() {
         var changes = 0
-        val setting = AccentSetting(prefs, onFixedChange = { changes++ })
+        val setting = AccentSetting(prefs, onWidgetsChange = { changes++ })
 
         setting.pick(blue)
         assertEquals(0, changes)
@@ -173,87 +174,130 @@ class AccentSettingTest {
         assertEquals(blue, setting.lightHex)
     }
 
+    private fun gradient(vararg stops: Int, style: AccentGradientStyle = AccentGradientStyle.Linear) =
+        requireNotNull(AccentGradient.of(stops.toList(), style))
+
     @Test
-    fun `picking a gradient stores its start as the accent and its end beside it`() {
+    fun `picking a gradient stores its first stop as the accent and the gradient beside it`() {
         val setting = AccentSetting(prefs)
         setting.pickWallpaper()
-        setting.pickGradient(blue, purple)
+        setting.pickAccent(gradient(blue, purple, pink, style = AccentGradientStyle.Mesh))
 
         assertFalse(setting.followsWallpaper)
         assertEquals(blue, setting.lightHex)
-        assertEquals(purple, setting.gradientEnd)
+        assertEquals(gradient(blue, purple, pink, style = AccentGradientStyle.Mesh), setting.accent)
         assertEquals(blue, prefs.accentColorHex)
-        assertEquals(purple, AccentSetting(prefs).gradientEnd)
+        assertEquals(setting.accent, AccentSetting(prefs).accent)
     }
 
     @Test
     fun `picking a single color after a gradient drops the gradient`() {
         val setting = AccentSetting(prefs)
-        setting.pickGradient(blue, purple)
+        setting.pickAccent(gradient(blue, purple))
         setting.pick(blue)
 
-        assertNull(setting.gradientEnd)
-        assertNull(AccentSetting(prefs).gradientEnd)
+        assertFalse(setting.accent.isGradient)
+        assertFalse(AccentSetting(prefs).accent.isGradient)
         assertEquals(blue, prefs.accentColorHex)
     }
 
     @Test
-    fun `picking the wallpaper keeps the gradient's start for the surfaces that cannot follow it`() {
+    fun `picking the wallpaper keeps the gradient for the surfaces that cannot follow it`() {
         val setting = AccentSetting(prefs)
-        setting.pickGradient(pink, orange)
+        setting.pickAccent(gradient(pink, orange))
         setting.pickWallpaper()
 
         assertTrue(setting.followsWallpaper)
         assertEquals(pink, setting.lightHex)
-        assertEquals(pink, prefs.accentColorHex)
+        assertEquals(gradient(pink, orange), setting.accent)
     }
 
     @Test
-    fun `a gradient is announced only when its start changes the fixed accent`() {
+    fun `a gradient is announced to the widgets only while they draw it, or when its first stop moves`() {
         var changes = 0
-        val setting = AccentSetting(prefs, onFixedChange = { changes++ })
+        val setting = AccentSetting(prefs, onWidgetsChange = { changes++ })
 
-        setting.pickGradient(blue, purple)
+        setting.pickAccent(gradient(blue, purple))
         assertEquals(0, changes)
-        setting.pickGradient(blue, pink)
+        setting.pickAccent(gradient(blue, pink))
         assertEquals(0, changes)
-        setting.pickGradient(pink, orange)
+        setting.pickAccent(gradient(pink, orange))
         assertEquals(1, changes)
-        setting.pickDirection(AccentGradientDirection.LeftToRight)
+
+        setting.gradientOnWidgets = true
+        assertEquals(2, changes)
+        setting.pickAccent(gradient(pink, orange).withStyle(AccentGradientStyle.Radial))
+        assertEquals(3, changes)
+        setting.gradientOnWatch = true
+        setting.gradientOnLiveActivities = true
+        assertEquals(3, changes)
+    }
+
+    @Test
+    fun `the Live Update hears only a change to what it draws of the accent`() {
+        var changes = 0
+        val setting = AccentSetting(prefs, onLiveUpdateChange = { changes++ })
+
+        // A single color: the Live Update draws no gradient, whatever its switch says.
+        setting.gradientOnLiveActivities = true
+        setting.gradientOnLiveActivities = false
+        assertEquals(0, changes)
+
+        // A gradient while its switch is off, and the other surfaces' switches: nothing it draws.
+        setting.pickAccent(gradient(blue, purple))
+        setting.gradientOnWidgets = true
+        setting.gradientOnWatch = true
+        assertEquals(0, changes)
+
+        setting.gradientOnLiveActivities = true
         assertEquals(1, changes)
+        setting.pickAccent(gradient(blue, purple))
+        assertEquals("the same gradient again", 1, changes)
+        setting.pickAccent(gradient(blue, purple, style = AccentGradientStyle.Radial))
+        assertEquals(2, changes)
+        setting.pick(green)
+        assertEquals("a single color in its place", 3, changes)
+        setting.gradientOnLiveActivities = false
+        assertEquals("off with one color", 3, changes)
     }
 
     @Test
     fun `a color an older build picked over the gradient reads as that color alone`() {
-        AccentSetting(prefs).pickGradient(blue, purple)
+        AccentSetting(prefs).pickAccent(gradient(blue, purple))
         // An older build writes only the accent.
         RuntimeEnvironment.getApplication().getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
             .edit().putInt("accentColorHex", green).commit()
 
         val setting = AccentSetting(prefs)
         assertEquals(green, setting.lightHex)
-        assertNull(setting.gradientEnd)
+        assertEquals(AccentGradient.color(green), setting.accent)
     }
 
     @Test
-    fun `the direction picked is stored`() {
+    fun `the three switches start off, are stored, and hand each surface the gradient`() {
         val setting = AccentSetting(prefs)
-        setting.pickGradient(blue, purple)
-        setting.pickDirection(AccentGradientDirection.BottomToTop)
+        setting.pickAccent(gradient(blue, purple))
+        assertFalse(setting.gradientOnWidgets || setting.gradientOnWatch || setting.gradientOnLiveActivities)
+        assertEquals(DeviceAccents(), setting.deviceAccents)
 
-        assertEquals(AccentGradientDirection.BottomToTop, setting.gradientDirection)
-        assertEquals(AccentGradientDirection.BottomToTop, AccentSetting(prefs).gradientDirection)
+        setting.gradientOnWidgets = true
+        setting.gradientOnLiveActivities = true
+        assertEquals(DeviceAccents(widgets = gradient(blue, purple), liveActivities = gradient(blue, purple)), setting.deviceAccents)
+        val restarted = AccentSetting(prefs)
+        assertTrue(restarted.gradientOnWidgets)
+        assertFalse(restarted.gradientOnWatch)
+        assertTrue(restarted.gradientOnLiveActivities)
     }
 
     @Test
-    fun `after a full reset the copy has no gradient and the first direction`() {
+    fun `after a full reset the copy has no gradient and every switch is off`() {
         val setting = AccentSetting(prefs)
-        setting.pickGradient(blue, purple)
-        setting.pickDirection(AccentGradientDirection.RightToLeft)
+        setting.pickAccent(gradient(blue, purple))
+        setting.gradientOnWatch = true
         prefs.clearAllPrefs()
         setting.reload()
 
-        assertNull(setting.gradientEnd)
-        assertEquals(AccentGradientDirection.TopLeftToBottomRight, setting.gradientDirection)
+        assertEquals(AccentGradient.color(blue), setting.accent)
+        assertFalse(setting.gradientOnWatch)
     }
 }

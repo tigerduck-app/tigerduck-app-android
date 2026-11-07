@@ -17,7 +17,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarGrid
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -53,6 +55,10 @@ class AccentGradientFillTest {
     private fun Color.near(other: Color): Boolean =
         abs(red - other.red) < 0.05f && abs(green - other.green) < 0.05f && abs(blue - other.blue) < 0.05f
 
+    /** A left to right gradient as the theme is handed it, its colors as the mode draws them. */
+    private fun gradient(vararg stops: Int) =
+        requireNotNull(AccentGradient.of(stops.toList(), AccentGradientStyle.Linear, AccentGradientDirection.LeftToRight))
+
     private fun LocalDate.toDate(): Date = Date.from(atStartOfDay(ZoneId.of("Asia/Taipei")).toInstant())
 
     @Test
@@ -61,7 +67,7 @@ class AccentGradientFillTest {
             TigerDuckAppTheme(
                 darkTheme = false,
                 accentColor = start,
-                accentGradient = AccentGradient(end, AccentGradientDirection.LeftToRight),
+                accentGradient = gradient(0xFF3B30, 0x007AFF),
             ) {
                 CalendarGrid(
                     monthDate = LocalDate.of(2026, 10, 1).toDate(),
@@ -92,7 +98,7 @@ class AccentGradientFillTest {
                 darkTheme = false,
                 accentColor = yellow,
                 onAccentColor = darkText,
-                accentGradient = AccentGradient(Color.Black, AccentGradientDirection.LeftToRight),
+                accentGradient = gradient(0xFFEB3B, 0x000000),
             ) { onFill = TigerDuckTheme.onAccentBrush }
         }
         composeRule.waitForIdle()
@@ -120,7 +126,7 @@ class AccentGradientFillTest {
                 darkTheme = false,
                 accentColor = yellow,
                 onAccentColor = darkText,
-                accentGradient = AccentGradient(Color.Black, AccentGradientDirection.LeftToRight),
+                accentGradient = gradient(0xFFEB3B, 0x000000),
             ) {
                 CalendarGrid(
                     monthDate = LocalDate.of(2026, 10, 1).toDate(),
