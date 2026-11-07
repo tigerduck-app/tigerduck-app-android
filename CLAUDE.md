@@ -194,9 +194,14 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   field by its stamp (last writer wins), so an edit is kept whatever its switches say
   and sent once they are on. The `sync-switch-read` ratchet counts lines naming a switch
   or the hold anywhere but there and the files that store or send them.
-- `SyncClock` (`app/.../sync/SyncClock.kt`): every edit's TigerSync stamp, in
-  whole milliseconds, capped by the backend clock it last heard (`tigersync-clock`).
-  `SyncClockTest` pins that spec's scenarios.
+- `DeviceClocks` and `EditTime` (`app/.../sync/EditAge.kt`): every edit's time on this
+  phone and its `age_ms` at a send, which every write sends where `hlc` went (backend
+  4.3.0): the elapsed clock's within one boot (`Settings.Global.BOOT_COUNT`), else the
+  wall clock's, never below 0, read again at each send and retry. The backend stamps an
+  edit with its arrival less its age, so no code compares a device time with a server
+  time. `AnswerArrivals` (`sync/outbox/`) holds the per-key rule: an edit made while an
+  earlier send of its field was out counts its age from that answer's arrival.
+  `EditAgeTest` and `AnswerArrivalsTest` pin both.
 - `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
   backend whatever its version segment says; and the backend's error code, read once
@@ -205,9 +210,11 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   entries. `status-in-message` counts a status or error code searched for in a
   message.
 - `Outbox` and `OutboxLane` (`app/.../sync/outbox/`): every unsent edit, one lane per
-  channel with one request in flight, each edit stamped by `SyncClock` and, written by an
-  older build with no time, by its old-entry time (`OldEntryTime`), and each answer's clock
-  kept as its field's acknowledgment (`AckClock`). The six queues (`UnsentMarks`,
+  channel with one request in flight, each edit timed by `DeviceClocks` (its device clocks
+  kept beside its wall time, nullable) and, written by an older build with no time, by its
+  old-entry time (`OldEntryTime`), sent with its age from the lane (`OutboxLane.ageFrom`),
+  and each answer's clock kept as its field's acknowledgment (`AckClock`) and its arrival
+  in `AnswerArrivals`. The six queues (`UnsentMarks`,
   `PendingHolidayOverrides`, `PendingCourseOverrides`, `CourseIgnoreQueue`,
   `PendingCourseAdds`, `PendingCourseDeletes`) keep their own files and register as
   channels from them (`@IntoSet`); `OutboxTest` holds the drain order. The `sync-write`
