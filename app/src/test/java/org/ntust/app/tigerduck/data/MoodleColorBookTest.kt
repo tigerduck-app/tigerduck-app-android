@@ -46,6 +46,27 @@ class MoodleColorBookTest {
     }
 
     @Test
+    fun `each color has a dark variant, darkened as the preset palette's are`() {
+        assertEquals(
+            listOf(0x375F5F, 0x3D5C7C, 0x595586, 0x565859, 0x076451, 0x0F5388, 0x54595B, 0x695532, 0x87465D, 0x463D8B),
+            MoodleColorBook.READABLE.map { MoodleColorBook.darkFor(it) },
+        )
+        // The preset palette's rule: the same hue, saturation at about 0.93 and value at 0.6.
+        MoodleColorBook.READABLE.forEach { light ->
+            val dark = checkNotNull(MoodleColorBook.darkFor(light))
+            val (h1, _, v1) = hsv(light)
+            val (h2, _, v2) = hsv(dark)
+            assertEquals("hue of ${light.toString(16)}", h1, h2, 0.02f)
+            assertEquals("value of ${light.toString(16)}", v1 * 0.6f, v2, 0.01f)
+        }
+        assertEquals(null, MoodleColorBook.darkFor(0xFF6B6B))
+    }
+
+    private fun hsv(rgb: Int): FloatArray = FloatArray(3).also {
+        java.awt.Color.RGBtoHSB((rgb shr 16) and 0xFF, (rgb shr 8) and 0xFF, rgb and 0xFF, it)
+    }
+
+    @Test
     fun `a course id picks the color by its last digit`() {
         assertEquals(0xAF8C4C, MoodleColorBook.forCourseId(4127))
         assertEquals(0x569E9E, MoodleColorBook.forCourseId(90))

@@ -124,15 +124,15 @@ object TigerDuckTheme {
     }
 
     /**
-     * If the stored color matches an entry in the canonical (light) palette,
-     * return the corresponding dark variant when dark mode is active.
-     * Custom HSV picks don't land on a palette index so they're returned as-is.
+     * If the stored color matches an entry in the canonical (light) palette, or
+     * is a Moodle color, return its dark variant when dark mode is active.
+     * Custom HSV picks have none, so they're returned as-is.
      */
     private fun resolveForMode(stored: Color): Color {
         if (!_isDarkMode.value) return stored
         val argb = stored.toArgb()
         val idx = courseColorPalette.indexOfFirst { it.toArgb() == argb }
-        return if (idx >= 0) courseColorPaletteDark[idx] else stored
+        return if (idx >= 0) courseColorPaletteDark[idx] else MoodleColorBook.darkFor(argb and 0xFFFFFF)?.let { Color(it or (0xFF shl 24)) } ?: stored
     }
 
     /**
