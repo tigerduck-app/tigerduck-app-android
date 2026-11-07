@@ -9,11 +9,13 @@ import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
  * nothing of any site itself. Moodle's ([MoodleBrowserSignIn]) is the only one
  * now; the school's SSO sites would add theirs to [BrowserSignIns].
  *
- * A provider never fills a password into a page. It hands the browser a link
- * the site signs it in with; where none can be had now, it may sign the
- * browser in itself ([signInWithoutLink]), with nothing of the app's but the
- * site's session from a sign-in run for this browser alone. Where neither
- * works, the browser says its automatic sign-in failed, with Retry.
+ * A provider puts no password into a page. It hands the browser a link the
+ * site signs it in with; where none can be had now, it may sign the browser
+ * in itself ([signInWithoutLink]), with nothing of the app's but the site's
+ * session from a sign-in run for this browser alone. Where neither works, the
+ * browser says its automatic sign-in failed, with Retry. A site's own sign-in
+ * form is no provider's: [BrowserSiteSignIn] fills the ones the school sites
+ * list with the stored account, and the student submits it.
  */
 interface BrowserSignIn {
     /** The site's name as the sign-in screen shows it. */
