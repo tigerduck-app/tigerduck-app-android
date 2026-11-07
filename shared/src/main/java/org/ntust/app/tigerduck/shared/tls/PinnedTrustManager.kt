@@ -136,27 +136,6 @@ class PinnedTrustManager(
         }
     }
 
-    /**
-     * Whether [served], the certificates a page came with in a WebView, which gives its leaf alone,
-     * meet the pins in force now for [host], as a handshake's would: built up to its anchor by the
-     * platform, holding none of [CompromisedCertificates], and sharing an SPKI with the effective
-     * pins of the set that covers [host], or that set has expired. A host no set covers does not
-     * meet them. Nothing is refused here, so [onMismatch] hears of nothing.
-     */
-    fun meetsPins(host: String, served: List<X509Certificate>): Boolean {
-        val rules = policy()
-        val at = now()
-        val set = rules.setFor(host, at) ?: return false
-        if (served.isEmpty()) return false
-        val validated = try {
-            CompromisedCertificates.check(served)
-            validator.validate(served.toTypedArray(), OPEN_CONNECTION_AUTH_TYPE, host).also(CompromisedCertificates::check)
-        } catch (_: Exception) {
-            return false
-        }
-        return rules.decide(set, validated.map { it.spki }.toSet(), at) == PinDecision.Allowed
-    }
-
     private fun validated(connection: Any, host: String, peerCertificates: List<Certificate>): Pair<List<X509Certificate>, Set<String>> {
         synchronized(validatedByConnection) { validatedByConnection[connection]?.get(host) }?.let { return it }
         val served = peerCertificates.filterIsInstance<X509Certificate>().toTypedArray()
