@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.colorPickerOffersDarkPalette
@@ -34,21 +36,27 @@ internal fun CourseRecolorSheet(course: Course, courses: List<Course>, onApply: 
         currentColor = currentColor,
         presetPalette = displayPalette,
         usedByOthers = usedByOthers,
-        onApply = { picked ->
-            val pickedArgb = picked.toArgb() or 0xFF000000.toInt()
-            val displayIdx = displayPalette.indexOfFirst {
-                (it.toArgb() or 0xFF000000.toInt()) == pickedArgb
-            }
-            // Preset picks are stored as the canonical (light) hex so
-            // switching theme later swaps automatically. Custom HSV picks
-            // keep the exact color in both modes.
-            val storedArgb = if (displayIdx >= 0) {
-                courseColorPalette[displayIdx].toArgb()
-            } else {
-                picked.toArgb()
-            }
-            onApply("#" + String.format("%06X", storedArgb and 0xFFFFFF))
-        },
+        onApply = { picked -> onApply(storedCourseColorHex(picked, darkPalette)) },
         onDismiss = onDismiss,
     )
+}
+
+/**
+ * The `#RRGGBB` a course keeps for [picked], applied on the sheet's dark palette when [darkPalette]
+ * is set. Preset picks are stored as the canonical (light) hex so switching theme later swaps
+ * automatically, and so are Moodle colors, which the dark sheet opens on in their dark variant.
+ * Custom HSV picks keep the exact color in both modes.
+ */
+internal fun storedCourseColorHex(picked: Color, darkPalette: Boolean): String {
+    val displayPalette = if (darkPalette) courseColorPaletteDark else courseColorPalette
+    val pickedArgb = picked.toArgb() or 0xFF000000.toInt()
+    val displayIdx = displayPalette.indexOfFirst {
+        (it.toArgb() or 0xFF000000.toInt()) == pickedArgb
+    }
+    val storedArgb = when {
+        displayIdx >= 0 -> courseColorPalette[displayIdx].toArgb()
+        darkPalette -> MoodleColorBook.lightFor(pickedArgb and 0xFFFFFF) ?: picked.toArgb()
+        else -> picked.toArgb()
+    }
+    return "#" + String.format("%06X", storedArgb and 0xFFFFFF)
 }

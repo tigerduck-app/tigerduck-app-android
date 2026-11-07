@@ -224,6 +224,9 @@ class MoodleColorBook {
         /** The dark-mode variant of Moodle color [rgb], or null for any other color. */
         fun darkFor(rgb: Int): Int? = READABLE.indexOf(rgb).takeIf { it >= 0 }?.let(DARK::get)
 
+        /** The Moodle color whose dark-mode variant is [rgb], or null for any other color. */
+        fun lightFor(rgb: Int): Int? = DARK.indexOf(rgb).takeIf { it >= 0 }?.let(READABLE::get)
+
         private const val DARK_CARD = 0x181818
         private const val LIGHT_CARD = 0xFCFCFD
         private const val MIN_CONTRAST = 3.0
