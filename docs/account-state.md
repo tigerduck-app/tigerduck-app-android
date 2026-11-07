@@ -130,7 +130,6 @@ Scopes:
 | prefs | `tigerduck_credentials` | keys | |
 | prefs | `tigerduck_live_activity` | keys | |
 | prefs | `tigerduck_outbox` | keys | |
-| prefs | `tigerduck_outbox_answers` | school | `AnswerArrivals.kt` `forgetAccount` |
 | prefs | `tigerduck_permissions` | keys | |
 | prefs | `tigerduck_prefs` | keys | |
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
@@ -386,13 +385,6 @@ process starts, before anything writes a queue. An edit an older build queued wi
 sent with the earliest time it is known to have existed, which that first run bounds (X1). It is
 the device's, not an account's: the queues' own files are cleared at a sign-out, and their entries
 with them. A full reset leaves it too.
-
-`tigerduck_outbox_answers` holds when the answer to each field's last write reached this phone
-(`AnswerArrivals`), so an edit made while an earlier write of its field was out counts its age
-(`age_ms`) from that answer, a process death between included. The client writes it, with
-`commit()`, as each write's answer arrives, a lane's or a screen's alike (`FieldAges`). The fields
-name the account's courses and assignments, so it is the school account's, one of
-`SchoolStores.late`, cleared after the outbox and before DataCache.
 
 Builds before `age_ms` kept TigerSync's own clock in `tigerduck_sync_clock`. Every write now sends
 its age, which the backend stamps itself, and `DataMigration` deletes that file once

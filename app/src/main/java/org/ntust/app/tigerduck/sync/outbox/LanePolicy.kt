@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.sync.outbox
 
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditTime
 
 /**
  * Where a lane keeps its entries: the queue's own file, through today's `DataCache` or preferences
@@ -19,8 +20,8 @@ interface LaneStore<E> {
  * the backoff"): the field each entry edits ([field], from [org.ntust.app.tigerduck.sync.SyncField]);
  * the refusals after which an entry parks ([maxAttempts]); where they are counted ([attempts]);
  * whether a failure that says nothing about the edit ends the drain ([stopsOnRetry]), as a queue
- * whose next send would fail the same way stops today; and how an entry an older build wrote with
- * no time is given one ([untimed], X1).
+ * whose next send would fail the same way stops today; how an entry an older build wrote with
+ * no time is given one ([untimed], X1); and how an entry keeps its floor ([floors]).
  */
 class LanePolicy<E>(
     val field: (E) -> String,
@@ -28,6 +29,7 @@ class LanePolicy<E>(
     val attempts: AttemptBook<E>,
     val stopsOnRetry: Boolean = false,
     val untimed: UntimedEntries<E>? = null,
+    val floors: EntryFloors<E>? = null,
 ) {
     init {
         require(maxAttempts > 0) { "an entry needs at least one attempt" }
@@ -77,13 +79,13 @@ class OnDiskAttempts<E>(
 /**
  * Counts kept for this process, for a queue that keeps none on disk: one per [field], for the edit
  * last counted there, so a newer edit of the field starts from none and nothing outlives the
- * fields the queue has known. An edit is the entry itself ([sameEdit] is equality).
+ * fields the queue has known. An edit is the entry itself, but for what [same] leaves out (its floor).
  */
-class InMemoryAttempts<E>(private val field: (E) -> String) : AttemptBook<E> {
+class InMemoryAttempts<E>(private val field: (E) -> String, private val same: (E, E) -> Boolean = { a, b -> a == b }) : AttemptBook<E> {
     private val counts = HashMap<String, Pair<E, Int>>()
 
     override fun attempts(entry: E): Int = synchronized(counts) {
-        counts[field(entry)]?.takeIf { it.first == entry }?.second ?: 0
+        counts[field(entry)]?.takeIf { same(it.first, entry) }?.second ?: 0
     }
 
     override fun counted(entry: E, attempts: Int, refused: Boolean): E {
@@ -91,7 +93,7 @@ class InMemoryAttempts<E>(private val field: (E) -> String) : AttemptBook<E> {
         return entry
     }
 
-    override fun sameEdit(a: E, b: E): Boolean = a == b
+    override fun sameEdit(a: E, b: E): Boolean = same(a, b)
 
     override fun forget() = synchronized(counts) { counts.clear() }
 }
@@ -105,4 +107,16 @@ class UntimedEntries<E>(
     val timeOf: (E) -> Long?,
     val withTime: (E, Long) -> E,
     val oldEntryTimeMs: suspend () -> Long,
+)
+
+/**
+ * How a lane keeps an entry's floor, the end of the latest write of its key that went out at or
+ * before the entry was made (the per-key rule, [EditFloors]): [madeAt] reads when it was made,
+ * null for none; [floor] its floor, null for none; [withFloor] sets it. A floor never makes an entry
+ * another edit: the lane's [AttemptBook.sameEdit] leaves it out.
+ */
+class EntryFloors<E>(
+    val madeAt: (E) -> EditTime?,
+    val floor: (E) -> EditTime?,
+    val withFloor: (E, EditTime) -> E,
 )

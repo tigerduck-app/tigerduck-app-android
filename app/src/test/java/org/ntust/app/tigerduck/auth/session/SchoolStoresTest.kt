@@ -14,7 +14,6 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
@@ -42,7 +41,6 @@ class SchoolStoresTest {
         counted("club feed") { ClubActivities(context, ClubApiClient(OkHttpClient())) },
         counted("imported") { ImportedClassTableStore({ File(context.filesDir, "imported.json") }, { null }, Dispatchers.Unconfined) },
         counted("outbox") { Outbox(emptySet()) },
-        counted("answers") { AnswerArrivals.inMemory() },
         counted("cache") { DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs)) },
     )
 
@@ -54,7 +52,7 @@ class SchoolStoresTest {
         stores.atOnce
         assertEquals(listOf("read state", "preferences", "latch", "clubs", "club feed"), built)
         stores.late
-        assertEquals(listOf("read state", "preferences", "latch", "clubs", "club feed", "imported", "outbox", "answers", "cache"), built)
+        assertEquals(listOf("read state", "preferences", "latch", "clubs", "club feed", "imported", "outbox", "cache"), built)
     }
 
     @Test
@@ -66,7 +64,7 @@ class SchoolStoresTest {
             ),
             stores().atOnce.map { it::class },
         )
-        assertEquals(listOf(ImportedClassTableStore::class, Outbox::class, AnswerArrivals::class, DataCache::class), stores().late.map { it::class })
+        assertEquals(listOf(ImportedClassTableStore::class, Outbox::class, DataCache::class), stores().late.map { it::class })
     }
 
     @Test

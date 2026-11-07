@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditStamp
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
@@ -39,10 +40,10 @@ fun interface CourseUploadListener {
  * the upload ledger of each term. For [PushApiClient], which keeps each as a method of its own.
  * Each is sent with [authHeader]'s header for its sign-in, to the endpoint [baseUrl] names at the
  * time; an upload through [uploads], with its deadline for the whole call. Each edit goes with its
- * age, read by [ages] as its request is built (`age_ms`), and its answer keeps its arrival under
- * the course's membership ([SyncField.membership]), which its adds, hides and removals share: an
- * upload's under each add it names with an age. A term's reset keeps its own ([SyncField.termReset]),
- * which each of the term's adds and hides counts from too ([FieldAges]); one of every term names none.
+ * age, read by [ages] as its request is built (`age_ms`), under its course's term ([FieldAges],
+ * [SyncField.spanKey]): a course's adds, hides and removals ([SyncField.membership]) and a term's
+ * reset ([SyncField.termReset]) go one at a time with every other course write of the term, and an
+ * edit made while one was out ages from its end. A reset of every term names none.
  */
 internal class CourseSyncRequests(
     private val api: BackendServices<PushApi>,
@@ -150,10 +151,11 @@ internal class CourseSyncRequests(
             val service = uploads.at(base)
             val header = authHeader(signIn)
             val adds = CourseUploadPayload.handAdds(sent, semester, forceKeys, addedAt)
-            // The answer kept under each add that went with an age; the oldest's `hlc: 0` needs none.
+            // A span when an add went with an age; the oldest's `hlc: 0` never lands after a later edit.
             val fields = adds.keys.map(SyncField::membership)
-            val timed = adds.filterValues { !it.isOldest }.keys.map(SyncField::membership)
-            accepted = ages.sendKeeping(fields, timed, signIn, { service.coursesUpload(header, body(sent, semester, rosterTerms, adds)) }, ::answered)
+            accepted = ages.sendEach(fields, spans = adds.values.any { !it.isOldest }, signIn, { stampOf ->
+                service.coursesUpload(header, body(sent, semester, rosterTerms, adds.mapValues { (_, madeAt) -> stampOf(madeAt) }))
+            }, ::answered)
             landed = true
         }
         if (landed) tell(semester, sent, accepted, signIn)
@@ -174,11 +176,9 @@ internal class CourseSyncRequests(
         }
     }
 
-    // The body of an upload of [courses] with their hand-adds [adds], by course key, each with its stamp read now.
-    private fun body(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, EditTime>): RequestBody {
-        val stamps = adds.mapValues { (key, madeAt) -> ages.stampOf(listOf(SyncField.membership(key)), madeAt) }
-        return gson.toJson(CourseUploadPayload.build(courses, semester, rosterTerms, stamps)).toRequestBody(jsonType)
-    }
+    // The body of an upload of [courses] with their hand-adds' stamps [adds], by course key.
+    private fun body(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, EditStamp>): RequestBody =
+        gson.toJson(CourseUploadPayload.build(courses, semester, rosterTerms, adds)).toRequestBody(jsonType)
 
     // The courses an upload's answer took, and the timed adds it refused.
     private fun answered(response: Response): CourseUploadAnswer {
@@ -254,7 +254,7 @@ internal class CourseSyncRequests(
      * still means "wipe everything". Reset is offered per term because the
      * timetable is now per term; see `DELETE /sync/courses` in the backend's
      * `routes/sync/courses.py`. It carries the stamp of [resetAt], the time it
-     * was asked ([FieldAges.stampOf]), 0 old for one asked now (null).
+     * was asked ([FieldAges.send]), 0 old for one asked now (null).
      */
     suspend fun deleteAllCourses(semester: String?, signIn: SignIn, resetAt: EditTime?): WriteAnswer =
         withContext(Dispatchers.IO) {

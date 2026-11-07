@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -126,6 +127,7 @@ internal class CourseIgnoreQueue(
                 withTime = { change, atMs -> change.copy(madeAtMs = atMs) },
                 oldEntryTimeMs = { outbox.oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.COURSE_IGNORES)) ?: 0L },
             ),
+            floors = EntryFloors(PendingCourseIgnore::madeAt, { it.madeAtClocks?.floor?.time }, PendingCourseIgnore::withFloor),
         ),
         outbox.ack,
         outbox.scope,
@@ -253,6 +255,10 @@ internal class CourseIgnoreQueue(
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
 
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn)
+    }
+
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */
     override fun forgetMemory() {
         parkedRequeued.set(false)
@@ -274,7 +280,7 @@ internal class CourseIgnoreQueue(
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
                 if (!current || !sends()) return SendResult.NotSent
-                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt)
+                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.agedFrom)
             }
         } catch (e: CancellationException) {
             throw e

@@ -18,7 +18,7 @@ internal object CourseUploadPayload {
 
     /**
      * The body for [courses] in [semester]: the courses, and [adds], by key, each hand-add with its
-     * stamp, read now from its time ([handAdds], [FieldAges.stampOf]): its `age_ms`, or `hlc: 0` for
+     * stamp, read now from its time ([handAdds], [FieldAges.sendEach]): its `age_ms`, or `hlc: 0` for
      * the oldest. No `course_overrides`,
      * which the backend refuses: a color goes only as its course's override PATCH. No `force_keys`
      * either: an add lifts a tombstone by its stamp, its arrival less its age.

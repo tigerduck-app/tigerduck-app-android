@@ -25,9 +25,18 @@ data class UnsentMark(
      * a mark written before it was kept, which the queue gives its old-entry time as it reads it.
      */
     val madeAtMs: Long? = null,
-    /** The device clocks at the tap, which age it while the boot lasts; null on a mark an older build wrote. */
+    /**
+     * The device clocks at the tap, which age it while the boot lasts, and its floor
+     * ([EditClocks.floor]); null on a mark an older build wrote.
+     */
     val madeAtClocks: EditClocks? = null,
 ) {
     /** When the user tapped it, by the device's clocks; null with no time kept. */
     val madeAt: EditTime? get() = madeAtMs?.let { editTimeOf(it, madeAtClocks) }
+
+    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
+    val agedFrom: EditTime? get() = madeAt?.atLeast(madeAtClocks?.floor?.time)
+
+    /** This mark counting its age from [floor] at least. */
+    fun withFloor(floor: EditTime): UnsentMark = copy(madeAtClocks = madeAtClocks.withFloor(floor))
 }

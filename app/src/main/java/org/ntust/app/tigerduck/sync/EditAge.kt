@@ -39,6 +39,12 @@ data class EditTime(val wallMs: Long, val elapsedMs: Long? = null, val boot: Int
     fun ageAt(now: EditTime): Long =
         maxOf(0L, if (sameBootAs(now)) now.elapsedMs!! - elapsedMs!! else now.wallMs - wallMs)
 
+    /**
+     * The moment this edit's age counts from with [floor], the end of the latest write of its key
+     * that went out at or before it was made (the per-key rule): the later of the two, this when none.
+     */
+    fun atLeast(floor: EditTime?): EditTime = if (floor != null && isBefore(floor)) floor else this
+
     companion object {
         /**
          * The oldest edit there is (LWW D13): a value this phone held before its category ever
@@ -96,8 +102,12 @@ class DeviceClocks internal constructor(
      */
     fun ageMs(madeAt: EditTime?): Long = madeAt?.ageAt(now()) ?: 0L
 
-    /** What a write sends for an edit made at [madeAt], read now: [EditStamp.Oldest] for the oldest, else its [ageMs]. */
-    fun stampOf(madeAt: EditTime?): EditStamp = if (madeAt?.isOldest == true) EditStamp.Oldest else EditStamp.Age(ageMs(madeAt))
+    /**
+     * What a write sends for an edit made at [madeAt], its age read at [now]: [EditStamp.Oldest] for
+     * the oldest, else its age ([EditTime.ageAt]), 0 for an edit made now (null).
+     */
+    fun stampOf(madeAt: EditTime?, now: EditTime = now()): EditStamp =
+        if (madeAt?.isOldest == true) EditStamp.Oldest else EditStamp.Age(madeAt?.ageAt(now) ?: 0L)
 
     companion object {
         /** The wall clock alone, with no elapsed clock or boot: for a queue or a client a test builds without the device's. */

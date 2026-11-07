@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
@@ -256,6 +257,15 @@ class PendingCourseOverrides internal constructor(
     }
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    /**
+     * Each change of [key]'s term made at or after [start] ages from [end] at least: a row an older
+     * build kept by Moodle id alone by the term its send goes to ([CourseOverrideSends.placeFor]).
+     */
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        val legacy = lane.entries().filter { placeOf(it) == null }.associate { it.moodleId to sendPath.placeFor(it)?.semester }
+        lane.raiseFloors(key, start, end, signIn) { row -> (placeOf(row)?.semester ?: legacy[row.moodleId])?.let(SyncField::termReset) }
+    }
 
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */
     override fun forgetMemory() = lane.forgetMemory().also { memory.forgetParkedTry() }

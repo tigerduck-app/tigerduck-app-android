@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.HolidayEditTime
 import org.ntust.app.tigerduck.push.StampedValue
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
@@ -168,7 +169,7 @@ class PendingHolidayOverridesTest {
         tap(9, notify = true)
         now = 3_000L
         tap(5, notify = true)
-        assertEquals(mapOf(9 to EditTime(2_000L), 5 to EditTime(3_000L)), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(9 to EditTime(2_000L), 5 to EditTime(3_000L)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
 
         now = 5_000L
         HolidayOverrideApply.applyStamped(
@@ -176,7 +177,7 @@ class PendingHolidayOverridesTest {
         )
 
         assertEquals(setOf(5), prefs.holidayNotifyOverrides)
-        assertEquals(mapOf(5 to EditTime(3_000L)), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(5 to EditTime(3_000L)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
     }
 
     @Test
@@ -240,7 +241,7 @@ class PendingHolidayOverridesTest {
 
         assertEquals(emptyList<Pair<Int, Boolean>>(), sent)
         assertEquals("nothing for the next account to send", emptySet<Int>(), holidays.waitingIds)
-        assertEquals(emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes)
+        assertEquals(emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(mapOf(3 to times.getValue(3)), times)
     }
 
@@ -291,7 +292,7 @@ class PendingHolidayOverridesTest {
         prefs.forgetHolidayOverrides()
         series.open()
         prefs.holidayNotifyOverrides = setOf(3)
-        prefs.holidayOverrideEditTimes = mapOf(3 to EditTime(now))
+        prefs.holidayOverrideEditTimes = mapOf(3 to HolidayEditTime(EditTime(now)))
         prefs.holidayOverridesAwaitingUpload = setOf(3)
         gate.complete(Unit)
         first.join()
@@ -303,12 +304,12 @@ class PendingHolidayOverridesTest {
     fun `the sign-out forgets both sets`() {
         prefs.holidayNotifyOverrides = setOf(3)
         prefs.holidayOverridesAwaitingUpload = setOf(3)
-        prefs.holidayOverrideEditTimes = mapOf(3 to EditTime(1_000L))
+        prefs.holidayOverrideEditTimes = mapOf(3 to HolidayEditTime(EditTime(1_000L)))
 
         prefs.forgetHolidayOverrides()
 
         assertEquals(emptySet<Int>(), prefs.holidayNotifyOverrides)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-        assertEquals(emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes)
+        assertEquals(emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
     }
 }

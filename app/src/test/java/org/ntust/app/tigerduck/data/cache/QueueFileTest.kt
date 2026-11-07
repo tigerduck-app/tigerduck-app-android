@@ -77,9 +77,9 @@ class QueueFileTest {
         cache.savePendingCourseOverrides(listOf(PendingCourseOverride("mid-1", "#112233", null, null, 3L)), signIn)
         assertTrue(cache.queueFile(QueueFile.COURSE_OVERRIDES).exists())
         for (clocks in listOf(QueueFile.COURSE_ADD_CLOCKS, QueueFile.COURSE_DELETE_CLOCKS)) {
-            cache.saveEditClocks(clocks, mapOf(9L to EditClocks(elapsedMs = 5L, boot = 7)), signIn)
+            cache.saveEditClocks(clocks, mapOf("1141:CS1001:9" to EditClocks(elapsedMs = 5L, boot = 7)), signIn)
             assertTrue(cache.queueFile(clocks).exists())
-            assertEquals(mapOf(9L to EditClocks(elapsedMs = 5L, boot = 7)), cache.loadEditClocks(clocks))
+            assertEquals(mapOf("1141:CS1001:9" to EditClocks(elapsedMs = 5L, boot = 7)), cache.loadEditClocks(clocks))
         }
     }
 

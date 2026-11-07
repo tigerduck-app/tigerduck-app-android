@@ -12,6 +12,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.EditTime
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.util.logSummary
 
 /**
@@ -145,6 +147,25 @@ class OutboxLane<E : Any>(
 
     /** The fields an entry waits for, parked ones included: a pull keeps this phone's value of each (LWW D12). */
     suspend fun heldFields(): Set<String> = entries().mapTo(HashSet(), policy.field)
+
+    /**
+     * A write of [key] that went out at [start] was answered at [end] under [signIn] ([EditFloors]):
+     * each entry of [key] ([keyOf], its field's [SyncField.spanKey] unless the channel says) made at
+     * or after [start] counts its age from [end] at least, on disk when this returns, parked or not.
+     * Not the oldest, which never lands after a later edit. Nothing once [signIn] has ended.
+     */
+    suspend fun raiseFloors(
+        key: String, start: EditTime, end: EditTime, signIn: SignIn, keyOf: (E) -> String? = { SyncField.spanKey(policy.field(it)) },
+    ): Boolean {
+        val floors = policy.floors ?: return false
+        return edit(signIn) { entries ->
+            entries.map { entry ->
+                val madeAt = floors.madeAt(entry)
+                val during = madeAt != null && !madeAt.isOldest && !madeAt.isBefore(start) && keyOf(entry) == key
+                if (during && floors.floor(entry)?.isBefore(end) != false) floors.withFloor(entry, end) else entry
+            }
+        }
+    }
 
     /**
      * Records that [entry]'s send under [signIn] landed, answered at the backend's clock

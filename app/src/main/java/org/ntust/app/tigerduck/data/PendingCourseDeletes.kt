@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
@@ -167,8 +168,9 @@ class PendingCourseDeletes internal constructor(
             field = CourseDelete::field,
             // A delete is never given up on for its refusals, as before it was a channel.
             maxAttempts = Int.MAX_VALUE,
-            attempts = InMemoryAttempts(CourseDelete::field),
+            attempts = InMemoryAttempts(CourseDelete::field, CourseDelete::isSameEdit),
             stopsOnRetry = true,
+            floors = EntryFloors(CourseDelete::madeAt, { it.clocks?.floor?.time }, CourseDelete::withFloor),
         ),
         outbox.ack,
         outbox.scope,
@@ -211,7 +213,7 @@ class PendingCourseDeletes internal constructor(
      */
     suspend fun keep(semester: String, courseNo: String, queuedAt: CourseMoment, signIn: SignIn, chosen: ChosenKind? = null): Boolean {
         choose(semester, courseNo, queuedAt.at, chosen)
-        return edit(signIn, queuedAt) { it.with(semester, courseNo, queuedAt.at) }
+        return edit(signIn, CourseDelete(semester, courseNo, queuedAt.at, queuedAt.clocks)) { it.with(semester, courseNo, queuedAt.at) }
     }
 
     /**
@@ -249,7 +251,7 @@ class PendingCourseDeletes internal constructor(
         // for a while: a process killed meanwhile keeps the delete for its
         // next sync. A re-add's forget waiting ahead of this cannot let it go,
         // as the delete was asked after the re-add; see [forget].
-        if (!edit(signIn, queuedAt) { it.with(semester, courseNo, queuedAt.at) }) return
+        if (!edit(signIn, CourseDelete(semester, courseNo, queuedAt.at, queuedAt.clocks)) { it.with(semester, courseNo, queuedAt.at) }) return
         sendHeld(semester, courseNo, signIn)
     }
 
@@ -277,6 +279,8 @@ class PendingCourseDeletes internal constructor(
     override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) { lane.raiseFloors(key, start, end, signIn) }
 
     override fun forgetMemory() = lane.forgetMemory()
 
@@ -348,17 +352,17 @@ class PendingCourseDeletes internal constructor(
     }
 
     // False, and nothing written, once [signIn] has ended. Through the lane, under the file's lock;
-    // each moment keeps its clocks, and a delete asked at [asked] takes its own.
+    // each moment keeps its clocks, and [asked], the delete asked now, takes its own.
     private suspend fun edit(
         signIn: SignIn,
-        asked: CourseMoment? = null,
+        asked: CourseDelete? = null,
         change: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>>,
     ): Boolean = mutex.withLock {
         lane.edit(signIn) { deletes ->
             val before = deletesByTerm(deletes)
             noteStamps(before)
-            val clocks = deletes.associate { it.queuedAt to it.clocks } + listOfNotNull(asked?.let { it.at to it.clocks })
-            deletesOf(change(before), clocks::get)
+            val clocks = (deletes + listOfNotNull(asked)).associate { momentKey(it.semester, it.courseNo, it.queuedAt) to it.clocks }
+            deletesOf(change(before), clocks)
         }
     }
 

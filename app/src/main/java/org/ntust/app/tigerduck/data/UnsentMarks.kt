@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -73,8 +74,9 @@ internal fun interface MarkWriter {
  * data at sign-out.
  *
  * Each tap keeps its time by the device's clocks ([clocks]), and goes with
- * its age (`age_ms`), from the tap or from the answer to the mark it replaced
- * while that one was out (the client's `FieldAges`). A mark an older build
+ * its age (`age_ms`), from the tap or from the end of a write of its
+ * assignment that was out when it was made, kept with it (its floor, the
+ * client's `FieldAges`), parked or not. A mark an older build
  * wrote with no time is given its old-entry time at its first load and
  * written back (X1), never its send time. A reply writes nothing on this
  * phone, the backend's later mark included: Home saves the marks from its own
@@ -147,6 +149,7 @@ class UnsentMarks internal constructor(
                 withTime = { mark, atMs -> mark.copy(madeAtMs = atMs) },
                 oldEntryTimeMs = { oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.UNSENT_MARKS)) ?: 0L },
             ),
+            floors = EntryFloors(UnsentMark::madeAt, { it.madeAtClocks?.floor?.time }, UnsentMark::withFloor),
         ),
         ack = ack,
         scope = scope,
@@ -230,6 +233,10 @@ class UnsentMarks internal constructor(
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
 
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn)
+    }
+
     /** At a sign-out: the next student's parked marks get their own one more try in this process. */
     override fun forgetMemory() {
         parkedRequeued.set(false)
@@ -243,7 +250,7 @@ class UnsentMarks internal constructor(
         // An id no request can name goes nowhere, and is let go as it always was.
         val id = mark.assignmentId?.toIntOrNull() ?: return SendResult.Sent(null)
         val answer = try {
-            writer.write(id, status, signIn, mark.madeAt)
+            writer.write(id, status, signIn, mark.agedFrom)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

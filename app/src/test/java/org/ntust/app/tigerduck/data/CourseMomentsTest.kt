@@ -77,7 +77,7 @@ class CourseMomentsTest {
     private inner class DiesAt(cache: DataCache, file: QueueFile, private val dies: Int, private val landed: Boolean) : MomentClocks(cache, file) {
         private var writes = 0
 
-        override suspend fun save(clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean {
+        override suspend fun save(clocks: Map<String, EditClocks>, signIn: SignIn): Boolean {
             if (++writes == dies && !landed) series.end()
             return super.save(clocks, signIn).also { if (writes == dies && landed) series.end() }
         }

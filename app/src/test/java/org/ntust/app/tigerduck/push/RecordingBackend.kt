@@ -16,7 +16,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.sync.DeviceClocks
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
+import org.ntust.app.tigerduck.sync.outbox.EditFloors
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -119,7 +119,7 @@ internal fun syncApiClientAt(base: String, backend: OkHttpClient): SyncApiClient
  * A [PushApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
  * reaching nothing but [backend]; [prefs] for a test that turns the switches, [clocks] for one
  * that reads its writes' ages by its own clocks, [uploadNews] for one that hears each course
- * upload that landed, and [arrivals] for one that shares its answers' arrivals.
+ * upload that landed, and [floors] for one whose writes raise its queues' floors.
  */
 internal fun pushApiClientAt(
     base: String,
@@ -127,12 +127,12 @@ internal fun pushApiClientAt(
     prefs: AppPreferences = AppPreferences(JvmContext()),
     clocks: DeviceClocks = DeviceClocks.WALL,
     uploadNews: CourseUploadListener? = null,
-    arrivals: AnswerArrivals = AnswerArrivals.inMemory(clocks),
+    floors: EditFloors? = null,
 ): PushApiClient {
     prefs.announcementApiBaseUrlOverride = base
     // Never the real backend, even past the recording one.
     assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
     val tokens = V3TokenStore(JvmContext().getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
-    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clocks, uploadNews?.let { dagger.Lazy { it } }, arrivals)
+    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clocks, uploadNews?.let { dagger.Lazy { it } }, floors?.let { dagger.Lazy { it } })
 }

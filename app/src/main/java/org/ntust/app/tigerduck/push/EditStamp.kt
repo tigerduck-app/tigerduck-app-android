@@ -8,7 +8,7 @@ import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditStamp
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
+import org.ntust.app.tigerduck.sync.outbox.EditFloors
 import java.util.concurrent.ConcurrentHashMap
 
 /** The field, or the query parameter, an edit's age goes in, where `hlc` went (backend 4.3.0). */
@@ -26,65 +26,82 @@ internal fun Map<String, Any>.stampedWith(stamp: EditStamp): Map<String, Any> = 
 /**
  * Every write of a synced field goes through here, from an outbox lane or straight from a screen
  * (Use Local, a conflict's keep-local), with the fields it writes ([SyncField], a course by the
- * key the write names): the per-key rule of `age_ms` at both of its ends ([AnswerArrivals]). An
- * edit's stamp, read by [clocks] as its request is built ([stampOf]), counts its age from the
- * arrival of the answer to an earlier write of a field it writes when that came after the edit,
- * and a write's 2xx answer keeps its arrival under each of its fields before [send] returns, so
- * before a hold its caller releases lets a newer edit of them go. A course's membership counts
- * from its term's reset too ([SyncField.termResetOf]).
+ * key the write names): the per-key rule of `age_ms`, as the iPhone's (tigerduck-app#1008).
  *
- * The writes of one field go one at a time, from the read of the stamp to the arrival kept, a
- * screen's and a lane's alike: two at once would each read the arrivals before either answer came,
- * and the older, slower one could land last. A membership write waits for its term's reset too.
- * The writes of other fields go at once. In memory: the writes that race are this process's.
+ * - A write's span runs from its first age reading, the token in hand, to its 2xx answer's arrival.
+ * - An edit ages from the latest end among the spans of its key that went out at or before it was
+ *   made: an edit made before a span went out, as one queued offline, keeps its own age and loses to
+ *   it, which it is older than. A queue keeps that end with each of its edits ([EditFloors], raised
+ *   on disk as the span ends); this keeps the spans of this process too, for an edit read before.
+ * - A key ([SyncField.spanKey]): an assignment's mark, a holiday's choice, or a term, every course
+ *   write of which, its reset's too, goes under one.
+ * - The writes of one key go one at a time, from the age read to the end kept, a screen's and a
+ *   lane's alike, so no two read the spans at once; writes of other keys go at once. In memory: the
+ *   writes that race are this process's.
+ *
+ * No write replays itself after a 401: the sync signs in again and sends anew, a span of its own.
  */
-internal class FieldAges(private val clocks: DeviceClocks, private val arrivals: AnswerArrivals) {
-    // One lock per field written in this process, taken in the fields' order.
+internal class FieldAges(private val clocks: DeviceClocks, private val floors: () -> EditFloors?) {
+    // One lock per key written in this process, taken in the keys' order.
     private val writing = ConcurrentHashMap<String, Mutex>()
 
-    /**
-     * The stamp of an edit of [fields] made at [madeAt] ([DeviceClocks.stampOf]): its `age_ms`,
-     * from the latest arrival of a field's answer that came after it, else from [madeAt]; 0 for an
-     * edit made now (null); `hlc: 0` for the oldest. Read under the fields' locks ([send]).
-     */
-    fun stampOf(fields: Collection<String>, madeAt: EditTime?): EditStamp =
-        clocks.stampOf(madeAt?.let { basis(fields).fold(it) { from, field -> arrivals.ageFrom(field, from) } })
+    // Each key's latest spans that ended in this process, oldest first; read and written under its lock.
+    private val ended = ConcurrentHashMap<String, ArrayDeque<Span>>()
+
+    private class Span(val start: EditTime, val end: EditTime)
 
     /**
-     * Sends an edit of [fields] made at [madeAt] under [signIn] as `/v4` takes it: [call] builds the
-     * request with the edit's stamp ([stampOf]), read as it is built, so a request built again sends
-     * a grown age. Sent once: with `age_ms` the backend never refuses an edit as ahead of its clock,
-     * and a 409 is the answer [handle] reads. A 2xx answer keeps its arrival under [fields], but
-     * for the oldest value: its `hlc: 0` never lands after a later edit, which needs no counting
-     * past its answer. Run off the main thread, as the arrival is written before this returns.
+     * Sends an edit of [fields] made at [madeAt] (the later of its time and its floor, for a queued
+     * one) under [signIn] as `/v4` takes it: [call] builds the request with the edit's stamp, read as
+     * it is built, so a request built again sends a grown age; 0 for an edit made now (null), `hlc: 0`
+     * for the oldest. Sent once: a 409 is the answer [handle] reads. A 2xx answer ends the write's
+     * span, but the oldest's, whose `hlc: 0` never lands after a later edit. Run off the main thread,
+     * as the floors are written before this returns.
      */
     suspend fun <T : Any> send(
         fields: Collection<String>, madeAt: EditTime?, signIn: SignIn, call: (EditStamp) -> Call, handle: (Response) -> T,
-    ): T = sendKeeping(fields, if (madeAt?.isOldest == true) emptyList() else fields, signIn, { call(stampOf(fields, madeAt)) }, handle)
+    ): T = sendEach(fields, spans = madeAt?.isOldest != true, signIn, { stampOf -> call(stampOf(madeAt)) }, handle)
 
     /**
-     * [send] for a write of several edits of [fields], each stamped by [call] itself ([stampOf]): a
-     * 2xx answer keeps its arrival under [kept], the fields of those that went with an age. One at a
-     * time with every other write of [fields], and of their terms' resets for a membership.
+     * [send] for a write of several edits of [fields], each stamped by [call] with the stamping it
+     * is handed, read at the span's start. Its 2xx answer ends a span of each key when [spans].
      */
-    suspend fun <T : Any> sendKeeping(
-        fields: Collection<String>, kept: Collection<String>, signIn: SignIn, call: () -> Call, handle: (Response) -> T,
-    ): T = holding(basis(fields)) {
-        call().execute().use { response ->
-            if (response.isSuccessful) arrivals.arrived(kept, signIn)
-            handle(response)
+    suspend fun <T : Any> sendEach(
+        fields: Collection<String>, spans: Boolean, signIn: SignIn, call: ((EditTime?) -> EditStamp) -> Call, handle: (Response) -> T,
+    ): T {
+        val keys = fields.map(SyncField::spanKey).distinct().sorted()
+        return holding(keys) {
+            val start = clocks.now()
+            call { madeAt -> clocks.stampOf(madeAt?.let { if (it.isOldest) it else floored(keys, it) }, start) }.execute().use { response ->
+                if (response.isSuccessful && spans) endSpans(keys, start, signIn)
+                handle(response)
+            }
         }
     }
 
-    // [fields] and the reset of the term of each membership among them.
-    private fun basis(fields: Collection<String>): List<String> = (fields + fields.mapNotNull(SyncField::termResetOf)).distinct()
+    // [madeAt], or the end of the latest span of one of [keys] that went out at or before it.
+    private fun floored(keys: List<String>, madeAt: EditTime): EditTime = keys.fold(madeAt) { from, key ->
+        from.atLeast(ended[key]?.lastOrNull { !madeAt.isBefore(it.start) }?.end)
+    }
 
-    // [block] under the lock of each of [fields], taken in their order, so two writes never wait on each other.
-    private suspend fun <T> holding(fields: List<String>, block: () -> T): T {
-        val held = ArrayList<Mutex>(fields.size)
+    // The span of each of [keys] that went out at [start] ended now: kept here, and its edits' floors raised on disk.
+    private suspend fun endSpans(keys: List<String>, start: EditTime, signIn: SignIn) {
+        val end = clocks.now()
+        for (key in keys) {
+            ended.getOrPut(key) { ArrayDeque() }.apply {
+                addLast(Span(start, end))
+                while (size > KEPT_SPANS) removeFirst()
+            }
+            floors()?.raise(key, start, end, signIn)
+        }
+    }
+
+    // [block] under the lock of each of [keys], taken in their order, so two writes never wait on each other.
+    private suspend fun <T> holding(keys: List<String>, block: suspend () -> T): T {
+        val held = ArrayList<Mutex>(keys.size)
         try {
-            for (field in fields.sorted()) {
-                val lock = writing.computeIfAbsent(field) { Mutex() }
+            for (key in keys) {
+                val lock = writing.computeIfAbsent(key) { Mutex() }
                 lock.lock()
                 held += lock
             }
@@ -92,5 +109,14 @@ internal class FieldAges(private val clocks: DeviceClocks, private val arrivals:
         } finally {
             held.asReversed().forEach { it.unlock() }
         }
+    }
+
+    private companion object {
+        /**
+         * How many of a key's spans this process keeps: an edit read before its write took the lock
+         * finds its floor here among the spans that ended meanwhile, at most one per writer ahead of
+         * it, as the lock is fair; a queue's own floor covers the rest.
+         */
+        const val KEPT_SPANS = 64
     }
 }

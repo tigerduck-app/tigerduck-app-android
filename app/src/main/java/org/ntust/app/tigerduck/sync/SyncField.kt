@@ -28,13 +28,24 @@ object SyncField {
     /** Whether a course is on the class table: an add, a hide or a removal of it. */
     fun membership(courseKey: String): String = "courses/$courseKey"
 
-    /** A term's reset, which every course's [membership] in the term lands after or before. */
+    /** A term's reset, the snapshot's `term_resets` entry for [semester]. */
     fun termReset(semester: String): String = "term_resets/$semester"
 
-    /** The [termReset] of the term a [membership] field's course is in, or null for another field. */
-    fun termResetOf(field: String): String? =
-        field.takeIf { it.startsWith(MEMBERSHIP + CLIENT) }?.removePrefix(MEMBERSHIP + CLIENT)
-            ?.substringBefore(':', "")?.ifEmpty { null }?.let(::termReset)
+    /**
+     * The key a write of [field] goes under, one write of it at a time, and whose writes' ends floor
+     * its edits (the per-key rule, as the iPhone's, tigerduck-app#1008): for a course of a term
+     * (`client:<term>:…`), its color, names, ignore and membership alike, the term's [termReset],
+     * which its reset shares; for any other field, the field itself.
+     */
+    fun spanKey(field: String): String {
+        val course = when {
+            field.startsWith(OVERRIDES) -> field.removePrefix(OVERRIDES)
+            field.startsWith(MEMBERSHIP) -> field.removePrefix(MEMBERSHIP)
+            else -> return field
+        }
+        val term = course.takeIf { it.startsWith(CLIENT) }?.removePrefix(CLIENT)?.substringBefore(':', "")?.ifEmpty { null }
+        return term?.let(::termReset) ?: field
+    }
 
     /** The course and the locale a [name] field names, or null for another field. */
     fun nameParts(field: String): Pair<String, String>? {

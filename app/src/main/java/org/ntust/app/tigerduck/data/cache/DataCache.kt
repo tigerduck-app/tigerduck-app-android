@@ -1351,19 +1351,19 @@ class DataCache @Inject constructor(
         }.toMap()
     }
 
-    // --- The device clocks of the course adds' and deletes' moments (moment → clocks) ---
-    // QueueFile.COURSE_ADD_CLOCKS and COURSE_DELETE_CLOCKS; see EditClocks. New files: a moment
-    // with none here, one an older install queued, ages by the wall clock.
+    // --- The device clocks and floors of the course adds' and deletes' moments (course and moment → clocks) ---
+    // QueueFile.COURSE_ADD_CLOCKS and COURSE_DELETE_CLOCKS, keyed as MomentClocks keys them; see
+    // EditClocks. New files: a moment with none here, one an older install queued, ages by the wall clock.
 
     /** False, and nothing written, once [signIn] has ended. */
-    suspend fun saveEditClocks(queue: QueueFile, clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean =
-        saveToUserData(clocks.mapKeys { (at, _) -> at.toString() }, queue.fileName, signIn)
+    suspend fun saveEditClocks(queue: QueueFile, clocks: Map<String, EditClocks>, signIn: SignIn): Boolean =
+        saveToUserData(clocks, queue.fileName, signIn)
 
-    /** An entry whose moment or clocks do not read is left out. */
-    suspend fun loadEditClocks(queue: QueueFile): Map<Long, EditClocks> {
+    /** An entry whose key or clocks do not read is left out. */
+    suspend fun loadEditClocks(queue: QueueFile): Map<String, EditClocks> {
         val type = object : TypeToken<Map<String?, EditClocks?>>() {}.type
         return loadFromUserData<Map<String?, EditClocks?>>(type, queue.fileName).orEmpty()
-            .mapNotNull { (at, clocks) -> at?.toLongOrNull()?.let { moment -> clocks?.let { moment to it } } }.toMap()
+            .mapNotNull { (key, clocks) -> key?.let { k -> clocks?.let { k to it } } }.toMap()
     }
 
     // --- Pending course overrides (a colour, or a name in one locale) ---

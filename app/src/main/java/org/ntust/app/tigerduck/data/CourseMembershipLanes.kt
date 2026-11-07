@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.cache.QueueFile
 import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.data.model.editTimeOf
+import org.ntust.app.tigerduck.data.model.withFloor
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.EditTime
@@ -35,13 +36,22 @@ data class CourseMoment(val at: Long, val madeAt: EditTime) {
 
 /**
  * A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has
- * one, and the device clocks at that moment ([clocks]), where kept.
+ * one, and the device clocks at that moment and its floor ([clocks]), where kept.
  */
 internal data class CourseAdd(val semester: String, val courseNo: String, val addedAtMs: Long?, val clocks: EditClocks? = null) {
     val field: String get() = membershipField(semester, courseNo)
 
     /** When the add was asked, by the device's clocks; null with no moment kept. */
     val addedAt: EditTime? get() = addedAtMs?.let { editTimeOf(it, clocks) }
+
+    /** What its age counts from: [addedAt], or its floor where later ([EditClocks.floor]). */
+    val agedFrom: EditTime? get() = addedAt?.atLeast(clocks?.floor?.time)
+
+    /** This add counting its age from [floor] at least. */
+    fun withFloor(floor: EditTime): CourseAdd = copy(clocks = clocks.withFloor(floor))
+
+    /** Whether [other] is this add: its course and moment, whatever the clocks kept with it. */
+    fun isSameEdit(other: CourseAdd): Boolean = semester == other.semester && courseNo == other.courseNo && addedAtMs == other.addedAtMs
 
     /**
      * Where the add's moment stood in the times file in the read that gave this add, the one
@@ -56,13 +66,28 @@ internal data class CourseAdd(val semester: String, val courseNo: String, val ad
     fun readWithMomentAt(at: Int?): CourseAdd = also { momentAt = at ?: Int.MAX_VALUE }
 }
 
-/** A course deleted from [semester] whose DELETE waits, with the moment it was asked and the device clocks then, where kept. */
+/**
+ * A course deleted from [semester] whose DELETE waits, with the moment it was asked, and the device
+ * clocks then and its floor ([clocks]), where kept.
+ */
 internal data class CourseDelete(val semester: String, val courseNo: String, val queuedAt: Long, val clocks: EditClocks? = null) {
     val field: String get() = membershipField(semester, courseNo)
 
     /** When the delete was asked, by the device's clocks. */
     val madeAt: EditTime get() = editTimeOf(queuedAt, clocks)
+
+    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
+    val agedFrom: EditTime get() = madeAt.atLeast(clocks?.floor?.time)
+
+    /** This delete counting its age from [floor] at least. */
+    fun withFloor(floor: EditTime): CourseDelete = copy(clocks = clocks.withFloor(floor))
+
+    /** Whether [other] is this delete: its course and moment, whatever the clocks kept with it. */
+    fun isSameEdit(other: CourseDelete): Boolean = semester == other.semester && courseNo == other.courseNo && queuedAt == other.queuedAt
 }
+
+/** Where a course list's moment keeps its clocks in a clocks file ([MomentClocks]): by its course and the moment. */
+internal fun momentKey(semester: String, courseNo: String, moment: Long): String = "$semester:$courseNo:$moment"
 
 /** The field an add, a hide and a removal of [courseNo] in [semester] all edit. */
 internal fun membershipField(semester: String, courseNo: String): String =
@@ -89,7 +114,7 @@ internal class CourseAddsStore(
             val order = times[semester].orEmpty().keys.withIndex().associate { (at, courseNo) -> courseNo to at }
             nos.distinct().map { courseNo ->
                 val at = times[semester]?.get(courseNo)
-                CourseAdd(semester, courseNo, at, at?.let(clocksOf::get)).readWithMomentAt(order[courseNo])
+                CourseAdd(semester, courseNo, at, at?.let { clocksOf[momentKey(semester, courseNo, it)] }).readWithMomentAt(order[courseNo])
             }
         }
     }
@@ -106,7 +131,7 @@ internal class CourseAddsStore(
         val timesBefore = dataCache.loadPendingCourseAddTimes()
         val after = entries.byTerm { it.semester }.mapValues { (_, adds) -> adds.map { it.courseNo } }
         val timesAfter = momentsInPlace(entries, timesBefore)
-        val clocksAfter = entries.mapNotNull { add -> add.addedAtMs?.let { at -> add.clocks?.let { at to it } } }.toMap()
+        val clocksAfter = entries.mapNotNull { add -> add.addedAtMs?.let { at -> add.clocks?.let { momentKey(add.semester, add.courseNo, at) to it } } }.toMap()
         val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
         suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, signIn)
         suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, signIn)
@@ -115,14 +140,16 @@ internal class CourseAddsStore(
 }
 
 /**
- * The device clocks of the course list's moments ([EditClocks]), by moment, in [file]: each add's
- * or delete's, as its lane store writes it with the entries ([saveAround]). A file the entries
- * leave as it is is not written. Open for a test that ends the process at one of its writes.
+ * The device clocks of the course list's moments and their floors ([EditClocks]), by course and
+ * moment ([momentKey]), in [file]: each add's or delete's, as its lane store writes it with the
+ * entries ([saveAround]); by course too, as an older build's adds share their old-entry moment. A
+ * file the entries leave as it is is not written. Open for a test that ends the process at one of
+ * its writes.
  */
 internal open class MomentClocks(private val dataCache: DataCache, private val file: QueueFile) {
-    suspend fun load(): Map<Long, EditClocks> = dataCache.loadEditClocks(file)
+    suspend fun load(): Map<String, EditClocks> = dataCache.loadEditClocks(file)
 
-    open suspend fun save(clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean =
+    open suspend fun save(clocks: Map<String, EditClocks>, signIn: SignIn): Boolean =
         clocks == load() || dataCache.saveEditClocks(file, clocks, signIn)
 
     /**
@@ -130,7 +157,7 @@ internal open class MomentClocks(private val dataCache: DataCache, private val f
      * file holds, then, once [write] has written the moments, alone. A process death between any
      * two writes leaves each moment on disk, the old and the new, with its clocks.
      */
-    suspend fun saveAround(clocks: Map<Long, EditClocks>, signIn: SignIn, write: suspend () -> Boolean): Boolean =
+    suspend fun saveAround(clocks: Map<String, EditClocks>, signIn: SignIn, write: suspend () -> Boolean): Boolean =
         save(load() + clocks, signIn) && write() && save(clocks, signIn)
 }
 
@@ -167,18 +194,18 @@ internal class CourseDeletesStore(
 
     override suspend fun load(): List<CourseDelete> {
         val clocksOf = clocks.load()
-        return deletesOf(load.invoke(), clocksOf::get)
+        return deletesOf(load.invoke(), clocksOf)
     }
 
     override suspend fun save(entries: List<CourseDelete>, signIn: SignIn): Boolean {
-        val kept = entries.mapNotNull { delete -> delete.clocks?.let { delete.queuedAt to it } }.toMap()
+        val kept = entries.mapNotNull { delete -> delete.clocks?.let { momentKey(delete.semester, delete.courseNo, delete.queuedAt) to it } }.toMap()
         return clocks.saveAround(kept, signIn) { dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn) }
     }
 }
 
 /** The deletes [byTerm] holds (term to course number to moment), in its order, each with its moment's [clocks]. */
-internal fun deletesOf(byTerm: Map<String, Map<String, Long>>, clocks: (Long) -> EditClocks? = { null }): List<CourseDelete> =
-    byTerm.flatMap { (semester, entries) -> entries.map { (courseNo, at) -> CourseDelete(semester, courseNo, at, clocks(at)) } }
+internal fun deletesOf(byTerm: Map<String, Map<String, Long>>, clocks: Map<String, EditClocks?> = emptyMap()): List<CourseDelete> =
+    byTerm.flatMap { (semester, entries) -> entries.map { (courseNo, at) -> CourseDelete(semester, courseNo, at, clocks[momentKey(semester, courseNo, at)]) } }
 
 /** The deletes [this] holds (term to course number to moment) but [courseNo]'s in [semester], when [asked] by its moment. */
 internal fun Map<String, Map<String, Long>>.without(

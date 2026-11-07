@@ -24,7 +24,7 @@ import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
+import org.ntust.app.tigerduck.sync.outbox.EditFloors
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -43,8 +43,8 @@ class PushApiClient @Inject constructor(
     /** What a write's age is read by as it is sent (`age_ms`); the wall clock alone in tests. */
     private val clocks: DeviceClocks = DeviceClocks.WALL,
     uploadNews: dagger.Lazy<CourseUploadListener>? = null,
-    /** Where each write's answer keeps its arrival by field, for the next edit of it; this client's own in tests. */
-    arrivals: AnswerArrivals = AnswerArrivals.inMemory(clocks),
+    /** Where each write's end raises the floors of the edits of its key still queued: the outbox; none in tests. */
+    floors: dagger.Lazy<EditFloors>? = null,
 ) {
     // Whether a write goes, as the switches stand at each read; the re-enable hold is the callers'.
     private val policies = SyncPolicies(prefs)
@@ -73,9 +73,9 @@ class PushApiClient @Inject constructor(
     private val deletes by lazy { BackendServices(PushApi::class.java, deleteClient) }
     private val uploads = BackendServices(PushApi::class.java) { request -> uploadCall(request) }
 
-    // The sync writes, each in a file of its own beside this one, each aged by the device's clocks
-    // from its field's last answer, which each keeps (FieldAges).
-    private val ages = FieldAges(clocks, arrivals)
+    // The sync writes, each in a file of its own beside this one, each aged by the device's clocks,
+    // one write of a key at a time, an edit from the end of a write of its key out when it was made (FieldAges).
+    private val ages = FieldAges(clocks) { floors?.get() }
     private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader, ages)
     private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, ages, uploadNews)
 

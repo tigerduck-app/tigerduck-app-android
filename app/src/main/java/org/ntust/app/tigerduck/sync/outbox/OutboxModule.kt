@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.sync.outbox
 
+import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
@@ -15,4 +16,8 @@ import dagger.multibindings.Multibinds
 abstract class OutboxModule {
     @Multibinds
     abstract fun channels(): Set<OutboxChannel>
+
+    /** The client's writes raise their keys' floors through the outbox. */
+    @Binds
+    abstract fun floors(outbox: Outbox): EditFloors
 }

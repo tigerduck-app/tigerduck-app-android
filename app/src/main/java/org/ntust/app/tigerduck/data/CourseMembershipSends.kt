@@ -107,7 +107,7 @@ internal class CourseAddSends(
     private suspend fun noteRefused(refused: List<CourseAdd>, semester: String, signIn: SignIn) {
         if (refused.isEmpty()) return
         val adds = waiting()
-        val ruled = refused.filter { add -> adds.none { it.field == add.field && it != add } }.map { it.courseNo }
+        val ruled = refused.filter { add -> adds.none { it.field == add.field && !it.isSameEdit(add) } }.map { it.courseNo }
         if (ruled.isEmpty()) return
         dataCache.updateServerKnownNos(signIn) { known ->
             known + (semester to (known[semester].orEmpty() + ruled).distinct().sorted())
@@ -119,7 +119,7 @@ internal class CourseAddSends(
     // ([CourseAdd.momentAt]), as the body always listed them.
     private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
-        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.addedAt?.let { add.courseNo to it } }.toMap()
+        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.agedFrom?.let { add.courseNo to it } }.toMap()
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
@@ -212,7 +212,7 @@ internal class CourseDeleteSends(
             // hide queued offline loses to an add made since on another device, and a retry after a
             // lost reply lands on about the same stamp (#591).
             val kind = kindOf(delete)
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.madeAt, kind)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.agedFrom, kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -235,7 +235,7 @@ internal class CourseDeleteSends(
     // a delete before it marks its hide); never between the two, where its hide would go while its
     // DELETE waits, for a course selection answer to bring the course back.
     private suspend fun takeBackendsAdd(delete: CourseDelete, signIn: SignIn) = underQueueLock {
-        if (waiting().none { it.field == delete.field && it != delete }) {
+        if (waiting().none { it.field == delete.field && !it.isSameEdit(delete) }) {
             val hides = setOf(CourseTombstoneKeys.key(delete.semester, delete.courseNo), delete.courseNo)
             dataCache.updateDeletedCourseNos(before = hides, after = emptySet(), signIn = signIn)
         }

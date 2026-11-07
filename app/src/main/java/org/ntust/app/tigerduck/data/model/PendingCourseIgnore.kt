@@ -40,8 +40,16 @@ data class PendingCourseIgnore(
     /** When the change was made, by the device's clocks; null with no time kept. */
     val madeAt: EditTime? get() = madeAtMs?.let { editTimeOf(it, madeAtClocks) }
 
-    /** Whether [other] is this change, however many times either was refused. */
-    fun isSameChange(other: PendingCourseIgnore): Boolean = copy(attempts = 0) == other.copy(attempts = 0)
+    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
+    val agedFrom: EditTime? get() = madeAt?.atLeast(madeAtClocks?.floor?.time)
+
+    /** This change counting its age from [floor] at least. */
+    fun withFloor(floor: EditTime): PendingCourseIgnore = copy(madeAtClocks = madeAtClocks.withFloor(floor))
+
+    /** Whether [other] is this change, however many times either was refused and whatever its floor. */
+    fun isSameChange(other: PendingCourseIgnore): Boolean = asEdit() == other.asEdit()
+
+    private fun asEdit() = copy(attempts = 0, madeAtClocks = madeAtClocks.withoutFloor())
 
     /** The [CourseIgnores] key, or null for a row too damaged to send. */
     val key: String?

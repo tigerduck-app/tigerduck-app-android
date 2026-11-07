@@ -1157,13 +1157,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putIds("holidayOverridesAwaitingUpload", value).apply()
 
     /**
-     * When each holiday's choice was last made here, by holiday id: its upload's age is counted
-     * from it, so a retry is no newer than the choice. None for a choice made before the time was
-     * kept. Dropped for a holiday a pull replaces; the iPhone's `holidayOverrideEditTimes`.
+     * When each holiday's choice was last made here, by holiday id, and its floor: its upload's age
+     * is counted from them, so a retry is no newer than the choice. None for a choice made before the
+     * time was kept. Dropped for a holiday a pull replaces; the iPhone's `holidayOverrideEditTimes`.
      */
-    var holidayOverrideEditTimes: Map<Int, org.ntust.app.tigerduck.sync.EditTime>
+    var holidayOverrideEditTimes: Map<Int, HolidayEditTime>
         get() = prefs.getTimesById("holidayOverrideEditTimes")
         set(value) = prefs.edit().putTimesById("holidayOverrideEditTimes", value).apply()
+
+    /** [holidayOverrideEditTimes] set on disk before this returns, off the main thread: a floor raised. */
+    fun commitHolidayOverrideEditTimes(value: Map<Int, HolidayEditTime>): Boolean = prefs.edit().putTimesById("holidayOverrideEditTimes", value).commit()
 
     /**
      * At sign-out: the holiday sets and edit times are the departing account's. Left
@@ -1172,11 +1175,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * iPhone's `forgetHolidayOverrides`.
      */
     fun forgetHolidayOverrides() {
-        prefs.edit()
-            .remove("holidayNotifyOverrides")
-            .remove("holidayOverridesAwaitingUpload")
-            .remove("holidayOverrideEditTimes")
-            .apply()
+        prefs.edit().remove("holidayNotifyOverrides").remove("holidayOverridesAwaitingUpload").remove("holidayOverrideEditTimes").apply()
     }
 
     /**

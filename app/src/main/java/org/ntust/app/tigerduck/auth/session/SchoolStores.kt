@@ -7,7 +7,6 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import javax.inject.Inject
 
@@ -28,7 +27,6 @@ class SchoolStores @Inject constructor(
     private val clubActivities: dagger.Lazy<ClubActivities>,
     private val importedClassTables: dagger.Lazy<ImportedClassTableStore>,
     private val outbox: dagger.Lazy<Outbox>,
-    private val answerArrivals: dagger.Lazy<AnswerArrivals>,
     private val dataCache: dagger.Lazy<DataCache>,
 ) {
     /**
@@ -40,9 +38,8 @@ class SchoolStores @Inject constructor(
 
     /**
      * Cleared after, one by one, on the application scope; the widgets are drawn again once they are
-     * done. The outbox forgets what it holds in memory, and the arrivals of its answers, before
-     * DataCache takes the queues' files.
+     * done. The outbox forgets what it holds in memory before DataCache takes the queues' files.
      */
     val late: List<LateAccountScoped>
-        get() = listOf(importedClassTables.get(), outbox.get(), answerArrivals.get(), dataCache.get())
+        get() = listOf(importedClassTables.get(), outbox.get(), dataCache.get())
 }

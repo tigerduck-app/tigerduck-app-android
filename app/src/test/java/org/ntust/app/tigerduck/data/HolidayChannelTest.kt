@@ -236,7 +236,7 @@ class HolidayChannelTest {
         assertEquals(listOf("PUT", "$v4/sync/holiday-overrides/3", listOf(bearer)), listOf(sent.method, sent.url, sent.headers))
         // Sent as it was made: 0 old.
         assertEquals("""{"notify":true,"age_ms":0}""", sent.body)
-        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(1_790_000_500_002_000L, ack.lastAck(SyncField.holiday(3)))
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
@@ -252,7 +252,7 @@ class HolidayChannelTest {
 
         holidays.drain(signIn)
         // The time it went with is kept, so a later write cannot move it.
-        assertEquals(mapOf(5 to EditTime(firstRunMs)), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(5 to EditTime(firstRunMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         nowMs += 60_000
         holidays.drain(signIn)
 
@@ -276,7 +276,7 @@ class HolidayChannelTest {
 
         assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
         assertEquals(setOf(5), prefs.holidayOverridesAwaitingUpload)
-        assertEquals("not even given its old-entry time", emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes)
+        assertEquals("not even given its old-entry time", emptyMap<Int, EditTime>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
     }
 
     @Test
@@ -307,7 +307,7 @@ class HolidayChannelTest {
 
         assertEquals("the backend's choice is this phone's now", emptySet<Int>(), calendar.optedInHolidayIds)
         assertEquals("and the calendar's pages are told", listOf(setOf(3), emptySet<Int>()), told)
-        assertEquals("with no time of this phone's", emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals("with no time of this phone's", emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals("let go, not sent again", 1, v4Backend.sent.size)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
@@ -344,7 +344,7 @@ class HolidayChannelTest {
         nowMs += 1_000
         val second = launch { holidays.tap(3, notify = false) }
         testScheduler.runCurrent()
-        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         release.complete(Unit)
         first.join()
         second.join()
@@ -352,7 +352,7 @@ class HolidayChannelTest {
         assertEquals(listOf(true, false), sent)
         assertEquals("the first reply is the field's acknowledgment", 1_790_000_600_000_000L, ack.lastAck(SyncField.holiday(3)))
         assertEquals("the user's choice stays", emptySet<Int>(), calendar.optedInHolidayIds)
-        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(3 to EditTime(nowMs)), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
 
@@ -436,7 +436,7 @@ class HolidayChannelTest {
         // Turned off while its old-entry time is read: kept at once, its request waiting.
         val tap = launch { holidays.tap(5, notify = false) }
         testScheduler.runCurrent()
-        val tappedAt = prefs.holidayOverrideEditTimes.getValue(5)
+        val tappedAt = prefs.holidayOverrideEditTimes.getValue(5).madeAt
         assertTrue(
             "a snapshot fetched after the choice keeps it as this phone has it",
             5 in holidays.keptOver(),
@@ -445,7 +445,7 @@ class HolidayChannelTest {
         retry.join()
         tap.join()
 
-        assertEquals("the choice keeps its own time", mapOf(5 to tappedAt), prefs.holidayOverrideEditTimes)
+        assertEquals("the choice keeps its own time", mapOf(5 to tappedAt), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertEquals(
             listOf("""{"notify":false,"age_ms":${nowMs - firstRunMs}}""", """{"notify":false,"age_ms":${nowMs - tappedAt.wallMs}}"""),
             v4Backend.sent.map { it.body },
@@ -521,7 +521,7 @@ class HolidayChannelTest {
 
         assertEquals(emptySet<Int>(), prefs.holidayNotifyOverrides)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
-        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes.mapValues { it.value.madeAt })
         assertNull("nor is the departing student's acknowledgment the next one's", ack.lastAck(SyncField.holiday(3)))
     }
 }

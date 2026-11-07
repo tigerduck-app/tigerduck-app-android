@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -113,7 +114,7 @@ class PendingCourseAdds internal constructor(
             field = CourseAdd::field,
             // An add is never given up on for its refusals, as before it was a channel.
             maxAttempts = Int.MAX_VALUE,
-            attempts = InMemoryAttempts(CourseAdd::field),
+            attempts = InMemoryAttempts(CourseAdd::field, CourseAdd::isSameEdit),
             stopsOnRetry = true,
             untimed = UntimedEntries(
                 // X1: an add with no moment is given its old-entry time, written back.
@@ -121,6 +122,7 @@ class PendingCourseAdds internal constructor(
                 withTime = { add, atMs -> add.copy(addedAtMs = atMs) },
                 oldEntryTimeMs = { outbox.oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.COURSE_ADDS)) ?: 0L },
             ),
+            floors = EntryFloors(CourseAdd::addedAt, { it.clocks?.floor?.time }, CourseAdd::withFloor),
         ),
         outbox.ack,
         outbox.scope,
@@ -166,6 +168,10 @@ class PendingCourseAdds internal constructor(
     override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn)
+    }
 
     override fun forgetMemory() = lane.forgetMemory()
 

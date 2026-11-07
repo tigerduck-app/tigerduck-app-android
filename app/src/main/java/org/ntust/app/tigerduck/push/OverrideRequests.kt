@@ -17,9 +17,10 @@ import org.ntust.app.tigerduck.sync.SyncPolicies
  * its sign-in, to the endpoint [baseUrl] names at the time, and answers with the backend's verdict
  * ([WriteAnswer]): [WriteAnswer.NOT_SENT] when its gate stopped it, and a refusal thrown with the
  * backend's code kept. Each goes with its stamp, read by [ages] as the request is built: the age
- * from [madeAt], the time the edit was made, or from the arrival of the answer to an earlier write
- * of its field when that came after it, 0 for an edit made now (null), or `hlc: 0` for the oldest;
- * and its answer keeps its arrival under that field, the one ([SyncField]) its write names.
+ * from [madeAt], the time the edit was made (or its floor), or from the end of a write of its key
+ * that went out at or before then ([FieldAges]), 0 for an edit made now (null), or `hlc: 0` for the
+ * oldest. Each names the fields ([SyncField]) it writes, which give its key: an assignment's, a
+ * holiday's, or a course's term.
  */
 internal class OverrideRequests(
     private val api: BackendServices<PushApi>,

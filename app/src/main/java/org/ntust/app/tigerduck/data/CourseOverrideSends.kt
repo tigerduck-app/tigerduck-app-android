@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.outbox.EntryFloors
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OnDiskAttempts
@@ -69,6 +70,7 @@ internal fun courseOverridesPolicy(
         withTime = { change, atMs -> change.copy(madeAtMs = atMs) },
         oldEntryTimeMs = oldEntryTimeMs,
     ),
+    floors = EntryFloors(PendingCourseOverride::madeAt, { it.madeAtClocks?.floor?.time }, PendingCourseOverride::withFloor),
 )
 
 /** Where a change's course is on this phone: its term and number. */
@@ -188,11 +190,11 @@ internal class CourseOverrideSends(
         val color = change.colorHex != null
         val allowed = { sends(color) && signIn.isCurrent }
         if (!allowed()) return SendResult.NotSent
-        val place = placeOf(change) ?: located(change)
+        val place = placeFor(change)
         val answer = try {
             // The request carries [signIn], so a sign-out after the check sends it without a token
             // rather than with the next account's.
-            writer.write(change, CourseRef(place?.key), signIn, allowed, change.madeAt)
+            writer.write(change, CourseRef(place?.key), signIn, allowed, change.agedFrom)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -240,6 +242,9 @@ internal class CourseOverrideSends(
     // backend names a course by its key. Null when nothing does: the row parks (CourseKeyUnknownException),
     // and each later try is this lookup again, on this phone's files, with no request, as the key is
     // built before the request is.
+    /** Where [change] goes, by its term and number, or by where an older build's Moodle id leads. */
+    suspend fun placeFor(change: PendingCourseOverride): CoursePlace? = placeOf(change) ?: located(change)
+
     private suspend fun located(change: PendingCourseOverride): CoursePlace? {
         val moodleId = change.moodleId ?: return null
         return legacyPlaceOf(moodleId, dataCache.loadEveryTermCourses(), dataCache.currentSemesterCode(), catalogue())

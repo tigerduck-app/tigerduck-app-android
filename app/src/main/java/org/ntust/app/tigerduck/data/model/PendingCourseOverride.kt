@@ -66,8 +66,16 @@ data class PendingCourseOverride(
             }
         }
 
-    /** Whether [other] is this change, however many times either was refused. */
-    fun isSameChange(other: PendingCourseOverride): Boolean = copy(attempts = 0) == other.copy(attempts = 0)
+    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
+    val agedFrom: EditTime? get() = madeAt?.atLeast(madeAtClocks?.floor?.time)
+
+    /** This change counting its age from [floor] at least. */
+    fun withFloor(floor: EditTime): PendingCourseOverride = copy(madeAtClocks = madeAtClocks.withFloor(floor))
+
+    /** Whether [other] is this change, however many times either was refused and whatever its floor. */
+    fun isSameChange(other: PendingCourseOverride): Boolean = asEdit() == other.asEdit()
+
+    private fun asEdit() = copy(attempts = 0, madeAtClocks = madeAtClocks.withoutFloor())
 
     companion object {
         /** The key of the colour of the course the backend knows as [moodleId]. */
