@@ -2,15 +2,16 @@ package org.ntust.app.tigerduck.browser
 
 import android.util.Log
 import android.webkit.WebView
-import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import org.ntust.app.tigerduck.browser.BrowserSiteSignInScripts.FAILED
 import org.ntust.app.tigerduck.browser.sites.BrowserSchoolSites
-import org.ntust.app.tigerduck.browser.sites.SiteSignInForm
 import org.ntust.app.tigerduck.browser.sites.SitePage
 import java.security.cert.X509Certificate
+import kotlin.coroutines.resume
 
 /**
  * Fills a school site's own sign-in form with the stored school account, on each main-frame page
@@ -22,20 +23,21 @@ import java.security.cert.X509Certificate
  * cannot be used ([usable]), or for a page loaded under a browser session a sign-out or an account
  * change has since ended ([generation]).
  *
- * The student id goes at once. The WebView is not pinned, so the password goes only to a page
- * whose own leaf certificate is the one a pinned, credential-less request to the same page met
+ * The [BrowserSiteSignInScripts.mark] goes at once: it fills the student id, and marks the page
+ * with a random token of its own, which it answers with the page's address. The WebView is not
+ * pinned, so the password goes only to the page so marked, and only when its leaf certificate,
+ * read as the mark answers, is the one a pinned, credential-less request to the same page met
  * ([pinnedLeaf], [PinnedPageCertificate]): that request's connection met the app's pins and
- * OkHttp's check of the host name. A failed request, one that took longer than [checkTimeoutMs],
- * no certificate on the page or another leaf leave the student id alone. Once back on the main
- * thread, the password goes only if the WebView still shows that page with that leaf, in the
- * same browser session, still usable and signed in. A leaf met is kept for its host while the
- * browser session lasts, so a later page there needs no request; another leaf on the page is
- * checked again, and forgotten when it fails.
+ * OkHttp's check of the host name. A mark with no token, made at another address than the WebView
+ * shows, a failed request, one that took longer than [checkTimeoutMs], no certificate on the page
+ * or another leaf leave the student id alone. Before the [BrowserSiteSignInScripts.fill], the
+ * WebView must still show that page with that leaf, in the same browser session, still usable and
+ * signed in; the fill itself runs only in the document that holds the token, so a page that
+ * replaced the marked one at the same address gets nothing. A leaf met is kept for its host while
+ * the browser session lasts, so a later page there needs no request, though it is marked and
+ * checked all the same; another leaf on the page is checked again, and forgotten when it fails.
  *
- * evaluateJavascript takes no arguments: the values go into the script as JSON string literals,
- * which no quote, backslash or line separator in them can end. The script runs in the page's own
- * world and checks the page's origin and path again as it fills, since the page may have moved
- * on. Neither the script nor its values are logged.
+ * Neither the scripts, their values nor the token are logged.
  */
 class BrowserSiteSignIn(
     /** Whether a school account other than the demo is signed in. */
@@ -53,113 +55,76 @@ class BrowserSiteSignIn(
 
     /** Fills the form of [url], the page [web] finished loading in the browser session [session], in [scope]. */
     fun pageFinished(web: WebView, url: String, session: Int?, scope: CoroutineScope) {
-        scope.launch {
-            fill(url, session, shownUrl = { web.url }, shownCertificate = { web.certificate?.x509Certificate }) { script ->
-                web.evaluateJavascript(script) { result ->
-                    if (result == FAILED) Log.w(TAG, "a school site's sign-in form was not filled")
-                }
-            }
+        scope.launch { fill(url, session, WebViewPage(web)) }
+    }
+
+    /** Fills the form of [url], in the browser session [session], in what [page] shows now. */
+    suspend fun fill(url: String, session: Int?, page: ShownPage) {
+        val form = BrowserSchoolSites.signInForm(url) ?: return
+        val site = BrowserSchoolSites.page(url) ?: return
+        if (!isCurrent(session)) return
+        val id = studentId()?.takeIf { it.isNotBlank() } ?: return
+        val answer = page.run(BrowserSiteSignInScripts.mark(site, form, id))
+        if (answer == FAILED) Log.w(TAG, "a school site's sign-in form was not marked")
+        if (form.password == null) return
+        val marked = BrowserSiteSignInScripts.marked(answer) ?: return
+        val token = marked.token ?: return
+        if (marked.href != page.url || BrowserSchoolSites.page(marked.href) != site) return
+        val leaf = page.certificate?.bytes() ?: return
+        if (!wasMet(site.host, leaf, session) && !check(site, leaf, session)) return
+        val stillShown = page.url?.let(BrowserSchoolSites::page) == site && page.certificate?.bytes()?.contentEquals(leaf) == true
+        if (!stillShown || !isCurrent(session)) return
+        val secret = password()?.takeIf { it.isNotEmpty() } ?: return
+        if (page.run(BrowserSiteSignInScripts.fill(site, form, id, secret, token)) == FAILED) {
+            Log.w(TAG, "a school site's sign-in form was not filled")
         }
     }
 
-    /**
-     * Fills the form of [url] in the browser session [session], through [run], which runs a script
-     * in the page that [shownUrl] and [shownCertificate] tell of as it is now.
-     */
-    suspend fun fill(
-        url: String,
-        session: Int?,
-        shownUrl: () -> String?,
-        shownCertificate: () -> X509Certificate?,
-        run: (String) -> Unit,
-    ) {
-        val form = BrowserSchoolSites.signInForm(url) ?: return
-        val page = BrowserSchoolSites.page(url) ?: return
-        if (!isCurrent(session)) return
-        val id = studentId()?.takeIf { it.isNotBlank() } ?: return
-        val leaf = form.password?.let { shownCertificate()?.bytes() }
-        if (leaf != null && wasMet(page.host, leaf, session)) return run(script(page, form, id, storedPassword()))
-        run(script(page, form, id, secret = null))
-        if (leaf == null || !check(page, leaf, session)) return
-        val stillShown = shownUrl()?.let(BrowserSchoolSites::page) == page && shownCertificate()?.bytes()?.contentEquals(leaf) == true
-        if (!stillShown || !isCurrent(session)) return
-        storedPassword()?.let { run(script(page, form, id, it)) }
-    }
-
     private fun isCurrent(session: Int?): Boolean = session != null && usable() && generation() == session && signedIn()
-
-    private fun storedPassword(): String? = password()?.takeIf { it.isNotEmpty() }
 
     private fun wasMet(host: String, leaf: ByteArray, session: Int?): Boolean = synchronized(met) {
         met[host]?.let { (inSession, bytes) -> inSession == session && bytes.contentEquals(leaf) } == true
     }
 
-    /** Whether a pinned request to [page] meets [leaf]; kept for its host when it does, forgotten when not. */
-    private suspend fun check(page: SitePage, leaf: ByteArray, session: Int?): Boolean {
+    /** Whether a pinned request to [site] meets [leaf]; kept for its host when it does, forgotten when not. */
+    private suspend fun check(site: SitePage, leaf: ByteArray, session: Int?): Boolean {
         val served = try {
-            withTimeoutOrNull(checkTimeoutMs) { pinnedLeaf(page.origin + page.path) }
+            withTimeoutOrNull(checkTimeoutMs) { pinnedLeaf(site.origin + site.path) }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             null
         }
         val matches = served?.bytes()?.contentEquals(leaf) == true
-        synchronized(met) { if (matches && session != null) met[page.host] = session to leaf else met.remove(page.host) }
+        synchronized(met) { if (matches && session != null) met[site.host] = session to leaf else met.remove(site.host) }
         return matches
     }
 
     private fun X509Certificate.bytes(): ByteArray? = runCatching { encoded }.getOrNull()
-
-    private fun script(page: SitePage, form: SiteSignInForm, id: String, secret: String?): String = """(function() {
-  const origin = ${literal(page.origin)}, path = ${literal(page.path)};
-  const studentIdField = ${literal(form.studentId)}, studentId = ${literal(id)};
-  const passwordField = ${literal(form.password)}, password = ${literal(secret)};
-  try {
-$FILL
-  } catch (error) {
-    return 'failed';
-  }
-})();"""
 
     companion object {
         private const val TAG = "BrowserSiteSignIn"
 
         /** As long as the pinned request's own timeouts. */
         const val CHECK_TIMEOUT_MS = PinnedPageCertificate.TIMEOUT_SECONDS * 1_000
-
-        /** What evaluateJavascript answers for a script that threw. */
-        const val FAILED = "\"failed\""
-
-        private val json = Gson()
-
-        /**
-         * [value] as a JSON string literal in ASCII alone, or `null`: Gson escapes quotes,
-         * backslashes, control characters, U+2028 and U+2029, and `<`, `>`, `&`, `=` and `'` too;
-         * every other character past ASCII becomes a `\u` escape here.
-         */
-        fun literal(value: String?): String = if (value == null) "null" else buildString {
-            json.toJson(value).forEach { if (it.code in 0x20..0x7e) append(it) else append("\\u%04x".format(it.code)) }
-        }
-
-        /**
-         * Fills only empty fields, as the student may have typed, and leaves every other field
-         * alone: nothing unless the fields share one form that posts to the page's own origin, and
-         * the password only beside the stored student id, never beside one the student typed.
-         */
-        private const val FILL = """    if (location.origin !== origin || location.pathname !== path) return false;
-    const field = (name) => Array.prototype.find.call(
-      document.getElementsByName(name), (element) => element instanceof HTMLInputElement && element.form !== null);
-    const id = field(studentIdField), secret = passwordField === null ? null : field(passwordField);
-    if (!id || (passwordField !== null && (!secret || secret.type !== 'password' || secret.form !== id.form))) return false;
-    if (new URL(id.form.action).origin !== origin) return false;
-    const fills = secret && password !== null && (!id.value || id.value === studentId)
-      ? [[id, studentId], [secret, password]] : [[id, studentId]];
-    for (const [element, value] of fills) {
-      if (element.value) continue;
-      element.value = value;
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    return true;"""
+}
+
+/** A page as the WebView shows it now: its address, the leaf certificate it came with, and a script run in it. */
+interface ShownPage {
+    val url: String?
+    val certificate: X509Certificate?
+
+    /** Runs [script] in the page, answering its result as JSON, or null when none came. */
+    suspend fun run(script: String): String?
+}
+
+/** [web]'s page, read on the main thread as it is at each ask. */
+private class WebViewPage(private val web: WebView) : ShownPage {
+    override val url: String? get() = web.url
+    override val certificate: X509Certificate? get() = web.certificate?.x509Certificate
+
+    override suspend fun run(script: String): String? = suspendCancellableCoroutine { answer ->
+        web.evaluateJavascript(script) { result -> if (answer.isActive) answer.resume(result) }
     }
 }

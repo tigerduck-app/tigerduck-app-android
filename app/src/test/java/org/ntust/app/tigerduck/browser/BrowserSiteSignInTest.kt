@@ -12,17 +12,16 @@ import okhttp3.tls.HeldCertificate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 import java.security.cert.X509Certificate
 
 /**
- * Which pages get the stored account, when the password follows the student id, and how both go
- * into the script that fills a form. The pinned request is a fake here ([PinnedPageCertificateTest]
- * makes real ones), and the script's work in a page needs a WebView, which the JVM has none of:
- * what it is made of is read here.
+ * When the password follows the student id: the mark the page answers, the certificate read then
+ * and again before the fill, the pinned request, and the gates. The page is a fake that answers
+ * as the scripts would ([BrowserSiteSignInScriptsTest] reads what they are made of), and the
+ * pinned request is one too ([PinnedPageCertificateTest] makes real ones).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BrowserSiteSignInTest {
@@ -37,18 +36,36 @@ class BrowserSiteSignInTest {
     private val pageLeaf = certificate()
     private val otherLeaf = certificate()
 
-    /** What the WebView shows now. */
-    private var shownUrl: String? = CARD_SYSTEM
-    private var shownCertificate: X509Certificate? = pageLeaf
-
     /** What the pinned request meets, and what happens while it is out. */
     private var served: X509Certificate? = pageLeaf
     private var failure: Exception? = null
     private var checkTakesMs = 0L
-    private var whileOut: () -> Unit = {}
+    private var whileChecking: () -> Unit = {}
     private val requests = mutableListOf<String>()
 
-    private val scripts = mutableListOf<String>()
+    /** The WebView's page as a fake: it answers the mark with [answer], and the fill with true. */
+    private inner class Page : ShownPage {
+        override var url: String? = CARD_SYSTEM
+        override var certificate: X509Certificate? = pageLeaf
+        var answer: () -> String? = { """{"token":"$TOKEN","href":"$url"}""" }
+        /** What happens between the mark's run in the page and its answer reaching the app. */
+        var whileAnswering: () -> Unit = {}
+        val marks = mutableListOf<String>()
+        val fills = mutableListOf<String>()
+
+        override suspend fun run(script: String): String? {
+            if (!script.contains("crypto.getRandomValues")) {
+                fills += script
+                return "true"
+            }
+            marks += script
+            val reply = answer()
+            whileAnswering()
+            return reply
+        }
+    }
+
+    private var page = Page()
 
     private fun certificate() = HeldCertificate.Builder().addSubjectAlternativeName("cardsystem.ntust.edu.tw").build().certificate
 
@@ -60,7 +77,7 @@ class BrowserSiteSignInTest {
         generation = { generation },
         pinnedLeaf = { url ->
             requests += url
-            whileOut()
+            whileChecking()
             delay(checkTakesMs)
             failure?.let { throw it }
             served
@@ -69,111 +86,145 @@ class BrowserSiteSignInTest {
 
     private var signIn = newSignIn()
 
-    private suspend fun fill(url: String = CARD_SYSTEM, session: Int? = 7) =
-        signIn.fill(url, session, shownUrl = { shownUrl }, shownCertificate = { shownCertificate }) { scripts += it }
+    private suspend fun fill(url: String = CARD_SYSTEM, session: Int? = 7) = signIn.fill(url, session, page)
 
-    /** The value [name] stands for in [script], read back as the page reads its literal. */
     private fun value(script: String, name: String): String? {
         val literal = Regex("""\b$name = ("(?:[^"\\]|\\.)*"|null)[,;]""").find(script)?.groupValues?.get(1)
         assertNotNull("$name in the script", literal)
         return Gson().fromJson(literal, String::class.java)
     }
 
-    private fun assertStudentIdAlone() {
-        assertEquals("one fill", 1, scripts.size)
-        assertEquals(STUDENT_ID, value(scripts.single(), "studentId"))
-        assertNull(value(scripts.single(), "password"))
-        assertFalse("the password is not even read", "password" in reads)
+    /** The page was marked, and its student id filled, but no password went to it. */
+    private fun assertNoPassword(case: String = "") {
+        assertEquals("$case: one mark", 1, page.marks.size)
+        assertTrue("$case: no fill", page.fills.isEmpty())
+        assertFalse("$case: the password is not even read", "password" in reads)
     }
 
     @Test
-    fun `the student id goes at once, and the password once the page's leaf is the one a pinned request met`() = runTest {
+    fun `the mark goes at once, and the fill carries its token and the password once the leaf is the one a pinned request met`() = runTest {
         fill()
 
+        assertEquals(1, page.marks.size)
+        assertEquals(STUDENT_ID, value(page.marks.single(), "studentId"))
         assertEquals(listOf(CARD_SYSTEM), requests)
-        assertEquals(2, scripts.size)
-        val (first, second) = scripts
-        assertEquals("https://cardsystem.ntust.edu.tw", value(first, "origin"))
-        assertEquals("/std/index.php/user/login", value(first, "path"))
-        assertEquals("id", value(first, "studentIdField"))
-        assertEquals(STUDENT_ID, value(first, "studentId"))
-        assertEquals("password", value(first, "passwordField"))
-        assertNull(value(first, "password"))
-        assertEquals(STUDENT_ID, value(second, "studentId"))
-        assertEquals("password", value(second, "passwordField"))
-        assertEquals(PASSWORD, value(second, "password"))
+        assertEquals(1, page.fills.size)
+        assertEquals(TOKEN, value(page.fills.single(), "token"))
+        assertEquals(PASSWORD, value(page.fills.single(), "password"))
     }
 
     @Test
     fun `the pinned request is a HEAD of the page itself, not its query`() = runTest {
-        shownUrl = "$CARD_SYSTEM?lang=en#top"
+        page.url = "$CARD_SYSTEM?lang=en#top"
         fill(url = "$CARD_SYSTEM?lang=en#top")
 
         assertEquals(listOf(CARD_SYSTEM), requests)
-        assertEquals(PASSWORD, value(scripts.last(), "password"))
+        assertEquals(1, page.fills.size)
     }
 
     @Test
-    fun `a leaf other than the page's gets the student id alone`() = runTest {
-        served = otherLeaf
-        fill()
-        assertStudentIdAlone()
-    }
-
-    @Test
-    fun `a pinned request that fails, meets no leaf or takes too long gets the student id alone`() = runTest {
-        failure = IOException("pins not met")
-        fill()
-        assertStudentIdAlone()
-
-        scripts.clear()
-        failure = null
-        served = null
-        fill()
-        assertStudentIdAlone()
-
-        scripts.clear()
-        served = pageLeaf
-        checkTakesMs = 60_000
-        val start = currentTime
-        fill()
-        assertStudentIdAlone()
-        assertEquals(BrowserSiteSignIn.CHECK_TIMEOUT_MS, currentTime - start)
-    }
-
-    @Test
-    fun `a page with no certificate gets the student id alone, and no request`() = runTest {
-        shownCertificate = null
-        fill()
-        assertStudentIdAlone()
+    fun `no token, a malformed one or an answer that is not a mark, no fill, and no request`() = runTest {
+        val answers = listOf(
+            """{"token":null,"href":"$CARD_SYSTEM"}""",
+            """{"token":"abc","href":"$CARD_SYSTEM"}""",
+            """{"href":"$CARD_SYSTEM"}""",
+            BrowserSiteSignInScripts.FAILED,
+            "null",
+            null,
+            "true",
+        )
+        answers.forEach { answer ->
+            page = Page().also { it.answer = { answer } }
+            reads.clear()
+            fill()
+            assertNoPassword(answer.toString())
+        }
         assertTrue(requests.isEmpty())
     }
 
     @Test
-    fun `a page that moved on, a session that ended or a browser that closed while the check was out gets no password`() = runTest {
+    fun `a mark made at another address than the one the WebView shows, no fill`() = runTest {
+        listOf("https://cardsystem.ntust.edu.tw/std/index.php/user/agreement", "$CARD_SYSTEM#top", "https://example.com/").forEach { href ->
+            page = Page().also { it.answer = { """{"token":"$TOKEN","href":"$href"}""" } }
+            fill()
+            assertNoPassword(href)
+        }
+        assertTrue(requests.isEmpty())
+    }
+
+    @Test
+    fun `the certificate is read as the mark answers, not before`() = runTest {
+        page.certificate = null
+        page.whileAnswering = { page.certificate = pageLeaf }
+        fill()
+        assertEquals(1, page.fills.size)
+
+        page = Page().also { it.whileAnswering = { it.certificate = otherLeaf } }
+        reads.clear()
+        fill()
+        assertNoPassword("another leaf by the answer")
+    }
+
+    @Test
+    fun `a certificate that changes while the check is out, no fill`() = runTest {
+        whileChecking = { page.certificate = otherLeaf }
+        fill()
+        assertNoPassword()
+    }
+
+    @Test
+    fun `a leaf other than the page's, a failed or slow request, or no certificate, no fill`() = runTest {
+        served = otherLeaf
+        fill()
+        assertNoPassword("other leaf")
+
+        page = Page()
+        served = pageLeaf
+        failure = IOException("pins not met")
+        fill()
+        assertNoPassword("failed")
+
+        page = Page()
+        failure = null
+        served = null
+        fill()
+        assertNoPassword("no leaf")
+
+        page = Page()
+        served = pageLeaf
+        checkTakesMs = 60_000
+        val start = currentTime
+        fill()
+        assertNoPassword("slow")
+        assertEquals(BrowserSiteSignIn.CHECK_TIMEOUT_MS, currentTime - start)
+
+        page = Page().also { it.certificate = null }
+        requests.clear()
+        fill()
+        assertNoPassword("no certificate")
+        assertTrue(requests.isEmpty())
+    }
+
+    @Test
+    fun `a page that moved on, a session that ended or a browser that closed while the check was out, no fill`() = runTest {
         val changes = listOf<() -> Unit>(
-            { shownUrl = "https://cardsystem.ntust.edu.tw/std/index.php/user/agreement" },
-            { shownUrl = null },
-            { shownCertificate = otherLeaf },
-            { shownCertificate = null },
+            { page.url = "https://cardsystem.ntust.edu.tw/std/index.php/user/agreement" },
+            { page.url = null },
+            { page.certificate = null },
             { generation = 8 },
             { signedIn = false },
             { usable = false },
         )
         changes.forEachIndexed { index, change ->
             signIn = newSignIn()
-            shownUrl = CARD_SYSTEM
-            shownCertificate = pageLeaf
+            page = Page()
             generation = 7
             signedIn = true
             usable = true
-            scripts.clear()
             reads.clear()
-            whileOut = change
+            whileChecking = change
             fill()
-            assertEquals("change $index: the student id alone", 1, scripts.size)
-            assertNull("change $index", value(scripts.single(), "password"))
-            assertFalse("change $index", "password" in reads)
+            assertNoPassword("change $index")
         }
     }
 
@@ -185,41 +236,53 @@ class BrowserSiteSignInTest {
         job.cancel()
         advanceUntilIdle()
 
-        assertEquals(1, scripts.size)
-        assertNull(value(scripts.single(), "password"))
+        assertNoPassword()
     }
 
     @Test
-    fun `a leaf met before skips the request, and the password goes at once`() = runTest {
+    fun `a leaf met before skips the request, but not the mark nor the checks`() = runTest {
         fill()
-        scripts.clear()
+        page = Page()
         fill()
 
         assertEquals("one request in all", 1, requests.size)
-        assertEquals("one fill, with the password", 1, scripts.size)
-        assertEquals(PASSWORD, value(scripts.single(), "password"))
+        assertEquals(1, page.marks.size)
+        assertEquals(TOKEN, value(page.fills.single(), "token"))
+
+        page = Page().also { it.answer = { """{"token":null,"href":"$CARD_SYSTEM"}""" } }
+        reads.clear()
+        fill()
+        assertNoPassword("no token, though the leaf was met")
+
+        page = Page().also { it.whileAnswering = { it.url = "https://cardsystem.ntust.edu.tw/std/index.php/user/agreement" } }
+        reads.clear()
+        fill()
+        assertNoPassword("moved on, though the leaf was met")
+
+        page = Page().also { it.whileAnswering = { it.certificate = otherLeaf } }
+        reads.clear()
+        fill()
+        assertNoPassword("another leaf, though one was met")
+        assertEquals(2, requests.size)
     }
 
     @Test
     fun `a page leaf other than the one met before is checked again, and one that fails is forgotten`() = runTest {
         fill()
 
-        shownCertificate = otherLeaf
+        page = Page().also { it.certificate = otherLeaf }
         served = otherLeaf
-        scripts.clear()
         fill()
         assertEquals("checked again", 2, requests.size)
-        assertEquals(PASSWORD, value(scripts.last(), "password"))
+        assertEquals(1, page.fills.size)
 
-        val third = certificate()
-        shownCertificate = third
+        page = Page().also { it.certificate = certificate() }
         served = pageLeaf
-        scripts.clear()
         fill()
         assertEquals(3, requests.size)
-        assertEquals(1, scripts.size)
+        assertTrue(page.fills.isEmpty())
 
-        shownCertificate = otherLeaf
+        page = Page().also { it.certificate = otherLeaf }
         served = otherLeaf
         fill()
         assertEquals("the leaf met before was forgotten", 4, requests.size)
@@ -229,19 +292,21 @@ class BrowserSiteSignInTest {
     fun `a leaf met under an earlier browser session is checked again`() = runTest {
         fill()
         generation = 8
+        page = Page()
         fill(session = 8)
         assertEquals(2, requests.size)
+        assertEquals(1, page.fills.size)
     }
 
     @Test
-    fun `the suggestion box gets the student id alone, with no request and no password field`() = runTest {
-        shownUrl = "https://suggestionbox.ntust.edu.tw/login"
+    fun `the suggestion box is marked for its student id alone, with no request and no fill`() = runTest {
+        page.url = "https://suggestionbox.ntust.edu.tw/login"
         fill(url = "https://suggestionbox.ntust.edu.tw/login")
 
-        assertEquals(1, scripts.size)
-        assertEquals("account", value(scripts.single(), "studentIdField"))
-        assertNull(value(scripts.single(), "passwordField"))
-        assertNull(value(scripts.single(), "password"))
+        assertEquals(1, page.marks.size)
+        assertEquals("account", value(page.marks.single(), "studentIdField"))
+        assertEquals(null, value(page.marks.single(), "passwordField"))
+        assertTrue(page.fills.isEmpty())
         assertTrue(requests.isEmpty())
         assertFalse("password" in reads)
     }
@@ -255,133 +320,44 @@ class BrowserSiteSignInTest {
             "https://ssoam2.ntust.edu.tw/account/login",
             "https://example.com/login",
         ).forEach { fill(url = it) }
-        assertTrue(scripts.isEmpty())
+        assertTrue(page.marks.isEmpty())
         assertTrue(reads.isEmpty())
         assertTrue(requests.isEmpty())
     }
 
     @Test
-    fun `the demo account and a signed-out app fill nothing`() = runTest {
+    fun `the demo account, a signed-out app, an ended session or an unusable browser get nothing`() = runTest {
         signedIn = false
         fill()
-        assertTrue(scripts.isEmpty())
-        assertTrue(reads.isEmpty())
-        assertTrue(requests.isEmpty())
-    }
-
-    @Test
-    fun `a page loaded under a browser session that has ended, or a browser that cannot be used, fills nothing`() = runTest {
+        signedIn = true
         fill(session = 6)
         fill(session = null)
         usable = false
         fill()
-        assertTrue(scripts.isEmpty())
+        assertTrue(page.marks.isEmpty())
         assertTrue(reads.isEmpty())
         assertTrue(requests.isEmpty())
     }
 
     @Test
-    fun `with no stored student id nothing is filled`() = runTest {
+    fun `with no stored student id nothing is filled, and with no stored password no fill follows the mark`() = runTest {
         storedId = null
         fill()
         storedId = " "
         fill()
-        assertTrue(scripts.isEmpty())
-        assertTrue(requests.isEmpty())
-    }
+        assertTrue(page.marks.isEmpty())
 
-    @Test
-    fun `with no stored password the student id alone is filled`() = runTest {
+        storedId = STUDENT_ID
         storedPassword = null
         fill()
-        assertEquals(1, scripts.size)
-        assertNull(value(scripts.single(), "password"))
-    }
-
-    @Test
-    fun `every value is a JSON string literal that nothing in it can end`() = runTest {
-        storedId = "B10900000\"; alert(1); //"
-        storedPassword = EVIL
-        fill()
-        val script = scripts.last()
-
-        assertEquals(EVIL, value(script, "password"))
-        assertEquals(storedId, value(script, "studentId"))
-        listOf("</script>", "\u2028", "\u2029", "\r", "'\"", "00\"; alert").forEach {
-            assertFalse(it, script.contains(it))
-        }
-        assertTrue("ASCII alone", script.all { it.code in 0x20..0x7e || it == '\n' })
-    }
-
-    @Test
-    fun `a literal reads back as its value, in ASCII alone, with no quote, angle bracket or line separator`() {
-        listOf(EVIL, "", "B10900000", "\u0000\u001f\u007f\u00e9\ud83e\udd86", "\\u2028").forEach { text ->
-            val literal = BrowserSiteSignIn.literal(text)
-            assertEquals(text, Gson().fromJson(literal, String::class.java))
-            assertTrue(literal, literal.startsWith("\"") && literal.endsWith("\""))
-            val inside = literal.substring(1, literal.length - 1)
-            assertTrue(literal, inside.all { it.code in 0x20..0x7e })
-            assertFalse("$literal ends early", endsEarly(inside))
-            listOf("'", "<", ">", "\n", "\r").forEach { assertFalse("$literal holds $it", inside.contains(it)) }
-        }
-        assertEquals("null", BrowserSiteSignIn.literal(null))
-    }
-
-    @Test
-    fun `the script checks the page's address as it fills, and fills only empty fields of one form posting home`() = runTest {
-        fill()
-        val script = scripts.last()
-        val check = script.indexOf("if (location.origin !== origin || location.pathname !== path) return false;")
-
-        assertTrue("the address is checked", check >= 0)
-        assertTrue("before anything is read or written", check < script.indexOf("document."))
-        assertTrue(script.contains("element instanceof HTMLInputElement && element.form !== null"))
-        assertTrue(script.contains("secret.type !== 'password' || secret.form !== id.form"))
-        assertTrue(script.contains("if (new URL(id.form.action).origin !== origin) return false;"))
-        assertTrue("the password only beside the stored id", script.contains("secret && password !== null && (!id.value || id.value === studentId)"))
-        assertTrue("never over what the student typed", script.contains("if (element.value) continue;"))
-        assertTrue(script.contains("element.dispatchEvent(new Event('input', { bubbles: true }));"))
-        assertTrue(script.contains("element.dispatchEvent(new Event('change', { bubbles: true }));"))
-    }
-
-    @Test
-    fun `the script submits nothing and touches no other field`() = runTest {
-        fill()
-        scripts.forEach { script ->
-            listOf("submit", "click", "focus", "VerifyCode", "verify", "querySelector", "fetch", "XMLHttpRequest", "console", "cookie", "localStorage")
-                .forEach { assertFalse(it, script.contains(it)) }
-            assertEquals("one value write", 1, Regex("""\.value = """).findAll(script).count())
-        }
-    }
-
-    @Test
-    fun `the script is one expression whose failure reads as failed, with no value in it`() = runTest {
-        fill()
-        val script = scripts.last()
-
-        assertTrue(script.startsWith("(function() {"))
-        assertTrue(script.trimEnd().endsWith("})();"))
-        assertTrue(script.contains("} catch (error) {\n    return 'failed';"))
-        assertEquals("\"failed\"", BrowserSiteSignIn.FAILED)
-    }
-
-    /** Whether a quote no backslash escapes stands inside a literal. */
-    private fun endsEarly(inside: String): Boolean {
-        var i = 0
-        while (i < inside.length) {
-            when (inside[i]) {
-                '\\' -> i += 2
-                '"' -> return true
-                else -> i++
-            }
-        }
-        return false
+        assertEquals(1, page.marks.size)
+        assertTrue(page.fills.isEmpty())
     }
 
     private companion object {
         const val CARD_SYSTEM = "https://cardsystem.ntust.edu.tw/std/index.php/user/login"
         const val STUDENT_ID = "B10900000"
         const val PASSWORD = "fake-pass"
-        const val EVIL = "fake-pass'\"\\</script>\u2028\u2029\n\r"
+        const val TOKEN = "0123456789abcdef0123456789abcdef"
     }
 }
