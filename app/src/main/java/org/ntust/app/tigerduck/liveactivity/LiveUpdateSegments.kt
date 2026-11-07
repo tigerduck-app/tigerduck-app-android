@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.liveactivity
 import android.app.Notification
 import androidx.core.app.NotificationCompat
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.shared.AccentGradient
 
 /**
@@ -12,13 +13,22 @@ import org.ntust.app.tigerduck.shared.AccentGradient
  */
 internal object LiveUpdateSegments {
 
+    /**
+     * Whether a Live Update on this phone can show the gradient at all: only where it is drawn with
+     * ProgressStyle, ColorOS's Live Alerts card ([DeviceSkin.cardHidesTextBehindClock], the flag
+     * [LiveActivityNotifier] picks that style by). Elsewhere it draws the legacy bar, which takes no
+     * color of its own, and Settings offers no switch for it.
+     */
+    fun canShowGradient(skin: DeviceSkin = DeviceSkin.current()): Boolean = skin.cardHidesTextBehindClock
+
     /** The gradient the Live Update is handed: only while Settings' Live Updates switch is on, as on the iPhone. */
     fun accentOf(prefs: AppPreferences): AccentGradient? = prefs.deviceAccents.liveActivities
 
     /**
-     * The progress bar's segments, [max] long in all: one, in the notification's own color, as
-     * before; with [LiveActivitySnapshot.accentGradient] one for each stop, in its color, the
-     * length shared out evenly and the first taking what is left over.
+     * The progress bar's segments, [max] long in all: without [LiveActivitySnapshot.accentGradient]
+     * the one segment the notifier always drew, in the notification's own color, the brand's; with
+     * it one for each stop, in its color, the length shared out evenly and the first taking what is
+     * left over.
      */
     fun of(snapshot: LiveActivitySnapshot, max: Int): List<NotificationCompat.ProgressStyle.Segment> {
         val stops = snapshot.accentGradient?.takeIf { it.isGradient }?.stops

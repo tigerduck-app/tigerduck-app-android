@@ -4,6 +4,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.liveactivity.LiveUpdateSegments
 import org.ntust.app.tigerduck.ui.AccentGradientSwitchStates
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -33,7 +34,8 @@ internal fun AccentSettingsRows(appState: AppState, onOpenAccentColor: () -> Uni
 
 /**
  * The gradient on widgets, on the watch ([showsWatch]: only where the watch app ships) and in Live
- * Updates, each a switch of its own, all off by default, as on the iPhone. While the accent is one
+ * Updates ([showsLiveActivities]: only where a Live Update can draw it), each a switch of its own,
+ * all off by default, as on the iPhone. While the accent is one
  * color there is no gradient to hand any of them, and they are dimmed; a surface whose switch is
  * off draws the accent's first stop.
  */
@@ -43,6 +45,7 @@ internal fun AccentGradientSwitches(
     states: AccentGradientSwitchStates,
     onChange: (AccentGradientSwitchStates) -> Unit,
     showsWatch: Boolean = WearCompanion.SHIPS,
+    showsLiveActivities: Boolean = LiveUpdateSegments.canShowGradient(),
 ) {
     HorizontalDivider()
     SettingsToggleRow(
@@ -60,11 +63,13 @@ internal fun AccentGradientSwitches(
             onCheckedChange = { onChange(states.copy(onWatch = it)) },
         )
     }
-    HorizontalDivider()
-    SettingsToggleRow(
-        label = stringResource(R.string.settings_accent_gradient_on_live_activities),
-        checked = states.onLiveActivities,
-        enabled = isGradient,
-        onCheckedChange = { onChange(states.copy(onLiveActivities = it)) },
-    )
+    if (showsLiveActivities) {
+        HorizontalDivider()
+        SettingsToggleRow(
+            label = stringResource(R.string.settings_accent_gradient_on_live_activities),
+            checked = states.onLiveActivities,
+            enabled = isGradient,
+            onCheckedChange = { onChange(states.copy(onLiveActivities = it)) },
+        )
+    }
 }

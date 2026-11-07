@@ -5,6 +5,8 @@ import android.app.Notification
 import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import androidx.core.app.NotificationCompat
+import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -41,12 +43,34 @@ class LiveUpdateSegmentsTest {
         accentGradient = accentGradient,
     )
 
+    // dev's notifier added `Segment(PROGRESS_MAX)`, whose color is 0, COLOR_DEFAULT: the bar then
+    // takes the notification's own color, the brand's (brandedNotification).
     @Test
-    fun `without a gradient the bar is one segment in the notification's own color, as before`() {
+    fun `without a gradient the bar is the one segment dev drew, in the notification's own color`() {
         val segments = LiveUpdateSegments.of(snapshot(null), max = 1000)
+        val dev = NotificationCompat.ProgressStyle.Segment(1000)
 
-        assertEquals(listOf(1000), segments.map { it.length })
+        assertEquals(listOf(dev.length), segments.map { it.length })
+        assertEquals(dev.color, segments.single().color)
         assertEquals(Notification.COLOR_DEFAULT, segments.single().color)
+        assertEquals(dev.id, segments.single().id)
+    }
+
+    @Test
+    fun `the gradient can show only where the Live Update is drawn with ProgressStyle, the ColorOS card`() {
+        fun skin(manufacturer: String, sdkInt: Int = 36) = DeviceSkin(
+            sdkInt = sdkInt, manufacturer = manufacturer, brand = manufacturer,
+            oneUiVersion = null, hyperOsVersion = null, vivoOverseas = false,
+        )
+
+        for (maker in listOf("OPPO", "OnePlus", "realme")) {
+            assertEquals(maker, true, LiveUpdateSegments.canShowGradient(skin(maker)))
+        }
+        for (maker in listOf("Google", "samsung", "Xiaomi", "vivo", "HONOR")) {
+            assertEquals(maker, false, LiveUpdateSegments.canShowGradient(skin(maker)))
+        }
+        // Before Android 16 no phone has a Live Update chip, nor the card.
+        assertEquals(false, LiveUpdateSegments.canShowGradient(skin("OPPO", sdkInt = 35)))
     }
 
     @Test

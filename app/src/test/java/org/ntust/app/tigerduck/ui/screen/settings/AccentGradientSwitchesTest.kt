@@ -40,7 +40,7 @@ class AccentGradientSwitchesTest {
 
     private var switches by mutableStateOf(AccentGradientSwitchStates())
 
-    private fun show(isGradient: Boolean, showsWatch: Boolean = true) {
+    private fun show(isGradient: Boolean, showsWatch: Boolean = true, showsLiveActivities: Boolean = true) {
         composeRule.setContent {
             // As in Settings' card, one row under another.
             Column {
@@ -48,6 +48,7 @@ class AccentGradientSwitchesTest {
                     isGradient = isGradient,
                     states = switches,
                     showsWatch = showsWatch,
+                    showsLiveActivities = showsLiveActivities,
                     onChange = { switches = it },
                 )
             }
@@ -84,5 +85,16 @@ class AccentGradientSwitchesTest {
         composeRule.onNodeWithText(watch).assertDoesNotExist()
         composeRule.onNodeWithText(widgets).assertExists()
         composeRule.onNodeWithText(live).assertExists()
+    }
+
+    // A Live Update draws the gradient only as ProgressStyle's segments, which only the ColorOS
+    // card path uses: elsewhere the switch would change nothing.
+    @Test
+    fun `where a Live Update cannot draw the gradient its switch is not offered`() {
+        show(isGradient = true, showsLiveActivities = false)
+
+        composeRule.onNodeWithText(live).assertDoesNotExist()
+        composeRule.onNodeWithText(widgets).assertExists()
+        composeRule.onNodeWithText(watch).assertExists()
     }
 }
