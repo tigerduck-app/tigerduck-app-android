@@ -98,6 +98,7 @@ Scopes:
 | Exported class table images, `cacheDir/class_table_export/` | kept a day so a share target can still read one, then swept by the next export; not at a sign-out |
 | The TLS pin document, `noBackupFilesDir/tls/` | device |
 | The debug viewer samples, `cacheDir/viewer_samples/` | device |
+| The course catalog of each term in each language, the school's for every student, with its ETag, `cacheDir/course_catalog/`, which Add course searches (`CourseCatalogFiles`) | device |
 
 ## SharedPreferences and DataStore files
 
