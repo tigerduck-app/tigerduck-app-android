@@ -246,7 +246,7 @@ class LiveActivityManager internal constructor(
             accentHex = appPrefs.accentColorHex,
             now = now,
             changes = changes,
-        )
+        )?.copy(accentGradient = LiveUpdateSegments.accentOf(appPrefs))
         // "The resolver looked and found nothing", not the bail-outs above: a wrong timetable,
         // not a wrong clock, when a simulated class fails to show.
         if (BuildConfig.DEBUG && snapshot == null) {

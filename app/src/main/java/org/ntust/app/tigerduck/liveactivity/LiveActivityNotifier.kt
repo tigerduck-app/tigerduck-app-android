@@ -229,7 +229,7 @@ class LiveActivityNotifier @Inject constructor(
             filled?.let {
                 builder.setStyle(
                     NotificationCompat.ProgressStyle()
-                        .addProgressSegment(NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX))
+                        .setProgressSegments(LiveUpdateSegments.of(snapshot, PROGRESS_MAX))
                         .setProgress(it)
                 )
             }
