@@ -75,7 +75,7 @@ class ClassTableWiringTest {
     /** tigerduck-app-android#241. */
     @Test
     fun `a reset goes through the backend first, and says so when the backend could not take it`() {
-        assertCalls("wipeTerm", "termReset.run(semester, signIn) { pushApiClient.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null) }")
+        assertCalls("wipeTerm", "termReset.run(semester, signIn) { pushApiClient.deleteAllCoursesAnswered(semester, signIn, resetAt = null) }")
         assertCalls("resetCourses", "if (wiped) fetchData() else _resetFailedEvent.tryEmit(semester)")
     }
 

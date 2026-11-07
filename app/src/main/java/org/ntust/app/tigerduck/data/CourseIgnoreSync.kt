@@ -16,8 +16,8 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.SyncCategory
-import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
@@ -58,7 +58,7 @@ class CourseIgnoreSync internal constructor(
     private val effects: CourseIgnoreEffects,
     private val sends: () -> Boolean,
     private val clock: () -> Long,
-    outbox: IgnoreOutbox = IgnoreOutbox(clock, AckClock(), CallersScope(), null),
+    outbox: IgnoreOutbox = IgnoreOutbox(DeviceClocks.wallOnly(clock), AckClock(), CallersScope(), null),
 ) {
     @Inject constructor(
         dataCache: DataCache,
@@ -66,8 +66,8 @@ class CourseIgnoreSync internal constructor(
         prefs: AppPreferences,
         scheduler: AssignmentNotificationScheduler,
         policies: SyncPolicies = SyncPolicies(prefs),
-        /** What a change is stamped by; null only in tests, for the wall clock. */
-        syncClock: SyncClock? = null,
+        /** What a change's time is read by; the wall clock alone in tests. */
+        clocks: DeviceClocks = DeviceClocks.WALL,
         ack: AckClock = AckClock(),
         @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
@@ -86,7 +86,7 @@ class CourseIgnoreSync internal constructor(
         sends = { syncsCourseIgnores(policies) },
         clock = System::currentTimeMillis,
         outbox = IgnoreOutbox(
-            stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
+            clocks = clocks,
             ack = ack,
             scope = scope,
             oldEntryTime = oldEntryTime,

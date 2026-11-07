@@ -1,77 +1,153 @@
 package org.ntust.app.tigerduck.push
 
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.Call
-import okhttp3.HttpUrl
 import okhttp3.Response
-import org.ntust.app.tigerduck.network.backend.BackendError
-import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditStamp
+import org.ntust.app.tigerduck.sync.EditTime
+import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.outbox.EditFloors
+import org.ntust.app.tigerduck.sync.outbox.latest
+import java.util.concurrent.ConcurrentHashMap
 
-// The backend's TigerSync clock for a time in epoch ms: whole microseconds since the epoch.
-internal fun clockOf(epochMs: Long): Long = epochMs * 1_000
+/** The field, or the query parameter, an edit's age goes in, where `hlc` went (backend 4.3.0). */
+internal const val AGE_MS = "age_ms"
 
-// 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock. Peeked, so a caller that
-// goes on to read the body still can.
-internal fun isClockAhead(response: Response): Boolean = response.code == 409 && BackendError.of(response).isClockAhead
+/** The field, or the query parameter, the oldest value's stamp 0 goes in ([EditStamp.Oldest]). */
+internal const val HLC = "hlc"
 
-/** [body] with [hlc] as its `hlc`. */
-internal fun Map<String, Any>.stampedWith(hlc: Long): Map<String, Any> = this + ("hlc" to hlc)
+/** [this] stamp as a write's fields: `age_ms`, or the oldest's `hlc: 0`, exactly one of them. */
+internal fun EditStamp.fields(): Map<String, Long> = listOfNotNull(ageMs?.let { AGE_MS to it }, hlc?.let { HLC to it }).toMap()
+
+/** [this] body with [stamp]'s fields ([fields]). Every `/v4` write sends one (422 `hlc_required` otherwise). */
+internal fun Map<String, Any>.stampedWith(stamp: EditStamp): Map<String, Any> = this + stamp.fields()
 
 /**
- * The clock a write is stamped with: [SyncClock], whose stamps only grow and are capped by the
- * backend's time as last heard (`tigersync-clock`). A client a test builds without one stamps
- * with the wall clock and hears nothing.
+ * Every write of a synced field goes through here, from an outbox lane or straight from a screen
+ * (Use Local, a conflict's keep-local), with the fields it writes ([SyncField], a course by the
+ * key the write names): the per-key rule of `age_ms`, as the iPhone's (tigerduck-app#1008).
+ *
+ * - A write's span runs from its first age reading, the token in hand, to its 2xx answer's arrival,
+ *   under the sign-in it ran under.
+ * - An edit ages from the latest end among the spans of its key that went out at or before it was
+ *   made, by its own time alone: an edit made before a span went out, as one queued offline, keeps
+ *   its own age and loses to it, which it is older than. A queue keeps that end with each of its
+ *   edits, its floor ([EditFloors], raised on disk as the span ends), which a write reads afresh
+ *   under its key's lock ([EditFloors.floorOf]), whatever copy it was handed; this keeps the spans
+ *   of this process too, for an edit sent straight with a time no queue holds.
+ * - A key ([SyncField.spanKey]): an assignment's mark, a holiday's choice, or a term, every course
+ *   write of which, its reset's too, goes under one.
+ * - The writes of one key go one at a time, from the floors read to the floors written, a screen's
+ *   and a lane's alike; writes of other keys go at once. In memory: the writes that race are this
+ *   process's.
+ * - A write's gate, its switches and its caller's own (a re-enable check that holds the kind), is
+ *   asked again once the lock is had, right before the age is read: one that waited behind another
+ *   write of its key while the gate closed goes nowhere and starts no span, and its edit stays
+ *   queued, as when the gate was closed before.
+ *
+ * No write replays itself after a 401: the sync signs in again and sends anew, a span of its own.
  */
-internal class WriteClock(private val clock: SyncClock?) {
-    /** The stamp of an edit made now, in epoch ms. */
-    fun stampMs(): Long = clock?.stampMs() ?: System.currentTimeMillis()
+internal class FieldAges(private val clocks: DeviceClocks, private val floors: () -> EditFloors?) {
+    // One lock per key written in this process, taken in the keys' order.
+    private val writing = ConcurrentHashMap<String, Mutex>()
+
+    // Each key's latest spans that ended in this process, oldest first; read and written under its lock.
+    private val ended = ConcurrentHashMap<String, ArrayDeque<Span>>()
+
+    private class Span(val start: EditTime, val end: EditTime, val signIn: SignIn)
 
     /**
-     * A stamp again, after a refusal as ahead of [refused] whose answer carried [serverClockUs]; null
-     * when [refused] went to a backend the endpoint has moved off since ([SyncClock.restampAfterClockAhead]).
+     * Sends an edit of [fields] made at [madeAt] (its own time, never its floor) under [signIn] as
+     * `/v4` takes it, while [allowed], asked once the key's lock is had, says it may go: null, and
+     * nothing sent, when it does not. [call] builds the request with the edit's stamp, read as it is
+     * built, so a request built again sends a grown age; 0 for an edit made now (null), `hlc: 0` for
+     * the oldest. Sent once: a 409 is the answer [handle] reads. A 2xx answer ends the write's span,
+     * but the oldest's, whose `hlc: 0` never lands after a later edit. Run off the main thread, as the
+     * floors are written before this returns.
      */
-    fun restampAfterClockAhead(serverClockUs: Long?, refused: HttpUrl): Long? =
-        if (clock == null) System.currentTimeMillis() else clock.restampAfterClockAhead(serverClockUs, refused)
+    suspend fun <T : Any> send(
+        fields: Collection<String>,
+        madeAt: EditTime?,
+        signIn: SignIn,
+        allowed: () -> Boolean,
+        call: (EditStamp) -> Call,
+        handle: (Response) -> T,
+    ): T? = sendEach(fields, listOfNotNull(madeAt), spans = madeAt?.isOldest != true, signIn, allowed, { stampOf -> call(stampOf(madeAt)) }, handle)
 
-    /** A clock value an answer to [from] holds, which raises the last value seen (LWW D4). */
-    fun hear(clockUs: Long, from: HttpUrl) {
-        clock?.heardInSnapshot(clockUs, from)
+    /**
+     * [send] for a write of several edits of [fields], made at [madeAts], each stamped by [call] with
+     * the stamping it is handed, read at the span's start. Its 2xx answer ends a span of each key
+     * when [spans]. Null, and nothing sent, when [allowed] says no once the lock is had.
+     */
+    suspend fun <T : Any> sendEach(
+        fields: Collection<String>,
+        madeAts: Collection<EditTime>,
+        spans: Boolean,
+        signIn: SignIn,
+        allowed: () -> Boolean,
+        call: ((EditTime?) -> EditStamp) -> Call,
+        handle: (Response) -> T,
+    ): T? {
+        val keys = fields.map(SyncField::spanKey).distinct().sorted()
+        return holding(keys) {
+            // Asked again: the gate may have closed while this waited behind another write of its key.
+            if (!allowed() || !signIn.isCurrent) return@holding null
+            // Each edit's floor as its queue keeps it now, read under the lock, after every span of its key ended.
+            val kept = madeAts.filterNot { it.isOldest }.distinct().associateWith { madeAt ->
+                keys.mapNotNull { key -> floors()?.floorOf(key, madeAt, signIn) }.latest()
+            }
+            val start = clocks.now()
+            call { madeAt -> clocks.stampOf(madeAt?.let { if (it.isOldest) it else agedFrom(keys, it, kept[it], signIn) }, start) }
+                .execute().use { response ->
+                    if (response.isSuccessful && spans) endSpans(keys, start, signIn)
+                    handle(response)
+                }
+        }
     }
 
-    /** The largest clock value [answer] holds, to [from]; see [hear]. */
-    fun hear(answer: WriteAnswer, from: HttpUrl) {
-        answer.clockValues().maxOrNull()?.let { hear(it, from) }
+    // What an edit made at [madeAt] with the floor [floor] ages from: the latest of the two and the end
+    // of each span of [keys] under [signIn] that went out at or before [madeAt], its own time.
+    private fun agedFrom(keys: List<String>, madeAt: EditTime, floor: EditTime?, signIn: SignIn): EditTime =
+        keys.fold(madeAt.atLeast(floor)) { from, key ->
+            from.atLeast(ended[key]?.lastOrNull { it.signIn === signIn && !madeAt.isBefore(it.start) }?.end)
+        }
+
+    // The span of each of [keys] that went out at [start] under [signIn] ended now: kept here, and its
+    // edits' floors raised on disk. Nothing once [signIn] has ended: the next account's edits are not its.
+    private suspend fun endSpans(keys: List<String>, start: EditTime, signIn: SignIn) {
+        if (!signIn.isCurrent) return
+        val end = clocks.now()
+        for (key in keys) {
+            ended.getOrPut(key) { ArrayDeque() }.apply {
+                addLast(Span(start, end, signIn))
+                while (size > KEPT_SPANS) removeFirst()
+            }
+            floors()?.raise(key, start, end, signIn)
+        }
+    }
+    // [block] under the lock of each of [keys], taken in their order, so two writes never wait on each other.
+    private suspend fun <T> holding(keys: List<String>, block: suspend () -> T): T {
+        val held = ArrayList<Mutex>(keys.size)
+        try {
+            for (key in keys) {
+                val lock = writing.computeIfAbsent(key) { Mutex() }
+                lock.lock()
+                held += lock
+            }
+            return block()
+        } finally {
+            held.asReversed().forEach { it.unlock() }
+        }
+    }
+
+    private companion object {
+        /**
+         * How many of a key's spans this process keeps, for an edit sent straight with a time that
+         * no queue holds (Use Local's adds): one made while a lane's write of its key was out, which
+         * it waits behind. A queued edit's floor is read from its queue.
+         */
+        const val KEPT_SPANS = 64
     }
 }
-
-/**
- * Sends an edit as `/v4` takes it, always stamped (422 `hlc_required` otherwise): with [madeAtMs],
- * the time it was made, or, with none, [clock]'s stamp now. Only a send made now reaches here
- * without a time (Use Local, the conflict dialog, a first-sync mark, the `moodle_course_id`
- * fill-in): a queued entry has its own, or the old-entry time it was given at load. One refused as
- * ahead of the backend's clock (409 `clock_ahead`) is stamped again from the refusal's clock and
- * sent once more if [mayResend] still holds, never without a stamp: the gate the first request
- * passed can have closed meanwhile (a hold, a switch), and the resend, past it, would overwrite
- * what the user is yet to choose. Then nothing more goes and the result is null. So it is for a
- * refusal from a backend the endpoint has moved off while the request was out: its clock says
- * nothing of the next backend. A second refusal is the answer [handle] reads, as any other.
- */
-internal fun <T : Any> sendStamped(
-    madeAtMs: Long?,
-    clock: WriteClock,
-    mayResend: () -> Boolean,
-    call: (hlc: Long) -> Call,
-    handle: (Response) -> T,
-): T? {
-    val first = call(clockOf(madeAtMs ?: clock.stampMs())).execute()
-    if (!isClockAhead(first)) return first.use(handle)
-    val serverClockUs = serverClockOf(first)
-    val refused = first.request.url
-    first.close()
-    if (!mayResend()) return null
-    val restamp = clock.restampAfterClockAhead(serverClockUs, refused) ?: return null
-    return call(clockOf(restamp)).execute().use(handle)
-}
-
-/** [response]'s answer ([answerOf]), every clock value in it heard. */
-internal fun WriteClock.answer(response: Response, what: String, field: String? = null): WriteAnswer =
-    answerOf(response, what, field).also { hear(it, response.request.url) }

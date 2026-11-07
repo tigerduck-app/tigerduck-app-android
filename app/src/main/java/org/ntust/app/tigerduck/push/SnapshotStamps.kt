@@ -52,19 +52,6 @@ internal fun MutableMap<String, StampedValue<String>>.keepLater(key: String, mar
     if (kept == null || (mark.hlc ?: Long.MIN_VALUE) >= (kept.hlc ?: Long.MIN_VALUE)) this[key] = mark
 }
 
-/** Every clock value [this] holds, which its parse hears (LWW D4). */
-internal fun BackendSyncResult.clockValues(): Sequence<Long> = sequenceOf(
-    sequenceOf(serverHlc, coursesResetHlc),
-    termResets.orEmpty().values.asSequence(),
-    marks.orEmpty().values.asSequence().map { it.hlc },
-    holidays.orEmpty().values.asSequence().map { it.hlc },
-    serverCourses.asSequence().map { it.addedHlc },
-    courseOverrides.asSequence().flatMap { o ->
-        sequenceOf(o.colorHexHlc, o.ignoreAssignmentsHlc) + o.customNamesHlc.orEmpty().values.asSequence()
-    },
-    tombstones.asSequence().map { it.hlc },
-).flatten().filterNotNull()
-
 /** [key] of [obj] as a clock value; null when absent, null, or not a number. */
 internal fun nullableLong(obj: JSONObject, key: String): Long? =
     if (obj.isNull(key)) null else (obj.opt(key) as? Number)?.toLong()

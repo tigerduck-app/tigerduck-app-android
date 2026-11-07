@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.sync.outbox
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditTime
 import java.io.IOException
 
 /**
@@ -70,4 +71,14 @@ interface OutboxChannel {
 
     /** Forgets what this process holds in memory for the account: parked-retry flags, attempts counted in memory. */
     fun forgetMemory()
+
+    /**
+     * A write of [key] that went out at [start] was answered at [end] under [signIn] ([EditFloors]):
+     * each edit of [key] waiting here made at or after [start] counts its age from [end] at least, on
+     * disk when this returns. Nothing for a channel whose edits have no time.
+     */
+    suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) = Unit
+
+    /** The floor this channel's edit of [key] made at [madeAt] keeps on disk ([EditFloors.floorOf]); null for none. */
+    suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = null
 }

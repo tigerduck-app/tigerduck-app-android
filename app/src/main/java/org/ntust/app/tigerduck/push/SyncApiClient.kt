@@ -11,7 +11,6 @@ import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.sync.SyncClock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,8 +54,6 @@ class SyncApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
     private val prefs: AppPreferences,
     baseClient: OkHttpClient,
-    /** Hears the clock values a snapshot holds (LWW D4); null only in tests, for none. */
-    private val syncClock: SyncClock? = null,
 ) {
     // Resolve per-call so the debug API-endpoint override applies at once, as PushApiClient
     // does: pinned at construction, auth and full-sync traffic ignored what push honored.
@@ -100,10 +97,7 @@ class SyncApiClient @Inject constructor(
         }
     }
 
-    /**
-     * The snapshot, protocol 2's, with its stamps, tombstone kinds and resets, and the largest
-     * clock value in it heard by the clock.
-     */
+    /** The snapshot, protocol 2's, with its stamps, tombstone kinds and resets. */
     suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult = withContext(Dispatchers.IO) {
         val authHeader = authTokenManager.requireAuthHeader(signIn)
         val fetchedAtMs = System.currentTimeMillis()
@@ -112,7 +106,7 @@ class SyncApiClient @Inject constructor(
                 throw PushApiException("sync/full failed: HTTP ${response.code}", response.code)
             }
             val json = JSONObject(response.body.string())
-            parseFullSync(json, heard = { syncClock?.heardInSnapshot(it, response.request.url) })
+            parseFullSync(json)
                 .copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
         }
     }

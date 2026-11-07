@@ -111,7 +111,7 @@ internal class PushCourseSyncBackend(
         ensureSends()
         // Under the adds' send lock, the term's school uploads waiting for the first pull let go
         // once it lands: one sent after it would go over the local list as the term's roster.
-        termResets.run(semester) { api.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null).takeIf { it.sent } }
+        termResets.run(semester) { api.deleteAllCoursesAnswered(semester, signIn, resetAt = null).takeIf { it.sent } }
     }
 
     override suspend fun uploadTerm(courses: List<Course>, semester: String) {
@@ -125,7 +125,7 @@ internal class PushCourseSyncBackend(
         // mostly, goes as the phone holds it now (compare-and-set, Codex on round 6).
         val sent = asHeldWhereChanged(courses, semester)
         val addedAt = sent.filter { CourseUploadPayload.isAddedByHand(it) || CourseUploadPayload.isUntoldCopy(it) }
-            .associate { it.courseNo to api.stampMs() }
+            .associate { it.courseNo to api.editedNow() }
         keepTold(sent, semester, addedAt.keys)
         // Null: switched off between the check and the request.
         api.uploadCoursesAnswered(sent, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()

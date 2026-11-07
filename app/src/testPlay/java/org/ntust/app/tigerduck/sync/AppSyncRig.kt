@@ -22,10 +22,11 @@ import org.ntust.app.tigerduck.data.PendingHolidayOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
-import org.ntust.app.tigerduck.network.SyncClockInterceptor
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.push.CourseUploadListener
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
+import org.ntust.app.tigerduck.sync.outbox.EditFloors
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.reconcile.FirstSyncReconciler
@@ -41,20 +42,22 @@ import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * The backend's client as the app builds it (`NetworkModule`): the version latch and the clock
- * reader on the shared client, then [rules], then [backend], which answers in the backend's place.
+ * The backend's client as the app builds it (`NetworkModule`): the version latch on the shared
+ * client, then [rules], then [backend], which answers in the backend's place.
  */
-internal fun appBackendClient(prefs: AppPreferences, clock: SyncClock, backend: OkHttpClient, rules: Interceptor): OkHttpClient =
+internal fun appBackendClient(prefs: AppPreferences, backend: OkHttpClient, rules: Interceptor): OkHttpClient =
     backend.newBuilder().apply {
-        interceptors().addAll(0, listOf(ApiVersionInterceptor(prefs), SyncClockInterceptor(prefs, clock), rules))
+        interceptors().addAll(0, listOf(ApiVersionInterceptor(prefs), rules))
     }.build()
 
 /**
- * `/v4`'s rules for a write, ahead of the backend's stand-in (`docs/api-v4.md`, "Mapping" and
- * "Course upload"): a write that takes `hlc` and comes without one is refused with 422
- * `hlc_required`, as is an add without one, and an upload that carries `force_keys` or
- * `course_overrides` with 422 `invalid_request`. Each refusal is kept in [refused]; every other
- * request goes on as it came.
+ * `/v4`'s rules for a write, ahead of the backend's stand-in (`docs/api-v4.md`, "Mapping",
+ * "Course upload" and "Edit stamps"): a write that takes a stamp and comes with neither `age_ms`
+ * nor the oldest's `hlc: 0` is refused with 422 `hlc_required`, as is an add without one, and an
+ * upload that carries `force_keys` or `course_overrides` with 422 `invalid_request`. One that
+ * sends an `hlc` other than the oldest's 0, or one beside an `age_ms`, which this build never does,
+ * is refused too, with the test's own 422 `hlc_sent`. Each refusal is kept in [refused]; every
+ * other request goes on as it came.
  */
 internal class V4WriteRules : Interceptor {
     val refused = CopyOnWriteArrayList<String>()
@@ -70,13 +73,15 @@ internal class V4WriteRules : Interceptor {
             "PUT" -> path.startsWith("/v4/sync/holiday-overrides/")
             else -> false
         }
+        val adds = body?.optJSONArray("adds")?.let { adds -> (0 until adds.length()).map(adds::getJSONObject) }.orEmpty()
+        // Each stamp the request carries, its age and its hlc: its own, from its query or body, and each add's.
+        val own = (request.url.queryParameter("age_ms") ?: body?.opt("age_ms")) to (request.url.queryParameter("hlc") ?: body?.opt("hlc"))
+        val stamps = adds.map { it.opt("age_ms") to it.opt("hlc") } + listOfNotNull(own.takeIf { stamped })
         val code = when {
-            stamped && request.url.queryParameter("hlc") == null && body?.has("hlc") != true -> "hlc_required"
+            stamps.any { (age, hlc) -> hlc != null && (age != null || hlc.toString() != "0") } -> "hlc_sent"
+            stamps.any { (age, hlc) -> age == null && hlc == null } -> "hlc_required"
             path == "/v4/sync/courses/upload" && body != null && (body.has("force_keys") || body.has("course_overrides")) ->
                 "invalid_request"
-            path == "/v4/sync/courses/upload" && body?.optJSONArray("adds")?.let { adds ->
-                (0 until adds.length()).any { !adds.getJSONObject(it).has("hlc") }
-            } == true -> "hlc_required"
             else -> null
         }
         if (code == null) {
@@ -101,9 +106,10 @@ internal class AppSyncRig(
 
 /**
  * Home's full sync over [w]'s stores as Hilt builds it, where [org.ntust.app.tigerduck.ui.screen.home.homeSyncRig]
- * leaves parts out: every `/v4` write stamped by one [SyncClock] that hears each answer, each queue
- * given [oldEntryTime] (X1), one [AckClock], the course uploads told to the outbox, the catalogue
- * for an older build's course change, and the first sync among the reconcilers. Its requests go through [client] ([appBackendClient]); the token
+ * leaves parts out: every `/v4` write aged by [clock], its end raising its key's floors in the outbox,
+ * each queue's edits timed by it and given [oldEntryTime] (X1), one [AckClock], the course uploads
+ * told to the outbox, the catalogue for an older build's course change, and the first sync among
+ * the reconcilers. Its requests go through [client] ([appBackendClient]); the token
  * manager's are [w]'s. What would run past the sync on the application scope goes to [idleScope];
  * the sends the queues run on it go to [appScope].
  */
@@ -111,7 +117,7 @@ internal fun appSyncRig(
     context: Context,
     w: AccountWorld,
     client: OkHttpClient,
-    clock: SyncClock,
+    clock: DeviceClocks,
     appScope: CoroutineScope,
     idleScope: CoroutineScope,
     oldEntryTime: OldEntryTime,
@@ -120,8 +126,9 @@ internal fun appSyncRig(
     val ack = AckClock()
     lateinit var overrides: PendingCourseOverrides
     lateinit var outbox: Outbox
-    val pushApi = PushApiClient(client, w.appPrefs, w.tokens, clock, dagger.Lazy { CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }) })
-    val syncApi = SyncApiClient(w.tokens, w.appPrefs, client, clock)
+    val news = dagger.Lazy<CourseUploadListener> { CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }) }
+    val pushApi = PushApiClient(client, w.appPrefs, w.tokens, clock, news, dagger.Lazy<EditFloors> { outbox })
+    val syncApi = SyncApiClient(w.tokens, w.appPrefs, client)
     val marks = UnsentMarks(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime)
     val adds = PendingCourseAdds(w.dataCache, pushApi, policies, ack, appScope, oldEntryTime)
     val deletes = PendingCourseDeletes(w.dataCache, adds, pushApi, clock, policies, ack, appScope)

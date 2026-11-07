@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.push.StampedValue
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 import org.ntust.app.tigerduck.util.JvmContext
@@ -68,7 +69,7 @@ class HolidayWinnerPullTest {
     private fun pullOlderSnapshot(holidays: PendingHolidayOverrides) {
         val holds = PullHolds(SNAPSHOT_HLC, ack)
         HolidayOverrideApply.applyStamped(
-            mapOf(HOLIDAY to StampedValue(true, OLDER_EDIT_HLC)), holds.serverHlc,
+            mapOf(HOLIDAY to StampedValue(true, OLDER_EDIT_HLC)),
             { holds.keeps(SyncField.holiday(it)) }, signIn, holidays, calendar,
         )
     }
@@ -90,7 +91,7 @@ class HolidayWinnerPullTest {
                 WriteAnswer(sent = true, serverClockUs = REPLY_HLC, applied = emptySet(), values = mapOf(WriteAnswer.NOTIFY to false))
             },
             syncs = { true },
-            stamp = { MADE_AT_MS },
+            clocks = DeviceClocks.wallOnly { MADE_AT_MS },
             ack = ack,
             scope = backgroundScope,
             calendar = calendar,

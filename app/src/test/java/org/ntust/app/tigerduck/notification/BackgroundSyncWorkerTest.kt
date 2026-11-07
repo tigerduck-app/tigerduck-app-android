@@ -424,7 +424,7 @@ class BackgroundSyncWorkerTest {
     @Test
     fun `a background sync applies the server's holiday choices`() {
         HolidayOverrideApply.applyStamped(
-            snapshot = mapOf(3 to StampedValue(true, 1L), 5 to StampedValue(true, 1L)), serverHlc = 1_000_000L, keeps = { false },
+            snapshot = mapOf(3 to StampedValue(true, 1L), 5 to StampedValue(true, 1L)), keeps = { false },
             signIn = SignInSeries().current, pending = pendingHolidays(), calendar = calendar,
         )
 
@@ -438,7 +438,7 @@ class BackgroundSyncWorkerTest {
         val ended = series.end()
 
         HolidayOverrideApply.applyStamped(
-            snapshot = mapOf(3 to StampedValue(true, 1L), 5 to StampedValue(true, 1L)), serverHlc = 1_000_000L, keeps = { false },
+            snapshot = mapOf(3 to StampedValue(true, 1L), 5 to StampedValue(true, 1L)), keeps = { false },
             signIn = ended, pending = pendingHolidays(), calendar = calendar,
         )
 

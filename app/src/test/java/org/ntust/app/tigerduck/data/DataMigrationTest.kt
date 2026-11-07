@@ -93,4 +93,18 @@ class DataMigrationTest {
             file.exists()
         )
     }
+
+    /** Step 5 to 6: the sync clock builds before `age_ms` kept goes, and nothing else. */
+    @Test
+    fun `the old sync clock's file is deleted, and only it`() {
+        val context = org.ntust.app.tigerduck.util.JvmContext()
+        context.getSharedPreferences("tigerduck_sync_clock", 0).edit().putLong("lastIssuedMs", 1_790_000_000_000L).putLong("lastSeenUs", 1L).commit()
+        context.getSharedPreferences("tigerduck_outbox", 0).edit().putLong("firstRunMs", 5L).commit()
+
+        DataMigration.deleteLegacySyncClock(context)
+        DataMigration.deleteLegacySyncClock(context)
+
+        assertTrue(context.getSharedPreferences("tigerduck_sync_clock", 0).all.isEmpty())
+        assertTrue(context.getSharedPreferences("tigerduck_outbox", 0).contains("firstRunMs"))
+    }
 }

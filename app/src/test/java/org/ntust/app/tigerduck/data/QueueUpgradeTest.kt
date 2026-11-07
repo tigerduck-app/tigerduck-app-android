@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.data
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
@@ -50,7 +51,9 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<List<String>, List<String>, Map<String, Long>>>()
         val adds = PendingCourseAdds(cache, { courses, semester, forceKeys, _, addedAt ->
             assertEquals("1141", semester)
-            sent += Triple(courses.map { it.courseNo }, forceKeys, addedAt)
+            // An older install's moments, with no device clocks: each ages by the wall clock.
+            assertTrue(addedAt.values.all { it.elapsedMs == null && it.boot == null })
+            sent += Triple(courses.map { it.courseNo }, forceKeys, addedAt.mapValues { it.value.wallMs })
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
@@ -77,7 +80,7 @@ class QueueUpgradeTest {
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null })
         val deletes = PendingCourseDeletes(
             cache, adds,
-            deleter = { courseKey, _, hiddenAt -> sent += courseKey to hiddenAt },
+            deleter = { courseKey, _, hiddenAt -> sent += courseKey to hiddenAt.also { assertEquals(null, it.elapsedMs) }.wallMs },
         )
 
         deletes.drain(signIn)
@@ -91,9 +94,10 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<String, String?, Long?>>()
         val overrides = PendingCourseOverrides(
             cache,
-            { change, _, _, stillAllowed ->
+            { change, _, _, stillAllowed, madeAt ->
                 assertEquals(true, stillAllowed())
-                sent += Triple(change.moodleId.orEmpty(), change.colorHex, change.madeAtMs)
+                assertEquals(null, madeAt?.elapsedMs)
+                sent += Triple(change.moodleId.orEmpty(), change.colorHex, madeAt?.wallMs)
                 TOOK
             },
             records = { true },
@@ -111,8 +115,9 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<Int, String, Long?>>()
         val marks = UnsentMarks(
             cache,
-            writer = { id, status, _, madeAtMs ->
-                sent += Triple(id, status, madeAtMs)
+            writer = { id, status, _, madeAt, _ ->
+                assertEquals(null, madeAt?.elapsedMs)
+                sent += Triple(id, status, madeAt?.wallMs)
                 TOOK
             },
             records = { true },
@@ -130,8 +135,9 @@ class QueueUpgradeTest {
         val sent = mutableListOf<List<Any?>>()
         val ignores = CourseIgnoreSync(
             cache,
-            writer = { target, ignore, moodleCourseId, _, madeAtMs ->
-                sent += listOf(target.courseKey, ignore, moodleCourseId, madeAtMs)
+            writer = { target, ignore, moodleCourseId, _, madeAt, _ ->
+                assertEquals(null, madeAt?.elapsedMs)
+                sent += listOf(target.courseKey, ignore, moodleCourseId, madeAt?.wallMs)
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
             effects = {},
@@ -155,8 +161,9 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<Int, Boolean, Long?>>()
         val holidays = PendingHolidayOverrides(
             prefs,
-            writer = { id, notify, _, madeAtMs ->
-                sent += Triple(id, notify, madeAtMs)
+            writer = { id, notify, _, madeAt ->
+                assertEquals(null, madeAt?.elapsedMs)
+                sent += Triple(id, notify, madeAt?.wallMs)
                 TOOK
             },
             syncs = { true },

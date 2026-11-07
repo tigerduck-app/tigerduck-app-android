@@ -349,7 +349,7 @@ class CourseSyncDropsTest {
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         overrides = PendingCourseOverrides(
             cache,
-            { _, _, _, _ -> WriteAnswer.NOT_SENT },
+            { _, _, _, _, _ -> WriteAnswer.NOT_SENT },
             records = { true },
             sends = { false },
         )

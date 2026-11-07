@@ -13,15 +13,15 @@ internal object HolidayOverrideApply {
     /**
      * Applies [snapshot], each holiday's choice with its stamp, field by field (LWW D12): a
      * holiday takes the snapshot's choice, an absent one none, but one this phone keeps, whose own
-     * choice stays: waiting to go up or chosen since the snapshot began
-     * ([PendingHolidayOverrides.keptOver]), or one [keeps] names. Decided and written in one step,
+     * choice stays: one with an edit pending, waiting to go up or being chosen
+     * ([PendingHolidayOverrides.keptOver]), or one [keeps] names, its last write acknowledged
+     * since the snapshot began. Decided and written in one step,
      * on the thread the Calendar's switch writes a choice on, which ends before the sign-in does
      * ([SignIn.ifCurrent]): applied after the sign-out's clear, the departing account's choices
      * would come back.
      */
     fun applyStamped(
         snapshot: Map<Int, StampedValue<Boolean>>,
-        serverHlc: Long,
         keeps: (Int) -> Boolean,
         signIn: SignIn,
         pending: PendingHolidayOverrides,
@@ -29,7 +29,7 @@ internal object HolidayOverrideApply {
     ) {
         signIn.ifCurrent {
             val local = calendar.optedInHolidayIds
-            val kept = pending.keptOver(serverHlc)
+            val kept = pending.keptOver()
             val merged = (local + snapshot.keys).filterTo(HashSet()) { id ->
                 if (id in kept || keeps(id)) id in local else snapshot[id]?.value == true
             }

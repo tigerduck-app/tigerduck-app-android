@@ -39,10 +39,10 @@ import java.time.ZoneOffset
  * An update that finds edits the released build queued, some written before stamps were kept, then
  * the move to `/v4` (Review Focus 1): every entry of today's queue fixtures (`account/queues/`,
  * which `AccountFixturesTest` pins as this build writes them, and the two holiday keys of
- * `account/school-prefs.txt`) goes up once on `/v4`, stamped with its own time, or, with none, the
+ * `account/school-prefs.txt`) goes up once on `/v4`, aged from its own time, or, with none, from the
  * old-entry time (X1): its queue file's time, as an older build wrote it last, or for a holiday
- * this build's first run. Never its send time. The backend's stand-in refuses a write without a
- * stamp as `/v4` does (422 `hlc_required`), and none is refused or dropped. Home's full sync over
+ * this build's first run. Never from its send time. The backend's stand-in refuses a write without
+ * an age as `/v4` does (422 `hlc_required`), and none is refused or dropped. Home's full sync over
  * the app's own clients, queues and synchronizer. The phone is in the term the fixtures name: the
  * color row an older build wrote with no term finds its course key through the current term's
  * course with its Moodle id (PR I).
@@ -94,8 +94,8 @@ class V4QueueFixturesTest {
             .putStringSet("holidayNotifyOverrides", setOf("3", "5"))
             .putStringSet("holidayOverridesAwaitingUpload", setOf("5"))
             .commit()
-        val clock = SyncClock(SyncClockStore(context), prefs)
-        val client = appBackendClient(prefs, clock, backend.client, rules)
+        val clock = DeviceClocks.wallOnly { NOW_MS }
+        val client = appBackendClient(prefs, backend.client, rules)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client, backendLogin = client)
         // This build's first run, recorded as its process started, after the released build's last write.
@@ -134,7 +134,7 @@ class V4QueueFixturesTest {
     }
 
     @Test
-    fun `today's queue fixtures each go out once on v4, stamped, and none is refused`() = runBlocking {
+    fun `today's queue fixtures each go out once on v4, with their ages, and none is refused`() = runBlocking {
         val signIn = w.sessions.school.signIns.current
         answerEachWrite()
         repeat(2) { backend.answer("GET /v4/sync/full", 200, snapshot()) }
@@ -223,6 +223,9 @@ class V4QueueFixturesTest {
         const val ADDS_FILE_MS = 1_700_000_100_000L
         const val OVERRIDES_FILE_MS = 1_700_000_200_000L
         const val FIRST_RUN_MS = 1_760_000_000_000L
+
+        // The wall clock as the sync runs, ten minutes after this build's first run.
+        const val NOW_MS = 1_760_000_600_000L
         val FILE_TIMES = mapOf(
             "pending_course_adds.json" to ADDS_FILE_MS,
             "pending_course_add_times.json" to 1_700_000_110_000L,
@@ -239,19 +242,20 @@ class V4QueueFixturesTest {
 
         /**
          * Each entry once, in the outbox's order (ignores, marks, adds, deletes, overrides,
-         * holidays), each `hlc` its own time in µs or its old-entry time: CS1002's add and the
+         * holidays), each with its age (`age_ms`) by the wall clock, the only one an older build's
+         * entry has, from its own time or its old-entry time: CS1002's add and the
          * color its queue file's, holiday 5 the first run.
          */
         val EXPECTED_WRITES = listOf(
             "PATCH /v4/sync/courses/client:1141:CS1001/override | Bearer access-1 | " +
-                """{"ignore_assignments":true,"moodle_course_id":42,"hlc":1700000005000000}""",
-            """PATCH /v4/sync/assignments/7/override | Bearer access-1 | {"local_status":"ignored","hlc":1700000004000000}""",
+                """{"ignore_assignments":true,"moodle_course_id":42,"age_ms":${NOW_MS - IGNORE_MS}}""",
+            """PATCH /v4/sync/assignments/7/override | Bearer access-1 | {"local_status":"ignored","age_ms":${NOW_MS - MARK_MS}}""",
             "POST /v4/sync/courses/upload | Bearer access-1 | " +
-                """{"courses":[$ADD_ROW_1,$ADD_ROW_2],"adds":[{"course_key":"client:1141:CS1001","hlc":1700000000000000},""" +
-                """{"course_key":"client:1141:CS1002","hlc":1700000100000000}]}""",
-            "DELETE /v4/sync/courses/client:1141:CS1003?hlc=1700000001000000&kind=remove | Bearer access-1 | ",
-            """PATCH /v4/sync/courses/client:1141:CS1001/override | Bearer access-1 | {"color_hex":"#336699","hlc":1700000200000000}""",
-            """PUT /v4/sync/holiday-overrides/5 | Bearer access-1 | {"notify":true,"hlc":1760000000000000}""",
+                """{"courses":[$ADD_ROW_1,$ADD_ROW_2],"adds":[{"course_key":"client:1141:CS1001","age_ms":${NOW_MS - ADD_MS}},""" +
+                """{"course_key":"client:1141:CS1002","age_ms":${NOW_MS - ADDS_FILE_MS}}]}""",
+            "DELETE /v4/sync/courses/client:1141:CS1003?age_ms=${NOW_MS - DELETE_MS}&kind=remove | Bearer access-1 | ",
+            """PATCH /v4/sync/courses/client:1141:CS1001/override | Bearer access-1 | {"color_hex":"#336699","age_ms":${NOW_MS - OVERRIDES_FILE_MS}}""",
+            """PUT /v4/sync/holiday-overrides/5 | Bearer access-1 | {"notify":true,"age_ms":${NOW_MS - FIRST_RUN_MS}}""",
         )
     }
 }

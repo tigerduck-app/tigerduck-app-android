@@ -65,8 +65,8 @@ class PushApiClientAnswerTest {
         backend.answer(override, 200, """{"ignore_assignments":true,"applied":["ignore_assignments"]}""")
         backend.answer(override, 200, """{"color_hex":null}""")
 
-        val stored = client.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = null, signIn = signIn, madeAtMs = null)
-        val dropped = client.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = null, signIn = signIn, madeAtMs = null)
+        val stored = client.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = null, signIn = signIn, madeAt = null)
+        val dropped = client.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = null, signIn = signIn, madeAt = null)
 
         assertEquals(setOf("ignore_assignments"), stored.applied)
         assertEquals(true, stored.values["ignore_assignments"])
@@ -79,8 +79,8 @@ class PushApiClientAnswerTest {
         backend.answer("/v4/sync/assignments/7/override", 200, "<html>portal</html>", mapOf("X-TigerSync-Clock" to "12"))
         backend.answer("/v4/sync/assignments/7/override", 200, "", mapOf("X-TigerSync-Clock" to "soon"))
 
-        assertEquals(WriteAnswer(true, null, null, emptyMap()), client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null))
-        assertEquals(WriteAnswer(true, null, null, emptyMap()), client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null))
+        assertEquals(WriteAnswer(true, null, null, emptyMap()), client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null))
+        assertEquals(WriteAnswer(true, null, null, emptyMap()), client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null))
     }
 
     @Test
@@ -89,13 +89,13 @@ class PushApiClientAnswerTest {
         prefs.syncCourses = false
         prefs.syncCourseColors = false
 
-        assertEquals(WriteAnswer.NOT_SENT, client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null))
         assertEquals(WriteAnswer.NOT_SENT, client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000"))
-        assertEquals(WriteAnswer.NOT_SENT, client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAtMs = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAt = null))
         assertEquals(WriteAnswer.NOT_SENT, client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null))
-        assertEquals(WriteAnswer.NOT_SENT, client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.deleteAllCoursesAnswered("1151", signIn, resetAt = null))
         prefs.cloudSyncEnabled = false
-        assertEquals(WriteAnswer.NOT_SENT, client.putHolidayOverrideAnswered(3, true, signIn, madeAtMs = null))
+        assertEquals(WriteAnswer.NOT_SENT, client.putHolidayOverrideAnswered(3, true, signIn, madeAt = null))
         assertEquals(emptyList<Any>(), backend.sent)
     }
 

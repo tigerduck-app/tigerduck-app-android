@@ -68,8 +68,8 @@ class UnversionedBaseTest {
         prefs.announcementApiBaseUrlOverride = UNVERSIONED
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
-        val clock = SyncClock(SyncClockStore(context), prefs)
-        val client = appBackendClient(prefs, clock, backend.client, V4WriteRules())
+        val clock = DeviceClocks.WALL
+        val client = appBackendClient(prefs, backend.client, V4WriteRules())
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client)
         rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS))

@@ -4,7 +4,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 
 /**
@@ -14,16 +16,18 @@ import org.ntust.app.tigerduck.sync.SyncPolicies
  * must go through an outbox are found by those names. Each is sent with [authHeader]'s header for
  * its sign-in, to the endpoint [baseUrl] names at the time, and answers with the backend's verdict
  * ([WriteAnswer]): [WriteAnswer.NOT_SENT] when its gate stopped it, and a refusal thrown with the
- * backend's code kept. [madeAtMs], the time the edit was made, goes as its `hlc`, as [sendStamped]
- * sends it: always, the clock's stamp at its send when there is none, and the clock values its
- * answer holds heard.
+ * backend's code kept. Each goes with its stamp, read by [ages] as the request is built: the age
+ * from [madeAt], the time the edit was made (or its floor), or from the end of a write of its key
+ * that went out at or before then ([FieldAges]), 0 for an edit made now (null), or `hlc: 0` for the
+ * oldest. Each names the fields ([SyncField]) it writes, which give its key: an assignment's, a
+ * holiday's, or a course's term.
  */
 internal class OverrideRequests(
     private val api: BackendServices<PushApi>,
     private val policies: SyncPolicies,
     private val baseUrl: () -> String,
     private val authHeader: suspend (SignIn) -> String,
-    private val clock: WriteClock,
+    private val ages: FieldAges,
 ) {
     /**
      * Upload one holiday exception so the user's other devices agree.
@@ -33,29 +37,37 @@ internal class OverrideRequests(
      * between devices, not about whether the guard works. Sent only as
      * [signIn]: see `PendingHolidayOverrides`.
      */
-    suspend fun putHoliday(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
+    suspend fun putHoliday(holidayId: Int, notify: Boolean, signIn: SignIn, madeAt: EditTime?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.tigerSyncOn) return@withContext WriteAnswer.NOT_SENT
             val service = api.at(baseUrl())
             val header = authHeader(signIn)
-            sendStamped(madeAtMs, clock, { policies.current.tigerSyncOn }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
-                clock.answer(response, "holiday override", WriteAnswer.NOTIFY)
+            // Holidays have no switch of their own and no re-enable check: TigerSync is their gate.
+            ages.send(
+                listOf(SyncField.holiday(holidayId)), madeAt, signIn, { policies.current.tigerSyncOn },
+                { service.holidayOverride(header, holidayId, HolidayOverrideRequest.of(notify, it)) },
+            ) { response ->
+                answerOf(response, "holiday override", WriteAnswer.NOTIFY)
             } ?: WriteAnswer.NOT_SENT
         }
 
     /**
      * [signIn] pins the request to that sign-in: after a sign-out it goes unsent
-     * rather than with the next account's token. Not sent with the switch off, so the mark waits.
+     * rather than with the next account's token. Not sent with the switch off, so the mark waits,
+     * nor when [allowed], its caller's gate (the marks' re-enable check), says no right before it goes.
      */
-    suspend fun patchMark(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
+    suspend fun patchMark(assignmentId: Int, localStatus: String, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean): WriteAnswer =
         withContext(Dispatchers.IO) {
-            val syncs = { policies.current.syncs(SyncCategory.ASSIGNMENTS) }
-            if (!syncs()) return@withContext WriteAnswer.NOT_SENT
+            if (!policies.current.syncs(SyncCategory.ASSIGNMENTS)) return@withContext WriteAnswer.NOT_SENT
             val payload = mapOf("local_status" to localStatus)
             val service = api.at(baseUrl())
             val header = authHeader(signIn)
-            sendStamped(madeAtMs, clock, syncs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
-                clock.answer(response, "patchAssignmentOverride", WriteAnswer.LOCAL_STATUS)
+            ages.send(
+                listOf(SyncField.mark(assignmentId.toString())), madeAt, signIn,
+                { policies.current.syncs(SyncCategory.ASSIGNMENTS) && allowed() },
+                { service.assignmentOverride(header, assignmentId, payload.stampedWith(it)) },
+            ) { response ->
+                answerOf(response, "patchAssignmentOverride", WriteAnswer.LOCAL_STATUS)
             } ?: WriteAnswer.NOT_SENT
         }
 
@@ -72,10 +84,9 @@ internal class OverrideRequests(
         customName: String?,
         locale: String?,
         allowed: () -> Boolean,
-        madeAtMs: Long?,
+        madeAt: EditTime?,
     ): WriteAnswer = withContext(Dispatchers.IO) {
-        val switchesOn = { policies.current.syncsOverride(color = colorHex != null, name = customName != null) }
-        if (!switchesOn()) return@withContext WriteAnswer.NOT_SENT
+        if (!policies.current.syncsOverride(color = colorHex != null, name = customName != null)) return@withContext WriteAnswer.NOT_SENT
         val course = target.named("a course override")
         val payload = listOfNotNull(colorHex?.let { "color_hex" to it }, customName?.let { "custom_name" to it }, locale?.let { "locale" to it })
             .toMap()
@@ -85,10 +96,10 @@ internal class OverrideRequests(
         // suspend: a hold the course outbox put on the kind meanwhile must
         // stop the request, which the switches above alone would let through.
         if (!allowed()) return@withContext WriteAnswer.NOT_SENT
-        // The resend passes the same gate as the first request: the hold can go on meanwhile.
-        val call = { hlc: Long -> service.courseOverride(header, course, payload.stampedWith(hlc)) }
-        sendStamped(madeAtMs, clock, { switchesOn() && allowed() }, call) { response ->
-            clock.answer(response, "patchCourseOverride")
+        val fields = listOfNotNull(colorHex?.let { SyncField.color(course) }, customName?.let { SyncField.name(course, locale.orEmpty()) })
+        val gate = { policies.current.syncsOverride(color = colorHex != null, name = customName != null) && allowed() }
+        ages.send(fields, madeAt, signIn, gate, { service.courseOverride(header, course, payload.stampedWith(it)) }) { response ->
+            answerOf(response, "patchCourseOverride")
         } ?: WriteAnswer.NOT_SENT
     }
 
@@ -100,12 +111,12 @@ internal class OverrideRequests(
      * with neither nothing is sent; nor is it with course or assignment sync
      * off. [values][WriteAnswer.values] holds `ignore_assignments` when the
      * backend stored it, and not from a backend that predates the field and
-     * drops it unread. Refused once [signIn] has ended.
+     * drops it unread. Refused once [signIn] has ended. Not sent when [allowed], its caller's gate
+     * (the assignments' re-enable check), says no right before it goes.
      */
-    suspend fun patchIgnore(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
+    suspend fun patchIgnore(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean): WriteAnswer =
         withContext(Dispatchers.IO) {
-            val syncs = { policies.current.sendsCourseIgnores }
-            if (!syncs()) return@withContext WriteAnswer.NOT_SENT
+            if (!policies.current.sendsCourseIgnores) return@withContext WriteAnswer.NOT_SENT
             val payload = mutableMapOf<String, Any>()
             if (ignore != null) payload["ignore_assignments"] = ignore
             if (moodleCourseId != null && moodleCourseId >= 1) payload["moodle_course_id"] = moodleCourseId
@@ -113,8 +124,11 @@ internal class OverrideRequests(
             val course = target.named("a course ignore")
             val service = api.at(baseUrl())
             val header = authHeader(signIn)
-            sendStamped(madeAtMs, clock, syncs, { hlc -> service.courseIgnore(header, course, payload.stampedWith(hlc)) }) { response ->
-                clock.answer(response, "patchCourseIgnore")
+            // The Moodle id alone, a fill-in, edits no field of ours.
+            val fields = listOfNotNull(ignore?.let { SyncField.ignore(course) })
+            val gate = { policies.current.sendsCourseIgnores && allowed() }
+            ages.send(fields, madeAt, signIn, gate, { service.courseIgnore(header, course, payload.stampedWith(it)) }) { response ->
+                answerOf(response, "patchCourseIgnore")
             } ?: WriteAnswer.NOT_SENT
         }
 }

@@ -106,7 +106,7 @@ class HomeViewModelTest {
 
     /** Taps kept on this phone alone, as with sync off: nothing leaves for a backend. */
     private val unsentMarks by lazy {
-        UnsentMarks(cache, MarkWriter { _, _, _, _ -> TOOK }, records = { false }, sends = { false })
+        UnsentMarks(cache, MarkWriter { _, _, _, _, _ -> TOOK }, records = { false }, sends = { false })
     }
 
     /**

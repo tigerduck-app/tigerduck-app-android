@@ -82,8 +82,8 @@ class V4LegacyDataTest {
                     """{"code":"$TERM","start":"2026-09-01","end":"2027-01-31"}],"holidays":[]}""",
             )
             .commit()
-        val clock = SyncClock(SyncClockStore(context), prefs)
-        val client = appBackendClient(prefs, clock, backend.client, rules)
+        val clock = DeviceClocks.wallOnly { NOW_MS }
+        val client = appBackendClient(prefs, backend.client, rules)
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
         w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client, backendLogin = client)
         rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS))
@@ -133,7 +133,7 @@ class V4LegacyDataTest {
     // --- Codex P2 1: a legacy bare hide at the first course sync ---
 
     @Test
-    fun `a hide from before hides had terms stays through the first course sync, and goes up as its term's delete stamped 0`() =
+    fun `a hide from before hides had terms stays through the first course sync, and goes up as its term's delete as the oldest`() =
         runBlocking {
             // The course list never synced here; every other category has.
             synced(SyncCategory.ASSIGNMENTS, SyncCategory.COURSE_COLORS, SyncCategory.COURSE_NAMES)
@@ -166,6 +166,7 @@ class V4LegacyDataTest {
 
             rig.outbox.drain(signIn)
 
+            // As the oldest: hlc 0, which loses to every stamp the backend holds.
             assertEquals(listOf("DELETE /v4/sync/courses/client:$TERM:CS1001?hlc=0 | "), sent(from, "DELETE "))
             assertEquals(emptyList<String>(), rules.refused)
         }
@@ -200,7 +201,7 @@ class V4LegacyDataTest {
         rig.outbox.drain(signIn)
 
         assertEquals(
-            listOf("""PATCH /v4/sync/courses/client:$PAST:CS1001/override | {"color_hex":"#336699","hlc":${OVERRIDES_FILE_MS * 1_000}}"""),
+            listOf("""PATCH /v4/sync/courses/client:$PAST:CS1001/override | {"color_hex":"#336699","age_ms":${NOW_MS - OVERRIDES_FILE_MS}}"""),
             sent(from, "/override"),
         )
         assertEquals(emptyList<Any>(), w.dataCache.loadPendingCourseOverrides())
@@ -220,7 +221,7 @@ class V4LegacyDataTest {
         rig.outbox.drain(signIn)
 
         assertEquals(
-            listOf("""PATCH /v4/sync/courses/client:$PAST:XB0000002/override | {"color_hex":"#123456","hlc":${OVERRIDES_FILE_MS * 1_000}}"""),
+            listOf("""PATCH /v4/sync/courses/client:$PAST:XB0000002/override | {"color_hex":"#123456","age_ms":${NOW_MS - OVERRIDES_FILE_MS}}"""),
             sent(from, "/override"),
         )
     }
@@ -241,7 +242,7 @@ class V4LegacyDataTest {
         rig.outbox.drain(signIn)
 
         assertEquals(
-            listOf("""PATCH /v4/sync/courses/client:$OLDER:CS1009/override | {"color_hex":"#445566","hlc":${OVERRIDES_FILE_MS * 1_000}}"""),
+            listOf("""PATCH /v4/sync/courses/client:$OLDER:CS1009/override | {"color_hex":"#445566","age_ms":${NOW_MS - OVERRIDES_FILE_MS}}"""),
             sent(from, "/override"),
         )
         assertEquals(emptyList<Any>(), w.dataCache.loadPendingCourseOverrides())
@@ -310,5 +311,8 @@ class V4LegacyDataTest {
         const val OVERRIDES_FILE_MS = 1_700_000_200_000L
         val IN_TERM: LocalDateTime = LocalDateTime.of(2026, 10, 15, 10, 0)
         const val FIRST_RUN_MS = 1_760_000_000_000L
+
+        // The wall clock as the sync runs, ten minutes after this build's first run.
+        const val NOW_MS = 1_760_000_600_000L
     }
 }

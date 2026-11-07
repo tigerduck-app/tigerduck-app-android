@@ -1570,7 +1570,7 @@ class ClassTableViewModel @Inject constructor(
         val moodleIds = dataCache.loadCourses(semester).mapNotNull { it.moodleIdNumber }
         // With no course add sent between the DELETE and the wipe, and the term's waiting school uploads let go with it; see TermResets.
         val held = termResets.run(semester) {
-            termReset.run(semester, signIn) { pushApiClient.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null) }
+            termReset.run(semester, signIn) { pushApiClient.deleteAllCoursesAnswered(semester, signIn, resetAt = null) }
                 // The wipe took the term's rows, queued single deletes included, before the lock goes:
                 // a retry waiting behind the wipe would otherwise send one after the refetch re-uploads the roster.
                 ?.also { pendingCourseDeletes.forgetTerm(semester, signIn) }

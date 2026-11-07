@@ -42,7 +42,7 @@ class MarkPatchStatusTest {
     }
 
     private suspend fun failure(): Exception =
-        runCatching { api.patchAssignmentOverrideAnswered(7, "ignored", testSignIn(), madeAtMs = null) }.exceptionOrNull() as Exception
+        runCatching { api.patchAssignmentOverrideAnswered(7, "ignored", testSignIn(), madeAt = null) }.exceptionOrNull() as Exception
 
     @Test
     fun `a 404 is a refusal`() = runTest {

@@ -39,3 +39,14 @@ class AckClock @Inject constructor() {
     /** Every field whose last acknowledged write answered at [clockUs] or later, under the current sign-in. */
     fun acknowledgedSince(clockUs: Long): Set<String> = acks.value.filterValues { it >= clockUs }.keys
 }
+
+/**
+ * Whether [clockUs] can be a TigerSync clock value: a time from 2020 to 2100, in µs. Anything else
+ * is a broken header or a broken answer, and taken as an acknowledgment, it would hold its field
+ * over every later snapshot.
+ */
+internal fun isPlausibleClockUs(clockUs: Long): Boolean = clockUs in EARLIEST_CLOCK_US..LATEST_CLOCK_US
+
+// 2020-01-01T00:00:00Z and 2100-01-01T00:00:00Z, in µs.
+internal const val EARLIEST_CLOCK_US = 1_577_836_800_000_000L
+internal const val LATEST_CLOCK_US = 4_102_444_800_000_000L

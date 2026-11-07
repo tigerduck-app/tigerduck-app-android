@@ -55,8 +55,8 @@ class SyncWriteGatesTest {
             val course = listOf(Course(courseNo = "CS$row", courseName = "CS$row"))
             val homework = listOf(Assignment("$row", "CS1", "CS1", "HW$row", Date(0)))
 
-            check("holiday", cloud, sent { client.putHolidayOverrideAnswered(3, true, signIn, madeAtMs = null) })
-            check("mark", cloud && prefs.syncAssignments, sent { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAtMs = null) })
+            check("holiday", cloud, sent { client.putHolidayOverrideAnswered(3, true, signIn, madeAt = null) })
+            check("mark", cloud && prefs.syncAssignments, sent { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null) })
             check("color", cloud && prefs.syncCourseColors, sent { client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000") })
             check("name", cloud && prefs.syncCourseNames, sent { client.patchCourseOverrideAnswered(key, signIn, customName = "N", locale = "en") })
             check(
@@ -67,12 +67,12 @@ class SyncWriteGatesTest {
             check(
                 "ignore",
                 cloud && prefs.syncAssignments && prefs.syncCourses,
-                sent { client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAtMs = null) },
+                sent { client.patchCourseIgnoreAnswered(key, true, null, signIn, madeAt = null) },
             )
             check("assignment upload", cloud && prefs.syncAssignments, sent { client.uploadAssignments(homework, signIn) })
             check("course upload", cloud && prefs.syncCourses, sent { client.uploadCourses(course, "1151", signIn) })
             check("course delete", cloud && prefs.syncCourses, sent { client.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null) })
-            check("term reset", cloud && prefs.syncCourses, sent { client.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null) })
+            check("term reset", cloud && prefs.syncCourses, sent { client.deleteAllCoursesAnswered("1151", signIn, resetAt = null) })
             row++
         }
         assertEquals(512, row)

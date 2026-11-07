@@ -11,4 +11,9 @@ enum class QueueFile(val fileName: String) {
     COURSE_ADD_TIMES("pending_course_add_times.json"),
     COURSE_DELETES("pending_course_deletes.json"),
     COURSE_OVERRIDES("pending_course_overrides.json"),
+
+    // The device clocks of each course add's and delete's moment, beside their own files, which
+    // keep the shape older installs wrote (`DataCache.saveEditClocks`).
+    COURSE_ADD_CLOCKS("pending_course_add_clocks.json"),
+    COURSE_DELETE_CLOCKS("pending_course_delete_clocks.json"),
 }

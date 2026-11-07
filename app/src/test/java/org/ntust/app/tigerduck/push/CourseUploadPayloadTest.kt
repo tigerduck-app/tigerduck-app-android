@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 
 class CourseUploadPayloadTest {
 
@@ -29,8 +31,8 @@ class CourseUploadPayloadTest {
     private fun items(payload: Map<String, Any>) =
         payload["courses"] as List<Map<String, Any?>>
 
-    private fun build(courses: List<Course>, rosterTerms: List<String> = emptyList(), adds: Map<String, Long> = emptyMap()) =
-        CourseUploadPayload.build(courses, semester = "1141", rosterTerms = rosterTerms, adds = adds)
+    private fun build(courses: List<Course>, rosterTerms: List<String> = emptyList(), adds: Map<String, EditTime> = emptyMap()) =
+        CourseUploadPayload.build(courses, semester = "1141", rosterTerms = rosterTerms, adds = adds.mapValues { (_, at) -> DeviceClocks.wallOnly { NOW_MS }.stampOf(at) })
 
     /**
      * The one that matters. `course_name` is the shared default the whole
@@ -54,11 +56,11 @@ class CourseUploadPayloadTest {
     fun `no color and no force key rides an upload, a picked color or a forced add's alike`() {
         val payload = build(
             listOf(course(courseNo = "CS101", customColorHex = "#112233")),
-            adds = mapOf(CourseUploadPayload.key("1141", "CS101") to 1_790_000_000_000L),
+            adds = mapOf(CourseUploadPayload.key("1141", "CS101") to EditTime(1_790_000_000_000L)),
         )
         assertFalse(payload.containsKey("course_overrides"))
         assertFalse(payload.containsKey("force_keys"))
-        assertEquals(listOf(mapOf("course_key" to "client:1141:CS101", "hlc" to 1_790_000_000_000_000L)), payload["adds"])
+        assertEquals(listOf(mapOf("course_key" to "client:1141:CS101", "age_ms" to NOW_MS - 1_790_000_000_000L)), payload["adds"])
     }
 
     /**
@@ -90,5 +92,10 @@ class CourseUploadPayloadTest {
             mapOf("1" to listOf("3", "4")),
             items(payload).single()["schedule_json"],
         )
+    }
+
+    private companion object {
+        // The wall clock as the upload is built.
+        const val NOW_MS = 1_790_000_004_000L
     }
 }

@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
+import org.ntust.app.tigerduck.sync.EditTime
+
 /**
  * A colour or a name set on the class table that the backend has not
  * confirmed, kept in `pending_course_overrides.json` and sent again on the
@@ -39,11 +41,17 @@ data class PendingCourseOverride(
      */
     val seq: Long = 0L,
     /**
-     * When the user made the change, sent as its `hlc` so a retry is no newer than the edit.
-     * Null on a row written before it was kept, which goes out unstamped.
+     * When the user made the change, epoch ms; its age at each send is counted from it (`age_ms`),
+     * so a retry lands on about the stamp of the edit. Null on a row written before it was kept,
+     * which the queue gives its old-entry time as it reads it.
      */
     val madeAtMs: Long? = null,
+    /** The device clocks at the change, which age it while the boot lasts; null on a row an older build wrote. */
+    val madeAtClocks: EditClocks? = null,
 ) {
+    /** When the user made the change, by the device's clocks; null with no time kept. */
+    val madeAt: EditTime? get() = madeAtMs?.let { editTimeOf(it, madeAtClocks) }
+
     /**
      * What the row changes — the course's colour, or its name in one locale —
      * or null for a row too damaged to send.
@@ -58,8 +66,13 @@ data class PendingCourseOverride(
             }
         }
 
-    /** Whether [other] is this change, however many times either was refused. */
-    fun isSameChange(other: PendingCourseOverride): Boolean = copy(attempts = 0) == other.copy(attempts = 0)
+    /** This change counting its age from [floor] at least. */
+    fun withFloor(floor: EditTime): PendingCourseOverride = copy(madeAtClocks = madeAtClocks.withFloor(floor))
+
+    /** Whether [other] is this change, however many times either was refused and whatever its floor. */
+    fun isSameChange(other: PendingCourseOverride): Boolean = asEdit() == other.asEdit()
+
+    private fun asEdit() = copy(attempts = 0, madeAtClocks = madeAtClocks.withoutFloor())
 
     companion object {
         /** The key of the colour of the course the backend knows as [moodleId]. */

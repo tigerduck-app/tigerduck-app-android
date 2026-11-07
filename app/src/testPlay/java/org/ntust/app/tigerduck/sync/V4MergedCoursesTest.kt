@@ -93,9 +93,9 @@ class V4MergedCoursesTest {
         context.getSharedPreferences("academic_calendar", Context.MODE_PRIVATE).edit()
             .putString("payload", """{"revision":1,"semesters":[{"code":"$TERM","start":"2026-09-01","end":"2027-01-31"}],"holidays":[]}""")
             .commit()
-        val clock = SyncClock(SyncClockStore(context), prefs)
+        val clock = DeviceClocks.WALL
         // The rules, then whatever a test runs once the snapshot's answer is in, before the pull reads it.
-        val client = appBackendClient(prefs, clock, backend.client) { chain ->
+        val client = appBackendClient(prefs, backend.client) { chain ->
             rules.intercept(chain).also { if (chain.request().url.encodedPath == "/v4/sync/full") afterSnapshot.getAndSet(null)?.invoke() }
         }
         val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
@@ -199,7 +199,7 @@ class V4MergedCoursesTest {
 
         assertEquals(listOf("DELETE /v4/sync/courses/${key("XA0000001")}"), deletes())
         val query = backend.received("DELETE /v4/sync/courses/${key("XA0000001")}").single().query
-        assertTrue("the delete goes stamped: $query", Regex("""^hlc=\d+$""").matches(query))
+        assertTrue("the delete goes with its age: $query", Regex("""^age_ms=\d+$""").matches(query))
         assertEquals(emptyList<String>(), rules.refused)
     }
 

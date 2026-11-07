@@ -194,9 +194,27 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   field by its stamp (last writer wins), so an edit is kept whatever its switches say
   and sent once they are on. The `sync-switch-read` ratchet counts lines naming a switch
   or the hold anywhere but there and the files that store or send them.
-- `SyncClock` (`app/.../sync/SyncClock.kt`): every edit's TigerSync stamp, in
-  whole milliseconds, capped by the backend clock it last heard (`tigersync-clock`).
-  `SyncClockTest` pins that spec's scenarios.
+- `DeviceClocks` and `EditTime` (`app/.../sync/EditAge.kt`): every edit's time on this
+  phone and its `age_ms` at a send, which every write sends where `hlc` went (backend
+  4.3.0): the elapsed clock's within one boot (`Settings.Global.BOOT_COUNT`), else the
+  wall clock's, never below 0, read again at each send and retry. The backend stamps an
+  edit with its arrival less its age, so no code compares a device time with a server
+  time. The oldest value (`EditTime.OLDEST`, LWW D13) has no age: `DeviceClocks.stampOf`
+  makes it `EditStamp.Oldest`, the one place it turns into `hlc: 0`, which loses to every
+  stored stamp. `FieldAges` (`push/EditStamp.kt`) holds the per-key rule, as the iPhone's
+  (tigerduck-app#1008), around every write of a synced field, a lane's or a screen's: a
+  write's span runs from its first age reading, the token in hand, to its 2xx answer, under
+  its sign-in, and an edit ages from the latest end among the spans of its key that went out
+  at or before it was made, by its own time alone; one made before a span went out keeps its
+  own age. A key (`SyncField.spanKey`) is an assignment's, a holiday's, or a term's, which
+  every course write of the term and its reset share; its writes go one at a time. As a span
+  ends, every queued edit of its key made during it keeps that end as its floor, on disk
+  (`EditFloors`, `EditClocks.floor`, the holidays' times), parked or not, and only while the
+  span's sign-in stands; one kept a moment after takes it as it is kept, and a write reads
+  its edit's floor from its queue under the lock (`EditFloors.floorOf`). A queue that
+  orders its edits past the clock keeps that order apart from the time (`CourseMoment`): no
+  edit's time is ahead of the clock that read it. `EditAgeTest`, `OldestWritesTest`,
+  `WriteSpansTest` and `WriteSpanQueuesTest` pin them.
 - `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
   backend whatever its version segment says; and the backend's error code, read once
@@ -205,9 +223,10 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   entries. `status-in-message` counts a status or error code searched for in a
   message.
 - `Outbox` and `OutboxLane` (`app/.../sync/outbox/`): every unsent edit, one lane per
-  channel with one request in flight, each edit stamped by `SyncClock` and, written by an
-  older build with no time, by its old-entry time (`OldEntryTime`), and each answer's clock
-  kept as its field's acknowledgment (`AckClock`). The six queues (`UnsentMarks`,
+  channel with one request in flight, each edit timed by `DeviceClocks` (its device clocks
+  kept beside its wall time, nullable) and, written by an older build with no time, by its
+  old-entry time (`OldEntryTime`), sent with its age, and each answer's clock kept as its
+  field's acknowledgment (`AckClock`). The six queues (`UnsentMarks`,
   `PendingHolidayOverrides`, `PendingCourseOverrides`, `CourseIgnoreQueue`,
   `PendingCourseAdds`, `PendingCourseDeletes`) keep their own files and register as
   channels from them (`@IntoSet`); `OutboxTest` holds the drain order. The `sync-write`

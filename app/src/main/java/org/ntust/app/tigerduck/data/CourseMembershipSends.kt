@@ -7,10 +7,10 @@ package org.ntust.app.tigerduck.data
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,17 +21,8 @@ import java.util.concurrent.atomic.AtomicReference
  * [org.ntust.app.tigerduck.push.PushApiClient.deleteCourseAnswered].
  */
 internal fun interface AnsweredCourseDeleter {
-    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long, kind: CourseDeleteKind?): WriteAnswer
+    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: EditTime, kind: CourseDeleteKind?): WriteAnswer
 }
-
-/**
- * What a course add's or delete's failed send comes to. Refused as ahead of the backend's clock
- * once more, after the client's one restamp (409 `clock_ahead`), it says nothing about the edit,
- * which goes again at the next sync ([SendResult.Retry]): [SendResult.afterFailure] would count
- * the 409 as one of its refusals. Any other failure is as that reads it.
- */
-private fun afterSendFailure(failure: Exception): SendResult =
-    if (failure.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(failure)
 
 /**
  * The course adds' sends. One send is a term's upload of the adds a caller asked for ([asking]):
@@ -67,12 +58,13 @@ internal class CourseAddSends(
     /** The lane's send of [add]: the request it is the first of, or nothing more. */
     suspend fun sendRequested(add: CourseAdd, signIn: SignIn): SendResult {
         val asked = request.getAndSet(null) ?: return SendResult.NotSent
-        return uploadAsked(asked, signIn)[add] ?: SendResult.NotSent
+        // By the add, whatever floor it rose to since the lane read it.
+        return uploadAsked(asked, signIn).entries.firstOrNull { it.key.isSameEdit(add) }?.value ?: SendResult.NotSent
     }
 
     /**
      * [asked]'s adds still waiting, read with their moments in one step under the lane's lock they
-     * change under (a timed add read without its moment would go unstamped), checked right before
+     * change under (a timed add read without its moment would go as the oldest), checked right before
      * the request: an add whose course has left this phone's cache or been deleted since is let
      * go unsent. The adds go in one upload with their moments, alone: every other course of an
      * upload counts as the school's roster. Each has its moment, one an older install kept with
@@ -102,7 +94,7 @@ internal class CourseAddSends(
         done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.ack.acknowledged(add.field, it, signIn) } }
         // Only an add still as it was sent: one added again meanwhile has a newer moment, which
         // this answer, to the older add, does not settle.
-        if (done.isNotEmpty()) settle(signIn) { adds -> adds.filterNot { it in done } }
+        if (done.isNotEmpty()) settle(signIn) { adds -> adds.filterNot { add -> done.any(add::isSameEdit) } }
         return results
     }
 
@@ -116,7 +108,7 @@ internal class CourseAddSends(
     private suspend fun noteRefused(refused: List<CourseAdd>, semester: String, signIn: SignIn) {
         if (refused.isEmpty()) return
         val adds = waiting()
-        val ruled = refused.filter { add -> adds.none { it.field == add.field && it != add } }.map { it.courseNo }
+        val ruled = refused.filter { add -> adds.none { it.field == add.field && !it.isSameEdit(add) } }.map { it.courseNo }
         if (ruled.isEmpty()) return
         dataCache.updateServerKnownNos(signIn) { known ->
             known + (semester to (known[semester].orEmpty() + ruled).distinct().sorted())
@@ -124,11 +116,11 @@ internal class CourseAddSends(
     }
 
     // One upload of [adds], each forced past a tombstone in the adds' order, and each timed one with
-    // its moment, in the order the times file had them in the read the adds came from
+    // its time, in the order the times file had them in the read the adds came from
     // ([CourseAdd.momentAt]), as the body always listed them.
     private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
-        val addedAt = adds.filter { it.addedAtMs != null }.sortedBy { it.momentAt }.associate { it.courseNo to it.addedAtMs!! }
+        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.addedAt?.let { add.courseNo to it } }.toMap()
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
@@ -161,7 +153,7 @@ internal class CourseAddSends(
         // waits for the next sync. One sent while course sync is off is kept only where it is
         // kept until sync is on (MembershipOutbox.keepsUnsent), else let go, as before.
         fun resultOf(add: CourseAdd, keepsUnsent: Boolean): SendResult = when {
-            failure != null -> afterSendFailure(failure)
+            failure != null -> SendResult.afterFailure(failure)
             unsent -> if (keepsUnsent) SendResult.NotSent else SendResult.Sent(null)
             add.courseNo in accepted || add.courseNo in refusedNos -> SendResult.Sent(serverClockUs)
             else -> SendResult.Retry
@@ -216,17 +208,17 @@ internal class CourseDeleteSends(
         if (!oneRequest.compareAndSet(true, false)) return SendResult.NotSent
         val answer = try {
             // The request itself carries [signIn]: a sign-out after the check sends it without a
-            // token rather than with the next account's. With the moment it was asked, the backend
-            // applies it only when later than the course's last add, hide and reset: a hide queued
-            // offline loses to an add made since on another device, and a retry after a lost reply
-            // changes nothing (#591).
+            // token rather than with the next account's. With its age from the time it was asked,
+            // the backend applies it only when later than the course's last add, hide and reset: a
+            // hide queued offline loses to an add made since on another device, and a retry after a
+            // lost reply lands on about the same stamp (#591).
             val kind = kindOf(delete)
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, kind)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.madeAt, kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "course delete failed, kept for the next sync: ${e.logSummary()}")
-            return afterSendFailure(e)
+            return SendResult.afterFailure(e)
         }
         // Nothing went, course sync being off: kept until it is on, where edits wait for it.
         if (!answer.sent) return if (outbox.keepsUnsent()) SendResult.NotSent else SendResult.Sent(null)
@@ -244,7 +236,7 @@ internal class CourseDeleteSends(
     // a delete before it marks its hide); never between the two, where its hide would go while its
     // DELETE waits, for a course selection answer to bring the course back.
     private suspend fun takeBackendsAdd(delete: CourseDelete, signIn: SignIn) = underQueueLock {
-        if (waiting().none { it.field == delete.field && it != delete }) {
+        if (waiting().none { it.field == delete.field && !it.isSameEdit(delete) }) {
             val hides = setOf(CourseTombstoneKeys.key(delete.semester, delete.courseNo), delete.courseNo)
             dataCache.updateDeletedCourseNos(before = hides, after = emptySet(), signIn = signIn)
         }

@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.data
 
-import android.content.Context
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
@@ -20,8 +19,7 @@ import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
-import org.ntust.app.tigerduck.sync.SyncClock
-import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -48,7 +46,7 @@ class CourseDeleteKindTest {
     private val mergedCopy = Course(courseNo = merged, courseName = "Merged", isManual = true, moodleIdNumber = "1151PE1010003")
 
     private var nowMs = 1_790_000_000_000L
-    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", Context.MODE_PRIVATE)), { nowMs })
+    private val deviceClocks = DeviceClocks.wallOnly { nowMs }
 
     @Before
     fun syncs() {
@@ -58,10 +56,10 @@ class CourseDeleteKindTest {
 
     /** The deletes as Hilt builds them, on `/v4`. */
     private fun TestScope.deletes(): PendingCourseDeletes {
-        val client = pushApiClientAt("http://127.0.0.1:9/v4", backend.client, prefs, syncClock)
+        val client = pushApiClientAt("http://127.0.0.1:9/v4", backend.client, prefs, deviceClocks)
         val ack = AckClock()
         val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs), ack, backgroundScope)
-        return PendingCourseDeletes(cache, adds, client, syncClock, SyncPolicies(prefs), ack, backgroundScope)
+        return PendingCourseDeletes(cache, adds, client, deviceClocks, SyncPolicies(prefs), ack, backgroundScope)
     }
 
     private fun answers(courseNo: String) =

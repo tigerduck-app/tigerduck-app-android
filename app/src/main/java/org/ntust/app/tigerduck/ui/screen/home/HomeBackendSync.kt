@@ -149,7 +149,7 @@ class HomeBackendSync @Inject constructor(
         if (!keepLocal) return
         for (c in conflicts) {
             val mid = c.id.toIntOrNull() ?: continue
-            runCatching { pushApiClient.patchAssignmentOverrideAnswered(mid, c.localStatus, signIn, madeAtMs = null) }
+            runCatching { pushApiClient.patchAssignmentOverrideAnswered(mid, c.localStatus, signIn, madeAt = null) }
         }
     }
 }

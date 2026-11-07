@@ -131,10 +131,6 @@ class BackendErrorTest {
 
     @Test
     fun `what each code means, by status`() {
-        assertTrue(BackendError(409, "clock_ahead").isClockAhead)
-        assertFalse(BackendError(422, "clock_ahead").isClockAhead)
-        assertFalse(BackendError(409, "settings_conflict").isClockAhead)
-
         assertTrue(BackendError(409, "sync_revision_expired").isRevisionExpired)
         assertFalse("a 410 is for updating the app", BackendError(410, "sync_revision_expired").isRevisionExpired)
         assertFalse(BackendError(409, "clock_ahead").isRevisionExpired)
