@@ -3,12 +3,14 @@ package org.ntust.app.tigerduck.widget
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.CourseChangeInkDark
 import org.ntust.app.tigerduck.ui.component.CourseChangeInkLight
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
+import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 
 data class WidgetColors(
@@ -67,7 +69,7 @@ fun widgetCourseColor(
 
     if (!isDark) return resolved
     val lightIdx = courseColorPalette.indexOfFirst { it == resolved }
-    return if (lightIdx >= 0) courseColorPaletteDark[lightIdx] else resolved
+    return if (lightIdx >= 0) courseColorPaletteDark[lightIdx] else MoodleColorBook.darkFor(resolved.toArgb() and 0xFFFFFF)?.let { Color(it or (0xFF shl 24)) } ?: resolved
 }
 
 private fun hashPaletteColor(courseNo: String): Color {

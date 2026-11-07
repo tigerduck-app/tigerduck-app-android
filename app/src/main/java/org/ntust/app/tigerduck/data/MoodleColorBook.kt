@@ -212,6 +212,18 @@ class MoodleColorBook {
         /** Whether [rgb] is one of the colors Moodle gives, which two courses may share. */
         fun isMoodleColor(rgb: Int): Boolean = rgb in READABLE
 
+        /**
+         * [READABLE]'s dark-mode variants, darkened as the preset palette's are
+         * (`courseColorPaletteDark`): the same hue, saturation at about 0.93 and value at 0.6. Drawn
+         * as is in dark mode, they glared beside the presets.
+         */
+        private val DARK: List<Int> = listOf(
+            0x375F5F, 0x3D5C7C, 0x595586, 0x565859, 0x076451, 0x0F5388, 0x54595B, 0x695532, 0x87465D, 0x463D8B,
+        )
+
+        /** The dark-mode variant of Moodle color [rgb], or null for any other color. */
+        fun darkFor(rgb: Int): Int? = READABLE.indexOf(rgb).takeIf { it >= 0 }?.let(DARK::get)
+
         private const val DARK_CARD = 0x181818
         private const val LIGHT_CARD = 0xFCFCFD
         private const val MIN_CONTRAST = 3.0
