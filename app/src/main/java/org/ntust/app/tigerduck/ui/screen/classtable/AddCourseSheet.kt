@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -39,6 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -46,6 +52,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dagger.hilt.android.EntryPointAccessors
@@ -216,7 +223,8 @@ private fun AddCourseSearchPage(
                 placeholder = { Text(stringResource(R.string.add_course_placeholder)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                // A course number or a name as typed: no autocorrect, no capitals, as the iPhone's field.
+                keyboardOptions = KeyboardOptions(KeyboardCapitalization.None, autoCorrectEnabled = false, imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     keyboardController?.hide()
                     model.submit()
@@ -236,7 +244,7 @@ private fun AddCourseSearchPage(
                 val resultsState = rememberLazyListState()
                 LazyColumn(
                     state = resultsState,
-                    modifier = Modifier.weight(1f).scrollbar(resultsState),
+                    modifier = Modifier.weight(1f).scrollbar(resultsState).nestedScroll(hidesKeyboard()),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     content = results,
                 )
@@ -246,6 +254,20 @@ private fun AddCourseSearchPage(
             }
         }
         if (!hasResults) EmptyState(searchText.isBlank(), model, visibleSheetHeight(sheetState))
+    }
+}
+
+/** Hides the keyboard as the user scrolls the results, as the iPhone's sheet does. */
+@Composable
+private fun hidesKeyboard(): NestedScrollConnection {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    return remember(keyboardController) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) keyboardController?.hide()
+                return Offset.Zero
+            }
+        }
     }
 }
 
@@ -288,7 +310,7 @@ private fun visibleSheetHeight(sheetState: DetentSheetState): Dp {
     return height
 }
 
-/** The spinner while nothing is stored yet, the field's prompt before a query, and "not found" after one. */
+/** "Searching…" while nothing is stored yet, the field's prompt before a query, and "not found" after one. */
 @Composable
 private fun EmptyState(blank: Boolean, model: CourseSearchModel, visibleHeight: Dp) {
     val message = when {
@@ -299,7 +321,14 @@ private fun EmptyState(blank: Boolean, model: CourseSearchModel, visibleHeight: 
     }
     Box(modifier = Modifier.fillMaxWidth().height(visibleHeight), contentAlignment = Alignment.Center) {
         if (message == null) {
-            CircularProgressIndicator()
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Text(
+                    stringResource(R.string.add_course_searching),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                )
+            }
         } else {
             Text(
                 stringResource(message),

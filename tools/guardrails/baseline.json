@@ -204,7 +204,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/CourseService.kt",
     "kind": "long-file",
-    "count": 702
+    "count": 652
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleService.kt",
