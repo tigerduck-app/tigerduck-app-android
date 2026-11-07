@@ -550,7 +550,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         state.title = webView.title
         state.certificate = webView.certificate?.let(CertificateInfo::of)
         state.signedIn = signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
-        siteSignIn.pageFinished(webView, url, loadedSession)
+        siteSignIn.pageFinished(webView, url, loadedSession, lifecycleScope)
         updateHistory()
         probeTone()
     }

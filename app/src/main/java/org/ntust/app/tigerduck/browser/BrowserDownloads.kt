@@ -291,20 +291,6 @@ class MediaStoreDownloadTransfer(
         }
     }
 
-    /** The call, stopped when the coroutine waiting on it is: a blocking execute() would run on. */
-    private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
-        cont.invokeOnCancellation { cancel() }
-        enqueue(object : Callback {
-            override fun onResponse(call: Call, response: Response) {
-                cont.resume(response) { _, _, _ -> response.close() }
-            }
-
-            override fun onFailure(call: Call, e: IOException) {
-                if (cont.isActive) cont.resumeWithException(e)
-            }
-        })
-    }
-
     companion object {
         private const val MAX_REDIRECTS = 10
 
@@ -319,4 +305,18 @@ class MediaStoreDownloadTransfer(
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
     }
+}
+
+/** The call, stopped when the coroutine waiting on it is: a blocking execute() would run on. */
+internal suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
+    cont.invokeOnCancellation { cancel() }
+    enqueue(object : Callback {
+        override fun onResponse(call: Call, response: Response) {
+            cont.resume(response) { _, _, _ -> response.close() }
+        }
+
+        override fun onFailure(call: Call, e: IOException) {
+            if (cont.isActive) cont.resumeWithException(e)
+        }
+    })
 }
