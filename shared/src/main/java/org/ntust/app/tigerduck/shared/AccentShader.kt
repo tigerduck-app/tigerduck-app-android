@@ -38,7 +38,8 @@ object AccentShader {
      * The shader that fills the [width] by [height] box at [left], [top] with [gradient], each of
      * its colors as [tone] draws it (see [rampColors] for [samples]). A single color is a gradient of
      * itself, which callers draw as a plain color instead. A mesh is one on this device's Android
-     * ([drawsMesh]), and its stand-in below it.
+     * ([drawsMesh]), through [mesh]'s nine colors when given (ARGB, row by row) and else its own as
+     * [tone] draws them ([meshTones]), and its stand-in below it.
      */
     fun create(
         gradient: AccentGradient,
@@ -48,6 +49,7 @@ object AccentShader {
         height: Float,
         tone: (Int) -> Int = ::opaque,
         samples: Int = 0,
+        mesh: List<Int>? = null,
     ): Shader {
         val w = width.coerceAtLeast(1f)
         val h = height.coerceAtLeast(1f)
@@ -65,7 +67,7 @@ object AccentShader {
                 setLocalMatrix(Matrix().apply { setRotate(-90f, cx, cy) })
             }
             AccentGradientStyle.Mesh -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                mesh(gradient.meshTones(tone), left, top, w, h)
+                mesh(mesh ?: gradient.meshTones(tone), left, top, w, h)
             } else {
                 linear(AccentGradientDirection.TopLeftToBottomRight, left, top, w, h, colors)
             }

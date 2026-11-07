@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.AccentGradientStyle
+import org.ntust.app.tigerduck.shared.meshAt
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 
@@ -97,5 +98,26 @@ class AccentFillTest {
                 assertTrue("$style ($x, $y)", contrast(Color(fill.getPixel(x, y)), Color.Black) >= 4.4f)
             }
         }
+    }
+
+    // Every one of these nine colors reads on black, but a mesh bends between them: at (0.8, 0.75)
+    // it dipped to about 4.2:1 (Codex's review).
+    @Test
+    fun `every point of a mesh reads on black, not only its nine colors`() {
+        val mesh = gradient(0xFFFF00, 0x00A0FF, 0x00B400, 0x00B400, 0xFF3030, style = AccentGradientStyle.Mesh)
+        val controls = readableMeshColors(mesh)
+
+        assertTrue(contrast(Color(meshAt(controls, 0.8f, 0.75f)), Color.Black) >= 4.5f)
+        for (u in 0..40) for (v in 0..40) {
+            val point = Color(meshAt(controls, u / 40f, v / 40f))
+            assertTrue("(${u / 40f}, ${v / 40f}) at ${contrast(point, Color.Black)}", contrast(point, Color.Black) >= 4.45f)
+        }
+    }
+
+    @Test
+    fun `a mesh that reads on black as it is keeps its colors`() {
+        val mesh = gradient(0xFFFFFF, 0xFFFF00, 0x00FFFF, style = AccentGradientStyle.Mesh)
+
+        assertEquals(mesh.meshColors.map { it or 0xFF000000.toInt() }, readableMeshColors(mesh))
     }
 }
