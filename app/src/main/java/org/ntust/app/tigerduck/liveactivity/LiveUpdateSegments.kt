@@ -2,6 +2,10 @@ package org.ntust.app.tigerduck.liveactivity
 
 import android.app.Notification
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.shared.AccentGradient
@@ -23,6 +27,20 @@ internal object LiveUpdateSegments {
 
     /** The gradient the Live Update is handed: only while Settings' Live Updates switch is on, as on the iPhone. */
     fun accentOf(prefs: AppPreferences): AccentGradient? = prefs.deviceAccents.liveActivities
+
+    private val changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * Fires when what the Live Update draws of the accent ([accentOf]) changes: its switch, or the
+     * accent while the switch is on. [LiveActivityManager] reads the accent only as it refreshes,
+     * so it refreshes on this, quietly. One stream for the process, as AccentSetting, which makes
+     * the change, is built by AppState from the preferences alone.
+     */
+    val accentChanges: SharedFlow<Unit> = changed.asSharedFlow()
+
+    fun accentChanged() {
+        changed.tryEmit(Unit)
+    }
 
     /**
      * The progress bar's segments, [max] long in all: without [LiveActivitySnapshot.accentGradient]

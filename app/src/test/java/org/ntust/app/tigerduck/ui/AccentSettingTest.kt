@@ -234,6 +234,34 @@ class AccentSettingTest {
     }
 
     @Test
+    fun `the Live Update hears only a change to what it draws of the accent`() {
+        var changes = 0
+        val setting = AccentSetting(prefs, onLiveUpdateChange = { changes++ })
+
+        // A single color: the Live Update draws no gradient, whatever its switch says.
+        setting.gradientOnLiveActivities = true
+        setting.gradientOnLiveActivities = false
+        assertEquals(0, changes)
+
+        // A gradient while its switch is off, and the other surfaces' switches: nothing it draws.
+        setting.pickAccent(gradient(blue, purple))
+        setting.gradientOnWidgets = true
+        setting.gradientOnWatch = true
+        assertEquals(0, changes)
+
+        setting.gradientOnLiveActivities = true
+        assertEquals(1, changes)
+        setting.pickAccent(gradient(blue, purple))
+        assertEquals("the same gradient again", 1, changes)
+        setting.pickAccent(gradient(blue, purple, style = AccentGradientStyle.Radial))
+        assertEquals(2, changes)
+        setting.pick(green)
+        assertEquals("a single color in its place", 3, changes)
+        setting.gradientOnLiveActivities = false
+        assertEquals("off with one color", 3, changes)
+    }
+
+    @Test
     fun `a color an older build picked over the gradient reads as that color alone`() {
         AccentSetting(prefs).pickAccent(gradient(blue, purple))
         // An older build writes only the accent.

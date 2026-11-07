@@ -63,6 +63,7 @@ class LiveActivityManager internal constructor(
     private val storedStudentId: () -> String? = { null },
     /** The school session, which a refresh runs on. The default is one of its own, for tests not about it. */
     private val session: AccountSession = AccountSession(SignInSeries(), appScope),
+    private val accentChanges: Flow<Unit> = LiveUpdateSegments.accentChanges,
 ) {
     // The real entry point, which Hilt calls. The primary constructor takes
     // the sign-in state and the class reminder alarms as plain types, so
@@ -127,6 +128,8 @@ class LiveActivityManager internal constructor(
                 courseChangesUpdated.drop(1),
             ).collect { refresh() }
         }
+        // A new gradient for the Live Update redraws it quietly: nothing about the class changed.
+        scope.launch { accentChanges.collect { refresh(quiet = true) } }
     }
 
     /**

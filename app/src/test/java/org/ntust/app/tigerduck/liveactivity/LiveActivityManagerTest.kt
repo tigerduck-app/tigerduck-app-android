@@ -14,6 +14,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import okhttp3.OkHttpClient
+import android.app.Notification
+import android.app.NotificationManager
+import androidx.core.app.NotificationCompat
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.ui.AccentSetting
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -489,5 +494,67 @@ class LiveActivityManagerTest {
         awaitUntil { remindersOnThursday() == moved }
 
         assertEquals(moved, remindersOnThursday())
+    }
+
+    // Greptile on #713: the manager reads the accent only as it refreshes, so a switch flipped
+    // during a class left the old colors up until another refresh.
+
+    /** The real manager at 09:30 on Thursday, in class, with the Live Update on and sounding for a class. */
+    private fun inThursdayClass(): LiveActivityManager {
+        AppClock.setOverride(
+            ClockOverride(CourseChangeFixture.at("09:30").toEpochMilli(), frozen = false, savedAtRealMillis = System.currentTimeMillis())
+        )
+        liveUpdate.isEnabled = true
+        liveUpdate.soundInClass = true
+        runBlocking { dataCache.saveCourses(listOf(CourseChangeFixture.course()), testSignIn()) }
+        return LiveActivityManager(
+            preferences = liveUpdate,
+            notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),
+            dataCache = dataCache,
+            isSignedIn = {
+                signInStateReads++
+                signedIn
+            },
+            appPrefs = appPrefs,
+            classPreparingScheduler = alarms,
+            academicCalendar = calendar,
+            boundaryScheduler = LiveActivityBoundaryScheduler(context),
+            appScope = liveScope,
+            session = AccountSession(SignInSeries(demo = true), liveScope),
+        ).also { liveDispatcher.scheduler.advanceUntilIdle() }
+    }
+
+    private fun posted(): Notification? =
+        shadowOf(context.getSystemService(NotificationManager::class.java)).getNotification(LiveActivityNotifier.NOTIFICATION_ID)
+
+    @Test
+    fun `the Live Updates gradient switch flipped during a class redraws the Live Update once, quietly`() {
+        val setting = AccentSetting(appPrefs).apply {
+            pickAccent(requireNotNull(AccentGradient.of(listOf(0x007AFF, 0xAF52DE))))
+        }
+        inThursdayClass()
+
+        setting.gradientOnLiveActivities = true
+        awaitUntil { posted() != null }
+        liveDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, signInStateReads)
+        // Quiet: the in-class Live Update, which sounds when it first shows, does not.
+        assertEquals(NotificationCompat.GROUP_KEY_SILENT, posted()?.group)
+    }
+
+    @Test
+    fun `a switch that leaves the Live Update's accent alone redraws nothing`() {
+        val setting = AccentSetting(appPrefs).apply {
+            pickAccent(requireNotNull(AccentGradient.of(listOf(0x007AFF, 0xAF52DE))))
+        }
+        inThursdayClass()
+
+        setting.gradientOnWatch = true
+        setting.gradientOnWidgets = true
+        liveDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0, signInStateReads)
+        assertNull(posted())
     }
 }

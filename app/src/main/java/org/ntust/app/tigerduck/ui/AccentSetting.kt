@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.DeviceAccents
+import org.ntust.app.tigerduck.liveactivity.LiveUpdateSegments
 import org.ntust.app.tigerduck.shared.AccentGradient
 
 /**
@@ -16,12 +17,14 @@ import org.ntust.app.tigerduck.shared.AccentGradient
  *
  * A pick stores the accent and turns the wallpaper off; the wallpaper's pick leaves the accent as
  * it is, for the surfaces [AccentPolicy] keeps on it. [onWidgetsChange] hears each change to what
- * the widgets draw, its first stop or the gradient while theirs is on: they redraw only when
- * asked. Its own class because [AppState] needs a full Hilt graph, and this needs only the store.
+ * the widgets draw, its first stop or the gradient while theirs is on, and [onLiveUpdateChange]
+ * each change to the Live Update's gradient: both redraw only when asked. Its own class because
+ * [AppState] needs a full Hilt graph, and this needs only the store.
  */
 internal class AccentSetting(
     private val prefs: AppPreferences,
     private val onWidgetsChange: () -> Unit = {},
+    private val onLiveUpdateChange: () -> Unit = LiveUpdateSegments::accentChanged,
 ) {
     private var accentState by mutableStateOf(prefs.accent)
     private var followsWallpaperState by mutableStateOf(prefs.useWallpaperColors)
@@ -44,7 +47,7 @@ internal class AccentSetting(
 
     var gradientOnWidgets: Boolean
         get() = onWidgetsState
-        set(value) = changingWidgets {
+        set(value) = changing {
             onWidgetsState = value
             prefs.accentGradientOnWidgets = value
         }
@@ -58,7 +61,7 @@ internal class AccentSetting(
 
     var gradientOnLiveActivities: Boolean
         get() = onLiveActivitiesState
-        set(value) {
+        set(value) = changing {
             onLiveActivitiesState = value
             prefs.accentGradientOnLiveActivities = value
         }
@@ -84,7 +87,7 @@ internal class AccentSetting(
      * already holds it: a stored value that is no color reads as Blue, and picking Blue then writes
      * Blue over it, which an older build reads as it is.
      */
-    fun pickAccent(accent: AccentGradient) = changingWidgets {
+    fun pickAccent(accent: AccentGradient) = changing {
         leaveWallpaper()
         prefs.storeAccent(accent)
         accentState = prefs.accent
@@ -115,10 +118,13 @@ internal class AccentSetting(
     /** What the widgets draw: the first stop, and the gradient while theirs is on. */
     private fun widgetAccent() = accentState.first to deviceAccents.widgets
 
-    private fun changingWidgets(change: () -> Unit) {
-        val before = widgetAccent()
+    /** Runs [change], and tells the widgets and the Live Update if what each draws changed. */
+    private fun changing(change: () -> Unit) {
+        val widgets = widgetAccent()
+        val liveUpdate = deviceAccents.liveActivities
         change()
-        if (widgetAccent() != before) onWidgetsChange()
+        if (widgetAccent() != widgets) onWidgetsChange()
+        if (deviceAccents.liveActivities != liveUpdate) onLiveUpdateChange()
     }
 }
 
