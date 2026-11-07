@@ -121,7 +121,7 @@ class UnsentMarksChannelTest {
         val release = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             cache,
-            MarkWriter { _, status, _, _ ->
+            MarkWriter { _, status, _, _, _ ->
                 sent += status
                 if (sent.size > 1) throw PushApiException("HTTP 404", 404)
                 firstOut.complete(Unit)
@@ -160,7 +160,7 @@ class UnsentMarksChannelTest {
         val reply = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             cache,
-            MarkWriter { assignmentId, _, _, _ ->
+            MarkWriter { assignmentId, _, _, _, _ ->
                 sent += assignmentId
                 if (assignmentId == 7 && !out.isCompleted) {
                     out.complete(Unit)
@@ -344,7 +344,7 @@ class UnsentMarksChannelTest {
         val release = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             dataCache = cache,
-            writer = MarkWriter { _, status, _, _ ->
+            writer = MarkWriter { _, status, _, _, _ ->
                 sent += status
                 if (sent.size == 1) {
                     firstOut.complete(Unit)
@@ -385,7 +385,7 @@ class UnsentMarksChannelTest {
         val sent = mutableListOf<Int>()
         val marks = UnsentMarks(
             dataCache = cache,
-            writer = MarkWriter { id, _, _, _ ->
+            writer = MarkWriter { id, _, _, _, _ ->
                 sent += id
                 // The check opens while 7 is out.
                 sends = false
@@ -416,7 +416,7 @@ class UnsentMarksChannelTest {
         val release = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             dataCache = cache,
-            writer = MarkWriter { _, status, _, _ ->
+            writer = MarkWriter { _, status, _, _, _ ->
                 sent += status
                 if (sent.size == 1) {
                     firstOut.complete(Unit)
@@ -462,7 +462,7 @@ class UnsentMarksChannelTest {
         val release = CompletableDeferred<Unit>()
         val marks = UnsentMarks(
             dataCache = cache,
-            writer = MarkWriter { _, status, _, _ ->
+            writer = MarkWriter { _, status, _, _, _ ->
                 sent += status
                 if (sent.size > 1) throw java.io.IOException("offline")
                 firstOut.complete(Unit)
@@ -501,7 +501,7 @@ class UnsentMarksChannelTest {
         val ignoredAsTheNewerWent = mutableListOf<Set<String>>()
         val marks = UnsentMarks(
             dataCache = cache,
-            writer = MarkWriter { _, status, _, _ ->
+            writer = MarkWriter { _, status, _, _, _ ->
                 if (status == "ignored") {
                     firstOut.complete(Unit)
                     release.await()
@@ -598,7 +598,7 @@ class UnsentMarksChannelTest {
     fun `a v4 reply that crossed a sign-out puts nothing in the next student's marks`() = runTest {
         val marks = UnsentMarks(
             dataCache = cache,
-            writer = MarkWriter { _, _, _, _ ->
+            writer = MarkWriter { _, _, _, _, _ ->
                 // Signed out, the data wiped, and someone else signed in while the mark was out.
                 series.end()
                 cache.clearAllUserData()

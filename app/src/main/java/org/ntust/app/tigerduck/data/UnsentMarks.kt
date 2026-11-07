@@ -40,9 +40,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sends one assignment's mark, and says what the backend answered; see [PushApiClient.patchAssignmentOverrideAnswered]. */
+/**
+ * Sends one assignment's mark while [allowed], the queue's gate, asked again right before it goes,
+ * lets it, and says what the backend answered; see [PushApiClient.patchAssignmentOverrideAnswered].
+ */
 internal fun interface MarkWriter {
-    suspend fun write(assignmentId: Int, status: String, signIn: SignIn, madeAt: EditTime?): WriteAnswer
+    suspend fun write(assignmentId: Int, status: String, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean): WriteAnswer
 }
 
 /**
@@ -252,7 +255,7 @@ class UnsentMarks internal constructor(
         // An id no request can name goes nowhere, and is let go as it always was.
         val id = mark.assignmentId?.toIntOrNull() ?: return SendResult.Sent(null)
         val answer = try {
-            writer.write(id, status, signIn, mark.madeAt)
+            writer.write(id, status, signIn, mark.madeAt, sends)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

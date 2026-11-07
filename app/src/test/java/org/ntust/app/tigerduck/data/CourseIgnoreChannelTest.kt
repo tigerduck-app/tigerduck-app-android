@@ -104,7 +104,7 @@ class CourseIgnoreChannelTest {
         var sendsAsked = 0
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, ignore, _, _, _ ->
+            CourseIgnoreWriter { target, ignore, _, _, _, _ ->
                 sent += target.courseKey to ignore
                 if (ignore == null) {
                     fillOut.complete(Unit)
@@ -151,7 +151,7 @@ class CourseIgnoreChannelTest {
         var sendsAsked = 0
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, ignore, _, _, _ ->
+            CourseIgnoreWriter { target, ignore, _, _, _, _ ->
                 sent += target.courseKey to ignore
                 if (ignore == null) {
                     fillOut.complete(Unit)
@@ -194,7 +194,7 @@ class CourseIgnoreChannelTest {
         var held = false
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, ignore, _, _, _ ->
+            CourseIgnoreWriter { target, ignore, _, _, _, _ ->
                 sent += target.courseKey
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
@@ -222,7 +222,7 @@ class CourseIgnoreChannelTest {
         val stamps = mutableListOf<Long?>()
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, ignore, _, _, madeAt ->
+            CourseIgnoreWriter { _, ignore, _, _, madeAt, _ ->
                 stamps += madeAt?.wallMs
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))
             },
@@ -251,7 +251,7 @@ class CourseIgnoreChannelTest {
         var clockMs = 1_000L
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, ignore, _, _, _ ->
+            CourseIgnoreWriter { _, ignore, _, _, _, _ ->
                 sent += ignore
                 if (sent.size > 1) throw PushApiException("patchCourseIgnore failed: HTTP 422", 422)
                 firstOut.complete(Unit)
@@ -290,7 +290,7 @@ class CourseIgnoreChannelTest {
         var clockMs = 1_000L
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, ignore, _, _, _ ->
+            CourseIgnoreWriter { _, ignore, _, _, _, _ ->
                 sent += ignore
                 if (ignore == true) {
                     firstOut.complete(Unit)
@@ -434,7 +434,7 @@ class CourseIgnoreChannelTest {
         var effects = 0
         ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { target, _, _, pinned, _ ->
+            CourseIgnoreWriter { target, _, _, pinned, _, _ ->
                 sent += target.courseKey.orEmpty()
                 if (target.courseKey == "client:$term:AAA" && sent.size == 1) {
                     // AAA tapped off and on again while its PATCH is out, the second offline.
@@ -504,7 +504,7 @@ class CourseIgnoreChannelTest {
         val ack = AckClock()
         val ignores = CourseIgnoreSync(
             cache,
-            CourseIgnoreWriter { _, _, _, _, _ ->
+            CourseIgnoreWriter { _, _, _, _, _, _ ->
                 // The student signs out, and the next signs in and ignores the same course.
                 series.end()
                 cache.clearAllUserData()

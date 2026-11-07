@@ -41,9 +41,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 
-/** Sends a course's setting and numeric Moodle id with the answer; see `PushApiClient.patchCourseIgnoreAnswered`. */
+/**
+ * Sends a course's setting and numeric Moodle id with the answer, while [allowed], the queue's gate,
+ * asked again right before it goes, lets it; see `PushApiClient.patchCourseIgnoreAnswered`.
+ */
 internal fun interface CourseIgnoreWriter {
-    suspend fun write(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?): WriteAnswer
+    suspend fun write(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean): WriteAnswer
 }
 
 /**
@@ -282,7 +285,7 @@ internal class CourseIgnoreQueue(
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
                 if (!current || !sends()) return SendResult.NotSent
-                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt)
+                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt, sends)
             }
         } catch (e: CancellationException) {
             throw e
@@ -339,7 +342,7 @@ internal class CourseIgnoreQueue(
             sendMutex.withLock {
                 if (!signIn.isCurrent) return
                 try {
-                    writer.write(CourseRef(SyncField.courseKey(semester, courseNo)), null, numericId, signIn, null)
+                    writer.write(CourseRef(SyncField.courseKey(semester, courseNo)), null, numericId, signIn, null, sends)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

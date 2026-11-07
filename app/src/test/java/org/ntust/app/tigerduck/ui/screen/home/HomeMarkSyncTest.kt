@@ -58,7 +58,7 @@ class HomeMarkSyncTest {
         // Sending as with TigerSync on, which the fdroid build never is.
         unsent = UnsentMarks(
             cache,
-            MarkWriter { id, status, _, _ ->
+            MarkWriter { id, status, _, _, _ ->
                 send(id, status)
                 TOOK
             },

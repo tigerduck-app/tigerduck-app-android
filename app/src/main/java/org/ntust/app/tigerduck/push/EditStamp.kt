@@ -42,6 +42,10 @@ internal fun Map<String, Any>.stampedWith(stamp: EditStamp): Map<String, Any> = 
  * - The writes of one key go one at a time, from the floors read to the floors written, a screen's
  *   and a lane's alike; writes of other keys go at once. In memory: the writes that race are this
  *   process's.
+ * - A write's gate, its switches and its caller's own (a re-enable check that holds the kind), is
+ *   asked again once the lock is had, right before the age is read: one that waited behind another
+ *   write of its key while the gate closed goes nowhere and starts no span, and its edit stays
+ *   queued, as when the gate was closed before.
  *
  * No write replays itself after a 401: the sync signs in again and sends anew, a span of its own.
  */
@@ -56,31 +60,40 @@ internal class FieldAges(private val clocks: DeviceClocks, private val floors: (
 
     /**
      * Sends an edit of [fields] made at [madeAt] (its own time, never its floor) under [signIn] as
-     * `/v4` takes it: [call] builds the request with the edit's stamp, read as it is built, so a
-     * request built again sends a grown age; 0 for an edit made now (null), `hlc: 0` for the oldest.
-     * Sent once: a 409 is the answer [handle] reads. A 2xx answer ends the write's span, but the
-     * oldest's, whose `hlc: 0` never lands after a later edit. Run off the main thread, as the floors
-     * are written before this returns.
+     * `/v4` takes it, while [allowed], asked once the key's lock is had, says it may go: null, and
+     * nothing sent, when it does not. [call] builds the request with the edit's stamp, read as it is
+     * built, so a request built again sends a grown age; 0 for an edit made now (null), `hlc: 0` for
+     * the oldest. Sent once: a 409 is the answer [handle] reads. A 2xx answer ends the write's span,
+     * but the oldest's, whose `hlc: 0` never lands after a later edit. Run off the main thread, as the
+     * floors are written before this returns.
      */
     suspend fun <T : Any> send(
-        fields: Collection<String>, madeAt: EditTime?, signIn: SignIn, call: (EditStamp) -> Call, handle: (Response) -> T,
-    ): T = sendEach(fields, listOfNotNull(madeAt), spans = madeAt?.isOldest != true, signIn, { stampOf -> call(stampOf(madeAt)) }, handle)
+        fields: Collection<String>,
+        madeAt: EditTime?,
+        signIn: SignIn,
+        allowed: () -> Boolean,
+        call: (EditStamp) -> Call,
+        handle: (Response) -> T,
+    ): T? = sendEach(fields, listOfNotNull(madeAt), spans = madeAt?.isOldest != true, signIn, allowed, { stampOf -> call(stampOf(madeAt)) }, handle)
 
     /**
      * [send] for a write of several edits of [fields], made at [madeAts], each stamped by [call] with
      * the stamping it is handed, read at the span's start. Its 2xx answer ends a span of each key
-     * when [spans].
+     * when [spans]. Null, and nothing sent, when [allowed] says no once the lock is had.
      */
     suspend fun <T : Any> sendEach(
         fields: Collection<String>,
         madeAts: Collection<EditTime>,
         spans: Boolean,
         signIn: SignIn,
+        allowed: () -> Boolean,
         call: ((EditTime?) -> EditStamp) -> Call,
         handle: (Response) -> T,
-    ): T {
+    ): T? {
         val keys = fields.map(SyncField::spanKey).distinct().sorted()
         return holding(keys) {
+            // Asked again: the gate may have closed while this waited behind another write of its key.
+            if (!allowed() || !signIn.isCurrent) return@holding null
             // Each edit's floor as its queue keeps it now, read under the lock, after every span of its key ended.
             val kept = madeAts.filterNot { it.isOldest }.distinct().associateWith { madeAt ->
                 keys.mapNotNull { key -> floors()?.floorOf(key, madeAt, signIn) }.latest()

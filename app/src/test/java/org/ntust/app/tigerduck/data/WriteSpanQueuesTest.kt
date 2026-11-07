@@ -415,4 +415,43 @@ class WriteSpanQueuesTest {
         assertEquals("/v4/sync/courses/upload", backend.sent.last().url.substringAfter("127.0.0.1:9"))
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
+
+    @Test
+    fun `a color waiting behind its term's write goes nowhere once its switch was turned off and on, and stays queued`() = runTest {
+        val overrides = PendingCourseOverrides(cache, client, prefs, clocks = clocks, scope = backgroundScope).also { channels = setOf(it) }
+        val held = backend.holdNext()
+        val hide = backgroundScope.launch { client.deleteCourseAnswered("client:$term:XX1", signIn, hiddenAt = null) }
+        held.out.await()
+        val picked = backgroundScope.launch { overrides.send("M1", colorHex = "#00FF00", semester = term, courseNo = "CS1", signIn = signIn) }
+        // Its gate passed; it waits for the term's lock the hide holds.
+        withContext(Dispatchers.Default) { delay(200) }
+        prefs.syncCourseColors = false
+        prefs.syncCourseColors = true
+        assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_colors"), signIn))
+        held.release()
+        hide.join()
+        picked.join()
+
+        assertEquals("no PATCH before the student answers", listOf("DELETE"), backend.sent.map { it.method })
+        assertEquals(listOf("#00FF00"), cache.loadPendingCourseOverrides().map { it.colorHex })
+    }
+
+    @Test
+    fun `a mark waiting behind a write of it goes nowhere once the assignments check holds it, and stays queued`() = runTest {
+        val marks = UnsentMarks(cache, client, prefs, clocks = clocks, scope = backgroundScope).also { channels = setOf(it) }
+        val held = backend.holdNext()
+        val useLocal = backgroundScope.launch { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null) }
+        held.out.await()
+        val tapped = backgroundScope.launch { marks.send("7", "none", signIn) }
+        withContext(Dispatchers.Default) { delay(200) }
+        prefs.syncAssignments = false
+        prefs.syncAssignments = true
+        assertTrue(prefs.school.pendingConflictCategories.set(setOf("assignments"), signIn))
+        held.release()
+        useLocal.join()
+        tapped.join()
+
+        assertEquals("the held write alone", 1, backend.sent.size)
+        assertEquals(listOf("none"), cache.loadUnsentMarks().map { it.status })
+    }
 }

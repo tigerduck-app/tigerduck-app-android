@@ -219,9 +219,14 @@ class PushApiClient @Inject constructor(
         }
     }
 
-    /** One assignment's mark, with the backend's answer; see [OverrideRequests.patchMark]. */
-    suspend fun patchAssignmentOverrideAnswered(assignmentId: Int, localStatus: String, signIn: SignIn, madeAt: EditTime?): WriteAnswer =
-        overrides.patchMark(assignmentId, localStatus, signIn, madeAt)
+    /**
+     * One assignment's mark, with the backend's answer, while [allowed], its caller's gate (a queue's
+     * re-enable check), lets it go; see [OverrideRequests.patchMark]. Use Local's own marks, which
+     * resolve that check, have no gate but the switch.
+     */
+    suspend fun patchAssignmentOverrideAnswered(
+        assignmentId: Int, localStatus: String, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean = { true },
+    ): WriteAnswer = overrides.patchMark(assignmentId, localStatus, signIn, madeAt, allowed)
 
     /** One course's color, or its name in [locale], with the backend's answer; see [OverrideRequests.patchCourse]. */
     suspend fun patchCourseOverrideAnswered(
@@ -229,9 +234,10 @@ class PushApiClient @Inject constructor(
         allowed: () -> Boolean = { true }, madeAt: EditTime? = null,
     ): WriteAnswer = overrides.patchCourse(target, signIn, colorHex, customName, locale, allowed, madeAt)
 
-    /** Whether a course's assignments are ignored, with the backend's answer; see [OverrideRequests.patchIgnore]. */
-    suspend fun patchCourseIgnoreAnswered(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?): WriteAnswer =
-        overrides.patchIgnore(target, ignore, moodleCourseId, signIn, madeAt)
+    /** Whether a course's assignments are ignored, with the backend's answer, while [allowed] lets it go; see [OverrideRequests.patchIgnore]. */
+    suspend fun patchCourseIgnoreAnswered(
+        target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAt: EditTime?, allowed: () -> Boolean = { true },
+    ): WriteAnswer = overrides.patchIgnore(target, ignore, moodleCourseId, signIn, madeAt, allowed)
 
     private val assignmentUploads = UploadLedger(
         store = object : UploadLedgerStore {

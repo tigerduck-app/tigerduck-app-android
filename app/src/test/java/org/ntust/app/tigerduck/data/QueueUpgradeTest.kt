@@ -115,7 +115,7 @@ class QueueUpgradeTest {
         val sent = mutableListOf<Triple<Int, String, Long?>>()
         val marks = UnsentMarks(
             cache,
-            writer = { id, status, _, madeAt ->
+            writer = { id, status, _, madeAt, _ ->
                 assertEquals(null, madeAt?.elapsedMs)
                 sent += Triple(id, status, madeAt?.wallMs)
                 TOOK
@@ -135,7 +135,7 @@ class QueueUpgradeTest {
         val sent = mutableListOf<List<Any?>>()
         val ignores = CourseIgnoreSync(
             cache,
-            writer = { target, ignore, moodleCourseId, _, madeAt ->
+            writer = { target, ignore, moodleCourseId, _, madeAt, _ ->
                 assertEquals(null, madeAt?.elapsedMs)
                 sent += listOf(target.courseKey, ignore, moodleCourseId, madeAt?.wallMs)
                 WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to ignore))

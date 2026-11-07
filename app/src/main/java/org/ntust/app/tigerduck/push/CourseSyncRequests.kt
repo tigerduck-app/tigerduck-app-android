@@ -134,29 +134,38 @@ internal class CourseSyncRequests(
         val roster = if (semester in rosterTerms) sent.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
         var landed = false
-        courseUploads(semester).sendIfDue(
-            fingerprint = courseUploadFingerprint(base, sent, semester, rosterTerms),
-            // The pair in one step, so a sign-out's clear cannot fall between
-            // the check and the record; see UploadLedger.sendIfDue.
-            record = { fingerprint, atMs ->
-                signIn.ifCurrent {
-                    prefs.recordCoursesUpload(semester, fingerprint, atMs)
-                    prefs.recordCoursesUploadRoster(semester, roster)
-                }
-            },
-            always = resend || forceKeys.isNotEmpty(),
-            signIn = signIn,
-        ) {
-            // Through uploadCall, with its deadline for the whole call.
-            val service = uploads.at(base)
-            val header = authHeader(signIn)
-            val adds = CourseUploadPayload.handAdds(sent, semester, forceKeys, addedAt)
-            // A span when an add went with an age; the oldest's `hlc: 0` never lands after a later edit.
-            val fields = adds.keys.map(SyncField::membership)
-            accepted = ages.sendEach(fields, adds.values, spans = adds.values.any { !it.isOldest }, signIn, { stampOf ->
-                service.coursesUpload(header, body(sent, semester, rosterTerms, adds.mapValues { (_, madeAt) -> stampOf(madeAt) }))
-            }, ::answered)
-            landed = true
+        try {
+            courseUploads(semester).sendIfDue(
+                fingerprint = courseUploadFingerprint(base, sent, semester, rosterTerms),
+                // The pair in one step, so a sign-out's clear cannot fall between
+                // the check and the record; see UploadLedger.sendIfDue.
+                record = { fingerprint, atMs ->
+                    signIn.ifCurrent {
+                        prefs.recordCoursesUpload(semester, fingerprint, atMs)
+                        prefs.recordCoursesUploadRoster(semester, roster)
+                    }
+                },
+                always = resend || forceKeys.isNotEmpty(),
+                signIn = signIn,
+            ) {
+                // Through uploadCall, with its deadline for the whole call.
+                val service = uploads.at(base)
+                val header = authHeader(signIn)
+                val adds = CourseUploadPayload.handAdds(sent, semester, forceKeys, addedAt)
+                // A span when an add went with an age; the oldest's `hlc: 0` never lands after a later edit.
+                val fields = adds.keys.map(SyncField::membership)
+                val timed = adds.values.any { !it.isOldest }
+                // Course sync is the upload's gate: the list's re-enable check holds nothing it sends.
+                val gate = { policies.current.uploadsCourses }
+                accepted = ages.sendEach(fields, adds.values, timed, signIn, gate, { stampOf ->
+                    service.coursesUpload(header, body(sent, semester, rosterTerms, adds.mapValues { (_, madeAt) -> stampOf(madeAt) }))
+                }, ::answered) ?: throw GateClosed()
+                landed = true
+            }
+        } catch (e: GateClosed) {
+            // Course sync went off while the upload waited behind another write of its term:
+            // nothing went, and the ledger recorded nothing.
+            return@withContext null
         }
         if (landed) tell(semester, sent, accepted, signIn)
         accepted
@@ -238,11 +247,11 @@ internal class CourseSyncRequests(
             // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
             // since on another device, and a retry after a lost reply lands on about the same stamp.
             ages.send(
-                listOf(SyncField.membership(courseKey)), hiddenAt, signIn,
+                listOf(SyncField.membership(courseKey)), hiddenAt, signIn, { policies.current.uploadsCourses },
                 { service.removeCourse(header, courseKey, EmptyBody, it.ageMs, it.hlc, kind?.wire) },
             ) {
                 answerOf(it, "deleteCourse", WriteAnswer.MEMBERSHIP)
-            }
+            } ?: WriteAnswer.NOT_SENT
         }
 
     /**
@@ -264,18 +273,24 @@ internal class CourseSyncRequests(
             val term = semester?.let { java.net.URLEncoder.encode(it, "UTF-8") }
             val reset: suspend () -> WriteAnswer = {
                 val fields = listOfNotNull(semester?.let(SyncField::termReset))
-                ages.send(fields, resetAt, signIn, { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) }) {
+                val answer = ages.send(
+                    fields, resetAt, signIn, { policies.current.uploadsCourses },
+                    { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) },
+                ) {
                     answerOf(it, "deleteAllCourses", WriteAnswer.RESET)
-                }
-                    // The upload after the reset, usually the list sent before it,
-                    // releases the reset's tombstones: it has to go.
-                    .also { prefs.forgetCourseUploads(semester) }
+                } ?: WriteAnswer.NOT_SENT
+                // The upload after the reset, usually the list sent before it,
+                // releases the reset's tombstones: it has to go.
+                answer.also { if (it.sent) prefs.forgetCourseUploads(semester) }
             }
             // Under the term's upload ledger, so no upload is out across the
             // reset; see UploadLedger.holdingUploads. Nothing resets every term
             // today, and that path holds no ledger.
             if (semester != null) courseUploads(semester).holdingUploads(reset) else reset()
         }
+
+    // An upload whose gate closed while it waited for its term's lock: thrown so the ledger records nothing.
+    private class GateClosed : Exception()
 
     private companion object {
         // How many of the courses sent an upload's answer left out as tombstoned.
