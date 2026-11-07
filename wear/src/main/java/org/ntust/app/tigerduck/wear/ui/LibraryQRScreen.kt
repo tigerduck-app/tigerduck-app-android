@@ -73,7 +73,7 @@ import org.ntust.app.tigerduck.wear.data.WatchLibraryServiceHolder
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentGradient
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
-import org.ntust.app.tigerduck.wear.ui.theme.WearAccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.wear.ui.theme.accentBrush
 import kotlin.math.abs
 
@@ -402,7 +402,7 @@ private fun CountdownRow(countdown: Int) {
 internal fun DrawScope.drawCountdownRing(
     progress: Float,
     accent: Color,
-    gradient: WearAccentGradient?,
+    gradient: AccentGradient?,
     strokePx: Float,
 ) {
     val brush = accentBrush(accent, gradient, Rect(Offset.Zero, size))

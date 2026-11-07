@@ -16,10 +16,11 @@ fun opaque(rgb: Int): Int = rgb or 0xFF000000.toInt()
  * angular fill comes round to its first stop again, as the iPhone's does.
  */
 fun AccentGradient.rampColors(tone: (Int) -> Int = ::opaque, samples: Int = 0): List<Int> {
-    val toned = stops.map(tone)
-    val run = if (style == AccentGradientStyle.Angular) toned + toned[0] else toned
-    if (samples < 2) return if (run.size < 2) run + run else run
-    return List(samples) { mix(run, it / (samples - 1f)) }
+    val raw = stops.map(::opaque)
+    val run = if (style == AccentGradientStyle.Angular) raw + raw[0] else raw
+    // Each point mixed first and then toned, so a tone that lifts a color lifts every point.
+    if (samples < 2) return (if (run.size < 2) run + run else run).map { tone(it and 0xFFFFFF) }
+    return List(samples) { tone(mix(run, it / (samples - 1f)) and 0xFFFFFF) }
 }
 
 /** The 3 by 3 mesh's colors ([AccentGradient.meshColors]) as [tone] draws them. */

@@ -4,10 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -16,48 +18,36 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentShader
 import org.ntust.app.tigerduck.shared.Course
 
 val LocalAccentColor = staticCompositionLocalOf { Color(0xFF007AFF) }
 
 /**
- * The rest of the phone's accent gradient, or null while the phone picks a
- * single color: [LocalAccentColor] is its start. Draw the accent with
- * [accentBrush], which reads both.
+ * The phone's accent gradient, each stop as the watch draws it, or null while the phone picks a
+ * single color or keeps its watch switch off: [LocalAccentColor] is then the accent, and also the
+ * gradient's first stop. Draw the accent with [accentBrush] or [accentFill], which read both.
  */
-val LocalAccentGradient = staticCompositionLocalOf<WearAccentGradient?> { null }
+val LocalAccentGradient = staticCompositionLocalOf<AccentGradient?> { null }
 
-/** The end color of the phone's accent gradient and the way it runs from [LocalAccentColor]. */
+/**
+ * What a mark of the accent within [bounds] paints with: [start] alone, or [gradient] laid across
+ * [bounds] in its style, on the screen's own sides, as the phone draws it ([AccentShader]).
+ */
+fun accentBrush(start: Color, gradient: AccentGradient?, bounds: Rect): Brush =
+    if (gradient == null || !gradient.isGradient) SolidColor(start) else AccentMarkBrush(gradient, bounds)
+
+/** [gradient] over [bounds], whatever the size of what it fills, equal to another of the same. */
 @Immutable
-data class WearAccentGradient(val end: Color, val direction: AccentGradientDirection)
+private class AccentMarkBrush(val gradient: AccentGradient, val bounds: Rect) : ShaderBrush() {
+    override fun createShader(size: Size): Shader =
+        AccentShader.create(gradient, bounds.left, bounds.top, bounds.width, bounds.height)
 
-/**
- * The gradient a snapshot carries, or null for a single color or an end that
- * is no color. An end with no direction runs the way a gradient picked before
- * any direction was runs on the phone.
- */
-fun wearAccentGradient(endHex: String?, direction: AccentGradientDirection?): WearAccentGradient? {
-    // parseColor throws an IllegalArgumentException for a name it does not
-    // know, and an IndexOutOfBoundsException for "".
-    val end = endHex?.let { hex -> runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull() }
-        ?: return null
-    return WearAccentGradient(end, direction ?: AccentGradientDirection.DEFAULT)
-}
+    override fun equals(other: Any?): Boolean =
+        other is AccentMarkBrush && other.gradient == gradient && other.bounds == bounds
 
-/**
- * What a mark of the accent within [bounds] paints with: [start] alone, or
- * the gradient from it laid across [bounds] in [gradient]'s direction, on
- * the screen's own sides, as the phone draws it.
- */
-fun accentBrush(start: Color, gradient: WearAccentGradient?, bounds: Rect): Brush {
-    gradient ?: return SolidColor(start)
-    val direction = gradient.direction
-    return Brush.linearGradient(
-        colors = listOf(start, gradient.end),
-        start = Offset(bounds.left + direction.startX * bounds.width, bounds.top + direction.startY * bounds.height),
-        end = Offset(bounds.left + direction.endX * bounds.width, bounds.top + direction.endY * bounds.height),
-    )
+    override fun hashCode(): Int = gradient.hashCode() * 31 + bounds.hashCode()
 }
 
 /**
@@ -125,7 +115,7 @@ fun parseAccent(hex: String): Color = try {
 @Composable
 fun WearTheme(
     accent: Color,
-    accentGradient: WearAccentGradient?,
+    accentGradient: AccentGradient?,
     paddingDp: Int,
     content: @Composable () -> Unit,
 ) {

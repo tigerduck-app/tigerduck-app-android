@@ -15,7 +15,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
-import org.ntust.app.tigerduck.wear.ui.theme.WearAccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 
@@ -30,7 +31,9 @@ import org.robolectric.annotation.GraphicsMode
 class AccentMarksDrawingTest {
 
     private val red = Color(0xFFFF0000)
-    private val blue = Color(0xFF0000FF)
+    private val redToBlue = requireNotNull(
+        AccentGradient.of(listOf(0xFF0000, 0x0000FF), AccentGradientStyle.Linear, AccentGradientDirection.LeftToRight),
+    )
 
     private fun render(width: Int, height: Int, draw: DrawScope.() -> Unit): Bitmap {
         val image = ImageBitmap(width, height)
@@ -52,7 +55,7 @@ class AccentMarksDrawingTest {
     @Test
     fun `the countdown ring runs from the start on its left to the end on its right`() {
         val ring = render(100, 100) {
-            drawCountdownRing(1f, red, WearAccentGradient(blue, AccentGradientDirection.LeftToRight), strokePx = 10f)
+            drawCountdownRing(1f, red, redToBlue, strokePx = 10f)
         }
         assertTrue(ring.towardBlue(2, 50) < 0.15f)
         assertTrue(ring.towardBlue(97, 50) > 0.85f)
@@ -70,7 +73,7 @@ class AccentMarksDrawingTest {
     @Test
     fun `a quarter of the countdown is drawn solid over a faint track`() {
         val ring = render(100, 100) {
-            drawCountdownRing(0.25f, red, WearAccentGradient(blue, AccentGradientDirection.LeftToRight), strokePx = 10f)
+            drawCountdownRing(0.25f, red, redToBlue, strokePx = 10f)
         }
         // Up and to the right, on the arc.
         assertEquals(1f, ring.alpha(84, 16), 0.05f)

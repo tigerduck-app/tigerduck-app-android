@@ -18,7 +18,8 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentGradient
-import org.ntust.app.tigerduck.wear.ui.theme.WearAccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 
@@ -35,7 +36,7 @@ class AccentButtonTest {
         rule.setContent {
             CompositionLocalProvider(
                 LocalAccentColor provides Color(0xFFFF3B30),
-                LocalAccentGradient provides WearAccentGradient(Color(0xFF34C8FF), AccentGradientDirection.LeftToRight),
+                LocalAccentGradient provides AccentGradient.of(listOf(0xFF3B30, 0x34C8FF), AccentGradientStyle.Linear, AccentGradientDirection.LeftToRight),
             ) {
                 MaterialTheme { AccentButton(text = "", onClick = {}, modifier = Modifier.size(200.dp, 52.dp).testTag("button")) }
             }

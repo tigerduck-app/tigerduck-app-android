@@ -37,6 +37,14 @@ class AccentColorsTest {
         assertEquals(opaque(0x808080), ramp[4])
     }
 
+    // The watch lifts each point to read on black: a point mixed from two lifted stops is not lifted.
+    @Test
+    fun `sampled, each point is mixed first and toned after`() {
+        val grayToRed = { rgb: Int -> if (rgb == 0x808080) red else opaque(rgb) }
+
+        assertEquals(listOf(black, red, white), gradient(0x000000, 0xFFFFFF).rampColors(grayToRed, samples = 3))
+    }
+
     @Test
     fun `mixing goes straight between neighbors, in sRGB`() {
         val three = listOf(black, white, black)

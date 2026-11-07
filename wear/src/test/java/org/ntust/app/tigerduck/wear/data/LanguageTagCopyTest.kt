@@ -22,7 +22,7 @@ class LanguageTagCopyTest {
 
     private fun snapshotSays(tag: String) = runBlocking {
         persistence.write(
-            coursesGzipped = gzip("[]"), accentHex = "#112233", accentEndHex = null, accentDirectionCode = null,
+            coursesGzipped = gzip("[]"), accentHex = "#112233", accentGradient = null,
             syncedAtMs = 1L, loggedIn = true, languageTag = tag, disableScreenCaptureProtection = false, quietDays = null,
             visualPreset = null, courseChanges = null,
         )

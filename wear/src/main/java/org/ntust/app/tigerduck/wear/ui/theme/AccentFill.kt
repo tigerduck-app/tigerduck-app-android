@@ -1,44 +1,67 @@
 package org.ntust.app.tigerduck.wear.ui.theme
 
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientStyle
+import org.ntust.app.tigerduck.shared.AccentShader
+import org.ntust.app.tigerduck.shared.meshTones
+import org.ntust.app.tigerduck.shared.opaque
+import org.ntust.app.tigerduck.shared.rampColors
 
 /** What the watch's padding buttons and bars fill with, and the text on it. */
 class AccentFill(val brush: Brush, val text: Color)
 
 /**
- * The phone's [accent] as a fill, or with a [gradient] picked, the gradient laid
- * across the fill in its direction, as [accentBrush] lays it across a mark.
+ * The phone's [accent] as a fill, or with a [gradient] sent, the gradient laid across the fill in
+ * its style, as [accentBrush] lays it across a mark.
  *
- * Every part is lifted until it reads on the watch's black ([readableOnBlack]):
- * a single color as it is, a gradient at stops along it, both ends among them,
- * since two ends that read can mix in sRGB to a middle that doesn't. The text
- * is black or white, whichever reads better where it reads worst.
+ * Every part is lifted until it reads on the watch's black ([readableOnBlack]): a single color as
+ * it is, a gradient at points along it, every stop among them, since two colors that read can mix
+ * in sRGB to a middle that doesn't, and a mesh at each of its nine colors. The text is black or
+ * white, whichever reads better where it reads worst.
  */
-fun accentFill(accent: Color, gradient: WearAccentGradient?): AccentFill {
-    if (gradient == null) {
+fun accentFill(accent: Color, gradient: AccentGradient?): AccentFill {
+    if (gradient == null || !gradient.isGradient) {
         val color = readableOnBlack(accent)
         return AccentFill(SolidColor(color), textOn(color))
     }
-    val stops = List(GRADIENT_STOPS) { readableOnBlack(lerp(accent, gradient.end, it / (GRADIENT_STOPS - 1f))) }
-    val direction = gradient.direction
-    val brush = object : ShaderBrush() {
-        override fun createShader(size: Size): Shader = LinearGradientShader(
-            from = Offset(direction.startX * size.width, direction.startY * size.height),
-            to = Offset(direction.endX * size.width, direction.endY * size.height),
-            colors = stops,
-        )
-    }
-    val text = listOf(Color.Black, Color.White).maxBy { candidate -> stops.minOf { contrast(candidate, it) } }
-    return AccentFill(brush, text)
+    val colors = if (gradient.style == AccentGradientStyle.Mesh && AccentShader.drawsMesh()) {
+        gradient.meshTones(::lifted)
+    } else {
+        gradient.rampColors(::lifted, samples = points(gradient))
+    }.map { Color(it) }
+    val text = listOf(Color.Black, Color.White).maxBy { candidate -> colors.minOf { contrast(candidate, it) } }
+    return AccentFill(LiftedBrush(gradient), text)
 }
 
-/** Enough stops that a gradient made readable at each stays readable between them. */
-private const val GRADIENT_STOPS = 9
+private fun lifted(rgb: Int): Int = readableOnBlack(Color(opaque(rgb))).toArgb()
+
+/** [gradient] lifted to read on black, laid over whatever it fills. */
+@Immutable
+private class LiftedBrush(val gradient: AccentGradient) : ShaderBrush() {
+    override fun createShader(size: Size): Shader =
+        AccentShader.create(gradient, 0f, 0f, size.width, size.height, tone = ::lifted, samples = points(gradient))
+
+    override fun equals(other: Any?): Boolean = other is LiftedBrush && other.gradient == gradient
+
+    override fun hashCode(): Int = gradient.hashCode()
+}
+
+/**
+ * Enough points along [gradient] that, made readable at each, it stays readable between them: eight
+ * to each run from one stop to the next, so every stop is one of them. An angular gradient runs on
+ * from its last stop back to its first.
+ */
+private fun points(gradient: AccentGradient): Int {
+    val runs = if (gradient.style == AccentGradientStyle.Angular) gradient.stops.size else gradient.stops.size - 1
+    return runs * POINTS_PER_RUN + 1
+}
+
+private const val POINTS_PER_RUN = 8

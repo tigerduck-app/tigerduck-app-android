@@ -10,6 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.WearProtocol
 
 class DataLayerListener : WearableListenerService() {
@@ -61,7 +63,7 @@ class DataLayerListener : WearableListenerService() {
         val courseChanges: String? = map.getString(WearProtocol.Schedule.KEY_COURSE_CHANGES)
         try {
             SchedulePersistenceHolder.get(this@DataLayerListener).write(
-                courses, accent, gradient?.first, gradient?.second, syncedAt, loggedIn, language,
+                courses, accent, gradient, syncedAt, loggedIn, language,
                 disableScreenCaptureProtection, quietDays, visualPreset, courseChanges,
             )
         } catch (e: Exception) {
@@ -128,17 +130,28 @@ internal fun notifyTileAndComplication(context: android.content.Context) {
 }
 
 /**
- * The end of the accent gradient a schedule payload carries, with its
- * direction's code: null for a single color, and from a phone that predates
- * them. A direction comes only with an end.
+ * The accent gradient a schedule payload carries, or null for a single color: the gradient's JSON
+ * ([WearProtocol.Schedule.KEY_ACCENT_GRADIENT]), which reads as none when it is damaged, of another
+ * type, or from a newer build with a style this one does not know. A phone of the release before
+ * sends an end and a direction instead, which read as two stops of a linear gradient from the
+ * accent, running from the top left without a direction.
  */
-internal fun accentGradientOf(map: DataMap): Pair<String, Int?>? {
-    val end = map.getString(WearProtocol.Schedule.KEY_ACCENT_END) ?: return null
+internal fun accentGradientOf(map: DataMap): AccentGradient? {
+    if (map.containsKey(WearProtocol.Schedule.KEY_ACCENT_GRADIENT)) {
+        // getString answers null for a value of another type, as Bundle does.
+        return AccentGradient.decode(map.getString(WearProtocol.Schedule.KEY_ACCENT_GRADIENT))
+    }
+    val start = rgbOf(map.getString(WearProtocol.Schedule.KEY_ACCENT)) ?: return null
+    val end = rgbOf(map.getString(WearProtocol.Schedule.KEY_ACCENT_END)) ?: return null
     // DataMap.getInt answers 0, a direction of its own, for a key it lacks.
     val direction = if (map.containsKey(WearProtocol.Schedule.KEY_ACCENT_DIRECTION)) {
         map.getInt(WearProtocol.Schedule.KEY_ACCENT_DIRECTION)
     } else {
-        null
+        AccentGradientDirection.DEFAULT.code
     }
-    return end to direction
+    return AccentGradient.legacy(start, end, direction)
 }
+
+/** The RGB of a `#RRGGBB` the phone sends, or null for anything else. */
+internal fun rgbOf(hex: String?): Int? =
+    hex?.takeIf { it.length == 7 && it.startsWith("#") }?.drop(1)?.toIntOrNull(16)
