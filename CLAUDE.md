@@ -201,15 +201,18 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   edit with its arrival less its age, so no code compares a device time with a server
   time. The oldest value (`EditTime.OLDEST`, LWW D13) has no age: `DeviceClocks.stampOf`
   makes it `EditStamp.Oldest`, the one place it turns into `hlc: 0`, which loses to every
-  stored stamp. `AnswerArrivals` (`sync/outbox/`) holds the per-key rule: an edit made
-  while an earlier send of its field was out counts its age from that answer's arrival,
-  which the client keeps, on disk, before the write returns, and reads around every write
-  of a synced field, a lane's or a screen's, by the field the write names
-  (`FieldAges`, `push/EditStamp.kt`), one write of a field at a time, and a course's
-  membership after its term's reset (`SyncField.termReset`). A queue that orders its
-  edits past the clock keeps that order apart from the time (`CourseMoment`): no edit's
-  time is ahead of the clock that read it. `EditAgeTest`, `OldestWritesTest`, `AnswerArrivalsTest` and
-  `AnswerArrivalWritesTest` pin them.
+  stored stamp. `FieldAges` (`push/EditStamp.kt`) holds the per-key rule, as the iPhone's
+  (tigerduck-app#1008), around every write of a synced field, a lane's or a screen's: a
+  write's span runs from its first age reading, the token in hand, to its 2xx answer, and
+  an edit ages from the latest end among the spans of its key that went out at or before it
+  was made; one made before a span went out keeps its own age. A key (`SyncField.spanKey`)
+  is an assignment's, a holiday's, or a term's, which every course write of the term and its
+  reset share; its writes go one at a time. As a span ends, every queued edit of its key made
+  since it went out keeps that end as its floor, on disk (`EditFloors`, `EditClocks.floor`,
+  the holidays' times), parked or not, and only while the span's sign-in stands. A queue that
+  orders its edits past the clock keeps that order apart from the time (`CourseMoment`): no
+  edit's time is ahead of the clock that read it. `EditAgeTest`, `OldestWritesTest`,
+  `WriteSpansTest` and `WriteSpanQueuesTest` pin them.
 - `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
   backend whatever its version segment says; and the backend's error code, read once
