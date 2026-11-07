@@ -58,7 +58,8 @@ internal class CourseAddSends(
     /** The lane's send of [add]: the request it is the first of, or nothing more. */
     suspend fun sendRequested(add: CourseAdd, signIn: SignIn): SendResult {
         val asked = request.getAndSet(null) ?: return SendResult.NotSent
-        return uploadAsked(asked, signIn)[add] ?: SendResult.NotSent
+        // By the add, whatever floor it rose to since the lane read it.
+        return uploadAsked(asked, signIn).entries.firstOrNull { it.key.isSameEdit(add) }?.value ?: SendResult.NotSent
     }
 
     /**
@@ -93,7 +94,7 @@ internal class CourseAddSends(
         done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.ack.acknowledged(add.field, it, signIn) } }
         // Only an add still as it was sent: one added again meanwhile has a newer moment, which
         // this answer, to the older add, does not settle.
-        if (done.isNotEmpty()) settle(signIn) { adds -> adds.filterNot { it in done } }
+        if (done.isNotEmpty()) settle(signIn) { adds -> adds.filterNot { add -> done.any(add::isSameEdit) } }
         return results
     }
 
@@ -119,7 +120,7 @@ internal class CourseAddSends(
     // ([CourseAdd.momentAt]), as the body always listed them.
     private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
-        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.agedFrom?.let { add.courseNo to it } }.toMap()
+        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.addedAt?.let { add.courseNo to it } }.toMap()
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
@@ -212,7 +213,7 @@ internal class CourseDeleteSends(
             // hide queued offline loses to an add made since on another device, and a retry after a
             // lost reply lands on about the same stamp (#591).
             val kind = kindOf(delete)
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.agedFrom, kind)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.madeAt, kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

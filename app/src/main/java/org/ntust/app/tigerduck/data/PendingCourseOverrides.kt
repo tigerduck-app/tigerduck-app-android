@@ -263,8 +263,15 @@ class PendingCourseOverrides internal constructor(
      * build kept by Moodle id alone by the term its send goes to ([CourseOverrideSends.placeFor]).
      */
     override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        lane.raiseFloors(key, start, end, signIn, termOf())
+    }
+
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt, termOf())
+
+    // Each change's term's key: by its term, or, for a row an older build kept by Moodle id alone, where its send goes.
+    private suspend fun termOf(): (PendingCourseOverride) -> String? {
         val legacy = lane.entries().filter { placeOf(it) == null }.associate { it.moodleId to sendPath.placeFor(it)?.semester }
-        lane.raiseFloors(key, start, end, signIn) { row -> (placeOf(row)?.semester ?: legacy[row.moodleId])?.let(SyncField::termReset) }
+        return { row -> (placeOf(row)?.semester ?: legacy[row.moodleId])?.let(SyncField::termReset) }
     }
 
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */

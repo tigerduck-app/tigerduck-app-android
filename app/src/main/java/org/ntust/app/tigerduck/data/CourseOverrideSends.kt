@@ -194,7 +194,7 @@ internal class CourseOverrideSends(
         val answer = try {
             // The request carries [signIn], so a sign-out after the check sends it without a token
             // rather than with the next account's.
-            writer.write(change, CourseRef(place?.key), signIn, allowed, change.agedFrom)
+            writer.write(change, CourseRef(place?.key), signIn, allowed, change.madeAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

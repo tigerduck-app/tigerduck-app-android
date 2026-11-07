@@ -44,9 +44,6 @@ internal data class CourseAdd(val semester: String, val courseNo: String, val ad
     /** When the add was asked, by the device's clocks; null with no moment kept. */
     val addedAt: EditTime? get() = addedAtMs?.let { editTimeOf(it, clocks) }
 
-    /** What its age counts from: [addedAt], or its floor where later ([EditClocks.floor]). */
-    val agedFrom: EditTime? get() = addedAt?.atLeast(clocks?.floor?.time)
-
     /** This add counting its age from [floor] at least. */
     fun withFloor(floor: EditTime): CourseAdd = copy(clocks = clocks.withFloor(floor))
 
@@ -75,9 +72,6 @@ internal data class CourseDelete(val semester: String, val courseNo: String, val
 
     /** When the delete was asked, by the device's clocks. */
     val madeAt: EditTime get() = editTimeOf(queuedAt, clocks)
-
-    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
-    val agedFrom: EditTime get() = madeAt.atLeast(clocks?.floor?.time)
 
     /** This delete counting its age from [floor] at least. */
     fun withFloor(floor: EditTime): CourseDelete = copy(clocks = clocks.withFloor(floor))

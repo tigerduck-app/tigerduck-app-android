@@ -33,6 +33,7 @@ import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.outbox.OutboxLane
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.sync.outbox.UntimedEntries
+import org.ntust.app.tigerduck.sync.outbox.latest
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -119,12 +120,10 @@ class PendingHolidayOverrides internal constructor(
 
     /**
      * One holiday's choice as it waits: when it was made (null for one made before the time was
-     * kept), and its floor ([HolidayEditTime.floor]). Its value is read as it is sent, so a retry
-     * sends what the user wants now. A floor raised never makes it another choice ([isSame]).
+     * kept). Its value is read as it is sent, so a retry sends what the user wants now, and its floor
+     * as its write goes ([floorOf]).
      */
-    private data class Choice(val id: Int, val madeAt: EditTime?, val floor: EditTime? = null) {
-        fun isSame(other: Choice): Boolean = id == other.id && madeAt == other.madeAt
-    }
+    private data class Choice(val id: Int, val madeAt: EditTime?)
 
     override val id: OutboxChannelId get() = OutboxChannelId.HOLIDAYS
 
@@ -141,7 +140,7 @@ class PendingHolidayOverrides internal constructor(
         policy = LanePolicy(
             field = { choice: Choice -> SyncField.holiday(choice.id) },
             maxAttempts = NEVER_PARKED,
-            attempts = InMemoryAttempts({ choice: Choice -> SyncField.holiday(choice.id) }, Choice::isSame),
+            attempts = InMemoryAttempts({ choice: Choice -> SyncField.holiday(choice.id) }),
             untimed = UntimedEntries(
                 timeOf = { choice -> choice.madeAt?.wallMs },
                 withTime = { choice, atMs -> choice.copy(madeAt = EditTime(atMs)) },
@@ -171,7 +170,9 @@ class PendingHolidayOverrides internal constructor(
         // with this time whenever it goes.
         var marked = signIn.ifCurrent {
             synchronized(lock) {
-                prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to HolidayEditTime(madeAt))
+                // With the end of a write of the holiday it was made during, should that have ended already.
+                val floor = heard.filter { it.signIn === signIn && it.key == SyncField.holiday(holidayId) && it.covers(madeAt) }.map { it.end }.latest()
+                prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to HolidayEditTime(madeAt, floor))
                 choosing.merge(holidayId, 1, Int::plus)
             }
         } != null
@@ -210,17 +211,32 @@ class PendingHolidayOverrides internal constructor(
      * [signIn] has ended. The oldest never lands after a later edit, and keeps none.
      */
     override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) {
+        val span = Span(key, start, end, signIn)
         signIn.ifCurrent {
             synchronized(lock) {
+                heard.addLast(span)
+                while (heard.size > KEPT_SPANS) heard.removeFirst()
                 val times = prefs.holidayOverrideEditTimes
                 val raised = times.mapValues { (id, time) ->
-                    val during = SyncField.holiday(id) == key && !time.madeAt.isOldest && !time.madeAt.isBefore(start)
+                    val during = SyncField.holiday(id) == key && span.covers(time.madeAt)
                     if (during && time.floor?.isBefore(end) != false) time.copy(floor = end) else time
                 }
                 if (raised != times) prefs.commitHolidayOverrideEditTimes(raised)
             }
         }
     }
+
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = synchronized(lock) {
+        prefs.holidayOverrideEditTimes.entries.firstOrNull { (id, time) -> SyncField.holiday(id) == key && time.madeAt == madeAt }?.value?.floor
+    }
+
+    // A span this queue heard end, under the sign-in it ran under: [covers] an edit made during it.
+    private class Span(val key: String, val start: EditTime, val end: EditTime, val signIn: SignIn) {
+        fun covers(madeAt: EditTime): Boolean = !madeAt.isOldest && !madeAt.isBefore(start) && madeAt.isBefore(end)
+    }
+
+    // Under lock: the spans this queue heard end lately, for a choice made during one and timed after it ended.
+    private val heard = ArrayDeque<Span>()
 
     override fun forgetMemory() = lane.forgetMemory()
 
@@ -247,7 +263,7 @@ class PendingHolidayOverrides internal constructor(
         // Read after its time, which the lane read: see [Waiting].
         val notify = choice.id in prefs.holidayNotifyOverrides
         val answer = try {
-            writer.write(choice.id, notify, signIn, choice.madeAt?.atLeast(choice.floor))
+            writer.write(choice.id, notify, signIn, choice.madeAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -284,7 +300,7 @@ class PendingHolidayOverrides internal constructor(
         lane.acknowledge(choice, answer.serverClockUs, signIn)
         withContext(main) {
             lane.edit(signIn) { waiting ->
-                if (waiting.none(choice::isSame)) return@edit waiting
+                if (choice !in waiting) return@edit waiting
                 val taken = signIn.ifCurrent {
                     synchronized(lock) {
                         store.setNotifyOnHoliday(choice.id, notify)
@@ -293,7 +309,7 @@ class PendingHolidayOverrides internal constructor(
                         true
                     }
                 } == true
-                if (taken) waiting.filterNot(choice::isSame) else waiting
+                if (taken) waiting - choice else waiting
             }
         }
     }
@@ -312,7 +328,7 @@ class PendingHolidayOverrides internal constructor(
     private inner class Waiting : LaneStore<Choice> {
         override suspend fun load(): List<Choice> = synchronized(lock) {
             val times = prefs.holidayOverrideEditTimes
-            prefs.holidayOverridesAwaitingUpload.map { Choice(it, times[it]?.madeAt, times[it]?.floor) }
+            prefs.holidayOverridesAwaitingUpload.map { Choice(it, times[it]?.madeAt) }
         }
 
         // The waiting set, and a time only for a choice none is kept for: the old-entry time it was
@@ -335,6 +351,9 @@ class PendingHolidayOverrides internal constructor(
 
         // A refused choice is never parked: every sync sends it again, as it always has.
         const val NEVER_PARKED = Int.MAX_VALUE
+
+        // How many spans the queue remembers, for a choice made during one and timed a moment after.
+        const val KEPT_SPANS = 64
     }
 }
 

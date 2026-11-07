@@ -282,6 +282,8 @@ class PendingCourseDeletes internal constructor(
 
     override suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) { lane.raiseFloors(key, start, end, signIn) }
 
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt)
+
     override fun forgetMemory() = lane.forgetMemory()
 
     /** The course numbers whose delete in [semester] is still waiting, for the reconcile to keep out. */

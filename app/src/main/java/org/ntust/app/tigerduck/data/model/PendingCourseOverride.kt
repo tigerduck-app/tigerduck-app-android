@@ -66,9 +66,6 @@ data class PendingCourseOverride(
             }
         }
 
-    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
-    val agedFrom: EditTime? get() = madeAt?.atLeast(madeAtClocks?.floor?.time)
-
     /** This change counting its age from [floor] at least. */
     fun withFloor(floor: EditTime): PendingCourseOverride = copy(madeAtClocks = madeAtClocks.withFloor(floor))
 

@@ -173,6 +173,8 @@ class PendingCourseAdds internal constructor(
         lane.raiseFloors(key, start, end, signIn)
     }
 
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt)
+
     override fun forgetMemory() = lane.forgetMemory()
 
     /**

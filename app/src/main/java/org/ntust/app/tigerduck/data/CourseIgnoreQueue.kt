@@ -259,6 +259,8 @@ internal class CourseIgnoreQueue(
         lane.raiseFloors(key, start, end, signIn)
     }
 
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt)
+
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */
     override fun forgetMemory() {
         parkedRequeued.set(false)
@@ -280,7 +282,7 @@ internal class CourseIgnoreQueue(
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
                 if (!current || !sends()) return SendResult.NotSent
-                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.agedFrom)
+                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt)
             }
         } catch (e: CancellationException) {
             throw e

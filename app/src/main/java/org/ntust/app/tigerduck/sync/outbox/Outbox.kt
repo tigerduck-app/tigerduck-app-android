@@ -50,6 +50,12 @@ class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChann
         for (channel in channels) channel.raiseFloors(key, start, end, signIn)
     }
 
+    /** The latest floor any channel keeps for its edit of [key] made at [madeAt] ([EditFloors]). */
+    override suspend fun floorOf(key: String, madeAt: EditTime, signIn: SignIn): EditTime? {
+        if (!signIn.isCurrent) return null
+        return channels.mapNotNull { it.floorOf(key, madeAt) }.latest()
+    }
+
     /** At the school's sign-out: each channel forgets its parked-retry flags and the attempts it counted in memory. */
     override suspend fun forgetAccount() {
         for (channel in channels) channel.forgetMemory()

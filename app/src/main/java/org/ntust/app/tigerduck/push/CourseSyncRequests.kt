@@ -153,7 +153,7 @@ internal class CourseSyncRequests(
             val adds = CourseUploadPayload.handAdds(sent, semester, forceKeys, addedAt)
             // A span when an add went with an age; the oldest's `hlc: 0` never lands after a later edit.
             val fields = adds.keys.map(SyncField::membership)
-            accepted = ages.sendEach(fields, spans = adds.values.any { !it.isOldest }, signIn, { stampOf ->
+            accepted = ages.sendEach(fields, adds.values, spans = adds.values.any { !it.isOldest }, signIn, { stampOf ->
                 service.coursesUpload(header, body(sent, semester, rosterTerms, adds.mapValues { (_, madeAt) -> stampOf(madeAt) }))
             }, ::answered)
             landed = true

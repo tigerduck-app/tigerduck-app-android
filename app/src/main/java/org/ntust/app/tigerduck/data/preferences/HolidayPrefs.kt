@@ -15,10 +15,7 @@ internal fun SharedPreferences.Editor.putIds(key: String, ids: Set<Int>): Shared
  * When a holiday's choice was made ([madeAt]), and its floor, the end of the latest write of the
  * holiday that went out at or before then ([floor], the per-key rule): its age counts from the later.
  */
-data class HolidayEditTime(val madeAt: EditTime, val floor: EditTime? = null) {
-    /** What the choice's age counts from. */
-    val agedFrom: EditTime get() = madeAt.atLeast(floor)
-}
+data class HolidayEditTime(val madeAt: EditTime, val floor: EditTime? = null)
 
 /**
  * "id:epochMs:elapsedMs:boot" entries, the device clocks at the choice ([EditTime]) after its wall

@@ -40,9 +40,6 @@ data class PendingCourseIgnore(
     /** When the change was made, by the device's clocks; null with no time kept. */
     val madeAt: EditTime? get() = madeAtMs?.let { editTimeOf(it, madeAtClocks) }
 
-    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
-    val agedFrom: EditTime? get() = madeAt?.atLeast(madeAtClocks?.floor?.time)
-
     /** This change counting its age from [floor] at least. */
     fun withFloor(floor: EditTime): PendingCourseIgnore = copy(madeAtClocks = madeAtClocks.withFloor(floor))
 

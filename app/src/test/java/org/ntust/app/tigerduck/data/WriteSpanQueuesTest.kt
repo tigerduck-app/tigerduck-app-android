@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.data
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -18,15 +20,20 @@ import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.EditClocks
+import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
+import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.outbox.EditFloors
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
@@ -60,11 +67,24 @@ class WriteSpanQueuesTest {
     private var channels: Set<OutboxChannel> = emptySet()
     private val client = pushApiClientAt(
         "http://127.0.0.1:9/v4", backend.client, prefs, clocks,
-        floors = EditFloors { key, start, end, at -> Outbox(channels).raise(key, start, end, at) },
+        floors = object : EditFloors {
+            override suspend fun raise(key: String, start: EditTime, end: EditTime, signIn: SignIn) = Outbox(channels).raise(key, start, end, signIn)
+
+            override suspend fun floorOf(key: String, madeAt: EditTime, signIn: SignIn) = Outbox(channels).floorOf(key, madeAt, signIn)
+        },
     )
 
-    // The next process's client: it remembers no write of the first's.
-    private fun relaunched(): PushApiClient = pushApiClientAt("http://127.0.0.1:9/v4", backend.client, prefs, clocks)
+    // The next process's queues, once built, and its client: it remembers no write of the first's,
+    // and reads its queues' floors from their files.
+    private var relaunchedChannels: Set<OutboxChannel> = emptySet()
+    private fun relaunched(): PushApiClient = pushApiClientAt(
+        "http://127.0.0.1:9/v4", backend.client, prefs, clocks,
+        floors = object : EditFloors {
+            override suspend fun raise(key: String, start: EditTime, end: EditTime, signIn: SignIn) = Outbox(relaunchedChannels).raise(key, start, end, signIn)
+
+            override suspend fun floorOf(key: String, madeAt: EditTime, signIn: SignIn) = Outbox(relaunchedChannels).floorOf(key, madeAt, signIn)
+        },
+    )
 
     @Before
     fun openGate() {
@@ -109,7 +129,7 @@ class WriteSpanQueuesTest {
         val marks = UnsentMarks(cache, client, prefs, clocks = clocks, scope = backgroundScope).also { channels = setOf(it) }
         during({ client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null) }) { marks.keep("7", "none", signIn) }
 
-        UnsentMarks(cache, relaunched(), prefs, clocks = clocks, scope = backgroundScope).drain(signIn)
+        UnsentMarks(cache, relaunched(), prefs, clocks = clocks, scope = backgroundScope).also { relaunchedChannels = setOf(it) }.drain(signIn)
 
         assertEquals("/v4/sync/assignments/7/override", backend.sent.last().url.substringAfter("127.0.0.1:9"))
         assertEquals(500L, lastAge())
@@ -125,7 +145,7 @@ class WriteSpanQueuesTest {
         }
         assertEquals(UnsentMarks.MAX_ATTEMPTS, cache.loadUnsentMarks().single().attempts)
 
-        val next = UnsentMarks(cache, relaunched(), prefs, clocks = clocks, scope = backgroundScope)
+        val next = UnsentMarks(cache, relaunched(), prefs, clocks = clocks, scope = backgroundScope).also { relaunchedChannels = setOf(it) }
         next.requeueParked(signIn)
         next.drain(signIn)
 
@@ -140,7 +160,8 @@ class WriteSpanQueuesTest {
         during({ client.putHolidayOverrideAnswered(3, true, signIn, madeAt = null) }) { holidays.send(3, signIn) }
         sends = true
 
-        PendingHolidayOverrides(prefs, HolidayOverrideWriter(relaunched()::putHolidayOverrideAnswered), syncs = { true }, clocks = clocks, scope = backgroundScope).drain(signIn)
+        PendingHolidayOverrides(prefs, HolidayOverrideWriter(relaunched()::putHolidayOverrideAnswered), syncs = { true }, clocks = clocks, scope = backgroundScope)
+            .also { relaunchedChannels = setOf(it) }.drain(signIn)
 
         assertEquals(500L, lastAge())
     }
@@ -164,7 +185,8 @@ class WriteSpanQueuesTest {
         duringReset { assertTrue(deletes.keep(term, "MY1", deletes.stamp(), signIn)) }
 
         val next = relaunched()
-        PendingCourseDeletes(cache, PendingCourseAdds(cache, next), next, clocks, scope = backgroundScope).sendKept(term, "MY1", signIn)
+        val nextAdds = PendingCourseAdds(cache, next)
+        PendingCourseDeletes(cache, nextAdds, next, clocks, scope = backgroundScope).also { relaunchedChannels = setOf(nextAdds, it) }.sendKept(term, "MY1", signIn)
 
         assertEquals("/v4/sync/courses/client:$term:MY1", backend.sent.last().url.substringAfter("127.0.0.1:9").substringBefore('?'))
         assertEquals(500L, lastAge())
@@ -178,7 +200,7 @@ class WriteSpanQueuesTest {
         val stamps = PendingCourseDeletes(cache, adds, client, clocks, scope = backgroundScope)
         duringReset { adds.send(listOf(course), term, "MY1", stamps.stamp(), signIn) }
 
-        PendingCourseAdds(cache, relaunched(), scope = backgroundScope).drain(signIn)
+        PendingCourseAdds(cache, relaunched(), scope = backgroundScope).also { relaunchedChannels = setOf(it) }.drain(signIn)
 
         assertEquals("/v4/sync/courses/upload", backend.sent.last().url.substringAfter("127.0.0.1:9"))
         assertEquals(500L, lastAge())
@@ -193,7 +215,7 @@ class WriteSpanQueuesTest {
             .also { channels = setOf(it) }
         duringReset { overrides.send("M1", colorHex = "#00FF00", semester = term, courseNo = "CS1", signIn = signIn) }
 
-        PendingCourseOverrides(cache, relaunched(), prefs, clocks = clocks, scope = backgroundScope).drain(signIn)
+        PendingCourseOverrides(cache, relaunched(), prefs, clocks = clocks, scope = backgroundScope).also { relaunchedChannels = setOf(it) }.drain(signIn)
 
         assertEquals("/v4/sync/courses/client:$term:CS1/override", backend.sent.last().url.substringAfter("127.0.0.1:9"))
         assertEquals(500L, lastAge())
@@ -206,7 +228,8 @@ class WriteSpanQueuesTest {
             .also { channels = setOf(it.channel) }
         duringReset { first.setIgnored(term, "CS1", "${term}CS1", null, ignore = true, signIn = signIn) }
 
-        CourseIgnoreSync(cache, CourseIgnoreWriter(relaunched()::patchCourseIgnoreAnswered), CourseIgnoreEffects {}, { true }, wall).channel.drain(signIn)
+        CourseIgnoreSync(cache, CourseIgnoreWriter(relaunched()::patchCourseIgnoreAnswered), CourseIgnoreEffects {}, { true }, wall)
+            .also { relaunchedChannels = setOf(it.channel) }.channel.drain(signIn)
 
         assertEquals("/v4/sync/courses/client:$term:CS1/override", backend.sent.last().url.substringAfter("127.0.0.1:9"))
         assertEquals(500L, lastAge())
@@ -290,5 +313,106 @@ class WriteSpanQueuesTest {
         val hide = backend.sent.last()
         assertEquals("DELETE", hide.method)
         assertEquals("from the add's end, not its own 2 s", "0", Regex("[?&]age_ms=(\\d+)").find(hide.url)?.groupValues?.get(1))
+    }
+
+    @Test
+    fun `an ignore made during its term's reset and kept after the reset's end ages from that end after a relaunch`() = runTest {
+        val wall = { 1_790_000_000_000L + elapsedMs }
+        val queue = CourseIgnoreQueue(
+            cache, CourseIgnoreWriter(client::patchCourseIgnoreAnswered), CourseIgnoreEffects {}, { false }, wall, Mutex(),
+            IgnoreOutbox(clocks, AckClock(), backgroundScope, null),
+        ).also { channels = setOf(it) }
+        lateinit var change: PendingCourseIgnore
+        // Use Local takes its batch's time, then reads its settings before it keeps the changes.
+        duringReset { change = queue.changeNow(term, "CS1", "${term}CS1", null, ignore = true) }
+        assertTrue(queue.edit(signIn) { it + change })
+
+        CourseIgnoreSync(cache, CourseIgnoreWriter(relaunched()::patchCourseIgnoreAnswered), CourseIgnoreEffects {}, { true }, wall)
+            .also { relaunchedChannels = setOf(it.channel) }.channel.drain(signIn)
+
+        assertEquals(500L, lastAge())
+    }
+
+    @Test
+    fun `a floor never makes a later write's span its edit's`() = runTest {
+        val marks = UnsentMarks(cache, client, prefs, clocks = clocks, scope = backgroundScope).also { channels = setOf(it) }
+        val first = backend.holdNext()
+        val useLocal = backgroundScope.launch { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null) }
+        first.out.await()
+        elapsedMs += 200
+        marks.keep("7", "none", signIn)
+        elapsedMs += 3_000
+        val second = backend.holdNext()
+        first.release()
+        useLocal.join()
+        // Its floor is 4.2 s; a write that went out then, after the tap, is not the tap's to age from.
+        val again = backgroundScope.launch { client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null) }
+        second.out.await()
+        elapsedMs += 2_800
+        second.release()
+        again.join()
+        elapsedMs += 500
+
+        marks.drain(signIn)
+
+        assertEquals("from its floor, 3.3 s, not the later write's end", 3_300L, lastAge())
+    }
+
+    @Test
+    fun `a send that read its edit before the floor rose ages from the floor on disk, however many spans ended since`() = runTest {
+        val read = CompletableDeferred<Unit>()
+        val go = CompletableDeferred<Unit>()
+        val writer = CourseOverrideWriter { change, target, at, allowed, madeAt ->
+            read.complete(Unit)
+            go.await()
+            client.patchCourseOverrideAnswered(target, at, change.colorHex, change.customName, change.locale, allowed, madeAt)
+        }
+        val overrides = PendingCourseOverrides(cache, writer, records = { true }, sends = { true }, clocks = clocks, scope = backgroundScope)
+            .also { channels = setOf(it) }
+        val held = backend.holdNext()
+        val reset = backgroundScope.launch { client.deleteAllCoursesAnswered(term, signIn, resetAt = null) }
+        held.out.await()
+        elapsedMs += 200
+        val picked = backgroundScope.launch { overrides.send("M1", colorHex = "#00FF00", semester = term, courseNo = "CS1", signIn = signIn) }
+        read.await()
+        elapsedMs += 3_000
+        held.release()
+        reset.join()
+        // More of the term's writes than the client remembers, each after the pick.
+        repeat(70) { client.patchCourseOverrideAnswered(CourseRef("client:$term:XX$it"), signIn, colorHex = "#000000") }
+        elapsedMs += 500
+        go.complete(Unit)
+        picked.join()
+
+        assertEquals("/v4/sync/courses/client:$term:CS1/override", backend.sent.last().url.substringAfter("127.0.0.1:9"))
+        assertEquals(500L, lastAge())
+    }
+
+    @Test
+    fun `an upload of several adds whose floors rose while it waited lets every add it settled go`() = runTest {
+        val courses = listOf("A1", "A2", "A3").map { Course(courseNo = it, courseName = it, isManual = true) }
+        assertTrue(cache.saveCourses(courses, term, signIn))
+        val offline = PendingCourseAdds(cache, { _, _, _, _, _ -> throw IOException("offline") })
+        val adds = PendingCourseAdds(cache, client, scope = backgroundScope).also { channels = setOf(it) }
+        val stamps = PendingCourseDeletes(cache, adds, client, clocks, scope = backgroundScope)
+        backend.answer(
+            "/v4/sync/courses/upload", 200,
+            """{"accepted_keys":["client:$term:A1","client:$term:A2","client:$term:A3"]}""",
+        )
+        val held = backend.holdNext()
+        val reset = backgroundScope.launch { client.deleteAllCoursesAnswered(term, signIn, resetAt = null) }
+        held.out.await()
+        elapsedMs += 200
+        for (course in courses) offline.send(courses, term, course.courseNo, stamps.stamp(), signIn)
+        // The upload reads its adds now and waits for the reset, whose end raises their floors.
+        val upload = backgroundScope.launch { adds.drain(signIn) }
+        withContext(Dispatchers.Default) { delay(200) }
+        elapsedMs += 3_000
+        held.release()
+        reset.join()
+        upload.join()
+
+        assertEquals("/v4/sync/courses/upload", backend.sent.last().url.substringAfter("127.0.0.1:9"))
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 }

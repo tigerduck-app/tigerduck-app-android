@@ -34,9 +34,6 @@ data class UnsentMark(
     /** When the user tapped it, by the device's clocks; null with no time kept. */
     val madeAt: EditTime? get() = madeAtMs?.let { editTimeOf(it, madeAtClocks) }
 
-    /** What its age counts from: [madeAt], or its floor where later ([EditClocks.floor]). */
-    val agedFrom: EditTime? get() = madeAt?.atLeast(madeAtClocks?.floor?.time)
-
     /** This mark counting its age from [floor] at least. */
     fun withFloor(floor: EditTime): UnsentMark = copy(madeAtClocks = madeAtClocks.withFloor(floor))
 }

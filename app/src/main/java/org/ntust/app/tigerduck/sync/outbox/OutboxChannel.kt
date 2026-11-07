@@ -78,4 +78,7 @@ interface OutboxChannel {
      * disk when this returns. Nothing for a channel whose edits have no time.
      */
     suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn) = Unit
+
+    /** The floor this channel's edit of [key] made at [madeAt] keeps on disk ([EditFloors.floorOf]); null for none. */
+    suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = null
 }

@@ -13,10 +13,10 @@ import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.util.JvmContext
-import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The per-key rule of `age_ms` as the iPhone's (tigerduck-app#1008), at the client, where every
@@ -33,7 +33,8 @@ class WriteSpansTest {
     @Volatile private var elapsedMs = 1_000L
     private val clocks = DeviceClocks({ 1_790_000_000_000L + elapsedMs }, { elapsedMs }, { 7 })
     private val client = pushApiClientAt("http://127.0.0.1:9/v4", backend.client, prefs, clocks)
-    private val signIn = testSignIn()
+    private val series = SignInSeries()
+    private val signIn get() = series.current
     private val course = CourseRef(courseKey = "client:1151:CS1")
     private val added = Course(courseNo = "XA1", courseName = "Mine", isManual = true)
 
@@ -268,5 +269,25 @@ class WriteSpansTest {
 
         assertEquals(listOf("/v4/sync/courses", "/v4/sync/courses/client:1151:XA2"), backend.sent.map { it.path() })
         assertEquals(0L, lastAge())
+    }
+
+    @Test
+    fun `a write answered after its sign-in ended ends no span for the next account's edits`() = runTest {
+        val held = backend.holdNext()
+        val departing = signIn
+        val out = backgroundScope.launch { client.patchAssignmentOverrideAnswered(7, "ignored", departing, madeAt = null) }
+        held.out.await()
+        series.end()
+        series.open()
+        elapsedMs += 200
+        val edit = clocks.now()
+        elapsedMs += 3_000
+        held.release()
+        out.join()
+        elapsedMs += 500
+
+        client.patchAssignmentOverrideAnswered(7, "none", signIn, madeAt = edit)
+
+        assertEquals("the next account's edit keeps its own time", 3_500L, lastAge())
     }
 }

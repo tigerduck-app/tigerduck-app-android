@@ -135,10 +135,14 @@ class OutboxLane<E : Any>(
      * channel drops or rewrites itself (a sign-in's forgetting, a server's answer taken) goes
      * through here. True when the store holds the change.
      */
-    suspend fun edit(signIn: SignIn, change: (List<E>) -> List<E>): Boolean = storeLock.withLock {
+    suspend fun edit(signIn: SignIn, change: (List<E>) -> List<E>): Boolean = edit(signIn, ::keyOf, change)
+
+    // [edit], each entry made during a span of its key ([keyOf]) this lane heard end under [signIn]
+    // given that end as its floor before it is written, so one kept after the span ended has it too.
+    private suspend fun edit(signIn: SignIn, keyOf: (E) -> String?, change: (List<E>) -> List<E>): Boolean = storeLock.withLock {
         if (!signIn.isCurrent) return@withLock false
         val entries = loaded(signIn)
-        val changed = change(entries)
+        val changed = floored(change(entries), signIn, keyOf)
         changed == entries || (signIn.isCurrent && store.save(changed, signIn))
     }
 
@@ -150,20 +154,45 @@ class OutboxLane<E : Any>(
 
     /**
      * A write of [key] that went out at [start] was answered at [end] under [signIn] ([EditFloors]):
-     * each entry of [key] ([keyOf], its field's [SyncField.spanKey] unless the channel says) made at
-     * or after [start] counts its age from [end] at least, on disk when this returns, parked or not.
-     * Not the oldest, which never lands after a later edit. Nothing once [signIn] has ended.
+     * each entry of [key] ([keyOf], its field's [SyncField.spanKey] unless the channel says) made
+     * during it, at or after [start] and before [end], counts its age from [end] at least, on disk
+     * when this returns, parked or not; and so does one kept later that was made during it, for
+     * the next [KEPT_SPANS] spans this lane hears of. Not the oldest, which never lands after a
+     * later edit. Nothing once [signIn] has ended.
      */
-    suspend fun raiseFloors(
-        key: String, start: EditTime, end: EditTime, signIn: SignIn, keyOf: (E) -> String? = { SyncField.spanKey(policy.field(it)) },
-    ): Boolean {
-        val floors = policy.floors ?: return false
-        return edit(signIn) { entries ->
-            entries.map { entry ->
-                val madeAt = floors.madeAt(entry)
-                val during = madeAt != null && !madeAt.isOldest && !madeAt.isBefore(start) && keyOf(entry) == key
-                if (during && floors.floor(entry)?.isBefore(end) != false) floors.withFloor(entry, end) else entry
-            }
+    suspend fun raiseFloors(key: String, start: EditTime, end: EditTime, signIn: SignIn, keyOf: (E) -> String? = ::keyOf): Boolean {
+        if (policy.floors == null || !signIn.isCurrent) return false
+        storeLock.withLock {
+            heard.addLast(Span(key, start, end, signIn))
+            while (heard.size > KEPT_SPANS) heard.removeFirst()
+        }
+        return edit(signIn, keyOf) { it }
+    }
+
+    /** The latest floor an entry of [key] ([keyOf]) made at [madeAt] keeps on disk, null for none ([EditFloors.floorOf]). */
+    suspend fun floorOf(key: String, madeAt: EditTime, keyOf: (E) -> String? = ::keyOf): EditTime? {
+        val floors = policy.floors ?: return null
+        return entries().filter { floors.madeAt(it) == madeAt && keyOf(it) == key }.mapNotNull(floors.floor).latest()
+    }
+
+    // The key an entry's writes go under: its field's.
+    private fun keyOf(entry: E): String = SyncField.spanKey(policy.field(entry))
+
+    // A span this lane heard end, under the sign-in it ran under.
+    private class Span(val key: String, val start: EditTime, val end: EditTime, val signIn: SignIn)
+
+    // Under [storeLock]: the spans this lane heard end lately, oldest first.
+    private val heard = ArrayDeque<Span>()
+
+    // Under [storeLock]: [entries], each made during a span of its key heard under [signIn] floored at its end.
+    private fun floored(entries: List<E>, signIn: SignIn, keyOf: (E) -> String?): List<E> {
+        val floors = policy.floors ?: return entries
+        val spans = heard.filter { it.signIn === signIn }.takeIf { it.isNotEmpty() } ?: return entries
+        return entries.map { entry ->
+            val madeAt = floors.madeAt(entry)?.takeUnless { it.isOldest } ?: return@map entry
+            val key = keyOf(entry) ?: return@map entry
+            val end = spans.filter { it.key == key && !madeAt.isBefore(it.start) && madeAt.isBefore(it.end) }.map { it.end }.latest()
+            if (end != null && floors.floor(entry)?.isBefore(end) != false) floors.withFloor(entry, end) else entry
         }
     }
 
@@ -362,5 +391,8 @@ class OutboxLane<E : Any>(
 
     private companion object {
         const val TAG = "OutboxLane"
+
+        // How many spans a lane remembers, for an entry made during one and kept after it ended: kept a moment later.
+        const val KEPT_SPANS = 64
     }
 }

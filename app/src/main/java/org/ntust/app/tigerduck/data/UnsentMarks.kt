@@ -237,6 +237,8 @@ class UnsentMarks internal constructor(
         lane.raiseFloors(key, start, end, signIn)
     }
 
+    override suspend fun floorOf(key: String, madeAt: EditTime): EditTime? = lane.floorOf(key, madeAt)
+
     /** At a sign-out: the next student's parked marks get their own one more try in this process. */
     override fun forgetMemory() {
         parkedRequeued.set(false)
@@ -250,7 +252,7 @@ class UnsentMarks internal constructor(
         // An id no request can name goes nowhere, and is let go as it always was.
         val id = mark.assignmentId?.toIntOrNull() ?: return SendResult.Sent(null)
         val answer = try {
-            writer.write(id, status, signIn, mark.agedFrom)
+            writer.write(id, status, signIn, mark.madeAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
