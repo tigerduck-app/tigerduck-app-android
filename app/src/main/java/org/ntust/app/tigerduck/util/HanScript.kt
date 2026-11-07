@@ -9,12 +9,16 @@ object HanScript {
         runCatching { android.icu.text.Transliterator.getInstance("Simplified-Traditional") }.getOrNull()
     }
 
-    /** [text] with each Simplified character in its Traditional form; [text] as it is where ICU has no transliterator. */
-    fun toTraditional(text: String): String = simplifiedToTraditional?.transliterate(text) ?: text
+    /**
+     * [text] with each Simplified character in its Traditional form; [text] as it is where ICU has no
+     * transliterator. One at a time: a search can overlap the one it replaces, and nothing says ICU's
+     * transliterator may be shared between threads.
+     */
+    fun toTraditional(text: String): String = simplifiedToTraditional?.let { synchronized(it) { it.transliterate(text) } } ?: text
 
-    /** Whether [text] holds a Han character. */
-    fun containsHan(text: String): Boolean = text.any {
-        val block = Character.UnicodeBlock.of(it) ?: return@any false
+    /** Whether [text] holds a Han character, a supplementary one too, read by code point. */
+    fun containsHan(text: String): Boolean = text.codePoints().anyMatch {
+        val block = Character.UnicodeBlock.of(it) ?: return@anyMatch false
         block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
             block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
             block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||

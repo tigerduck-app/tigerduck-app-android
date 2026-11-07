@@ -215,56 +215,6 @@ class CourseService @Inject constructor(
         dataCache.saveCourseLookups(lookupCache.toMap(), signIn)
     }
 
-    suspend fun searchCourses(
-        semester: String,
-        courseName: String,
-        lang: String = preferredCourseApiLanguage(),
-    ): List<CourseSearchResult> =
-        withContext(Dispatchers.IO) {
-            val language = lang
-            val requestBody =
-                gson.toJson(CourseSearchRequest.forCourseName(courseName, semester, language))
-                    .toRequestBody("application/json".toMediaType())
-
-            val request = Request.Builder()
-                .url(courseSearchApiUrl(language))
-                .header("Accept", "application/json")
-                .post(requestBody)
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                val body = response.body.string()
-                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                val parsed: List<CourseSearchResult> = gson.fromJson(body, type) ?: emptyList()
-                applyAbbreviations(parsed, language)
-            }
-        }
-
-    suspend fun searchByTeacher(
-        semester: String,
-        teacher: String,
-        lang: String = preferredCourseApiLanguage(),
-    ): List<CourseSearchResult> =
-        withContext(Dispatchers.IO) {
-            val language = lang
-            val requestBody =
-                gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester, language))
-                    .toRequestBody("application/json".toMediaType())
-
-            val request = Request.Builder()
-                .url(courseSearchApiUrl(language))
-                .header("Accept", "application/json")
-                .post(requestBody)
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                val body = response.body.string()
-                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                val parsed: List<CourseSearchResult> = gson.fromJson(body, type) ?: emptyList()
-                applyAbbreviations(parsed, language)
-            }
-        }
-
     fun parseNodeToSchedule(node: String?): Map<Int, List<String>> {
         if (node.isNullOrEmpty()) return emptyMap()
         val dayMap = mapOf(
@@ -595,7 +545,7 @@ class CourseService @Inject constructor(
         }
     }
 
-    private suspend fun applyAbbreviations(
+    internal suspend fun applyAbbreviations(
         results: List<CourseSearchResult>,
         language: String
     ): List<CourseSearchResult> {
