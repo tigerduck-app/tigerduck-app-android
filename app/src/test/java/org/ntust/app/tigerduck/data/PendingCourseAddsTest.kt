@@ -23,7 +23,6 @@ import org.ntust.app.tigerduck.shared.Course
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
-import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
@@ -110,7 +109,7 @@ class PendingCourseAddsTest {
     fun `an add goes alone with its moment, again on a retry, and the moment leaves with it`() = runTest {
         cache.saveCourses(listOf(portal, typed), term, testSignIn())
         answer = { throw IOException("offline") }
-        adds.send(listOf(portal, typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn)
+        adds.send(listOf(portal, typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn)
 
         assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002"), addedAt = mapOf("MA1010002" to 5_000L)), uploads.last())
         assertEquals(mapOf(term to mapOf("MA1010002" to 5_000L)), cache.loadPendingCourseAddTimes())
@@ -139,9 +138,9 @@ class PendingCourseAddsTest {
         }
         answer = { listOf("MA1010002") }
 
-        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
+        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn) }
         firstOut.await()
-        val second = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn) }
+        val second = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(6_000L), signIn = signIn) }
         runCurrent()
         releaseFirst.complete(Unit)
         first.join()
@@ -163,7 +162,7 @@ class PendingCourseAddsTest {
         answer = { listOf("MA1010002") }
         refused = listOf("MA1010002")
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn)
 
         assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -171,7 +170,7 @@ class PendingCourseAddsTest {
         // Applied: a snapshot taken before it landed would read its absence as a delete.
         answer = { listOf("CS1010001") }
         refused = emptyList()
-        adds.send(listOf(portal), term, portal.courseNo, addedAt = EditTime(6_000L), signIn = signIn)
+        adds.send(listOf(portal), term, portal.courseNo, addedAt = moment(6_000L), signIn = signIn)
 
         assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
     }
@@ -395,7 +394,7 @@ class PendingCourseAddsTest {
             listOf("MA1010002")
         }
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(1L), signIn = signIn)
 
         assertEquals(emptyMap<String, List<String>>(), cache.loadServerKnownNos())
     }
@@ -405,7 +404,7 @@ class PendingCourseAddsTest {
     fun `an add read under an ended sign-in is neither sent nor rewritten`() = runTest {
         cache.saveCourses(listOf(typed), term, testSignIn())
         answer = { throw IOException("offline") }
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(1L), signIn = signIn)
         var asked = 0
         beforeHeader = { asked++ }
         val waiting = cache.loadPendingCourseAdds()
@@ -413,7 +412,7 @@ class PendingCourseAddsTest {
 
         val ended = series.end()
         adds.drain(ended)
-        adds.send(listOf(typed), term, "PH1010003", addedAt = EditTime(2L), signIn = ended)
+        adds.send(listOf(typed), term, "PH1010003", addedAt = moment(2L), signIn = ended)
         adds.listed(listOf(row("MA1010002")), ended)
         adds.forgetAll(ended)
 

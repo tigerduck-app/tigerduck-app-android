@@ -33,7 +33,6 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
-import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -191,7 +190,7 @@ class CourseOverridesChannelTest {
         repeat(max + 1) { backend.answer(upload, 503, """{"detail":"unavailable"}""") }
         repeat(2) { backend.answer(pathOf(typed), 404, notFound) }
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
         repeat(max) { outbox.drain(signIn) }
         // Once as it was made, once more at the process's first sync, and parked since.
@@ -411,7 +410,7 @@ class CourseOverridesChannelTest {
         val (outbox, adds, overrides) = addsAndOverrides()
         backend.answer(upload, 503, """{"detail":"unavailable"}""")
         backend.answer(pathOf(typed), 404, notFound)
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
         assertEquals(listOf(max), waiting().map { it.attempts })
 
@@ -429,7 +428,7 @@ class CourseOverridesChannelTest {
         cache.saveCourses(listOf(typed, other), term, signIn)
         val (outbox, adds, overrides) = addsAndOverrides()
         backend.answer(upload, 200, skipped())
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         backend.answer(pathOf(typed), 404, notFound)
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
         assertEquals(listOf(max), waiting().map { it.attempts })
@@ -437,7 +436,7 @@ class CourseOverridesChannelTest {
         backend.sent.clear()
         // Another course's add lands.
         backend.answer(upload, 200, """{"accepted_keys":["client:$term:${other.courseNo}"]}""")
-        adds.send(listOf(other), term, other.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(other), term, other.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         outbox.drain(signIn)
 
         assertEquals(listOf("$v4/sync/courses/upload"), backend.sent.map { it.url })
@@ -450,7 +449,7 @@ class CourseOverridesChannelTest {
         cache.saveCourses(listOf(typed), term, signIn)
         val (outbox, adds, overrides) = addsAndOverrides()
         backend.answer(upload, 503, """{"detail":"unavailable"}""")
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         backend.answer(pathOf(typed), 404, notFound)
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
 
@@ -468,16 +467,16 @@ class CourseOverridesChannelTest {
         cache.saveCourses(listOf(typed, other), term, signIn)
         val (outbox, adds, overrides) = addsAndOverrides()
         backend.answer(upload, 200, skipped())
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         backend.answer(upload, 200, """{"skipped_tombstoned":0,"accepted_keys":["client:$term:${typed.courseNo}"]}""")
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs + 1), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs + 1), signIn = signIn)
         backend.answer(pathOf(typed), 404, notFound)
         overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
         assertEquals(listOf(max), waiting().map { it.attempts })
 
         backend.sent.clear()
         backend.answer(upload, 200, """{"accepted_keys":["client:$term:${other.courseNo}"]}""")
-        adds.send(listOf(other), term, other.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(other), term, other.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
         outbox.drain(signIn)
 
         assertEquals(listOf("$v4/sync/courses/upload", "$v4/sync/courses/client:$term:XA0000009/override"), backend.sent.map { it.url })
@@ -556,7 +555,7 @@ class CourseOverridesChannelTest {
         outbox = Outbox(setOf(adds, overrides, probe))
         backend.answer(upload, 200, """{"accepted_keys":["client:$term:${typed.courseNo}"]}""")
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(madeAtMs), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(madeAtMs), signIn = signIn)
 
         assertEquals(listOf(signIn), landings)
     }

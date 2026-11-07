@@ -21,7 +21,6 @@ import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.account.SignInSeries
-import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
 
@@ -104,8 +103,8 @@ class AgeMsQueuesTest {
         refusedAsAhead("/v4/sync/courses/client:$term:CS1")
         val adds = PendingCourseAdds(cache, client)
         val deletes = PendingCourseDeletes(cache, adds, client)
-        assertTrue(deletes.keep(term, "CS1", EditTime(5_000L), signIn))
-        assertTrue(deletes.keep(term, "CS2", EditTime(5_001L), signIn))
+        assertTrue(deletes.keep(term, "CS1", moment(5_000L), signIn))
+        assertTrue(deletes.keep(term, "CS2", moment(5_001L), signIn))
 
         deletes.drain(signIn)
 

@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.moment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
@@ -35,7 +36,6 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
-import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.V4WriteRules
 import org.ntust.app.tigerduck.sync.appBackendClient
 import org.ntust.app.tigerduck.sync.appSyncRig
@@ -176,8 +176,8 @@ class BackgroundPullRequestsTest {
         rig.ignores.setIgnored(term, COURSE, moodleId(), null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
-        rig.adds.send(listOf(kept, added), term, ADDED, addedAt = EditTime(1L), signIn = signIn)
-        assertTrue(rig.deletes.keep(term, GONE, queuedAt = EditTime(5L), signIn = signIn))
+        rig.adds.send(listOf(kept, added), term, ADDED, addedAt = moment(1L), signIn = signIn)
+        assertTrue(rig.deletes.keep(term, GONE, queuedAt = moment(5L), signIn = signIn))
         rig.overrides.queue(
             listOf(PendingCourseOverrides.Change(moodleId(), colorHex = "#ABCDEF", semester = term, courseNo = COURSE)),
             rig.overrides.reserveVersion(), signIn,

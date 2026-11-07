@@ -29,10 +29,10 @@ import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.UnsentMarks
+import org.ntust.app.tigerduck.data.moment
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
@@ -209,7 +209,7 @@ class HomePullAcrossSignInTest {
             val signIn = w.sessions.school.signIns.current
             marks.keep("8", "locally_completed", signIn)
             ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
-            adds.send(listOf(added), TERM, ADDED, addedAt = EditTime(1L), signIn = signIn)
+            adds.send(listOf(added), TERM, ADDED, addedAt = moment(1L), signIn = signIn)
         }
 
         assertEquals(setOf(COURSE, ADDED), w.dataCache.loadCourses(TERM).map { it.courseNo }.toSet())

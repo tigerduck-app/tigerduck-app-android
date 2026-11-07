@@ -22,6 +22,18 @@ import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 
 /**
+ * A class-table action's moment ([PendingCourseDeletes.stamp]): [at], its place in the order of
+ * the course list's adds and deletes, the number their files keep it by, later than every earlier
+ * action's whatever the clock does; and [madeAt], when it was made by the device's clocks, which
+ * its age is read from. The two part once the clock was set back: [at] then runs ahead of the wall
+ * clock, and [madeAt] never does.
+ */
+data class CourseMoment(val at: Long, val madeAt: EditTime) {
+    /** [madeAt]'s clocks, to keep beside [at] ([EditClocks.of]). */
+    internal val clocks: EditClocks? get() = EditClocks.of(madeAt, at)
+}
+
+/**
  * A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has
  * one, and the device clocks at that moment ([clocks]), where kept.
  */
@@ -65,8 +77,10 @@ private fun <E> List<E>.byTerm(semester: (E) -> String): Map<String, List<E>> = 
  * older install's file, whose adds have no moment, reads as it is, and the moments' device clocks
  * (`pending_course_add_clocks.json`, [MomentClocks]). The adds go in the files' order.
  */
-internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<CourseAdd> {
-    private val clocks = MomentClocks(dataCache, QueueFile.COURSE_ADD_CLOCKS)
+internal class CourseAddsStore(
+    private val dataCache: DataCache,
+    private val clocks: MomentClocks = MomentClocks(dataCache, QueueFile.COURSE_ADD_CLOCKS),
+) : LaneStore<CourseAdd> {
 
     override suspend fun load(): List<CourseAdd> {
         val times = dataCache.loadPendingCourseAddTimes()
@@ -83,8 +97,9 @@ internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<Cou
     /**
      * A moment is written before its add and goes after it, so an add with a moment is never read
      * without it: sent as the oldest, it would lose to every hide and reset, an older one made
-     * elsewhere included. Its clocks go with it, and a moment read without them ages by the wall
-     * clock. A file the change leaves as it is is not written.
+     * elsewhere included. Its clocks are written around both ([MomentClocks.saveAround]), as a
+     * moment read without them ages by the wall clock. A file the change leaves as it is is not
+     * written.
      */
     override suspend fun save(entries: List<CourseAdd>, signIn: SignIn): Boolean {
         val before = dataCache.loadPendingCourseAdds()
@@ -95,21 +110,28 @@ internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<Cou
         val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
         suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, signIn)
         suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, signIn)
-        suspend fun saveClocks() = clocks.save(clocksAfter, signIn)
-        return if (added) saveClocks() && saveTimes() && saveAdds() else saveAdds() && saveTimes() && saveClocks()
+        return clocks.saveAround(clocksAfter, signIn) { if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes() }
     }
 }
 
 /**
  * The device clocks of the course list's moments ([EditClocks]), by moment, in [file]: each add's
- * or delete's, as its lane store writes it with the entries. A file the entries leave as it is is
- * not written.
+ * or delete's, as its lane store writes it with the entries ([saveAround]). A file the entries
+ * leave as it is is not written. Open for a test that ends the process at one of its writes.
  */
-internal class MomentClocks(private val dataCache: DataCache, private val file: QueueFile) {
+internal open class MomentClocks(private val dataCache: DataCache, private val file: QueueFile) {
     suspend fun load(): Map<Long, EditClocks> = dataCache.loadEditClocks(file)
 
-    suspend fun save(clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean =
+    open suspend fun save(clocks: Map<Long, EditClocks>, signIn: SignIn): Boolean =
         clocks == load() || dataCache.saveEditClocks(file, clocks, signIn)
+
+    /**
+     * [clocks], every moment's that [write] writes, written around it: first beside the ones the
+     * file holds, then, once [write] has written the moments, alone. A process death between any
+     * two writes leaves each moment on disk, the old and the new, with its clocks.
+     */
+    suspend fun saveAround(clocks: Map<Long, EditClocks>, signIn: SignIn, write: suspend () -> Boolean): Boolean =
+        save(load() + clocks, signIn) && write() && save(clocks, signIn)
 }
 
 /**
@@ -135,13 +157,13 @@ private fun momentsInPlace(entries: List<CourseAdd>, before: Map<String, Map<Str
 /**
  * The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read
  * through [load], and the moments' device clocks (`pending_course_delete_clocks.json`), written
- * before the deletes, as a delete read without them ages by the wall clock.
+ * around the deletes ([MomentClocks.saveAround]), as a delete read without them ages by the wall clock.
  */
 internal class CourseDeletesStore(
     private val dataCache: DataCache,
     private val load: suspend () -> Map<String, Map<String, Long>>,
+    private val clocks: MomentClocks = MomentClocks(dataCache, QueueFile.COURSE_DELETE_CLOCKS),
 ) : LaneStore<CourseDelete> {
-    private val clocks = MomentClocks(dataCache, QueueFile.COURSE_DELETE_CLOCKS)
 
     override suspend fun load(): List<CourseDelete> {
         val clocksOf = clocks.load()
@@ -150,7 +172,7 @@ internal class CourseDeletesStore(
 
     override suspend fun save(entries: List<CourseDelete>, signIn: SignIn): Boolean {
         val kept = entries.mapNotNull { delete -> delete.clocks?.let { delete.queuedAt to it } }.toMap()
-        return clocks.save(kept, signIn) && dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn)
+        return clocks.saveAround(kept, signIn) { dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn) }
     }
 }
 

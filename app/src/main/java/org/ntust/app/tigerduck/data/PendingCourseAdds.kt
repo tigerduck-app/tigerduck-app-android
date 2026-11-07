@@ -13,7 +13,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.cache.QueueFile
-import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.PushApiClient
@@ -131,14 +130,14 @@ class PendingCourseAdds internal constructor(
     /**
      * Uploads [courseNo], just added to [semester]'s list [courses], forcing it
      * past a tombstone as an add does, with [addedAt], the add's moment
-     * ([PendingCourseDeletes.stamp]), as its age: the backend applies it only when later
+     * ([PendingCourseDeletes.stamp]), with its age read from its time: the backend applies it only when later
      * than the course's last add, hide and reset, so an add kept offline loses
      * to a hide or a reset made since on another device (#591). Kept until the
      * backend accepts or settles it, and kept while course sync is off, until it
      * is on (LWW D12).
      */
-    suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: EditTime? = null, signIn: SignIn) {
-        val kept = lane.edit(signIn) { it.asked(CourseAdd(semester, courseNo, addedAt?.wallMs, addedAt?.let(EditClocks::of))) }
+    suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: CourseMoment? = null, signIn: SignIn) {
+        val kept = lane.edit(signIn) { it.asked(CourseAdd(semester, courseNo, addedAt?.at, addedAt?.clocks)) }
         if (!kept) return
         trySend(semester, listOf(courseNo), signIn, courses)
     }

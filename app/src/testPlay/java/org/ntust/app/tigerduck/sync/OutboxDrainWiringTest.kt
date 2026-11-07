@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.moment
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.backgroundSyncWorker
 import org.ntust.app.tigerduck.notification.settingsSyncAt
@@ -94,8 +95,8 @@ class OutboxDrainWiringTest {
         rig.ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
         rig.marks.keep("8", "locally_completed", signIn)
         backend.answer("POST /sync/courses", 500)
-        rig.adds.send(listOf(kept, added), TERM, ADDED, addedAt = EditTime(1L), signIn = signIn)
-        assertTrue(rig.deletes.keep(TERM, GONE, queuedAt = EditTime(5L), signIn = signIn))
+        rig.adds.send(listOf(kept, added), TERM, ADDED, addedAt = moment(1L), signIn = signIn)
+        assertTrue(rig.deletes.keep(TERM, GONE, queuedAt = moment(5L), signIn = signIn))
         rig.overrides.queue(
             listOf(PendingCourseOverrides.Change(MOODLE_ID, colorHex = "#ABCDEF", semester = TERM, courseNo = COURSE)),
             rig.overrides.reserveVersion(), signIn,

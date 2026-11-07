@@ -29,7 +29,6 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
-import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -125,8 +124,8 @@ class CourseAddsChannelTest {
         cache.saveCourses(listOf(typed), term, signIn)
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> throw java.io.IOException("offline") })
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn)
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(6_000L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn)
         assertEquals(mapOf(term to mapOf(typed.courseNo to 6_000L)), cache.loadPendingCourseAddTimes())
     }
 
@@ -139,7 +138,7 @@ class CourseAddsChannelTest {
             if (refusals++ < 6) throw PushApiException("uploadCourses failed: HTTP 422", 422)
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn)
 
         repeat(6) { adds.drain(signIn) }
 
@@ -169,11 +168,11 @@ class CourseAddsChannelTest {
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
-        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
+        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn) }
         out.await()
         val delete = launch { adds.removing { events += "DELETE" } }
         runCurrent()
-        val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn) }
+        val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(6_000L), signIn = signIn) }
         settle { cache.loadPendingCourseAddTimes()[term]?.get(typed.courseNo) == 6_000L }
         release.complete(Unit)
         first.join()
@@ -202,7 +201,7 @@ class CourseAddsChannelTest {
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
-        val caller = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
+        val caller = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn) }
         out.await()
         val delete = launch { adds.removing { events += "DELETE" } }
         runCurrent()
@@ -266,7 +265,7 @@ class CourseAddsChannelTest {
         prefs.syncCourses = false
         val adds = v4Adds()
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(1_790_000_000_123L), signIn = signIn)
         assertEquals(emptyList<RecordingBackend.Sent>(), backend.sent.toList())
         assertEquals(mapOf(term to mapOf(typed.courseNo to 1_790_000_000_123L)), cache.loadPendingCourseAddTimes())
         assertEquals(setOf(field(typed)), adds.heldFields())
@@ -295,7 +294,7 @@ class CourseAddsChannelTest {
         val adds = v4Adds()
         backend.answer(upload, 200, """{"accepted_keys":[],"adds":[{"course_key":"${key(typed)}","applied":false,"hlc":1790000000999000}]}""")
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(1_790_000_000_123L), signIn = signIn)
 
         assertEquals(listOf(typed.courseNo), cache.loadServerKnownNos()[term])
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
@@ -330,9 +329,9 @@ class CourseAddsChannelTest {
                 if (sent.size == 1) CourseUploadAnswer(emptyList(), listOf(typed.courseNo)) else CourseUploadAnswer(listOf(typed.courseNo), emptyList())
             }, MembershipOutbox(SyncPolicies(prefs), scope = backgroundScope))
 
-            val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(5_000L), signIn = signIn) }
+            val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(5_000L), signIn = signIn) }
             out.await()
-            val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(6_000L), signIn = signIn) }
+            val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(6_000L), signIn = signIn) }
             settle { cache.loadPendingCourseAddTimes()[term]?.get(typed.courseNo) == 6_000L }
             release.complete(Unit)
             first.join()
@@ -355,7 +354,7 @@ class CourseAddsChannelTest {
 
         val ended = series.end()
         adds.drain(ended)
-        adds.send(listOf(one, two), "1141", "CS1009", addedAt = EditTime(2L), signIn = ended)
+        adds.send(listOf(one, two), "1141", "CS1009", addedAt = moment(2L), signIn = ended)
         adds.queueAsOldest("1141", "CS1010", ended)
         adds.listed(listOf(org.ntust.app.tigerduck.push.ServerCourse(courseNo = "CS1001", courseName = "One", semester = "1141")), ended)
         adds.forgetAll(ended)
@@ -380,8 +379,8 @@ class CourseAddsChannelTest {
         backend.answer(upload, 500, "{}")
         backend.answer(upload, 500, "{}")
 
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
-        adds.send(listOf(untyped), term, untyped.courseNo, addedAt = EditTime(1_790_000_000_124L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(1_790_000_000_123L), signIn = signIn)
+        adds.send(listOf(untyped), term, untyped.courseNo, addedAt = moment(1_790_000_000_124L), signIn = signIn)
         assertTrue(outbox.holds(field(typed)) && outbox.holds(field(untyped)))
         assertEquals(emptyList<SignIn>(), probe.requeued)
 
@@ -401,7 +400,7 @@ class CourseAddsChannelTest {
         cache.saveCourses(listOf(typed, untyped), term, signIn)
         val adds = v4Adds()
         backend.answer(upload, 500, "{}")
-        adds.send(listOf(typed), term, typed.courseNo, addedAt = EditTime(1_790_000_000_123L), signIn = signIn)
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = moment(1_790_000_000_123L), signIn = signIn)
 
         assertTrue(adds.queueAsOldest(term, typed.courseNo, signIn))
         assertTrue(adds.queueAsOldest(term, untyped.courseNo, signIn))

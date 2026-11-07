@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.EditClocks
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.WriteAnswer
@@ -177,9 +176,10 @@ class PendingCourseDeletes internal constructor(
     )
 
     /**
-     * The moment of a class-table action, for [send] and [forget]: the clock,
-     * and later than every earlier one's whatever the clock does, the deletes
-     * still queued from before this process included. Take it as the user
+     * The moment of a class-table action, for [send] and [forget] ([CourseMoment]):
+     * its order, the clock, and later than every earlier one's whatever the clock
+     * does, the deletes still queued from before this process included, and its
+     * time, the clock's, which its age is read from. Take it as the user
      * acts, before the work that follows suspends, so a re-add and a removal
      * compare by the order they were asked in, not by when each reached the
      * lock behind a slow request. Waits for the file's lock, the first time
@@ -188,7 +188,7 @@ class PendingCourseDeletes internal constructor(
      * the first reads gets the later one, even when it resumes inline as the
      * lock goes, as on the main thread's immediate dispatcher.
      */
-    suspend fun stamp(): EditTime = mutex.withLock {
+    suspend fun stamp(): CourseMoment = mutex.withLock {
         if (!seeded) {
             noteStamps(waiting())
             // The adds' moments too, which the class table takes from here: after a restart with
@@ -196,9 +196,9 @@ class PendingCourseDeletes internal constructor(
             noteStamps(dataCache.loadPendingCourseAddTimes())
             seeded = true
         }
-        // Its age is the elapsed clock's within the boot, whatever the moment's order moved its wall time to.
+        // Ordered past the clock once it was set back; its time, which its age is read from, stays the clock's.
         val now = clocks.now()
-        now.copy(wallMs = lastStamp.updateAndGet { last -> maxOf(last + 1, now.wallMs) })
+        CourseMoment(lastStamp.updateAndGet { last -> maxOf(last + 1, now.wallMs) }, now)
     }
 
     /**
@@ -209,9 +209,9 @@ class PendingCourseDeletes internal constructor(
      * (`DataCache.hideDeletedCourse`). False once [signIn] has ended. It goes
      * as the [chosen] kind, when one was.
      */
-    suspend fun keep(semester: String, courseNo: String, queuedAt: EditTime, signIn: SignIn, chosen: ChosenKind? = null): Boolean {
-        choose(semester, courseNo, queuedAt.wallMs, chosen)
-        return edit(signIn, queuedAt) { it.with(semester, courseNo, queuedAt.wallMs) }
+    suspend fun keep(semester: String, courseNo: String, queuedAt: CourseMoment, signIn: SignIn, chosen: ChosenKind? = null): Boolean {
+        choose(semester, courseNo, queuedAt.at, chosen)
+        return edit(signIn, queuedAt) { it.with(semester, courseNo, queuedAt.at) }
     }
 
     /**
@@ -243,13 +243,13 @@ class PendingCourseDeletes internal constructor(
      * one was. Takes [PendingCourseAdds.removing] itself, so call it outside
      * that lock.
      */
-    suspend fun send(semester: String, courseNo: String, queuedAt: EditTime, signIn: SignIn, chosen: ChosenKind? = null) {
-        choose(semester, courseNo, queuedAt.wallMs, chosen)
+    suspend fun send(semester: String, courseNo: String, queuedAt: CourseMoment, signIn: SignIn, chosen: ChosenKind? = null) {
+        choose(semester, courseNo, queuedAt.at, chosen)
         // On disk before the wait for the lock, which a slow request may hold
         // for a while: a process killed meanwhile keeps the delete for its
         // next sync. A re-add's forget waiting ahead of this cannot let it go,
         // as the delete was asked after the re-add; see [forget].
-        if (!edit(signIn, queuedAt) { it.with(semester, courseNo, queuedAt.wallMs) }) return
+        if (!edit(signIn, queuedAt) { it.with(semester, courseNo, queuedAt.at) }) return
         sendHeld(semester, courseNo, signIn)
     }
 
@@ -293,9 +293,9 @@ class PendingCourseDeletes internal constructor(
      * a retry that read it is then either done or finds it gone. Call it
      * outside that lock, before the add's own upload.
      */
-    suspend fun forget(semester: String, courseNo: String, askedAt: EditTime, signIn: SignIn) {
+    suspend fun forget(semester: String, courseNo: String, askedAt: CourseMoment, signIn: SignIn) {
         pendingCourseAdds.removing {
-            edit(signIn) { it.without(semester, courseNo) { queuedAt -> queuedAt <= askedAt.wallMs } }
+            edit(signIn) { it.without(semester, courseNo) { queuedAt -> queuedAt <= askedAt.at } }
         }
     }
 
@@ -351,13 +351,13 @@ class PendingCourseDeletes internal constructor(
     // each moment keeps its clocks, and a delete asked at [asked] takes its own.
     private suspend fun edit(
         signIn: SignIn,
-        asked: EditTime? = null,
+        asked: CourseMoment? = null,
         change: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>>,
     ): Boolean = mutex.withLock {
         lane.edit(signIn) { deletes ->
             val before = deletesByTerm(deletes)
             noteStamps(before)
-            val clocks = deletes.associate { it.queuedAt to it.clocks } + listOfNotNull(asked?.let { it.wallMs to EditClocks.of(it) })
+            val clocks = deletes.associate { it.queuedAt to it.clocks } + listOfNotNull(asked?.let { it.at to it.clocks })
             deletesOf(change(before), clocks::get)
         }
     }
