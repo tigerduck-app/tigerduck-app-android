@@ -113,14 +113,22 @@ ${body()}
     /**
      * The form's fields: the student id, and the password field where the form has one, as inputs
      * in one form that posts to the page's own origin, the password field of type password; null
-     * otherwise. `type` writes a value as the student would, with its input and change events.
+     * otherwise. A button or input of the form whose formaction posts elsewhere leaves it null too.
+     * Where the form posts is read through the prototypes' getters, as a control named `action`
+     * stands in for `form.action` and an element named `baseURI` for `document.baseURI`. `type` writes a value as the student would, with its input and change
+     * events.
      */
     private const val FIELDS = """    const field = (name) => Array.prototype.find.call(
       document.getElementsByName(name), (element) => element instanceof HTMLInputElement && element.form !== null);
+    const getter = (type, name) => Object.getOwnPropertyDescriptor(type.prototype, name).get;
+    const postsHere = (address) => new URL(address, getter(Node, 'baseURI').call(document)).origin === origin;
+    const postsElsewhere = (form) => ['button', 'input'].some((tag) =>
+      Array.prototype.some.call(document.getElementsByTagName(tag), (element) => element.form === form &&
+        element.hasAttribute('formaction') && !postsHere(element.getAttribute('formaction'))));
     const fields = () => {
       const id = field(studentIdField), secret = passwordField === null ? null : field(passwordField);
       if (!id || (passwordField !== null && (!secret || secret.type !== 'password' || secret.form !== id.form))) return null;
-      if (new URL(id.form.action).origin !== origin) return null;
+      if (!postsHere(getter(HTMLFormElement, 'action').call(id.form)) || postsElsewhere(id.form)) return null;
       return { id, secret, form: id.form };
     };
     const type = (element, value) => {

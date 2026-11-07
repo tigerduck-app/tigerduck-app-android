@@ -84,6 +84,20 @@ class BrowserSiteSignInScriptsTest {
     }
 
     @Test
+    fun `each script reads where the form posts through the prototypes' getters, its buttons' formaction too`() {
+        // A control named action shadows form.action, and a submit button's formaction sends the
+        // form elsewhere (from the iPhone's review of the same check).
+        listOf(mark(page, form, STUDENT_ID), fill(page, form, STUDENT_ID, PASSWORD, TOKEN)).forEach { script ->
+            assertFalse("no form.action", Regex("""\.form\.action\b|form\.action\b""").containsMatchIn(script))
+            assertTrue(script.contains("getter(HTMLFormElement, 'action')"))
+            assertTrue(script.contains("getter(Node, 'baseURI').call(document)"))
+            assertTrue(script.contains("['button', 'input']"))
+            assertTrue(script.contains("hasAttribute('formaction') && !postsHere(element.getAttribute('formaction'))"))
+            assertFalse("no document.baseURI", script.contains("document.baseURI"))
+        }
+    }
+
+    @Test
     fun `the scripts submit nothing, and write values only through one helper`() {
         listOf(mark(page, form, STUDENT_ID), fill(page, form, STUDENT_ID, PASSWORD, TOKEN)).forEach { script ->
             listOf("submit", "click", "focus", "VerifyCode", "verify", "querySelector", "fetch", "XMLHttpRequest", "console", "cookie", "localStorage")
