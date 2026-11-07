@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassReminders
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
@@ -341,17 +342,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    /**
-     * Fires when the accent the watch is sent changes: the swatch, the
-     * gradient (see [storeAccentPick]) or its direction.
-     */
+    /** Fires when what the watch is sent of the accent changes: its first stop, or its gradient ([storeAccent]). */
     val accentColorChanged: SharedFlow<Unit> = _accentColorChanged.asSharedFlow()
 
     /**
-     * The accent swatch last picked in Settings, as its light palette hex. It
-     * keeps its value while [useWallpaperColors] is on. Read through
-     * [AccentPolicy.fixedLightHex], so nothing ever draws a value that is no
-     * color.
+     * The accent swatch last picked, or the gradient's first stop, as its light palette hex, kept while
+     * [useWallpaperColors] is on. Read through [AccentPolicy.fixedLightHex]: nothing draws a value that is no color.
      */
     var accentColorHex: Int
         get() = AccentPolicy.fixedLightHex(prefs.getInt("accentColorHex", AccentPolicy.DEFAULT_LIGHT_HEX))
@@ -373,57 +369,60 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putBoolean("useWallpaperColors", value).apply()
 
     /**
-     * The end color of the accent gradient picked, as its light palette hex,
-     * or [AccentPolicy.NO_GRADIENT] while the pick is a single color.
-     * [accentColorHex] holds its start, which every surface that draws no
-     * gradient draws alone.
+     * The accent picked, as the iPhone stores it: the gradient beside [accentColorHex] while it starts with that
+     * color ([AccentGradient.saved]), else that color alone. The release before stored a gradient as its start,
+     * end and direction, which reads as two stops of a linear gradient until the next pick drops them.
      */
-    var accentGradientEndHex: Int
-        get() = prefs.getInt("accentGradientEndHex", AccentPolicy.NO_GRADIENT)
-        set(value) = prefs.edit().putInt("accentGradientEndHex", value).apply()
+    val accent: AccentGradient
+        get() = AccentGradient.saved(
+            AccentGradient.decode(prefs.getString("accentGradient", null)) ?: AccentGradient.legacy(
+                prefs.getInt("accentGradientStartHex", AccentPolicy.NO_GRADIENT),
+                prefs.getInt("accentGradientEndHex", AccentPolicy.NO_GRADIENT),
+                prefs.getInt("accentGradientDirection", AccentGradientDirection.DEFAULT.code),
+            ),
+            accentColorHex,
+        )
 
     /**
-     * The start color the gradient was picked with. An older build knows only
-     * [accentColorHex], and a pick made there changes it: the gradient counts
-     * only while the two still match (see [AccentPolicy.gradientEnd]).
+     * Stores [accent] whole, in one write: its first stop as [accentColorHex], which whatever draws one color reads,
+     * and the gradient beside it, or none. The release before's keys go, so its gradient never comes back. One
+     * [accentColorChanged] when what the watch is sent changes, which must never hear a pick half stored.
      */
-    var accentGradientStartHex: Int
-        get() = prefs.getInt("accentGradientStartHex", AccentPolicy.NO_GRADIENT)
-        set(value) = prefs.edit().putInt("accentGradientStartHex", value).apply()
-
-    /** The preferences the accent the watch is sent is read from. */
-    private fun watchAccent() =
-        listOf(accentColorHex, accentGradientStartHex, accentGradientEndHex, accentGradientDirection.code)
-
-    /**
-     * Stores a pick from the accent color page whole: the swatch [lightHex], and the gradient from
-     * [gradientStartHex] to [gradientEndHex], or [AccentPolicy.NO_GRADIENT] for both. One write,
-     * and one [accentColorChanged] when the pick changes anything: a gradient from the swatch
-     * already picked leaves [accentColorHex] as it was, and the watch, which reads all three as it
-     * hears the change, must never hear a pick half stored.
-     */
-    fun storeAccentPick(lightHex: Int, gradientStartHex: Int, gradientEndHex: Int) {
-        val changed = lightHex != accentColorHex ||
-            gradientStartHex != accentGradientStartHex ||
-            gradientEndHex != accentGradientEndHex
+    fun storeAccent(accent: AccentGradient) {
+        val before = watchAccent()
         prefs.edit()
-            .putInt("accentColorHex", lightHex)
-            .putInt("accentGradientStartHex", gradientStartHex)
-            .putInt("accentGradientEndHex", gradientEndHex)
+            .putInt("accentColorHex", accent.first)
+            .apply { if (accent.isGradient) putString("accentGradient", accent.encode()) else remove("accentGradient") }
+            .remove("accentGradientStartHex").remove("accentGradientEndHex").remove("accentGradientDirection")
             .apply()
-        if (changed) _accentColorChanged.tryEmit(Unit)
+        if (watchAccent() != before) _accentColorChanged.tryEmit(Unit)
     }
 
-    /** The way the accent gradient runs, stored as its [AccentGradientDirection.code]. */
-    var accentGradientDirection: AccentGradientDirection
-        get() = AccentGradientDirection.fromCode(
-            prefs.getInt("accentGradientDirection", AccentGradientDirection.DEFAULT.code),
-        )
+    /** Whether the widgets draw the accent's gradient, and not only its first stop. Off by default. */
+    var accentGradientOnWidgets: Boolean
+        get() = prefs.getBoolean("accentGradientOnWidgets", false)
+        set(value) = prefs.edit().putBoolean("accentGradientOnWidgets", value).apply()
+
+    /** Whether the watch is sent the accent's gradient, and not only its first stop. Off by default. */
+    var accentGradientOnWatch: Boolean
+        get() = prefs.getBoolean("accentGradientOnWatch", false)
         set(value) {
-            val previous = accentGradientDirection
-            prefs.edit().putInt("accentGradientDirection", value.code).apply()
-            if (value != previous) _accentColorChanged.tryEmit(Unit)
+            val before = watchAccent()
+            prefs.edit().putBoolean("accentGradientOnWatch", value).apply()
+            if (watchAccent() != before) _accentColorChanged.tryEmit(Unit)
         }
+
+    /** Whether the Live Update draws the accent's gradient where it can. Off by default. */
+    var accentGradientOnLiveActivities: Boolean
+        get() = prefs.getBoolean("accentGradientOnLiveActivities", false)
+        set(value) = prefs.edit().putBoolean("accentGradientOnLiveActivities", value).apply()
+
+    /** The gradient each surface away from the app's screens draws, by its switch. */
+    val deviceAccents: DeviceAccents
+        get() = AccentPolicy.deviceAccents(accent, accentGradientOnWidgets, accentGradientOnWatch, accentGradientOnLiveActivities)
+
+    /** What the watch is sent of the accent: its first stop, and the gradient while its switch is on. */
+    private fun watchAccent() = accentColorHex to deviceAccents.watch
 
     var browserPreference: String
         get() = prefs.getString("browserPreference", "system") ?: "system"

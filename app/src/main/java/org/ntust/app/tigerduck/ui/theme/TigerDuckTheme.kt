@@ -408,8 +408,8 @@ fun TigerDuckAppTheme(
     accentColor: Color = Color(0xFF007AFF),
     /** What text and icons on [accentColor] draw in, where the theme's own would not read; null for the theme's own. */
     onAccentColor: Color? = null,
-    /** The gradient picked, from [accentColor] to its end; null for a single color. */
-    accentGradient: AccentGradient? = null,
+    /** The gradient picked, each stop as this mode draws it, the first [accentColor]; null for one color. */
+    accentGradient: org.ntust.app.tigerduck.shared.AccentGradient? = null,
     /**
      * Whether the accent slots take the wallpaper's colors in place of
      * [accentColor], from Android 12. A theme nested in another follows the
@@ -446,13 +446,13 @@ fun TigerDuckAppTheme(
         )
     }
     // The wallpaper's colors draw no gradient: a gradient picked waits behind them.
-    val accentBrush: Brush = if (!followsWallpaper && accentGradient != null) {
-        AccentGradientBrush(accentColor, accentGradient.end, accentGradient.direction)
+    val accentBrush: Brush = if (!followsWallpaper && accentGradient != null && accentGradient.isGradient) {
+        AccentGradientBrush(accentGradient)
     } else {
         SolidColor(colorScheme.primary)
     }
     val onAccentBrush = if (accentBrush is AccentGradientBrush) {
-        readableOnGradient(accentBrush.start, accentBrush.end, colorScheme.onPrimary)
+        readableOnGradient(accentBrush.drawn, colorScheme.onPrimary)
     } else {
         colorScheme.onPrimary
     }

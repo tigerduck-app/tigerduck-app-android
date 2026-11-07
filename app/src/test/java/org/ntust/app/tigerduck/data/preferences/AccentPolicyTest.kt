@@ -8,6 +8,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.AccentGradient
 import kotlin.math.max
 import kotlin.math.min
 
@@ -65,35 +66,26 @@ class AccentPolicyTest {
     }
 
     @Test
-    fun `a gradient counts while the accent is still the start it was picked with`() {
-        assertEquals(purple, AccentPolicy.gradientEnd(blue, storedStart = blue, storedEnd = purple))
+    fun `each surface away from the app's screens draws the gradient only while its switch is on`() {
+        val gradient = requireNotNull(AccentGradient.of(listOf(blue, purple)))
+
+        assertEquals(DeviceAccents(), AccentPolicy.deviceAccents(gradient, onWidgets = false, onWatch = false, onLiveActivities = false))
+        assertEquals(
+            DeviceAccents(widgets = gradient, liveActivities = gradient),
+            AccentPolicy.deviceAccents(gradient, onWidgets = true, onWatch = false, onLiveActivities = true),
+        )
+        assertEquals(
+            DeviceAccents(watch = gradient),
+            AccentPolicy.deviceAccents(gradient, onWidgets = false, onWatch = true, onLiveActivities = false),
+        )
     }
 
     @Test
-    fun `no stored end is a single color`() {
-        assertNull(AccentPolicy.gradientEnd(blue, storedStart = blue, storedEnd = AccentPolicy.NO_GRADIENT))
-    }
-
-    // An older build knows only the accent: a color picked there replaces the
-    // start, and the gradient it knows nothing of must not come back with it.
-    @Test
-    fun `a color an older build picked over the gradient leaves a single color`() {
-        assertNull(AccentPolicy.gradientEnd(pink, storedStart = blue, storedEnd = purple))
-    }
-
-    @Test
-    fun `a stored end that is no color is no gradient`() {
-        assertNull(AccentPolicy.gradientEnd(blue, storedStart = blue, storedEnd = 0x1000000))
-    }
-
-    @Test
-    fun `every ready-made gradient runs between two different presets`() {
-        assertTrue(AccentPolicy.presetGradients.isNotEmpty())
-        AccentPolicy.presetGradients.forEach { (start, end) ->
-            assertTrue(AccentPolicy.isPreset(start))
-            assertTrue(AccentPolicy.isPreset(end))
-            assertNotEquals(start, end)
-        }
+    fun `a single color is drawn alone everywhere, whatever the switches say`() {
+        assertEquals(
+            DeviceAccents(),
+            AccentPolicy.deviceAccents(AccentGradient.color(pink), onWidgets = true, onWatch = true, onLiveActivities = true),
+        )
     }
 
     @Test

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -27,7 +28,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.ui.theme.AccentGradientBrush
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -148,15 +149,15 @@ class AccentColorSwatchesTest {
     }
 
     @Test
-    fun `the accent picked is called by its preset, its gradient, the custom ones or the wallpaper`() {
+    fun `the accent picked is called by its preset, the custom color, the custom gradient or the wallpaper`() {
         val names = mutableListOf<String>()
+        val gradient = requireNotNull(AccentGradient.of(listOf(blue, purple)))
         composeRule.setContent {
-            names += accentPickName(fixedHex = blue, gradientEnd = null, followsWallpaper = false)
-            names += accentPickName(fixedHex = 0x123456, gradientEnd = null, followsWallpaper = false)
-            names += accentPickName(fixedHex = blue, gradientEnd = purple, followsWallpaper = false)
-            // Two presets, but not a ready-made gradient: the user's own.
-            names += accentPickName(fixedHex = purple, gradientEnd = blue, followsWallpaper = false)
-            names += accentPickName(fixedHex = blue, gradientEnd = purple, followsWallpaper = true)
+            names += accentPickName(AccentGradient.color(blue), followsWallpaper = false)
+            names += accentPickName(AccentGradient.color(0x123456), followsWallpaper = false)
+            // Two presets: no gradient is ready-made any more, as on the iPhone.
+            names += accentPickName(gradient, followsWallpaper = false)
+            names += accentPickName(gradient, followsWallpaper = true)
         }
         composeRule.waitForIdle()
 
@@ -164,53 +165,56 @@ class AccentColorSwatchesTest {
             listOf(
                 "Blue",
                 text(R.string.course_color_picker_custom_label),
-                "Blue to Purple",
                 text(R.string.settings_accent_gradient_custom),
                 text(R.string.color_name_wallpaper),
             ),
-            names.take(5),
+            names.take(4),
         )
     }
 
     // Gray into black: at the middle, under the check, dark is all but black.
     @Test
-    fun `a gradient's check reads on its middle, not only on its start`() {
-        assertEquals(Color.White, checkOnGradient(0x808080, 0x000000, isDark = false))
+    fun `a gradient's check reads on its middle, not only on its first color`() {
+        val grayIntoBlack = requireNotNull(AccentGradient.of(listOf(0x808080, 0x000000)))
+        assertEquals(Color.White, checkOnAccent(grayIntoBlack, isDark = false))
     }
 
     // Light mode darkens Orange to stand out on the cards; its swatch still
-    // shows the preset itself, and a gradient's swatch its two presets.
+    // shows the preset itself, and a gradient's swatch its presets.
     @Test
     fun `a preset's swatch shows the preset's own color in light mode`() {
         val orange = 0xFF9500
         val green = 0x34C759
         val teal = 0x5AC8FA
 
-        assertEquals(SolidColor(Color(0xFFFF9500)), solidSwatch(orange, isDark = false))
+        assertEquals(SolidColor(Color(0xFFFF9500)), accentSwatch(AccentGradient.color(orange), isDark = false))
         assertEquals(
-            AccentGradientBrush(Color(0xFF34C759), Color(0xFF5AC8FA), AccentGradientDirection.DEFAULT),
-            gradientSwatch(green, teal, AccentGradientDirection.DEFAULT, isDark = false),
+            AccentGradientBrush(requireNotNull(AccentGradient.of(listOf(green, teal)))),
+            accentSwatch(requireNotNull(AccentGradient.of(listOf(green, teal))), isDark = false),
         )
     }
 
     // A color of the user's own has no swatch of its own: it shows as the app draws it.
     @Test
     fun `a color of the user's own shows in its swatch as light mode draws it`() {
-        assertEquals(SolidColor(AccentPolicy.fixedColor(0xFFFFFF, isDark = false)), solidSwatch(0xFFFFFF, isDark = false))
+        assertEquals(
+            SolidColor(AccentPolicy.fixedColor(0xFFFFFF, isDark = false)),
+            accentSwatch(AccentGradient.color(0xFFFFFF), isDark = false),
+        )
     }
 
-    // The picker opens on Orange as the app draws it, so the first nudge off
+    // The editor opens on Orange as the app draws it, so the first nudge off
     // the preset does not darken the preview in one jump.
     @Test
-    fun `the picker's preview shows a preset as light mode draws it`() {
+    fun `the editor's preview shows a preset as light mode draws it`() {
         val orange = 0xFF9500
         val teal = 0x5AC8FA
-        val direction = AccentGradientDirection.DEFAULT
+        val drawn = { hex: Int -> AccentPolicy.fixedColor(hex, isDark = false).toArgb() and 0xFFFFFF }
 
-        assertEquals(SolidColor(AccentPolicy.fixedColor(orange, isDark = false)), drawnAccent(orange, null, direction, isDark = false))
+        assertEquals(SolidColor(AccentPolicy.fixedColor(orange, isDark = false)), drawnAccent(AccentGradient.color(orange), isDark = false))
         assertEquals(
-            AccentGradientBrush(AccentPolicy.fixedColor(orange, isDark = false), AccentPolicy.fixedColor(teal, isDark = false), direction),
-            drawnAccent(orange, teal, direction, isDark = false),
+            AccentGradientBrush(requireNotNull(AccentGradient.of(listOf(drawn(orange), drawn(teal))))),
+            drawnAccent(requireNotNull(AccentGradient.of(listOf(orange, teal))), isDark = false),
         )
     }
 

@@ -2,49 +2,44 @@ package org.ntust.app.tigerduck.ui.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
-
-/** The end color and direction of the accent gradient picked; its start is the accent color. */
-@Immutable
-data class AccentGradient(val end: Color, val direction: AccentGradientDirection)
-
-/** Where a gradient along this direction starts and ends in a shape of [size]. */
-internal fun AccentGradientDirection.endpoints(size: Size): Pair<Offset, Offset> =
-    Offset(startX * size.width, startY * size.height) to Offset(endX * size.width, endY * size.height)
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.AccentShader
+import org.ntust.app.tigerduck.shared.middleColors
+import org.ntust.app.tigerduck.shared.opaque
+import org.ntust.app.tigerduck.shared.toned
 
 /**
- * The accent gradient from [start] to [end] along [direction], laid over
- * whatever shape it fills. A class of its own, and not a linear gradient made
- * once, so it stretches to each shape it fills and compares equal to an equal
+ * The accent [drawn], a gradient whose stops are the colors a screen draws, laid over whatever
+ * shape it fills in its style ([AccentShader], the one home for that). A class of its own, and not
+ * a shader made once, so it stretches to each shape it fills and compares equal to an equal
  * gradient, which a recomposition then leaves alone.
  */
 @Immutable
-class AccentGradientBrush(
-    val start: Color,
-    val end: Color,
-    val direction: AccentGradientDirection,
-) : ShaderBrush() {
-    override fun createShader(size: Size): Shader {
-        val (from, to) = direction.endpoints(size)
-        return LinearGradientShader(from = from, to = to, colors = listOf(start, end))
-    }
+class AccentGradientBrush(val drawn: AccentGradient) : ShaderBrush() {
+    override fun createShader(size: Size): Shader = AccentShader.create(drawn, 0f, 0f, size.width, size.height)
 
-    override fun equals(other: Any?): Boolean =
-        other is AccentGradientBrush && other.start == start && other.end == end && other.direction == direction
+    override fun equals(other: Any?): Boolean = other is AccentGradientBrush && other.drawn == drawn
 
-    override fun hashCode(): Int = (start.hashCode() * 31 + end.hashCode()) * 31 + direction.hashCode()
+    override fun hashCode(): Int = drawn.hashCode()
 
-    override fun toString(): String = "AccentGradientBrush(start=$start, end=$end, direction=$direction)"
+    override fun toString(): String = "AccentGradientBrush($drawn)"
+}
+
+/**
+ * This accent as a fill, each stop as [tone] draws it (an RGB or ARGB hex, its alpha ignored): one
+ * color as itself, and a gradient as [AccentGradientBrush].
+ */
+fun AccentGradient.brush(tone: (Int) -> Int): Brush {
+    val drawn = toned(tone)
+    return if (drawn.isGradient) AccentGradientBrush(drawn) else SolidColor(Color(opaque(drawn.first)))
 }
 
 /** What the accent's own fills paint with; see [TigerDuckTheme.accentBrush]. */
@@ -57,26 +52,18 @@ internal val LocalOnAccentBrush = staticCompositionLocalOf { LightColorScheme.on
 private val DarkText = Color(0xFF1C1C1E)
 
 /**
- * What text and marks on a gradient from [start] to [end] draw in: of
- * [onStart], the text on its start, and its opposite, whichever reads best
- * across the gradient's middle. A fill's number or label sits centered, where
- * the gradient is half way, and two ends far apart, light yellow into black,
- * leave the start's text unreadable there.
+ * What text and marks on a fill of [drawn] draw in: of [onFirst], the text on its first color, and
+ * its opposite, whichever reads best around the fill's middle as the shader draws it there, in its
+ * style ([middleColors]). A fill's number or label sits centered, and a gradient whose colors are
+ * far apart, light yellow into black, leaves the first color's text unreadable there.
  */
-internal fun readableOnGradient(start: Color, end: Color, onStart: Color): Color {
-    val other = if (onStart.luminance() > 0.5f) DarkText else Color.White
-    val middle = listOf(0.35f, 0.5f, 0.65f).map { shaderMix(start, end, it) }
+internal fun readableOnGradient(
+    drawn: AccentGradient,
+    onFirst: Color,
+    meshDrawn: Boolean = AccentShader.drawsMesh(),
+): Color {
+    val other = if (onFirst.luminance() > 0.5f) DarkText else Color.White
+    val middle = drawn.middleColors(meshDrawn = meshDrawn).map { Color(it) }
     fun worst(text: Color) = middle.minOf { AccentPolicy.contrast(text, it) }
-    return if (worst(other) > worst(onStart)) other else onStart
+    return if (worst(other) > worst(onFirst)) other else onFirst
 }
-
-/**
- * [start] [fraction] of the way to [end], as the gradient's shader draws it:
- * each sRGB component in a straight line, not Compose's perceptual [lerp],
- * whose middle comes out lighter than the one on screen.
- */
-private fun shaderMix(start: Color, end: Color, fraction: Float) = Color(
-    red = start.red + (end.red - start.red) * fraction,
-    green = start.green + (end.green - start.green) * fraction,
-    blue = start.blue + (end.blue - start.blue) * fraction,
-)

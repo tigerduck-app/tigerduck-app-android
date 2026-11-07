@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,9 +40,9 @@ import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.SystemPermissions
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradient
+import org.ntust.app.tigerduck.shared.toned
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
-import org.ntust.app.tigerduck.ui.theme.AccentGradient
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import org.ntust.app.tigerduck.util.logSummary
@@ -211,14 +212,18 @@ class AppState @Inject constructor(
     val showOnboarding: Boolean
         get() = !hasCompletedOnboarding || needsOnboardingRerun
 
-    // The widgets draw the swatch, and redraw only when asked.
-    private val accentSetting = AccentSetting(prefs, onFixedChange = { widgetUpdater.requestUpdate() })
+    // The widgets draw the accent, and redraw only when asked.
+    private val accentSetting = AccentSetting(prefs, onWidgetsChange = { widgetUpdater.requestUpdate() })
 
     /**
-     * The accent swatch last picked, as its canonical (light) hex. It stays
-     * while the wallpaper's colors are picked, and is what every surface that
-     * cannot follow them draws; see [AccentPolicy].
+     * The accent picked: one color, or a gradient of up to five whose first stop is [accentColorHex].
+     * It stays while the wallpaper's colors are picked, for every surface that cannot follow them; see
+     * [AccentPolicy].
      */
+    val accent: AccentGradient
+        get() = accentSetting.accent
+
+    /** The accent's first stop, as its canonical (light) hex: what every surface of one color draws. */
     val accentColorHex: Int
         get() = accentSetting.lightHex
 
@@ -232,7 +237,7 @@ class AppState @Inject constructor(
     /** Picks the accent swatch of canonical (light) hex [lightHex], in place of the wallpaper too. */
     fun pickAccentColor(lightHex: Int) = accentSetting.pick(lightHex)
 
-    /** Picks the wallpaper's colors for the app's screens, keeping the swatch for the rest. */
+    /** Picks the wallpaper's colors for the app's screens, keeping the accent for the rest. */
     fun pickWallpaperColors() = accentSetting.pickWallpaper()
 
     /**
@@ -245,26 +250,17 @@ class AppState @Inject constructor(
     fun accentColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color =
         AccentPolicy.fixedColor(accentColorHex, isDark)
 
-    /**
-     * The end of the gradient picked, as its canonical (light) hex, or null for
-     * a single color. [accentColorHex] is its start.
-     */
-    val accentGradientEndHex: Int?
-        get() = accentSetting.gradientEnd
+    /** Picks [accent], canonical (light) hexes, from the gradient editor, in place of the wallpaper too. */
+    fun pickAccent(accent: AccentGradient) = accentSetting.pickAccent(accent)
 
-    /** The way the accent gradient runs. */
-    val accentGradientDirection: AccentGradientDirection
-        get() = accentSetting.gradientDirection
+    /** The switches that hand the gradient to the widgets, the watch and the Live Update. */
+    var accentGradientSwitches: AccentGradientSwitchStates
+        get() = accentSetting.switches
+        set(value) { accentSetting.switches = value }
 
-    /** Picks the gradient from [startHex] to [endHex], canonical (light) hexes, in place of the wallpaper too. */
-    fun pickAccentGradient(startHex: Int, endHex: Int) = accentSetting.pickGradient(startHex, endHex)
-
-    /** Picks the way the accent gradient runs. */
-    fun pickAccentGradientDirection(direction: AccentGradientDirection) = accentSetting.pickDirection(direction)
-
-    /** The gradient picked as the current theme mode draws it, or null for a single color. */
+    /** The gradient picked, each stop as the current theme mode draws it, or null for a single color. */
     fun accentGradient(isDark: Boolean = TigerDuckTheme.isDarkMode): AccentGradient? =
-        accentGradientEndHex?.let { AccentGradient(AccentPolicy.fixedColor(it, isDark), accentGradientDirection) }
+        accent.takeIf { it.isGradient }?.toned { AccentPolicy.fixedColor(it, isDark).toArgb() }
 
     /** What text on the accent draws in, for a color of the user's own; null for the theme's own. */
     fun accentOnColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color? =

@@ -20,14 +20,20 @@ object WearProtocol {
         const val PATH = "/tigerduck/schedule"
         const val KEY_COURSES = "courses"
 
-        /** The accent as `#RRGGBB`; with a gradient picked, its start. */
+        /** The accent as `#RRGGBB`; with a gradient, its first stop. */
         const val KEY_ACCENT = "accentHex"
 
-        // The end of the accent gradient as `#RRGGBB`, and its direction as an
-        // [AccentGradientDirection.code] Int, both only while a gradient is
-        // picked. Neither is sent for a single color, and a phone that
-        // predates them sends neither: the watch then draws [KEY_ACCENT]
-        // alone, and a watch that predates them draws it alone too.
+        // The accent's gradient, as [AccentGradient.encode] writes it, the iPhone's JSON and the
+        // iPhone's key: sent only while the accent is one and Settings' watch switch is on, each
+        // stop in the tone the watch draws. A watch reads one it cannot, from a newer build or
+        // damaged, as none, and draws [KEY_ACCENT] alone; a watch that predates it ignores it.
+        const val KEY_ACCENT_GRADIENT = "accentGradient"
+
+        // What the release before sent for a gradient, and a watch of that release still reads:
+        // its end as `#RRGGBB`, and its direction as an [AccentGradientDirection.code] Int. Sent
+        // beside [KEY_ACCENT_GRADIENT], as its last stop and, for a linear one, its direction, so
+        // such a watch draws the first stop into the last. A watch that finds no
+        // [KEY_ACCENT_GRADIENT] reads these as a two-stop linear gradient, as from that phone.
         const val KEY_ACCENT_END = "accentEndHex"
         const val KEY_ACCENT_DIRECTION = "accentDirection"
         const val KEY_SYNCED_AT = "syncedAtMs"

@@ -5,20 +5,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import org.ntust.app.tigerduck.shared.AccentGradient
 import kotlin.math.max
 import kotlin.math.min
 
 /**
  * Which accent each surface draws, from the preferences behind the accent
  * color page: [AppPreferences.accentColorHex], the swatch last picked or the
- * start of the gradient picked, [AppPreferences.accentGradientEndHex], that
- * gradient's end, and [AppPreferences.useWallpaperColors], whether the
- * wallpaper's colors are picked in their place.
+ * first stop of the gradient picked, [AppPreferences.accent], the gradient
+ * itself, and [AppPreferences.useWallpaperColors], whether the wallpaper's
+ * colors are picked in their place.
  *
- * Only the fills the app's own screens paint draw a gradient (see
- * [org.ntust.app.tigerduck.ui.theme.TigerDuckTheme.accentBrush]), and the
- * watch's marks in the accent; everything else draws its start, as a single
- * color.
+ * On the app's own screens only the accent's own fills draw a gradient (see
+ * [org.ntust.app.tigerduck.ui.theme.TigerDuckTheme.accentBrush]); the
+ * Material controls, text and icons draw its first stop. The widgets, the
+ * watch and the Live Update draw the gradient only while Settings' switch for
+ * each is on ([deviceAccents]), and its first stop otherwise.
  *
  * Only the app's own screens follow the wallpaper, and only from Android 12,
  * the first with wallpaper colors to give. Everything else is handed the
@@ -52,29 +54,21 @@ object AccentPolicy {
         return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
     }
 
-    /** What `accentGradientEndHex` holds while the pick is a single color. */
+    /** What the release before this one stored as a gradient's start and end while the pick was a single color. */
     const val NO_GRADIENT = -1
 
     /**
-     * The gradients the accent page offers ready-made, as their start and end
-     * colors' light palette hexes, each a pair of the preset colors.
+     * What each surface away from the app's screens draws of [accent]: its gradient where that
+     * surface's switch is on, and its first stop alone everywhere else and for a single color.
      */
-    val presetGradients: List<Pair<Int, Int>> = listOf(
-        0x007AFF to 0xAF52DE, // Blue to Purple
-        0xAF52DE to 0xFF2D55, // Purple to Pink
-        0xFF2D55 to 0xFF9500, // Pink to Orange
-        0x34C759 to 0x5AC8FA, // Green to Cyan
-        0x5AC8FA to 0x007AFF, // Cyan to Blue
-        0x5856D6 to 0x5AC8FA, // Indigo to Cyan
-    )
-
-    /**
-     * The end color of the gradient picked, or null when the pick is a single
-     * color. A gradient counts only while the fixed accent is still the start
-     * it was picked with ([storedStart]).
-     */
-    fun gradientEnd(fixedLightHex: Int, storedStart: Int, storedEnd: Int): Int? =
-        storedEnd.takeIf { it in 0..0xFFFFFF && storedStart == fixedLightHex }
+    fun deviceAccents(accent: AccentGradient, onWidgets: Boolean, onWatch: Boolean, onLiveActivities: Boolean): DeviceAccents {
+        val gradient = accent.takeIf { it.isGradient }
+        return DeviceAccents(
+            widgets = gradient?.takeIf { onWidgets },
+            watch = gradient?.takeIf { onWatch },
+            liveActivities = gradient?.takeIf { onLiveActivities },
+        )
+    }
 
     /** Whether [lightHex] is one of the preset colors, not one of the user's own. */
     fun isPreset(lightHex: Int): Boolean = AppPreferences.themeColors.any { it.second == lightHex }
@@ -154,3 +148,13 @@ object AccentPolicy {
     fun appFollowsWallpaper(useWallpaperColors: Boolean, sdkInt: Int = Build.VERSION.SDK_INT): Boolean =
         useWallpaperColors && sdkInt >= Build.VERSION_CODES.S
 }
+
+/**
+ * The gradient the widgets, the watch and the Live Update each draw, or null where one draws the
+ * accent's first stop alone: its switch off, or the accent a single color.
+ */
+data class DeviceAccents(
+    val widgets: AccentGradient? = null,
+    val watch: AccentGradient? = null,
+    val liveActivities: AccentGradient? = null,
+)

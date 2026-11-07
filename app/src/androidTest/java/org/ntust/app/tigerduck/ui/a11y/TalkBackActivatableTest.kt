@@ -20,7 +20,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.HueSlider
 import org.ntust.app.tigerduck.ui.component.SatValSquare
@@ -130,14 +130,11 @@ class TalkBackActivatableTest {
     fun theChosenAccentSwatchReadsAsChosen() {
         rule.setContent {
             AccentColorPage(
-                fixedHex = 0x007AFF,
-                gradientEnd = null,
-                direction = AccentGradientDirection.DEFAULT,
+                accent = AccentGradient.color(0x007AFF),
                 followsWallpaper = false,
                 isDark = false,
                 onPick = {},
-                onPickGradient = { _, _ -> },
-                onPickDirection = {},
+                onPickAccent = {},
                 onPickWallpaper = {},
             )
         }

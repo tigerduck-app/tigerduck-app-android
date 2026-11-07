@@ -125,7 +125,6 @@ fun SettingsScreen(
         if (isLibraryLoggedIn) showLibraryLoginSheet = false
     }
 
-    val accentColorHex = viewModel.appState.accentColorHex
     val visualPreset = viewModel.appState.visualPreset
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
     val alwaysShowAllPeriods = viewModel.appState.alwaysShowAllPeriods
@@ -292,23 +291,7 @@ fun SettingsScreen(
                     Column {
                         SettingsLinkRow(stringResource(R.string.tab_editor_title)) { onNavigateToTabEditor() }
                         HorizontalDivider()
-                        // The accent as the app draws it: the wallpaper's swatch
-                        // while it follows them, else the color or gradient picked.
-                        val followsWallpaper = viewModel.appState.usesWallpaperColors
-                        val wallpaper = wallpaperColors(TigerDuckTheme.isDarkMode)
-                        AccentColorRow(
-                            preview = if (followsWallpaper && wallpaper != null) {
-                                wallpaper.wallpaperSwatch()
-                            } else {
-                                TigerDuckTheme.accentBrush
-                            },
-                            pickName = accentPickName(
-                                fixedHex = accentColorHex,
-                                gradientEnd = viewModel.appState.accentGradientEndHex,
-                                followsWallpaper = followsWallpaper,
-                            ),
-                            onClick = onNavigateToAccentColor,
-                        )
+                        AccentSettingsRows(viewModel.appState, onOpenAccentColor = onNavigateToAccentColor)
                     }
                 }
             }
