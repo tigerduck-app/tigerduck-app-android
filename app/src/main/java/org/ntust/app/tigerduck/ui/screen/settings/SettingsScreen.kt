@@ -62,7 +62,6 @@ import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
