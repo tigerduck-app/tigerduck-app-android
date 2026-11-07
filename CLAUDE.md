@@ -205,9 +205,10 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   while an earlier send of its field was out counts its age from that answer's arrival,
   which the client keeps, on disk, before the write returns, and reads around every write
   of a synced field, a lane's or a screen's, by the field the write names
-  (`FieldAges`, `push/EditStamp.kt`). A queue that orders its edits past the clock keeps
-  that order apart from the time (`CourseMoment`): no edit's time is ahead of the clock
-  that read it. `EditAgeTest`, `OldestWritesTest`, `AnswerArrivalsTest` and
+  (`FieldAges`, `push/EditStamp.kt`), one write of a field at a time, and a course's
+  membership after its term's reset (`SyncField.termReset`). A queue that orders its
+  edits past the clock keeps that order apart from the time (`CourseMoment`): no edit's
+  time is ahead of the clock that read it. `EditAgeTest`, `OldestWritesTest`, `AnswerArrivalsTest` and
   `AnswerArrivalWritesTest` pin them.
 - `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
