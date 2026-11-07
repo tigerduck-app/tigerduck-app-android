@@ -31,6 +31,12 @@ data class WidgetColors(
      * on; the accent's own fills draw it in its style, and [highlight] is its first stop.
      */
     val highlightGradient: AccentGradient? = null,
+    /**
+     * Text and icons on the accent's own fills that draw [highlightGradient] (`accentBackground`):
+     * what reads on its middle. [onHighlight] stays the text on a solid fill of [highlight], as the
+     * Week widget's class in session is.
+     */
+    val onAccentFill: Color = onHighlight,
 )
 
 object WidgetTheme {
@@ -110,21 +116,26 @@ fun resolveWidgetAccentColor(prefs: AppPreferences, isDark: Boolean): Color =
 fun resolveWidgetOnAccentColor(prefs: AppPreferences, isDark: Boolean): Color =
     AccentPolicy.onAccent(prefs.accentColorHex, isDark) ?: Color.White
 
-/** The widgets' accent in [isDark]'s theme: [color] its first stop, [gradient] the whole of it, and the text on it. */
-data class WidgetAccent(val color: Color, val onColor: Color, val gradient: AccentGradient?)
+/**
+ * The widgets' accent in [isDark]'s theme: [color] its first stop and [onColor] the text on a solid
+ * fill of it; [gradient] the whole of it, and [onFill] the text on a fill that draws it.
+ */
+data class WidgetAccent(val color: Color, val onColor: Color, val gradient: AccentGradient?, val onFill: Color)
 
 /**
  * The accent every widget draws: [resolveWidgetAccentColor], and while Settings' widgets switch is
  * on its gradient, each stop as the app draws it in [isDark]'s theme. Text on a gradient's fill
- * reads on its middle, where a badge's label sits.
+ * reads on its middle, where a badge's label sits, and on a mesh the mesh's middle: a widget's
+ * bitmap draws a mesh on every Android ([org.ntust.app.tigerduck.shared.AccentShader.bitmap]).
  */
 fun resolveWidgetAccent(prefs: AppPreferences, isDark: Boolean): WidgetAccent {
     val onFirst = resolveWidgetOnAccentColor(prefs, isDark)
     val gradient = prefs.deviceAccents.widgets?.toned { AccentPolicy.fixedColor(it, isDark).toArgb() }
     return WidgetAccent(
         color = resolveWidgetAccentColor(prefs, isDark),
-        onColor = gradient?.let { readableOnGradient(it, onFirst) } ?: onFirst,
+        onColor = onFirst,
         gradient = gradient,
+        onFill = gradient?.let { readableOnGradient(it, onFirst, meshDrawn = true) } ?: onFirst,
     )
 }
 
@@ -132,7 +143,7 @@ fun resolveWidgetAccent(prefs: AppPreferences, isDark: Boolean): WidgetAccent {
 fun widgetColorsWithAccent(prefs: AppPreferences, isDark: Boolean): WidgetColors {
     val accent = resolveWidgetAccent(prefs, isDark)
     return (if (isDark) WidgetTheme.Dark else WidgetTheme.Light)
-        .copy(highlight = accent.color, onHighlight = accent.onColor, highlightGradient = accent.gradient)
+        .copy(highlight = accent.color, onHighlight = accent.onColor, highlightGradient = accent.gradient, onAccentFill = accent.onFill)
 }
 
 /**

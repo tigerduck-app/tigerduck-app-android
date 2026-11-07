@@ -18,6 +18,10 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.AccentGradientStyle
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy
+import org.ntust.app.tigerduck.widget.content.weekCourseFill
+import org.ntust.app.tigerduck.widget.content.weekCourseTextColor
 import org.ntust.app.tigerduck.ui.AccentSetting
 import org.ntust.app.tigerduck.widget.content.WidgetAccentMark
 import org.ntust.app.tigerduck.widget.content.accentBitmap
@@ -95,7 +99,7 @@ class WidgetAccentGradientTest {
             gradientOnWidgets = true
         }
         assertEquals(Color(0xFF1C1C1E), resolveWidgetOnAccentColor(prefs, isDark = false))
-        assertEquals(Color.White, resolveWidgetAccent(prefs, isDark = false).onColor)
+        assertEquals(Color.White, resolveWidgetAccent(prefs, isDark = false).onFill)
     }
 
     @Test
@@ -128,5 +132,46 @@ class WidgetAccentGradientTest {
     @Test
     fun `the same gradient and mark give the same image`() {
         assertSame(accentBitmap(gradient(blue, purple), WidgetAccentMark.Badge), accentBitmap(gradient(blue, purple), WidgetAccentMark.Badge))
+    }
+
+    // The Week widget's class in session stays a solid fill of the first stop: its text reads on
+    // that, while the gradient badges' text reads on the gradient's middle.
+    @Test
+    fun `text on a solid fill reads on the first stop, and on a gradient fill on its middle`() {
+        AccentSetting(prefs).apply {
+            pickAccent(gradient(0x98FFC8, 0x000000))
+            gradientOnWidgets = true
+        }
+        val colors = widgetColorsWithAccent(prefs, isDark = false)
+        val style = VisualStylePolicy(prefs.visualPreset)
+
+        assertEquals(Color(0xFF1C1C1E), colors.onHighlight)
+        assertEquals(Color.White, colors.onAccentFill)
+        assertEquals(colors.onHighlight, weekCourseTextColor(highlighted = true, colors = colors, style = style))
+        assertEquals(colors.highlight, weekCourseFill(Course(courseNo = "CS1001", courseName = "Calculus"), true, colors, style, emptyMap()))
+    }
+
+    @Test
+    fun `without a gradient the text on either fill is the first stop's`() {
+        AccentSetting(prefs).pick(0x98FFC8)
+        val colors = widgetColorsWithAccent(prefs, isDark = false)
+
+        assertEquals(colors.onHighlight, colors.onAccentFill)
+    }
+
+    // Widgets draw a mesh pixel by pixel on every Android, so its text is chosen against the mesh,
+    // not the linear stand-in the app's screens draw below Android 13.
+    @Config(sdk = [31])
+    @Test
+    fun `below Android 13 a widget's text on a mesh reads on the mesh it draws`() {
+        // White at the four corners, black in the middle: the mesh's middle is black, where the
+        // stand-in's, its third stop, is white (as light mode draws it, a gray dark text reads on).
+        AccentSetting(prefs).apply {
+            pickAccent(gradient(0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0x000000, style = AccentGradientStyle.Mesh))
+            gradientOnWidgets = true
+        }
+
+        assertEquals(Color(0xFF1C1C1E), resolveWidgetAccent(prefs, isDark = false).onColor)
+        assertEquals(Color.White, resolveWidgetAccent(prefs, isDark = false).onFill)
     }
 }

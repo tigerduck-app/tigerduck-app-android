@@ -135,7 +135,7 @@ private fun LibraryShortcutContent(
                         provider = ImageProvider(R.drawable.widget_library_icon),
                         contentDescription = null,
                         modifier = GlanceModifier.size(20.dp.scaled),
-                        colorFilter = ColorFilter.tint(ColorProvider(accent.onColor)),
+                        colorFilter = ColorFilter.tint(ColorProvider(accent.onFill)),
                     )
                 }
                 Box(modifier = GlanceModifier.height(4.dp.scaled)) {}
