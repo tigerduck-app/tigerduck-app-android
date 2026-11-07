@@ -4,9 +4,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 
 /**
@@ -16,16 +16,17 @@ import org.ntust.app.tigerduck.sync.SyncPolicies
  * must go through an outbox are found by those names. Each is sent with [authHeader]'s header for
  * its sign-in, to the endpoint [baseUrl] names at the time, and answers with the backend's verdict
  * ([WriteAnswer]): [WriteAnswer.NOT_SENT] when its gate stopped it, and a refusal thrown with the
- * backend's code kept. Each goes with its stamp ([stampedFrom]): the age from [madeAt], the time the
- * edit was made, or the arrival its queue counts it from, read by [clocks] as the request is built,
- * 0 for an edit made now (null), or `hlc: 0` for the oldest.
+ * backend's code kept. Each goes with its stamp, read by [ages] as the request is built: the age
+ * from [madeAt], the time the edit was made, or from the arrival of the answer to an earlier write
+ * of its field when that came after it, 0 for an edit made now (null), or `hlc: 0` for the oldest;
+ * and its answer keeps its arrival under that field, the one ([SyncField]) its write names.
  */
 internal class OverrideRequests(
     private val api: BackendServices<PushApi>,
     private val policies: SyncPolicies,
     private val baseUrl: () -> String,
     private val authHeader: suspend (SignIn) -> String,
-    private val clocks: DeviceClocks,
+    private val ages: FieldAges,
 ) {
     /**
      * Upload one holiday exception so the user's other devices agree.
@@ -40,7 +41,10 @@ internal class OverrideRequests(
             if (!policies.current.tigerSyncOn) return@withContext WriteAnswer.NOT_SENT
             val service = api.at(baseUrl())
             val header = authHeader(signIn)
-            sendAged({ service.holidayOverride(header, holidayId, HolidayOverrideRequest.of(notify, clocks.stampOf(madeAt))) }) { response ->
+            ages.send(
+                listOf(SyncField.holiday(holidayId)), madeAt, signIn,
+                { service.holidayOverride(header, holidayId, HolidayOverrideRequest.of(notify, it)) },
+            ) { response ->
                 answerOf(response, "holiday override", WriteAnswer.NOTIFY)
             }
         }
@@ -55,7 +59,10 @@ internal class OverrideRequests(
             val payload = mapOf("local_status" to localStatus)
             val service = api.at(baseUrl())
             val header = authHeader(signIn)
-            sendAged({ service.assignmentOverride(header, assignmentId, payload.stampedFrom(madeAt, clocks)) }) { response ->
+            ages.send(
+                listOf(SyncField.mark(assignmentId.toString())), madeAt, signIn,
+                { service.assignmentOverride(header, assignmentId, payload.stampedWith(it)) },
+            ) { response ->
                 answerOf(response, "patchAssignmentOverride", WriteAnswer.LOCAL_STATUS)
             }
         }
@@ -85,7 +92,8 @@ internal class OverrideRequests(
         // suspend: a hold the course outbox put on the kind meanwhile must
         // stop the request, which the switches above alone would let through.
         if (!allowed()) return@withContext WriteAnswer.NOT_SENT
-        sendAged({ service.courseOverride(header, course, payload.stampedFrom(madeAt, clocks)) }) { response ->
+        val fields = listOfNotNull(colorHex?.let { SyncField.color(course) }, customName?.let { SyncField.name(course, locale.orEmpty()) })
+        ages.send(fields, madeAt, signIn, { service.courseOverride(header, course, payload.stampedWith(it)) }) { response ->
             answerOf(response, "patchCourseOverride")
         }
     }
@@ -110,7 +118,9 @@ internal class OverrideRequests(
             val course = target.named("a course ignore")
             val service = api.at(baseUrl())
             val header = authHeader(signIn)
-            sendAged({ service.courseIgnore(header, course, payload.stampedFrom(madeAt, clocks)) }) { response ->
+            // The Moodle id alone, a fill-in, edits no field of ours.
+            val fields = listOfNotNull(ignore?.let { SyncField.ignore(course) })
+            ages.send(fields, madeAt, signIn, { service.courseIgnore(header, course, payload.stampedWith(it)) }) { response ->
                 answerOf(response, "patchCourseIgnore")
             }
         }

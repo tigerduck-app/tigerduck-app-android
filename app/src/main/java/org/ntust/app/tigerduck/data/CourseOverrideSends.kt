@@ -168,7 +168,7 @@ internal fun fieldOf(row: PendingCourseOverride): String {
  * The course channel's sends, one waiting change at a time as its lane hands it over, read as the
  * request is about to go: its kind's gate ([sends]), the PATCH ([writer]), and what became of it.
  * [waiting] reads the lane's changes, and [landed] runs once the backend has a change, before the
- * lane lets it go and hands over the next. [ageFrom] is the lane's: the time a change's age counts from.
+ * lane lets it go and hands over the next.
  */
 internal class CourseOverrideSends(
     private val dataCache: DataCache,
@@ -178,7 +178,6 @@ internal class CourseOverrideSends(
     private val catalogue: () -> List<String>,
     private val waiting: suspend () -> List<PendingCourseOverride>,
     private val landed: suspend () -> Unit,
-    private val ageFrom: (PendingCourseOverride, EditTime) -> EditTime = { _, madeAt -> madeAt },
 ) {
     /**
      * The lane's send of [change] under [signIn]. Not sent while its kind does not go, or once
@@ -193,7 +192,7 @@ internal class CourseOverrideSends(
         val answer = try {
             // The request carries [signIn], so a sign-out after the check sends it without a token
             // rather than with the next account's.
-            writer.write(change, CourseRef(place?.key), signIn, allowed, change.madeAt?.let { ageFrom(change, it) })
+            writer.write(change, CourseRef(place?.key), signIn, allowed, change.madeAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

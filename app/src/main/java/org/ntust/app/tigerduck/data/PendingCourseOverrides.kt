@@ -23,7 +23,6 @@ import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
@@ -89,7 +88,6 @@ class PendingCourseOverrides internal constructor(
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
     internal val catalogue: () -> List<String> = { emptyList() },
-    arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
 ) : OutboxChannel {
 
     @Inject constructor(
@@ -104,7 +102,6 @@ class PendingCourseOverrides internal constructor(
         /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
         oldEntryTime: OldEntryTime? = null,
         semesterCatalog: org.ntust.app.tigerduck.network.SemesterCatalog? = null,
-        arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
     ) : this(
         dataCache = dataCache,
         writer = CourseOverrideWriter { change, target, signIn, allowed, madeAt ->
@@ -117,7 +114,6 @@ class PendingCourseOverrides internal constructor(
         scope = scope,
         oldEntryTime = oldEntryTime,
         catalogue = { semesterCatalog?.availableSemesters().orEmpty() },
-        arrivals = arrivals,
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_OVERRIDES
@@ -149,7 +145,6 @@ class PendingCourseOverrides internal constructor(
         dataCache, writer, sends, catalogue,
         waiting = { lane.entries() },
         landed = { mutex.withLock { } },
-        ageFrom = { change, madeAt -> lane.ageFrom(change, madeAt) },
     )
 
     // One PATCH at a time, so changes reach the backend in the order they were
@@ -162,7 +157,6 @@ class PendingCourseOverrides internal constructor(
         },
         ack,
         scope,
-        arrivals,
         sendPath::send,
     )
 

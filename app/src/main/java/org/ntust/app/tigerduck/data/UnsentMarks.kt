@@ -25,7 +25,6 @@ import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -75,7 +74,7 @@ internal fun interface MarkWriter {
  *
  * Each tap keeps its time by the device's clocks ([clocks]), and goes with
  * its age (`age_ms`), from the tap or from the answer to the mark it replaced
- * while that one was out (the lane's `ageFrom`). A mark an older build
+ * while that one was out (the client's `FieldAges`). A mark an older build
  * wrote with no time is given its old-entry time at its first load and
  * written back (X1), never its send time. A reply writes nothing on this
  * phone, the backend's later mark included: Home saves the marks from its own
@@ -96,7 +95,6 @@ class UnsentMarks internal constructor(
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
-    arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
 ) : OutboxChannel {
 
     @Inject constructor(
@@ -110,7 +108,6 @@ class UnsentMarks internal constructor(
         @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         /** The old-entry time of a mark an older build wrote with no time; null only in tests, for none. */
         oldEntryTime: OldEntryTime? = null,
-        arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
     ) : this(
         dataCache = dataCache,
         writer = MarkWriter(pushApiClient::patchAssignmentOverrideAnswered),
@@ -120,7 +117,6 @@ class UnsentMarks internal constructor(
         ack = ack,
         scope = scope,
         oldEntryTime = oldEntryTime,
-        arrivals = arrivals,
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.MARKS
@@ -155,7 +151,6 @@ class UnsentMarks internal constructor(
         ack = ack,
         scope = scope,
         send = ::sendNow,
-        arrivals = arrivals,
     )
 
     /** The ids whose last tap has not reached the server; a sync keeps this phone's value for them. */
@@ -248,7 +243,7 @@ class UnsentMarks internal constructor(
         // An id no request can name goes nowhere, and is let go as it always was.
         val id = mark.assignmentId?.toIntOrNull() ?: return SendResult.Sent(null)
         val answer = try {
-            writer.write(id, status, signIn, mark.madeAt?.let { lane.ageFrom(mark, it) })
+            writer.write(id, status, signIn, mark.madeAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

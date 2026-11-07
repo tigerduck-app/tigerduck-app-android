@@ -19,7 +19,6 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
@@ -117,7 +116,6 @@ class PendingCourseDeletes internal constructor(
         syncPolicies: SyncPolicies? = null,
         ackClock: AckClock? = null,
         @ApplicationScope scope: CoroutineScope? = null,
-        arrivals: AnswerArrivals? = null,
     ) : this(
         dataCache = dataCache,
         pendingCourseAdds = pendingCourseAdds,
@@ -126,7 +124,7 @@ class PendingCourseDeletes internal constructor(
         },
         clocks = clocks ?: DeviceClocks.WALL,
         load = dataCache::loadPendingCourseDeletes,
-        outbox = MembershipOutbox(syncPolicies, ackClock, scope, arrivals = arrivals),
+        outbox = MembershipOutbox(syncPolicies, ackClock, scope),
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_DELETES
@@ -161,7 +159,6 @@ class PendingCourseDeletes internal constructor(
                 ?.takeIf { (askedAt, _) -> askedAt == delete.queuedAt }?.second
             if (chosen != null) chosen.kind else dataCache.courseDeleteKind(delete.semester, delete.courseNo)
         },
-        ageFrom = { delete, madeAt -> lane.ageFrom(delete, madeAt) },
     )
 
     private val lane: OutboxLane<CourseDelete> = OutboxLane(
@@ -176,7 +173,6 @@ class PendingCourseDeletes internal constructor(
         ),
         outbox.ack,
         outbox.scope,
-        outbox.arrivals,
         sends::sendOnce,
     )
 

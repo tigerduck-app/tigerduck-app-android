@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.push.CourseUploadListener
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
@@ -105,9 +106,10 @@ internal class AppSyncRig(
 
 /**
  * Home's full sync over [w]'s stores as Hilt builds it, where [org.ntust.app.tigerduck.ui.screen.home.homeSyncRig]
- * leaves parts out: every `/v4` write aged by [clocks], each queue's edits timed by them and given
- * [oldEntryTime] (X1), one [AckClock] and one [AnswerArrivals], the course uploads told to the outbox, the catalogue
- * for an older build's course change, and the first sync among the reconcilers. Its requests go through [client] ([appBackendClient]); the token
+ * leaves parts out: every `/v4` write aged by [clock] from its field's last answer ([AnswerArrivals]),
+ * each queue's edits timed by it and given [oldEntryTime] (X1), one [AckClock], the course uploads
+ * told to the outbox, the catalogue for an older build's course change, and the first sync among
+ * the reconcilers. Its requests go through [client] ([appBackendClient]); the token
  * manager's are [w]'s. What would run past the sync on the application scope goes to [idleScope];
  * the sends the queues run on it go to [appScope].
  */
@@ -122,18 +124,18 @@ internal fun appSyncRig(
 ): AppSyncRig {
     val policies = SyncPolicies(w.appPrefs)
     val ack = AckClock()
-    val arrivals = AnswerArrivals.inMemory(clock)
     lateinit var overrides: PendingCourseOverrides
     lateinit var outbox: Outbox
-    val pushApi = PushApiClient(client, w.appPrefs, w.tokens, clock, dagger.Lazy { CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }) })
+    val news = dagger.Lazy<CourseUploadListener> { CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }) }
+    val pushApi = PushApiClient(client, w.appPrefs, w.tokens, clock, news, AnswerArrivals.inMemory(clock))
     val syncApi = SyncApiClient(w.tokens, w.appPrefs, client)
-    val marks = UnsentMarks(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime, arrivals)
-    val adds = PendingCourseAdds(w.dataCache, pushApi, policies, ack, appScope, oldEntryTime, arrivals)
-    val deletes = PendingCourseDeletes(w.dataCache, adds, pushApi, clock, policies, ack, appScope, arrivals)
-    overrides = PendingCourseOverrides(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime, w.semesterCatalog, arrivals)
-    val holidays = PendingHolidayOverrides(w.appPrefs, pushApi, policies, clock, ack, appScope, oldEntryTime, w.academicCalendar, arrivals)
+    val marks = UnsentMarks(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime)
+    val adds = PendingCourseAdds(w.dataCache, pushApi, policies, ack, appScope, oldEntryTime)
+    val deletes = PendingCourseDeletes(w.dataCache, adds, pushApi, clock, policies, ack, appScope)
+    overrides = PendingCourseOverrides(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime, w.semesterCatalog)
+    val holidays = PendingHolidayOverrides(w.appPrefs, pushApi, policies, clock, ack, appScope, oldEntryTime, w.academicCalendar)
     val ignores = CourseIgnoreSync(
-        w.dataCache, pushApi, w.appPrefs, AssignmentNotificationScheduler(context), policies, clock, ack, appScope, oldEntryTime, arrivals,
+        w.dataCache, pushApi, w.appPrefs, AssignmentNotificationScheduler(context), policies, clock, ack, appScope, oldEntryTime,
     )
     outbox = Outbox(setOf(ignores.channel, marks, adds, deletes, overrides, holidays))
     val gate = FirstPullGate(w.sessions, idleScope)

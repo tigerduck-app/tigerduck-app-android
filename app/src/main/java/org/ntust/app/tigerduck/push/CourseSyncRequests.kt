@@ -18,8 +18,8 @@ import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.ConcurrentHashMap
@@ -39,7 +39,9 @@ fun interface CourseUploadListener {
  * the upload ledger of each term. For [PushApiClient], which keeps each as a method of its own.
  * Each is sent with [authHeader]'s header for its sign-in, to the endpoint [baseUrl] names at the
  * time; an upload through [uploads], with its deadline for the whole call. Each edit goes with its
- * age, read by [clocks] as its request is built (`age_ms`).
+ * age, read by [ages] as its request is built (`age_ms`), and its answer keeps its arrival under
+ * the course's membership ([SyncField.membership]), which its adds, hides and removals share: an
+ * upload's under each add it names with an age. A term's reset names none: no lane sends one.
  */
 internal class CourseSyncRequests(
     private val api: BackendServices<PushApi>,
@@ -48,7 +50,7 @@ internal class CourseSyncRequests(
     private val policies: SyncPolicies,
     private val baseUrl: () -> String,
     private val authHeader: suspend (SignIn) -> String,
-    private val clocks: DeviceClocks,
+    private val ages: FieldAges,
     // Told of each upload that landed; none for a client a test builds alone.
     private val news: dagger.Lazy<CourseUploadListener>? = null,
 ) {
@@ -146,7 +148,10 @@ internal class CourseSyncRequests(
             // Through uploadCall, with its deadline for the whole call.
             val service = uploads.at(base)
             val header = authHeader(signIn)
-            accepted = sendAged({ service.coursesUpload(header, body(sent, semester, forceKeys, rosterTerms, addedAt)) }, ::answered)
+            val adds = CourseUploadPayload.handAdds(sent, semester, forceKeys, addedAt)
+            // The answer kept under each add that went with an age; the oldest's `hlc: 0` needs none.
+            val timed = adds.filterValues { !it.isOldest }.keys.map(SyncField::membership)
+            accepted = ages.sendKeeping(timed, signIn, { service.coursesUpload(header, body(sent, semester, rosterTerms, adds)) }, ::answered)
             landed = true
         }
         if (landed) tell(semester, sent, accepted, signIn)
@@ -167,12 +172,10 @@ internal class CourseSyncRequests(
         }
     }
 
-    // The body of an upload of [courses] with their hand-adds, each with its age read now.
-    private fun body(
-        courses: List<Course>, semester: String, forceKeys: List<String>, rosterTerms: List<String>, addedAt: Map<String, EditTime>,
-    ): RequestBody {
-        val adds = CourseUploadPayload.handAdds(courses, semester, forceKeys, addedAt)
-        return gson.toJson(CourseUploadPayload.build(courses, semester, rosterTerms, adds, clocks)).toRequestBody(jsonType)
+    // The body of an upload of [courses] with their hand-adds [adds], by course key, each with its stamp read now.
+    private fun body(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, EditTime>): RequestBody {
+        val stamps = adds.mapValues { (key, madeAt) -> ages.stampOf(listOf(SyncField.membership(key)), madeAt) }
+        return gson.toJson(CourseUploadPayload.build(courses, semester, rosterTerms, stamps)).toRequestBody(jsonType)
     }
 
     // The courses an upload's answer took, and the timed adds it refused.
@@ -232,7 +235,10 @@ internal class CourseSyncRequests(
             // With the hide's age, which the backend applies only when later than the course's last
             // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
             // since on another device, and a retry after a lost reply lands on about the same stamp.
-            sendAged({ clocks.stampOf(hiddenAt).let { service.removeCourse(header, courseKey, EmptyBody, it.ageMs, it.hlc, kind?.wire) } }) {
+            ages.send(
+                listOf(SyncField.membership(courseKey)), hiddenAt, signIn,
+                { service.removeCourse(header, courseKey, EmptyBody, it.ageMs, it.hlc, kind?.wire) },
+            ) {
                 answerOf(it, "deleteCourse", WriteAnswer.MEMBERSHIP)
             }
         }
@@ -246,7 +252,7 @@ internal class CourseSyncRequests(
      * still means "wipe everything". Reset is offered per term because the
      * timetable is now per term; see `DELETE /sync/courses` in the backend's
      * `routes/sync/courses.py`. It carries the stamp of [resetAt], the time it
-     * was asked ([org.ntust.app.tigerduck.sync.DeviceClocks.stampOf]), 0 old for one asked now (null).
+     * was asked ([FieldAges.stampOf]), 0 old for one asked now (null).
      */
     suspend fun deleteAllCourses(semester: String?, signIn: SignIn, resetAt: EditTime?): WriteAnswer =
         withContext(Dispatchers.IO) {
@@ -255,7 +261,7 @@ internal class CourseSyncRequests(
             val header = authHeader(signIn)
             val term = semester?.let { java.net.URLEncoder.encode(it, "UTF-8") }
             val reset: suspend () -> WriteAnswer = {
-                sendAged({ clocks.stampOf(resetAt).let { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) } }) {
+                ages.send(emptyList(), resetAt, signIn, { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) }) {
                     answerOf(it, "deleteAllCourses", WriteAnswer.RESET)
                 }
                     // The upload after the reset, usually the list sent before it,

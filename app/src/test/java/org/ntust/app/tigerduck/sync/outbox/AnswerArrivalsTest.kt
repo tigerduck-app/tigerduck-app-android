@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.sync.outbox
 
+import android.content.SharedPreferences
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -33,7 +34,7 @@ class AnswerArrivalsTest {
         val arrivals = arrivals()
         val second = clocks.now()
         later(1_500)
-        arrivals.arrived("mark:7", series.current)
+        arrivals.arrived(listOf("mark:7"), series.current)
         val answeredAt = clocks.now()
         later(200)
 
@@ -44,7 +45,7 @@ class AnswerArrivalsTest {
     @Test
     fun `an edit made after the answer, or of another field, keeps its own time`() {
         val arrivals = arrivals()
-        arrivals.arrived("mark:7", series.current)
+        arrivals.arrived(listOf("mark:7"), series.current)
         later(10)
         val after = clocks.now()
         val other = EditTime(wall - 60_000, elapsed - 60_000, 7)
@@ -56,7 +57,7 @@ class AnswerArrivalsTest {
     @Test
     fun `the oldest value stays the oldest`() {
         val arrivals = arrivals()
-        arrivals.arrived("mark:7", series.current)
+        arrivals.arrived(listOf("mark:7"), series.current)
 
         assertEquals(EditTime.OLDEST, arrivals.ageFrom("mark:7", EditTime.OLDEST))
     }
@@ -65,12 +66,24 @@ class AnswerArrivalsTest {
     fun `an arrival outlives the process, so an edit queued before a process death keeps the rule`() {
         val queued = clocks.now()
         later(800)
-        arrivals().arrived("membership:client:1151:XA1", series.current)
+        arrivals().arrived(listOf("membership:client:1151:XA1"), series.current)
         val answeredAt = clocks.now()
         later(5_000)
 
         // The next process, in the same boot: its elapsed clock still counts from the arrival.
         assertEquals(answeredAt, arrivals().ageFrom("membership:client:1151:XA1", queued))
+    }
+
+    @Test
+    fun `an arrival is on disk once arrived returns, never left to a write after it`() {
+        val queued = clocks.now()
+        later(800)
+        AnswerArrivals(LosesApplied(prefs), clocks).arrived(listOf("mark:7"), series.current)
+        val answeredAt = clocks.now()
+        later(5_000)
+
+        // A process death right after: what apply() would have written later never reached the file.
+        assertEquals(answeredAt, arrivals().ageFrom("mark:7", queued))
     }
 
     @Test
@@ -80,11 +93,11 @@ class AnswerArrivalsTest {
         later(100)
         val ended = series.current
         series.end()
-        arrivals.arrived("mark:7", ended)
+        arrivals.arrived(listOf("mark:7"), ended)
         assertEquals(queued, arrivals.ageFrom("mark:7", queued))
 
         series.open()
-        arrivals.arrived("mark:7", series.current)
+        arrivals.arrived(listOf("mark:7"), series.current)
         arrivals.forgetAccount()
 
         assertEquals(queued, arrivals.ageFrom("mark:7", queued))
@@ -96,9 +109,26 @@ class AnswerArrivalsTest {
         val arrivals = arrivals()
         val queued = clocks.now()
         later(1)
-        repeat(AnswerArrivals.KEPT + 1) { arrivals.arrived("mark:$it", series.current) }
+        repeat(AnswerArrivals.KEPT + 1) { arrivals.arrived(listOf("mark:$it"), series.current) }
 
         assertEquals("the first is gone", queued, arrivals().ageFrom("mark:0", queued))
         assertEquals(clocks.now(), arrivals().ageFrom("mark:${AnswerArrivals.KEPT}", queued))
+    }
+}
+
+/**
+ * [disk] as a process that dies before an `apply()` reaches the file leaves it: an edit applied
+ * never lands, one committed does.
+ */
+private class LosesApplied(private val disk: SharedPreferences) : SharedPreferences by disk {
+    override fun edit(): SharedPreferences.Editor {
+        val edit = disk.edit()
+        return object : SharedPreferences.Editor by edit {
+            override fun putString(key: String?, value: String?): SharedPreferences.Editor = also { edit.putString(key, value) }
+
+            override fun remove(key: String?): SharedPreferences.Editor = also { edit.remove(key) }
+
+            override fun apply() = Unit
+        }
     }
 }

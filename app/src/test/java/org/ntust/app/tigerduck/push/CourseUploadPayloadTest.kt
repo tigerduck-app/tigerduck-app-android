@@ -32,7 +32,7 @@ class CourseUploadPayloadTest {
         payload["courses"] as List<Map<String, Any?>>
 
     private fun build(courses: List<Course>, rosterTerms: List<String> = emptyList(), adds: Map<String, EditTime> = emptyMap()) =
-        CourseUploadPayload.build(courses, semester = "1141", rosterTerms = rosterTerms, adds = adds, clocks = DeviceClocks.wallOnly { NOW_MS })
+        CourseUploadPayload.build(courses, semester = "1141", rosterTerms = rosterTerms, adds = adds.mapValues { (_, at) -> DeviceClocks.wallOnly { NOW_MS }.stampOf(at) })
 
     /**
      * The one that matters. `course_name` is the shared default the whole

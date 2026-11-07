@@ -23,7 +23,6 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -35,8 +34,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Uploads one term's courses as sign-in [signIn], each add in [addedAt] with the time its age is
- * counted from; see [PushApiClient.uploadCoursesAnswered].
+ * Uploads one term's courses as sign-in [signIn], each add in [addedAt] with its time; see
+ * [PushApiClient.uploadCoursesAnswered].
  */
 internal fun interface CourseUploader {
     suspend fun upload(
@@ -88,13 +87,12 @@ class PendingCourseAdds internal constructor(
         ackClock: AckClock? = null,
         @ApplicationScope scope: CoroutineScope? = null,
         oldEntryTime: OldEntryTime? = null,
-        arrivals: AnswerArrivals? = null,
     ) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
             pushApiClient.uploadCoursesAnswered(courses, semester, signIn, forceKeys, addedAt = addedAt)
         },
-        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime, arrivals),
+        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime),
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_ADDS
@@ -107,7 +105,6 @@ class PendingCourseAdds internal constructor(
         dataCache, uploader, outbox,
         waiting = { lane.entries() },
         settle = { signIn, change -> lane.edit(signIn, change) },
-        ageFrom = { add, madeAt -> lane.ageFrom(add, madeAt) },
     )
 
     private val lane: OutboxLane<CourseAdd> = OutboxLane(
@@ -128,7 +125,6 @@ class PendingCourseAdds internal constructor(
         ),
         outbox.ack,
         outbox.scope,
-        outbox.arrivals,
         sends::sendRequested,
     )
 

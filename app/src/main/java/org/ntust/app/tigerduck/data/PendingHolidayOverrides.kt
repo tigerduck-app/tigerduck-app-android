@@ -23,7 +23,6 @@ import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.SyncPolicy
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
@@ -91,7 +90,6 @@ class PendingHolidayOverrides internal constructor(
     private val calendar: AcademicCalendarStore? = null,
     // The Calendar's thread, which its switch writes a choice on.
     private val main: CoroutineContext = Dispatchers.Main,
-    arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
 ) : OutboxChannel {
 
     @Inject constructor(
@@ -106,7 +104,6 @@ class PendingHolidayOverrides internal constructor(
         oldEntryTime: OldEntryTime? = null,
         /** Where a choice the backend kept is written; null only in tests, which leave it to the next pull. */
         calendar: AcademicCalendarStore? = null,
-        arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
     ) : this(
         prefs = prefs,
         writer = HolidayOverrideWriter(pushApiClient::putHolidayOverrideAnswered),
@@ -117,7 +114,6 @@ class PendingHolidayOverrides internal constructor(
         scope = scope,
         oldEntryTime = oldEntryTime,
         calendar = calendar,
-        arrivals = arrivals,
     )
 
     /**
@@ -153,7 +149,6 @@ class PendingHolidayOverrides internal constructor(
         ack = ack,
         scope = scope,
         send = ::sendNow,
-        arrivals = arrivals,
     )
 
     /** The holidays whose last choice has not reached the server. */
@@ -230,7 +225,7 @@ class PendingHolidayOverrides internal constructor(
         // Read after its time, which the lane read: see [Waiting].
         val notify = choice.id in prefs.holidayNotifyOverrides
         val answer = try {
-            writer.write(choice.id, notify, signIn, choice.madeAt?.let { lane.ageFrom(choice, it) })
+            writer.write(choice.id, notify, signIn, choice.madeAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

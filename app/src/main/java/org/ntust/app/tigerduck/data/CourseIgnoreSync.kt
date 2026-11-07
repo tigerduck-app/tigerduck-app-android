@@ -19,7 +19,6 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import java.io.IOException
@@ -73,7 +72,6 @@ class CourseIgnoreSync internal constructor(
         @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
         oldEntryTime: OldEntryTime? = null,
-        arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
     ) : this(
         dataCache = dataCache,
         writer = CourseIgnoreWriter(pushApiClient::patchCourseIgnoreAnswered),
@@ -92,7 +90,6 @@ class CourseIgnoreSync internal constructor(
             ack = ack,
             scope = scope,
             oldEntryTime = oldEntryTime,
-            arrivals = arrivals,
         ),
     )
 

@@ -28,8 +28,7 @@ internal fun interface AnsweredCourseDeleter {
  * The course adds' sends. One send is a term's upload of the adds a caller asked for ([asking]):
  * the lane hands over the first of them still waiting ([sendRequested]), and that upload carries
  * them all; any other of them the lane hands over after it sends nothing more. [waiting] reads
- * the lane's adds, and [settle] changes them in one step with the lane's own writes. [ageFrom] is
- * the lane's: the time each add's age is counted from.
+ * the lane's adds, and [settle] changes them in one step with the lane's own writes.
  */
 internal class CourseAddSends(
     private val dataCache: DataCache,
@@ -37,7 +36,6 @@ internal class CourseAddSends(
     private val outbox: MembershipOutbox,
     private val waiting: suspend () -> List<CourseAdd>,
     private val settle: suspend (SignIn, (List<CourseAdd>) -> List<CourseAdd>) -> Boolean,
-    private val ageFrom: (CourseAdd, EditTime) -> EditTime = { _, madeAt -> madeAt },
 ) {
     // The request the send under way is for, set under the send lock, so one at a time.
     private val request = AtomicReference<Request?>(null)
@@ -92,7 +90,7 @@ internal class CourseAddSends(
         for (add in taken.adds) results[add] = taken.resultOf(add, outbox.keepsUnsent())
         val done = results.filterValues { it is SendResult.Sent }.keys
         // Acknowledged before the adds go, so a pull in between holds the course by one or the other.
-        done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.answered(add.field, it, signIn) } }
+        done.forEach { add -> (results[add] as SendResult.Sent).serverClockUs?.let { outbox.ack.acknowledged(add.field, it, signIn) } }
         // Only an add still as it was sent: one added again meanwhile has a newer moment, which
         // this answer, to the older add, does not settle.
         if (done.isNotEmpty()) settle(signIn) { adds -> adds.filterNot { it in done } }
@@ -117,11 +115,11 @@ internal class CourseAddSends(
     }
 
     // One upload of [adds], each forced past a tombstone in the adds' order, and each timed one with
-    // its age from its moment ([ageFrom]), in the order the times file had them in the read the adds
-    // came from ([CourseAdd.momentAt]), as the body always listed them.
+    // its time, in the order the times file had them in the read the adds came from
+    // ([CourseAdd.momentAt]), as the body always listed them.
     private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
-        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.addedAt?.let { add.courseNo to ageFrom(add, it) } }.toMap()
+        val addedAt = adds.sortedBy { it.momentAt }.mapNotNull { add -> add.addedAt?.let { add.courseNo to it } }.toMap()
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
@@ -176,8 +174,7 @@ internal class CourseAddSends(
  * The course deletes' sends: one DELETE per hold of the send lock ([one]), with no kind, so the
  * backend decides from its row, as the iPhone's does: a school course is hidden, one added by hand
  * removed. [waiting] reads the queue's deletes, and [underQueueLock] runs a step under the queue's
- * own lock, which every keep, send and forget of a delete takes. [ageFrom] is the lane's: the time
- * a delete's age is counted from.
+ * own lock, which every keep, send and forget of a delete takes.
  */
 internal class CourseDeleteSends(
     private val dataCache: DataCache,
@@ -187,7 +184,6 @@ internal class CourseDeleteSends(
     private val underQueueLock: suspend (suspend () -> Unit) -> Unit,
     // The kind a delete names, read as it goes (tigerduck-app-android#698).
     private val kindOf: suspend (CourseDelete) -> CourseDeleteKind?,
-    private val ageFrom: (CourseDelete, EditTime) -> EditTime = { _, madeAt -> madeAt },
 ) {
     // Whether the send under the lock may still make its one request: a removal kept while it was
     // in flight goes at its own turn of the lock, as before, not on the back of this one.
@@ -211,12 +207,12 @@ internal class CourseDeleteSends(
         if (!oneRequest.compareAndSet(true, false)) return SendResult.NotSent
         val answer = try {
             // The request itself carries [signIn]: a sign-out after the check sends it without a
-            // token rather than with the next account's. With its age from the moment it was asked,
+            // token rather than with the next account's. With its age from the time it was asked,
             // the backend applies it only when later than the course's last add, hide and reset: a
             // hide queued offline loses to an add made since on another device, and a retry after a
             // lost reply lands on about the same stamp (#591).
             val kind = kindOf(delete)
-            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, ageFrom(delete, delete.madeAt), kind)
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.madeAt, kind)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

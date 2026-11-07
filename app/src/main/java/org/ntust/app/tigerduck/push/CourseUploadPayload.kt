@@ -11,15 +11,15 @@ package org.ntust.app.tigerduck.push
 
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.EditStamp
 import org.ntust.app.tigerduck.sync.EditTime
 
 internal object CourseUploadPayload {
 
     /**
      * The body for [courses] in [semester]: the courses, and [adds], by key, each hand-add with its
-     * stamp as [clocks] reads it now, from its time ([handAdds]): its `age_ms`, or `hlc: 0` for the
-     * oldest. No `course_overrides`,
+     * stamp, read now from its time ([handAdds], [FieldAges.stampOf]): its `age_ms`, or `hlc: 0` for
+     * the oldest. No `course_overrides`,
      * which the backend refuses: a color goes only as its course's override PATCH. No `force_keys`
      * either: an add lifts a tombstone by its stamp, its arrival less its age.
      *
@@ -29,12 +29,10 @@ internal object CourseUploadPayload {
      * [CourseUpload.of] for when a fetch sends one, as iOS
      * `PushAPI.CourseUploadRequest.rosterTerms` (tigerduck-app#914).
      */
-    fun build(
-        courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, EditTime>, clocks: DeviceClocks,
-    ): Map<String, Any> {
+    fun build(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, EditStamp>): Map<String, Any> {
         val payload = mutableMapOf<String, Any>("courses" to items(courses, semester))
         if (adds.isNotEmpty()) {
-            payload["adds"] = adds.map { (courseKey, madeAt) -> mapOf<String, Any>("course_key" to courseKey) + clocks.stampOf(madeAt).fields() }
+            payload["adds"] = adds.map { (courseKey, stamp) -> mapOf<String, Any>("course_key" to courseKey) + stamp.fields() }
         }
         if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
         return payload

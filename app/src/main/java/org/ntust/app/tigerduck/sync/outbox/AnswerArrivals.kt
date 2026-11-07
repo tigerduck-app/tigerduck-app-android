@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync.outbox
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.WorkerThread
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
@@ -20,12 +21,15 @@ import javax.inject.Singleton
  * own time could land before the first, the first having been longer on the way. Counted from the
  * first's answer, which came after the first arrived, it lands after.
  *
- * By field ([org.ntust.app.tigerduck.sync.SyncField]), whichever lane sent it: a course's add and
- * its delete share one, in two lanes. Kept in `tigerduck_outbox_answers`, the latest [KEPT], so an
- * edit queued before a process death still counts from its first's answer after it: within the
- * boot by the elapsed clock, which the death leaves running. The school account's: written only
- * while the sign-in of the send stands, and forgotten at its sign-out ([forgetAccount]). A stale
- * arrival changes nothing for an edit made after it, which every edit of the next sign-in is.
+ * By field ([org.ntust.app.tigerduck.sync.SyncField]), as the write named it, a course by the key
+ * it went to, whichever sent it: a lane, or a screen straight (Use Local); a course's add and its
+ * delete share one. The client keeps and reads them around every write
+ * ([org.ntust.app.tigerduck.push.FieldAges]). Kept in `tigerduck_outbox_answers`, the latest
+ * [KEPT], so an edit queued before a process death still counts from its first's answer after it:
+ * within the boot by the elapsed clock, which the death leaves running. The school account's:
+ * written only while the sign-in of the send stands, and forgotten at its sign-out
+ * ([forgetAccount]). A stale arrival changes nothing for an edit made after it, which every edit
+ * of the next sign-in is.
  */
 @Singleton
 class AnswerArrivals internal constructor(
@@ -43,16 +47,24 @@ class AnswerArrivals internal constructor(
     // Under lock: the arrivals by field, oldest first, as the file holds them once read.
     private var known: LinkedHashMap<String, EditTime>? = null
 
-    /** The answer to a send of [field] under [signIn] arrived now. Nothing once [signIn] has ended. */
-    fun arrived(field: String, signIn: SignIn) {
+    /**
+     * The answer to a write of [fields] under [signIn] arrived now. Nothing once [signIn] has ended.
+     * On disk when this returns (`commit()`), before the write's caller goes on, so an edit kept
+     * after it never outlives it; so call it off the main thread, as the client's writes run.
+     */
+    @WorkerThread
+    fun arrived(fields: Collection<String>, signIn: SignIn) {
+        if (fields.isEmpty()) return
         val at = clocks.now()
         signIn.ifCurrent {
             synchronized(lock) {
                 val arrivals = read()
-                arrivals.remove(field)
-                arrivals[field] = at
+                for (field in fields) {
+                    arrivals.remove(field)
+                    arrivals[field] = at
+                }
                 while (arrivals.size > KEPT) arrivals.remove(arrivals.keys.first())
-                prefs?.edit { putString(KEY_ARRIVALS, written(arrivals)) }
+                prefs?.edit(commit = true) { putString(KEY_ARRIVALS, written(arrivals)) }
             }
         }
     }

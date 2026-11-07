@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.push
 
 import android.content.Context
+import kotlinx.coroutines.CompletableDeferred
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -15,10 +16,13 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.sync.DeviceClocks
+import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Answers every request in place of the backend, with the reply queued for its path or an empty
@@ -36,6 +40,24 @@ internal class RecordingBackend(ahead: List<Interceptor> = emptyList()) {
     )
 
     private class Reply(val code: Int, val body: String, val headers: Map<String, String>)
+
+    /** A request held as it reaches the backend: [out] completes then, and it goes on at [release]. */
+    class Held {
+        val out = CompletableDeferred<Unit>()
+        private val gate = CountDownLatch(1)
+
+        fun release() = gate.countDown()
+
+        internal fun hold() {
+            out.complete(Unit)
+            gate.await(10, TimeUnit.SECONDS)
+        }
+    }
+
+    @Volatile private var held: Held? = null
+
+    /** Holds the next request as it reaches the backend, on the caller's thread, until released. */
+    fun holdNext(): Held = Held().also { held = it }
 
     private val replies = ConcurrentHashMap<String, ConcurrentLinkedQueue<Reply>>()
 
@@ -55,6 +77,7 @@ internal class RecordingBackend(ahead: List<Interceptor> = emptyList()) {
     }
 
     private fun answer(request: Request): Response {
+        held?.let { held = null; it.hold() }
         sent += Sent(
             request.method,
             request.url.toString(),
@@ -95,8 +118,8 @@ internal fun syncApiClientAt(base: String, backend: OkHttpClient): SyncApiClient
 /**
  * A [PushApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
  * reaching nothing but [backend]; [prefs] for a test that turns the switches, [clocks] for one
- * that reads its writes' ages by its own clocks, and [uploadNews] for one that hears each course
- * upload that landed.
+ * that reads its writes' ages by its own clocks, [uploadNews] for one that hears each course
+ * upload that landed, and [arrivals] for one that shares its answers' arrivals.
  */
 internal fun pushApiClientAt(
     base: String,
@@ -104,11 +127,12 @@ internal fun pushApiClientAt(
     prefs: AppPreferences = AppPreferences(JvmContext()),
     clocks: DeviceClocks = DeviceClocks.WALL,
     uploadNews: CourseUploadListener? = null,
+    arrivals: AnswerArrivals = AnswerArrivals.inMemory(clocks),
 ): PushApiClient {
     prefs.announcementApiBaseUrlOverride = base
     // Never the real backend, even past the recording one.
     assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
     val tokens = V3TokenStore(JvmContext().getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
-    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clocks, uploadNews?.let { dagger.Lazy { it } })
+    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clocks, uploadNews?.let { dagger.Lazy { it } }, arrivals)
 }

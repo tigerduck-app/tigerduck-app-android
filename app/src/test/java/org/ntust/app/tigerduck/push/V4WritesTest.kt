@@ -68,7 +68,9 @@ class V4WritesTest {
     fun `each edit goes as the contract writes it, with its age by the elapsed clock and no hlc`() = runTest {
         client.putHolidayOverrideAnswered(3, notify = true, signIn = signIn, madeAt = madeAt)
         client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = madeAt)
-        client.patchAssignmentOverrideAnswered(7, "none", signIn, madeAt = madeAt)
+        // Through a client of its own: this one, the mark above answered since it was made, would
+        // count its age from that answer (AnswerArrivalWritesTest).
+        pushApiClientAt(v4, backend.client, prefs, clock).patchAssignmentOverrideAnswered(7, "none", signIn, madeAt = madeAt)
         client.patchCourseOverrideAnswered(key, signIn, colorHex = "#FF0000", madeAt = madeAt)
         client.patchCourseOverrideAnswered(key, signIn, customName = "Algo", locale = "en", madeAt = madeAt)
         client.patchCourseIgnoreAnswered(key, ignore = true, moodleCourseId = 7, signIn = signIn, madeAt = madeAt)

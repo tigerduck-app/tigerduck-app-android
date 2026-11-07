@@ -18,7 +18,6 @@ import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.SyncPolicy
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 
@@ -184,9 +183,6 @@ internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String,
  * - [policies] are read once per question.
  * - [ack] is the outbox's [AckClock], [scope] the application's, where a send runs to its end.
  * - [oldEntryTime] gives an add an older build kept with no moment its old-entry time (X1).
- * - [arrivals] are the answers' arrivals by field, which the adds and the deletes share: a delete
- *   asked while its course's add was out counts its age from that add's answer, and so the other
- *   way round ([AnswerArrivals]).
  *
  * A course upload that lands, the adds' as any other, is told to the outbox by the client that
  * sent it ([org.ntust.app.tigerduck.push.CourseUploadListener]).
@@ -196,11 +192,8 @@ internal class MembershipOutbox(
     ack: AckClock? = null,
     scope: CoroutineScope? = null,
     val oldEntryTime: OldEntryTime? = null,
-    arrivals: AnswerArrivals? = null,
 ) {
     val ack: AckClock = ack ?: AckClock()
-
-    val arrivals: AnswerArrivals = arrivals ?: AnswerArrivals.inMemory()
 
     val scope: CoroutineScope = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
@@ -211,10 +204,4 @@ internal class MembershipOutbox(
      * (LWW D12, [SyncPolicy.keeps]): on every build with TigerSync, and with no policy to read.
      */
     fun keepsUnsent(): Boolean = policy()?.keeps(SyncCategory.COURSES) ?: true
-
-    /** An answer under [signIn] acknowledged [field]'s write at the backend's clock [serverClockUs], and arrived now. */
-    fun answered(field: String, serverClockUs: Long, signIn: SignIn) {
-        ack.acknowledged(field, serverClockUs, signIn)
-        arrivals.arrived(field, signIn)
-    }
 }

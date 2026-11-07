@@ -1,12 +1,7 @@
 package org.ntust.app.tigerduck.data
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import org.junit.After
@@ -21,16 +16,12 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
-import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.push.syncFixture
-import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignInSeries
-import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
 
@@ -162,101 +153,5 @@ class AgeMsQueuesTest {
             listOf(PendingCourseOverride("${term}CS1", "#FF0000", null, null, 5, term, "CS1", seq = 3, madeAtMs = 5)),
             cache.loadPendingCourseOverrides(),
         )
-    }
-
-    // The device's clocks, which a test moves, in one boot.
-    private var elapsedMs = 1_000L
-    private val clocks = DeviceClocks({ 1_790_000_000_000L + elapsedMs }, { elapsedMs }, { 7 })
-
-    // An answer the backend gave, with its clock, as every answer of our backend has one.
-    private val answered = WriteAnswer(sent = true, serverClockUs = 1_790_000_000_000_000L, applied = null, values = emptyMap())
-
-    @Test
-    fun `a mark tapped while the last one's PATCH is out counts its age from that answer's arrival`() = runTest {
-        val out = CompletableDeferred<Unit>()
-        val release = CompletableDeferred<Unit>()
-        val ages = mutableListOf<EditTime?>()
-        val marks = UnsentMarks(
-            cache,
-            MarkWriter { _, _, _, madeAt ->
-                ages += madeAt
-                if (ages.size == 1) {
-                    out.complete(Unit)
-                    release.await()
-                }
-                answered
-            },
-            records = { true },
-            sends = { true },
-            clocks = clocks,
-            scope = backgroundScope,
-            arrivals = AnswerArrivals.inMemory(clocks),
-        )
-
-        val first = launch { marks.send("7", "ignored", signIn) }
-        out.await()
-        elapsedMs = 1_200L
-        val second = launch { marks.send("7", "none", signIn) }
-        // Kept while the first is out: the files are written on the IO threads.
-        withContext(Dispatchers.Default) { while (cache.loadUnsentMarks().singleOrNull()?.status != "none") delay(5) }
-        elapsedMs = 4_000L
-        release.complete(Unit)
-        first.join()
-        second.join()
-
-        assertEquals("the first from its tap, the second from the first's answer", listOf(1_000L, 4_000L), ages.map { it?.elapsedMs })
-        assertEquals(emptyList<Any>(), cache.loadUnsentMarks())
-    }
-
-    @Test
-    fun `a course deleted while its add's upload is out counts its age from that upload's answer`() = runTest {
-        val course = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
-        assertTrue(cache.saveCourses(listOf(course), term, signIn))
-        val arrivals = AnswerArrivals.inMemory(clocks)
-        val out = CompletableDeferred<Unit>()
-        val release = CompletableDeferred<Unit>()
-        val adds = PendingCourseAdds(
-            cache,
-            { courses, _, _, _, _ ->
-                out.complete(Unit)
-                release.await()
-                CourseUploadAnswer(courses.map { it.courseNo }, emptyList(), serverClockUs = answered.serverClockUs)
-            },
-            MembershipOutbox(scope = backgroundScope, arrivals = arrivals),
-        )
-        val hiddenAt = mutableListOf<EditTime>()
-        val deletes = PendingCourseDeletes(
-            cache, adds,
-            AnsweredCourseDeleter { _, _, at, _ -> answered.also { hiddenAt += at } },
-            clocks, cache::loadPendingCourseDeletes, MembershipOutbox(scope = backgroundScope, arrivals = arrivals),
-        )
-
-        val added = launch { adds.send(listOf(course), term, "MY1", deletes.stamp(), signIn) }
-        out.await()
-        elapsedMs = 1_500L
-        val deleted = launch { deletes.send(term, "MY1", deletes.stamp(), signIn) }
-        // Kept while the add is out, waiting for the send lock the upload holds.
-        withContext(Dispatchers.Default) { while (cache.loadPendingCourseDeletes()[term]?.containsKey("MY1") != true) delay(5) }
-        elapsedMs = 4_000L
-        release.complete(Unit)
-        added.join()
-        deleted.join()
-
-        assertEquals("from the add's answer, not its own 1.5 s", listOf(4_000L), hiddenAt.map { it.elapsedMs })
-    }
-
-    @Test
-    fun `an edit made after the answer keeps its own time`() = runTest {
-        val ages = mutableListOf<EditTime?>()
-        val marks = UnsentMarks(
-            cache, MarkWriter { _, _, _, madeAt -> answered.also { ages += madeAt } }, records = { true }, sends = { true },
-            clocks = clocks, scope = backgroundScope, arrivals = AnswerArrivals.inMemory(clocks),
-        )
-
-        marks.send("7", "ignored", signIn)
-        elapsedMs = 2_000L
-        marks.send("7", "none", signIn)
-
-        assertEquals(listOf(1_000L, 2_000L), ages.map { it?.elapsedMs })
     }
 }

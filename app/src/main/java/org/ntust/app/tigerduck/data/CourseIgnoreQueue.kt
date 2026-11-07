@@ -26,7 +26,6 @@ import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.DeviceClocks
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
-import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
@@ -72,7 +71,6 @@ internal class IgnoreOutbox(
     val ack: AckClock,
     val scope: CoroutineScope,
     val oldEntryTime: OldEntryTime?,
-    val arrivals: AnswerArrivals = AnswerArrivals.inMemory(),
 )
 
 /**
@@ -131,7 +129,6 @@ internal class CourseIgnoreQueue(
         ),
         outbox.ack,
         outbox.scope,
-        outbox.arrivals,
         ::sendNow,
     )
 
@@ -277,7 +274,7 @@ internal class CourseIgnoreQueue(
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
                 if (!current || !sends()) return SendResult.NotSent
-                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt?.let { lane.ageFrom(change, it) })
+                writer.write(CourseRef(courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAt)
             }
         } catch (e: CancellationException) {
             throw e
