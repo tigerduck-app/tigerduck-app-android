@@ -41,7 +41,8 @@ fun interface CourseUploadListener {
  * time; an upload through [uploads], with its deadline for the whole call. Each edit goes with its
  * age, read by [ages] as its request is built (`age_ms`), and its answer keeps its arrival under
  * the course's membership ([SyncField.membership]), which its adds, hides and removals share: an
- * upload's under each add it names with an age. A term's reset names none: no lane sends one.
+ * upload's under each add it names with an age. A term's reset keeps its own ([SyncField.termReset]),
+ * which each of the term's adds and hides counts from too ([FieldAges]); one of every term names none.
  */
 internal class CourseSyncRequests(
     private val api: BackendServices<PushApi>,
@@ -150,8 +151,9 @@ internal class CourseSyncRequests(
             val header = authHeader(signIn)
             val adds = CourseUploadPayload.handAdds(sent, semester, forceKeys, addedAt)
             // The answer kept under each add that went with an age; the oldest's `hlc: 0` needs none.
+            val fields = adds.keys.map(SyncField::membership)
             val timed = adds.filterValues { !it.isOldest }.keys.map(SyncField::membership)
-            accepted = ages.sendKeeping(timed, signIn, { service.coursesUpload(header, body(sent, semester, rosterTerms, adds)) }, ::answered)
+            accepted = ages.sendKeeping(fields, timed, signIn, { service.coursesUpload(header, body(sent, semester, rosterTerms, adds)) }, ::answered)
             landed = true
         }
         if (landed) tell(semester, sent, accepted, signIn)
@@ -261,7 +263,8 @@ internal class CourseSyncRequests(
             val header = authHeader(signIn)
             val term = semester?.let { java.net.URLEncoder.encode(it, "UTF-8") }
             val reset: suspend () -> WriteAnswer = {
-                ages.send(emptyList(), resetAt, signIn, { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) }) {
+                val fields = listOfNotNull(semester?.let(SyncField::termReset))
+                ages.send(fields, resetAt, signIn, { service.removeCourses(header, term, EmptyBody, it.ageMs, it.hlc) }) {
                     answerOf(it, "deleteAllCourses", WriteAnswer.RESET)
                 }
                     // The upload after the reset, usually the list sent before it,

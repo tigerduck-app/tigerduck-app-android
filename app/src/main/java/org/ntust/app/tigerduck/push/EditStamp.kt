@@ -1,6 +1,6 @@
 package org.ntust.app.tigerduck.push
 
-import androidx.annotation.WorkerThread
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.Call
 import okhttp3.Response
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.sync.EditStamp
 import org.ntust.app.tigerduck.sync.EditTime
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.outbox.AnswerArrivals
+import java.util.concurrent.ConcurrentHashMap
 
 /** The field, or the query parameter, an edit's age goes in, where `hlc` went (backend 4.3.0). */
 internal const val AGE_MS = "age_ms"
@@ -29,16 +30,25 @@ internal fun Map<String, Any>.stampedWith(stamp: EditStamp): Map<String, Any> = 
  * edit's stamp, read by [clocks] as its request is built ([stampOf]), counts its age from the
  * arrival of the answer to an earlier write of a field it writes when that came after the edit,
  * and a write's 2xx answer keeps its arrival under each of its fields before [send] returns, so
- * before a hold its caller releases lets a newer edit of them go.
+ * before a hold its caller releases lets a newer edit of them go. A course's membership counts
+ * from its term's reset too ([SyncField.termResetOf]).
+ *
+ * The writes of one field go one at a time, from the read of the stamp to the arrival kept, a
+ * screen's and a lane's alike: two at once would each read the arrivals before either answer came,
+ * and the older, slower one could land last. A membership write waits for its term's reset too.
+ * The writes of other fields go at once. In memory: the writes that race are this process's.
  */
 internal class FieldAges(private val clocks: DeviceClocks, private val arrivals: AnswerArrivals) {
+    // One lock per field written in this process, taken in the fields' order.
+    private val writing = ConcurrentHashMap<String, Mutex>()
+
     /**
      * The stamp of an edit of [fields] made at [madeAt] ([DeviceClocks.stampOf]): its `age_ms`,
      * from the latest arrival of a field's answer that came after it, else from [madeAt]; 0 for an
-     * edit made now (null); `hlc: 0` for the oldest.
+     * edit made now (null); `hlc: 0` for the oldest. Read under the fields' locks ([send]).
      */
     fun stampOf(fields: Collection<String>, madeAt: EditTime?): EditStamp =
-        clocks.stampOf(madeAt?.let { fields.fold(it) { from, field -> arrivals.ageFrom(field, from) } })
+        clocks.stampOf(madeAt?.let { basis(fields).fold(it) { from, field -> arrivals.ageFrom(field, from) } })
 
     /**
      * Sends an edit of [fields] made at [madeAt] under [signIn] as `/v4` takes it: [call] builds the
@@ -48,19 +58,39 @@ internal class FieldAges(private val clocks: DeviceClocks, private val arrivals:
      * for the oldest value: its `hlc: 0` never lands after a later edit, which needs no counting
      * past its answer. Run off the main thread, as the arrival is written before this returns.
      */
-    @WorkerThread
-    fun <T : Any> send(fields: Collection<String>, madeAt: EditTime?, signIn: SignIn, call: (EditStamp) -> Call, handle: (Response) -> T): T =
-        sendKeeping(if (madeAt?.isOldest == true) emptyList() else fields, signIn, { call(stampOf(fields, madeAt)) }, handle)
+    suspend fun <T : Any> send(
+        fields: Collection<String>, madeAt: EditTime?, signIn: SignIn, call: (EditStamp) -> Call, handle: (Response) -> T,
+    ): T = sendKeeping(fields, if (madeAt?.isOldest == true) emptyList() else fields, signIn, { call(stampOf(fields, madeAt)) }, handle)
 
     /**
-     * [send] for a write of several edits, each stamped by [call] itself ([stampOf]): a 2xx answer
-     * keeps its arrival under [kept], the fields of those that went with an age. Run off the main
-     * thread, as the arrival is written before this returns.
+     * [send] for a write of several edits of [fields], each stamped by [call] itself ([stampOf]): a
+     * 2xx answer keeps its arrival under [kept], the fields of those that went with an age. One at a
+     * time with every other write of [fields], and of their terms' resets for a membership.
      */
-    @WorkerThread
-    fun <T : Any> sendKeeping(kept: Collection<String>, signIn: SignIn, call: () -> Call, handle: (Response) -> T): T =
+    suspend fun <T : Any> sendKeeping(
+        fields: Collection<String>, kept: Collection<String>, signIn: SignIn, call: () -> Call, handle: (Response) -> T,
+    ): T = holding(basis(fields)) {
         call().execute().use { response ->
             if (response.isSuccessful) arrivals.arrived(kept, signIn)
             handle(response)
         }
+    }
+
+    // [fields] and the reset of the term of each membership among them.
+    private fun basis(fields: Collection<String>): List<String> = (fields + fields.mapNotNull(SyncField::termResetOf)).distinct()
+
+    // [block] under the lock of each of [fields], taken in their order, so two writes never wait on each other.
+    private suspend fun <T> holding(fields: List<String>, block: () -> T): T {
+        val held = ArrayList<Mutex>(fields.size)
+        try {
+            for (field in fields.sorted()) {
+                val lock = writing.computeIfAbsent(field) { Mutex() }
+                lock.lock()
+                held += lock
+            }
+            return block()
+        } finally {
+            held.asReversed().forEach { it.unlock() }
+        }
+    }
 }

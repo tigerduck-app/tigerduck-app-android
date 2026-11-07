@@ -1,7 +1,10 @@
 package org.ntust.app.tigerduck.push
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
@@ -20,7 +23,9 @@ import org.ntust.app.tigerduck.util.testSignIn
  * outbox lane or straight from a screen (Use Local, a conflict's keep-local): the answer to each
  * write keeps its arrival under the field the write names, its resolved course key's, before the
  * call returns, and so before a hold its caller releases; and an edit of that field made while the
- * write was out counts its age from that arrival, whichever write sends it.
+ * write was out counts its age from that arrival, whichever write sends it. Two writes of one field
+ * go one after the other, a screen's and a lane's alike; of two fields, at once. A course's add and
+ * hide count from its term's reset too.
  */
 class AnswerArrivalWritesTest {
 
@@ -129,6 +134,82 @@ class AnswerArrivalWritesTest {
         assertEquals(3_500L, other)
         assertEquals("another locale's name is another field", 3_500L, name)
         assertEquals(700L, lastAge())
+    }
+
+    // The path a request went to, past the backend's address.
+    private fun RecordingBackend.Sent.path(): String = url.substringAfter("127.0.0.1:9").substringBefore('?')
+
+    @Test
+    fun `a lane's write of a field sent while a screen's write of it is out goes after its answer, aged from it`() = runTest {
+        val held = backend.holdNext()
+        val useLocal = backgroundScope.launch { client.patchCourseOverrideAnswered(course, signIn, colorHex = "#FF0000") }
+        held.out.await()
+        elapsedMs += 200
+        val pick = clocks.now()
+        elapsedMs += 1_000
+        val lane = backgroundScope.launch { client.patchCourseOverrideAnswered(course, signIn, colorHex = "#00FF00", madeAt = pick) }
+        // Time for the pick to go, were nothing holding it.
+        withContext(Dispatchers.Default) { delay(200) }
+        elapsedMs += 3_000
+        held.release()
+        useLocal.join()
+        lane.join()
+
+        val colors = backend.sent.map { JSONObject(it.body!!).getString("color_hex") }
+        assertEquals("the pick after Use Local's color", listOf("#FF0000", "#00FF00"), colors)
+        assertEquals("from Use Local's answer, not the pick's own 1 s", 0L, lastAge())
+    }
+
+    @Test
+    fun `writes of two fields go at once`() = runTest {
+        val held = backend.holdNext()
+        val color = backgroundScope.launch { client.patchCourseOverrideAnswered(course, signIn, colorHex = "#FF0000") }
+        held.out.await()
+
+        client.patchCourseOverrideAnswered(course, signIn, customName = "Algo", locale = "en")
+        client.patchAssignmentOverrideAnswered(7, "ignored", signIn, madeAt = null)
+
+        assertEquals(listOf("/v4/sync/courses/client:1151:CS1/override", "/v4/sync/assignments/7/override"), backend.sent.map { it.path() })
+        held.release()
+        color.join()
+    }
+
+    @Test
+    fun `an add or a hide made while its term's reset is out counts its age from the reset's answer`() = runTest {
+        val add = secondAge(
+            first = { client.deleteAllCoursesAnswered("1151", signIn, resetAt = null) },
+            second = { client.uploadCoursesAnswered(listOf(added), "1151", signIn, forceKeys = listOf("XA1"), addedAt = mapOf("XA1" to it)) },
+        )
+        val hide = secondAge(
+            first = { client.deleteAllCoursesAnswered("1151", signIn, resetAt = null) },
+            second = { client.deleteCourseAnswered("client:1151:XA2", signIn, hiddenAt = it) },
+        )
+        val otherTerm = secondAge(
+            first = { client.deleteAllCoursesAnswered("1151", signIn, resetAt = null) },
+            second = { client.deleteCourseAnswered("client:1142:XA2", signIn, hiddenAt = it) },
+        )
+
+        assertEquals("the add lands after the reset", 500L, add)
+        assertEquals("the hide lands after the reset", 500L, hide)
+        assertEquals("another term's reset is not this one's", 3_500L, otherTerm)
+    }
+
+    @Test
+    fun `a hide sent while its term's reset is out goes after the reset's answer`() = runTest {
+        val held = backend.holdNext()
+        val reset = backgroundScope.launch { client.deleteAllCoursesAnswered("1151", signIn, resetAt = null) }
+        held.out.await()
+        elapsedMs += 200
+        val hidden = clocks.now()
+        val hide = backgroundScope.launch { client.deleteCourseAnswered("client:1151:XA2", signIn, hiddenAt = hidden) }
+        withContext(Dispatchers.Default) { delay(200) }
+        elapsedMs += 3_000
+        held.release()
+        reset.join()
+        hide.join()
+
+        assertEquals(listOf("/v4/sync/courses", "/v4/sync/courses/client:1151:XA2"), backend.sent.map { it.path() })
+        assertEquals(0L, lastAge())
     }
 
     @Test

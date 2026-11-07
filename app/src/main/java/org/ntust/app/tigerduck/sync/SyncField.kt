@@ -28,6 +28,14 @@ object SyncField {
     /** Whether a course is on the class table: an add, a hide or a removal of it. */
     fun membership(courseKey: String): String = "courses/$courseKey"
 
+    /** A term's reset, which every course's [membership] in the term lands after or before. */
+    fun termReset(semester: String): String = "term_resets/$semester"
+
+    /** The [termReset] of the term a [membership] field's course is in, or null for another field. */
+    fun termResetOf(field: String): String? =
+        field.takeIf { it.startsWith(MEMBERSHIP + CLIENT) }?.removePrefix(MEMBERSHIP + CLIENT)
+            ?.substringBefore(':', "")?.ifEmpty { null }?.let(::termReset)
+
     /** The course and the locale a [name] field names, or null for another field. */
     fun nameParts(field: String): Pair<String, String>? {
         if (!field.startsWith(OVERRIDES)) return null
@@ -40,6 +48,7 @@ object SyncField {
     fun courseNoOf(course: String): String? =
         course.takeIf { it.startsWith(CLIENT) }?.removePrefix(CLIENT)?.substringAfter(':', "")?.ifEmpty { null }
 
+    private const val MEMBERSHIP = "courses/"
     private const val OVERRIDES = "course_overrides/"
     private const val NAMES = "/custom_names/"
     private const val CLIENT = "client:"
