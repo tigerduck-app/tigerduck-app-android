@@ -75,9 +75,10 @@ object RecipientSuggestions {
     }
 
     private fun String.toNormalizedKey(): String =
-        Normalizer.normalize(this, Normalizer.Form.NFKC).lowercase()
+        Normalizer.normalize(this, Normalizer.Form.NFKC)
+            .map { it.uppercaseChar().lowercaseChar() }
+            .joinToString("")    /**
 
-    /**
      * Those of [contacts] whose name or address holds [typed], ignoring case, at most [SHOWN]: the
      * ones a name, a word of one or an address starts with it first, then the rest, each in
      * [contacts]' order. None for nothing typed, nor any of [taken], the addresses the mail
