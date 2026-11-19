@@ -303,6 +303,10 @@ internal data class RelativeTime(
  */
 internal fun resolveRelativeTime(date: Date, now: Date): RelativeTime {
     val diffMs = date.time - now.time
+    // Treat exact deadline (diffMs == 0) as past ("1 min ago") since ticks align on minute
+    // boundaries. If switching to `diffMs < 0L` (matching AssignmentStatus's `!due.before(now)`),
+    // also clamp the future branch with `maxOf(1L, ...)` so `diffMs == 0L` shows "1 min later"
+    // instead of "0 min later".
     val isPast = diffMs <= 0L
     val absMs = abs(diffMs)
     val totalMinutes = if (isPast) {
