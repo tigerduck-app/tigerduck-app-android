@@ -6,20 +6,25 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
 class AssignmentItemFormatAbsoluteTest {
     private lateinit var originalZone: TimeZone
+    private lateinit var originalLocale: Locale
 
     @Before
-    fun setPhoneZone() {
+    fun setPhoneZoneAndLocale() {
         originalZone = TimeZone.getDefault()
+        originalLocale = Locale.getDefault()
         TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+        Locale.setDefault(Locale.US)
     }
 
     @After
-    fun restoreZone() {
+    fun restoreZoneAndLocale() {
         TimeZone.setDefault(originalZone)
+        Locale.setDefault(originalLocale)
     }
 
     @Test
