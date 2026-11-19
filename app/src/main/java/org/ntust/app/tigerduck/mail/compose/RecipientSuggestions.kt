@@ -5,6 +5,9 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import java.time.Duration
 import java.time.Instant
 import kotlin.math.pow
+import java.text.Normalizer
+import java.util.Locale
+
 
 /**
  * Who the compose screen's recipient fields suggest as the student types (tigerduck-app#552): the
@@ -71,6 +74,9 @@ object RecipientSuggestions {
             .map { Contact(it.address, it.score) }
     }
 
+    private fun String.toNormalizedKey(): String =
+        Normalizer.normalize(this, Normalizer.Form.NFKC).lowercase()
+
     /**
      * Those of [contacts] whose name or address holds [typed], ignoring case, at most [SHOWN]: the
      * ones a name, a word of one or an address starts with it first, then the rest, each in
@@ -78,22 +84,34 @@ object RecipientSuggestions {
      * already has.
      */
     fun matching(contacts: List<Contact>, typed: String, taken: Collection<String>): List<MailAddress> {
-        val query = typed.trim()
+        val query = typed.toNormalizedKey().trim()
         if (query.isEmpty()) return emptyList()
-        val excluded = taken.mapTo(mutableSetOf()) { it.lowercase() }
-        val found = contacts.filter { contact ->
-            val a = contact.address
-            a.address.lowercase() !in excluded &&
-                (a.address.contains(query, ignoreCase = true) || a.name?.contains(query, ignoreCase = true) == true)
-        }
-        val (starting, within) = found.partition { contact ->
-            val a = contact.address
-            a.address.startsWith(query, ignoreCase = true) ||
-                a.name?.split(' ')?.any { it.startsWith(query, ignoreCase = true) } == true
-        }
-        return (starting + within).take(SHOWN).map { it.address }
-    }
 
+        val excluded = taken.mapTo(HashSet()) { it.toNormalizedKey() }
+
+        return contacts.asSequence()
+            .map { it.address }
+            .mapNotNull { mail ->
+                val address = mail.address.toNormalizedKey()
+                if (address in excluded) return@mapNotNull null
+                val name = mail.name?.toNormalizedKey().orEmpty()
+
+                val rank = when {
+                    // make matches that match against the intials be the front result
+                    address.startsWith(query) ||
+                        name.startsWith(query) ||
+                        name.split(' ').any { it.startsWith(query) } -> 0
+                    query in address || query in name -> 1
+                    else -> return@mapNotNull null
+                }
+
+                Pair(rank, mail)
+            }
+            .sortedBy { (rank, _) -> rank }
+            .map { (_, mail) -> mail }
+            .take(SHOWN)
+            .toList()
+    }
     private fun decay(at: Instant?, now: Instant): Double {
         at ?: return UNDATED
         val days = Duration.between(at, now).toMillis().coerceAtLeast(0) / Duration.ofDays(1).toMillis().toDouble()

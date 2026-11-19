@@ -119,6 +119,13 @@ class RecipientSuggestionsTest {
     }
 
     @Test
+    fun `full-width letters typed from a Chinese keyboard match their half-width spelling`() {
+        assertEquals(listOf("wang@example.com", "lin.wang@example.com"), matching("ＷＡＮＧ"))
+        assertEquals(listOf("lin.wang@example.com"), matching("ｌｉｎ"))
+        assertEquals(listOf("lin.wang@example.com"), matching("ｗａｎｇ", taken = listOf("ｗａｎｇ＠ｅｘａｍｐｌｅ．ｃｏｍ")))
+    }
+
+    @Test
     fun `at most a few are suggested at once`() {
         val many = RecipientSuggestions.contacts(
             (1..9).map { mail(from = MailAddress(null, "student$it@example.com")) }, self, now,
