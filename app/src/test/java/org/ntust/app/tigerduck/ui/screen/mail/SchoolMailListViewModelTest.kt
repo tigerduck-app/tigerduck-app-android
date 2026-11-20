@@ -1060,6 +1060,24 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
+    fun `Retry after a failed mailbox does not search a query typed since the last search`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.folderLoadErrors[SENT] = MailError.Network()
+        vm.selectFolder(FolderSelection.Real(SENT))
+        vm.setSearchText("寄件")
+
+        repo.folderLoadErrors.remove(SENT)
+        vm.refresh()
+
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+    }
+
+    @Test
     fun `a pull with a query typed but not searched for only loads the list`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
         vm.load()
