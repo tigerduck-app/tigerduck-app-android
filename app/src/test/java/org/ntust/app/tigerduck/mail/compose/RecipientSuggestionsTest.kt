@@ -126,6 +126,23 @@ class RecipientSuggestionsTest {
     }
 
     @Test
+    fun `width is ignored on both sides, in names, addresses and digits alike`() {
+        val wide = RecipientSuggestions.contacts(
+            listOf(
+                mail(from = MailAddress("Chen", "c@example.com")),
+                mail(from = MailAddress("Robot", "b123@example.com")),
+                mail(from = MailAddress("Ｗｉｄｅ Ｎａｍｅ", "ｗｉｄｅ＠ｅｘａｍｐｌｅ．ｃｏｍ")),
+            ),
+            self, now,
+        )
+        fun matching(typed: String) = RecipientSuggestions.matching(wide, typed, emptyList()).map { it.address }
+        assertEquals(listOf("c@example.com"), matching("ｃｈｅｎ"))
+        assertEquals(listOf("b123@example.com"), matching("１２３"))
+        assertEquals(listOf("ｗｉｄｅ＠ｅｘａｍｐｌｅ．ｃｏｍ"), matching("name"))
+        assertEquals(listOf("ｗｉｄｅ＠ｅｘａｍｐｌｅ．ｃｏｍ"), matching("wide@"))
+    }
+
+    @Test
     fun `a name matches ignoring case where lowercasing it would change its letters`() {
         val named = RecipientSuggestions.contacts(
             listOf(
