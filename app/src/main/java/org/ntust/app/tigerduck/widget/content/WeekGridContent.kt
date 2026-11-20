@@ -411,6 +411,7 @@ private fun SoloCell(
     val textColor = if (cancelled) colors.onSurfaceVariant else weekCourseTextColor(ongoing, colors, style)
     val fontScale = LocalContext.current.resources.configuration.fontScale
     val widgetScale = LocalWidgetScale.current
+    val nameLinesBeside = { lineCount: Int -> blockNameLines(blockHeight, lineCount, courseNameScale, fontScale, widgetScale) }
     val lines = weekBlockLinesFor(
         change = change,
         room = room,
@@ -419,8 +420,7 @@ private fun SoloCell(
         ink = weekChangeInk(ongoing, colors, style),
         stepBack = colors.onSurfaceVariant,
         textColor = textColor,
-        // Period tiles gate their lines on their own height below.
-        fits = { style.classTableGridStyle == ClassTableGridStyle.PeriodTiles || blockLinesFit(blockHeight, it, courseNameScale, fontScale, widgetScale) },
+        fits = { style.classTableGridStyle == ClassTableGridStyle.PeriodTiles || nameLinesBeside(it) >= 1 }, // Tiles gate theirs below.
     )
     when (style.classTableGridStyle) {
         ClassTableGridStyle.Blocks -> CourseTile(
@@ -429,7 +429,7 @@ private fun SoloCell(
             textColor = textColor,
             height = blockHeight,
             cornerRadius = 6.dp.scaled,
-            maxLines = ((if (length >= 2) 3 else 2) - lines.count).coerceAtLeast(1),
+            maxLines = minOf((if (length >= 2) 3 else 2) - lines.count, nameLinesBeside(lines.count)).coerceAtLeast(1),
             courseNameScale = courseNameScale,
             struckThrough = cancelled,
             topLine = lines.top,

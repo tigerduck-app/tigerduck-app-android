@@ -121,14 +121,14 @@ class WidgetChangeMarksTest {
     }
 
     @Test
-    fun `a one-period block names the room the school moved it to, not the timetable's, and no time`() {
+    fun `a one-period block names its cancellation or the room the school moved it to, and no time`() {
         val one = CourseBlock(compilers, 4, listOf("2"))
         assertEquals(
             WeekBlockLines(null, TileLine("⇄ TR-411", ink)),
             linesOf(one.copy(movedRoom = "TR-411", changedStart = "09:30"), length = 1),
         )
         assertEquals(WeekBlockLines(null, TileLine("T4-501", textColor)), linesOf(one, length = 1))
-        assertEquals(WeekBlockLines(null, null), linesOf(one.copy(isCancelled = true), length = 1))
+        assertEquals(WeekBlockLines(null, TileLine("Cancelled", stepBack)), linesOf(one.copy(isCancelled = true), length = 1))
     }
 
     @Test
@@ -136,6 +136,7 @@ class WidgetChangeMarksTest {
         val one = CourseBlock(compilers, 4, listOf("2"))
         assertEquals(WeekBlockLines(null, null), linesOf(one, length = 1) { false })
         assertEquals(WeekBlockLines(null, null), linesOf(one.copy(movedRoom = "TR-411"), length = 1) { false })
+        assertEquals(WeekBlockLines(null, null), linesOf(one.copy(isCancelled = true), length = 1) { false })
     }
 
     @Test
@@ -153,13 +154,15 @@ class WidgetChangeMarksTest {
     }
 
     @Test
-    fun `a block holds a line below its name only where its height has the room`() {
-        // 40dp less 6dp of padding is 34dp: a 14.5dp name and one 11.6dp line, not two.
-        assertEquals(true, blockLinesFit(40.dp, 1, 1f, 1f))
-        assertEquals(false, blockLinesFit(40.dp, 2, 1f, 1f))
-        // At 1.5 times the text, even one line no longer fits there.
-        assertEquals(false, blockLinesFit(40.dp, 1, 1f, 1.5f))
-        assertEquals(true, blockLinesFit(80.dp, 2, 1f, 1.5f))
+    fun `a block's name keeps only the lines its height has beside the lines below it`() {
+        // 40dp less 6dp of padding is 34dp: one 11.6dp line leaves one 14.5dp name line, not two.
+        assertEquals(1, blockNameLines(40.dp, 1, 1f, 1f))
+        assertEquals(0, blockNameLines(40.dp, 2, 1f, 1f))
+        // At 1.5 times the text, not even one name line is left there beside one line.
+        assertEquals(0, blockNameLines(40.dp, 1, 1f, 1.5f))
+        assertEquals(1, blockNameLines(80.dp, 2, 1f, 1.5f))
+        // 60dp leaves two, so a long name may wrap above the room.
+        assertEquals(2, blockNameLines(60.dp, 1, 1f, 1f))
     }
 
     private fun linesOf(change: CourseBlock?, length: Int, fits: (Int) -> Boolean = { true }) =

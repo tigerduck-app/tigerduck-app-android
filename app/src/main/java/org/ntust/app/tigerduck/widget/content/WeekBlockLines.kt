@@ -41,9 +41,10 @@ internal fun weekBlockLines(
  * What a Week block of [length] periods says besides its name: [weekBlockLines] of its [change]
  * and timetable [room], where [fits] says whether that many lines fit the block.
  *
- * A block of one period has room for neither a changed time nor the cancellation, as on iOS, but
- * names the room the school moved it to rather than the timetable's. The timetable's room, and a
- * one-period block's moved room, go only where [fits]; a longer block's own change always shows.
+ * A block of one period has no room for a changed time; below its name it names the cancellation,
+ * the room the school moved it to or the timetable's, as iOS does on every block. Those go on a
+ * one-period block only where [fits], as does the timetable's room on a longer one; a longer
+ * block's own change always shows.
  */
 internal fun weekBlockLinesFor(
     change: CourseBlock?,
@@ -55,21 +56,23 @@ internal fun weekBlockLinesFor(
     textColor: Color,
     fits: (lineCount: Int) -> Boolean,
 ): WeekBlockLines {
-    val shown = if (length > 1) change else change?.takeIf { !it.isCancelled }?.copy(changedStart = null, changedEnd = null)
+    val shown = if (length > 1) change else change?.copy(changedStart = null, changedEnd = null)
     val withRoom = weekBlockLines(shown, room.takeIf { change?.isCancelled != true }.orEmpty(), cancelledLabel, ink, stepBack, textColor)
     val changeOnly = if (length > 1) weekBlockLines(shown, "", cancelledLabel, ink, stepBack, textColor) else WeekBlockLines(null, null)
     return if (withRoom == changeOnly || fits(withRoom.count)) withRoom else changeOnly
 }
 
 /**
- * Whether a Week block [height] high holds its course name on one line and [lineCount] more lines
- * of [weekBlockLines]'s smaller text, after the padding [CourseTile] keeps. As [tileNameLines].
+ * How many lines of course name a Week block [height] high holds beside [lineCount] lines of
+ * [weekBlockLines]'s smaller text, after the padding [CourseTile] keeps; 0 where not even one
+ * does. As [tileNameLines]. The block caps its name at this, so a long name that wraps never
+ * pushes the room out of the block.
  */
-internal fun blockLinesFit(height: Dp, lineCount: Int, courseNameScale: Float, fontScale: Float, scale: WidgetScale = WidgetScale()): Boolean {
+internal fun blockNameLines(height: Dp, lineCount: Int, courseNameScale: Float, fontScale: Float, scale: WidgetScale = WidgetScale()): Int {
     val textHeight = height.value - (2 * 1f + 2 * 2f) * scale.ui
     val nameLine = 10f * courseNameScale * fontScale * scale.text * 1.45f
     val extraLine = 8f * fontScale * scale.text * 1.45f
-    return textHeight >= nameLine + lineCount * extraLine
+    return ((textHeight - lineCount * extraLine) / nameLine).toInt().coerceAtLeast(0)
 }
 
 /** The room the timetable has for [course]'s block over [periods] in the [weekday] column. */
