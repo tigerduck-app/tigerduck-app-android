@@ -305,21 +305,20 @@ internal data class RelativeTime(
 /**
  * Resolves the display unit and count for an assignment's relative due time.
  * The UI refreshes once per minute ([rememberAppClockVersion]), so minutes are
- * the finest unit: future times round up to whole minutes, and past times (or
- * right at the deadline) floor at 1 minute.
+ * the finest unit: future times (and the due time itself) round up to whole minutes,
+ * and past times floor at 1 minute.
  */
 internal fun resolveRelativeTime(date: Date, now: Date): RelativeTime {
     val diffMs = date.time - now.time
-    // Treat exact deadline (diffMs == 0) as past ("1 min ago") since ticks align on minute
-    // boundaries. If switching to `diffMs < 0L` (matching AssignmentStatus's `!due.before(now)`),
-    // also clamp the future branch with `maxOf(1L, ...)` so `diffMs == 0L` shows "1 min later"
-    // instead of "0 min later".
-    val isPast = diffMs <= 0L
+    // Past only once the due time is, as AssignmentStatus has it (`!due.before(now)` is still
+    // pending), so the row never reads "ago" while its status is not overdue. Either side reads
+    // at least 1 minute.
+    val isPast = diffMs < 0L
     val absMs = abs(diffMs)
     val totalMinutes = if (isPast) {
         maxOf(1L, absMs / RELATIVE_MINUTE_MS)
     } else {
-        (absMs + RELATIVE_MINUTE_MS - 1L) / RELATIVE_MINUTE_MS
+        maxOf(1L, (absMs + RELATIVE_MINUTE_MS - 1L) / RELATIVE_MINUTE_MS)
     }
     val days = (totalMinutes / RELATIVE_DAY_MINUTES).toInt()
     if (days > 3) return RelativeTime(days, RelativeTimeUnit.DAYS, isPast)

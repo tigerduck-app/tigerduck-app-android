@@ -58,9 +58,9 @@ class AssignmentItemFormatRelativeTest {
     }
 
     @Test
-    fun `at exact deadline shows 1 minute ago`() {
+    fun `at exact deadline shows 1 minute later, as the status is still pending`() {
         assertEquals(
-            RelativeTime(1, RelativeTimeUnit.MINUTES, isPast = true),
+            RelativeTime(1, RelativeTimeUnit.MINUTES, isPast = false),
             resolveRelativeTime(dueOffsetMs(0L), now),
         )
     }
