@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.jsoup.Jsoup
+import org.jsoup.select.Elements
 import org.junit.Test
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.mail.model.InlineImage
@@ -234,31 +235,33 @@ class MailHtmlDocumentTest {
         )
     }
 
+    /**
+     * A WebView whose parse finds one anchor fewer than the rewrite wrote. Since jsoup 1.24 keeps a
+     * `<pre>`'s leading newline through a round trip, no mail the sanitizer passes is known to fall
+     * out of lockstep (a fuzz of its tags found none), so this stands in for one that would.
+     */
+    private val dropsFirstAnchor: (String) -> Elements = { html ->
+        Elements(Jsoup.parseBodyFragment(html).select("a[href]").drop(1))
+    }
+
     @Test
     fun `anchors that do not survive the WebView's re-parse are stripped of every href`() {
-        // Each parse drops the newline right after <pre>, so the anchor's text read off the tree
-        // this walks ("y" and two newlines, "x") is not the text the WebView ends up with.
-        val newline = Char(10).toString()
-        val mail = """<a href="https://a.example">y<pre>""" + newline.repeat(4) +
-            """x</pre></a><a href="https://b.example">b</a>"""
+        val mail = """<a href="https://a.example">y</a><a href="https://b.example">b</a>"""
         val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
-        val document = MailHtmlDocument.rewriteLinks(sanitized.html)
+        val document = MailHtmlDocument.rewriteLinks(sanitized.html, dropsFirstAnchor)
         assertTrue(document.links.isEmpty())
         assertFalse(document.html.contains("href"))
         assertTrue(Jsoup.parseBodyFragment(document.html).select("a").isNotEmpty())
-        assertLockstep(mail, sanitized.html, MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = dark))
+        assertLockstep(mail, sanitized.html, MailHtmlDocument.build(sanitized.html, dark, dropsFirstAnchor))
     }
 
     @Test
     fun `links stripped of their hrefs are judged again as the text they become`() {
-        // As above, each parse drops a newline after <pre>, so the anchors fall out of lockstep.
         // Judged as a link, the anchor's blue reads on its own white; stripped, it inherits the
         // div's white, on that same white.
-        val newline = Char(10).toString()
-        val mail = """<div style="background-color: #000000; color: #ffffff"><a href="https://a.example" style="background-color: #ffffff">y<pre>""" +
-            newline.repeat(8) + """x</pre></a></div>"""
+        val mail = """<div style="background-color: #000000; color: #ffffff"><a href="https://a.example" style="background-color: #ffffff">y</a></div>"""
         val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
-        val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = MailHtmlTheme.LIGHT)
+        val document = MailHtmlDocument.build(sanitized.html, MailHtmlTheme.LIGHT, dropsFirstAnchor)
         assertTrue(document.links.isEmpty())
         val page = Jsoup.parse(document.html)
         assertTrue(document.html, page.select("[href]").isEmpty())
@@ -268,12 +271,9 @@ class MailHtmlDocumentTest {
 
     @Test
     fun `text that reads like a target does not stop stripped links being judged again`() {
-        // The newline the second pass's parse drops sits before text that reads like an href.
-        val newline = Char(10).toString()
-        val mail = """<div style="background-color: #000000; color: #ffffff"><a href="https://a.example" style="background-color: #ffffff">y<pre>""" +
-            newline.repeat(3) + """href="z"</pre></a></div>"""
+        val mail = """<div style="background-color: #000000; color: #ffffff"><a href="https://a.example" style="background-color: #ffffff">y href="z"</a></div>"""
         val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
-        val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = MailHtmlTheme.LIGHT)
+        val document = MailHtmlDocument.build(sanitized.html, MailHtmlTheme.LIGHT, dropsFirstAnchor)
         assertTrue(document.links.isEmpty())
         val anchor = Jsoup.parse(document.html).selectFirst("a")!!
         assertEquals("background-color: #ffffff; color: #595959", anchor.attr("style"))

@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import org.jsoup.Jsoup
@@ -113,12 +114,24 @@ object MailHtmlDocument {
      * `.invalid` is IANA/RFC 2606 reserved and never resolves; [MailWebView] answers a tap with the index
      * alone, never a URL, so no WebView/Chromium canonicalization quirk can match a tap to the wrong entry.
      */
-    fun rewriteLinks(html: String): LinkedHtml = rewritten(html).linked
+    fun rewriteLinks(html: String): LinkedHtml = rewritten(html, ::parsedAnchors).linked
+
+    /**
+     * [rewriteLinks] with [webViewAnchors] standing in for the anchors the WebView parses. Since
+     * jsoup 1.24 keeps a `<pre>`'s leading newline through a round trip, no mail the sanitizer passes
+     * is known to fall out of lockstep, so tests reach the strip path through this.
+     */
+    @VisibleForTesting
+    internal fun rewriteLinks(html: String, webViewAnchors: (String) -> Elements): LinkedHtml =
+        rewritten(html, webViewAnchors).linked
+
+    /** The anchors the WebView finds in [html], which it parses by the same HTML rules as jsoup. */
+    private fun parsedAnchors(html: String): Elements = Jsoup.parseBodyFragment(html).select("a[href]")
 
     /** [rewriteLinks]'s result, and whether it had to strip every href. */
     private class Rewritten(val linked: LinkedHtml, val stripped: Boolean)
 
-    private fun rewritten(html: String): Rewritten {
+    private fun rewritten(html: String, webViewAnchors: (String) -> Elements): Rewritten {
         val doc = Jsoup.parseBodyFragment(html)
         doc.outputSettings().prettyPrint(false)
         val anchors = doc.select("a[href]")
@@ -128,7 +141,7 @@ object MailHtmlDocument {
             }
         }
         val rewritten = doc.body().html()
-        if (hrefsAndTexts(Jsoup.parseBodyFragment(rewritten).select("a[href]")) == hrefsAndTexts(anchors)) {
+        if (hrefsAndTexts(webViewAnchors(rewritten)) == hrefsAndTexts(anchors)) {
             return Rewritten(LinkedHtml(rewritten, links), stripped = false)
         }
         anchors.removeAttr("href")
@@ -159,8 +172,24 @@ object MailHtmlDocument {
         images: Map<String, InlineImage>,
         allowRemoteImages: Boolean,
         theme: MailHtmlTheme,
+    ): LinkedHtml = page(readable, images, allowRemoteImages, theme, ::parsedAnchors)
+
+    /** [build] with [webViewAnchors] standing in for the WebView's parse, as [rewriteLinks]'s twin. */
+    @VisibleForTesting
+    internal fun build(
+        sanitizedHtml: String,
+        theme: MailHtmlTheme,
+        webViewAnchors: (String) -> Elements,
+    ): LinkedHtml = page(MailReadableHtml(sanitizedHtml), emptyMap(), allowRemoteImages = false, theme, webViewAnchors)
+
+    private fun page(
+        readable: MailReadableHtml,
+        images: Map<String, InlineImage>,
+        allowRemoteImages: Boolean,
+        theme: MailHtmlTheme,
+        webViewAnchors: (String) -> Elements,
     ): LinkedHtml {
-        val rewritten = rewritten(inlineCids(readable.on(theme), images))
+        val rewritten = rewritten(inlineCids(readable.on(theme), images), webViewAnchors)
         // Every href stripped (see rewriteLinks): the anchors were judged as links, drawn in the
         // link color, and are text now, drawn in the color around them -- which may not read on
         // a background of their own. So the page is judged again as it now is.
