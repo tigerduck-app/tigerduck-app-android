@@ -1416,7 +1416,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
     "kind": "long-file",
-    "count": 845
+    "count": 835
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
@@ -1428,7 +1428,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
     "kind": "long-function",
     "name": "WeekGridContent(WidgetState, WidgetColors, VisualStylePolicy, Action)",
-    "lines": 151
+    "lines": 150
   },
   {
     "path": "shared/src/main/java/org/ntust/app/tigerduck/shared/LibraryCredentialStore.kt",

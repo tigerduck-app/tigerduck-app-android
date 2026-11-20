@@ -75,20 +75,56 @@ class WidgetChangeMarksTest {
 
     @Test
     fun `a Week block names its cancellation below its name, else its new time above and its new room below`() {
-        val ink = CourseChangeInkLight
-        val stepBack = WidgetTheme.Light.onSurfaceVariant
         val block = CourseBlock(compilers, 4, listOf("2", "3"))
 
-        assertEquals(WeekBlockLines(null, null), weekBlockLines(null, "Cancelled", ink, stepBack))
         assertEquals(
             WeekBlockLines(null, TileLine("Cancelled", stepBack)),
-            weekBlockLines(block.copy(isCancelled = true, changedStart = "09:30"), "Cancelled", ink, stepBack),
+            lines(block.copy(isCancelled = true, changedStart = "09:30")),
         )
         assertEquals(
             WeekBlockLines(TileLine("09:30", ink), TileLine("⇄ TR-411", ink)),
-            weekBlockLines(block.copy(changedStart = "09:30", movedRoom = "TR-411"), "Cancelled", ink, stepBack),
+            lines(block.copy(changedStart = "09:30", movedRoom = "TR-411")),
         )
     }
+
+    @Test
+    fun `a Week block with no change names its room below its name in the name's color`() {
+        assertEquals(WeekBlockLines(null, TileLine("T4-501", textColor)), lines(null))
+    }
+
+    @Test
+    fun `a Week block with a changed time and no moved room keeps its room below`() {
+        val block = CourseBlock(compilers, 4, listOf("2", "3"))
+        assertEquals(
+            WeekBlockLines(TileLine("09:30", ink), TileLine("T4-501", textColor)),
+            lines(block.copy(changedStart = "09:30")),
+        )
+    }
+
+    @Test
+    fun `a Week block with an empty room has no line below its name`() {
+        assertEquals(WeekBlockLines(null, null), lines(null, room = ""))
+    }
+
+    @Test
+    fun `a Week block's room is the one of its own periods`() {
+        val split = Course.fromSchedule(
+            "CC901", "Networks", classroom = "T4-501", schedule = mapOf(4 to listOf("2", "3", "6", "7")),
+            classroomMap = mapOf("4-2" to "T4-501", "4-3" to "T4-501", "4-6" to "R-201", "4-7" to "R-201"),
+        )
+        val roomless = Course.fromSchedule("CC902", "Seminar", schedule = mapOf(4 to listOf("2", "3")))
+        assertEquals("T4-501", weekBlockRoom(split, 4, listOf("2", "3")))
+        assertEquals("R-201", weekBlockRoom(split, 4, listOf("6", "7")))
+        assertEquals("", weekBlockRoom(roomless, 4, listOf("2", "3")))
+        assertEquals("", weekBlockRoom(split, 4, emptyList()))
+    }
+
+    private val ink = CourseChangeInkLight
+    private val stepBack = WidgetTheme.Light.onSurfaceVariant
+    private val textColor = Color.White
+
+    private fun lines(change: CourseBlock?, room: String = "T4-501") =
+        weekBlockLines(change, room, "Cancelled", ink, stepBack, textColor)
 
     @Test
     fun `a changed time reads as both ends, the start alone or the end after a dash`() {
