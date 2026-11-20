@@ -256,6 +256,19 @@ class MailHtmlDocumentTest {
     }
 
     @Test
+    fun `anchors the WebView reads with other text are stripped of every href, though as many`() {
+        // The count alone agrees; the first anchor's text does not.
+        val readsOtherText: (String) -> Elements = { html ->
+            Jsoup.parseBodyFragment(html).select("a[href]").also { it.first()?.text("z") }
+        }
+        val mail = """<a href="https://a.example">y</a><a href="https://b.example">b</a>"""
+        val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
+        val document = MailHtmlDocument.rewriteLinks(sanitized.html, readsOtherText)
+        assertTrue(document.links.isEmpty())
+        assertFalse(document.html.contains("href"))
+    }
+
+    @Test
     fun `links stripped of their hrefs are judged again as the text they become`() {
         // Judged as a link, the anchor's blue reads on its own white; stripped, it inherits the
         // div's white, on that same white.
