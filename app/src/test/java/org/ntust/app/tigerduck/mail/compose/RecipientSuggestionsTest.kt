@@ -119,6 +119,29 @@ class RecipientSuggestionsTest {
     }
 
     @Test
+    fun `full-width letters typed from a Chinese keyboard match their half-width spelling`() {
+        assertEquals(listOf("wang@example.com", "lin.wang@example.com"), matching("ＷＡＮＧ"))
+        assertEquals(listOf("lin.wang@example.com"), matching("ｌｉｎ"))
+        assertEquals(listOf("lin.wang@example.com"), matching("ｗａｎｇ", taken = listOf("ｗａｎｇ＠ｅｘａｍｐｌｅ．ｃｏｍ")))
+    }
+
+    @Test
+    fun `a name matches ignoring case where lowercasing it would change its letters`() {
+        val named = RecipientSuggestions.contacts(
+            listOf(
+                mail(from = MailAddress("İsmail Yılmaz", "y1@example.com")),
+                mail(from = MailAddress("Κασσάνδρα", "k2@example.com")),
+            ),
+            self, now,
+        )
+        fun matching(typed: String) = RecipientSuggestions.matching(named, typed, emptyList()).map { it.address }
+        // İ lowercases to i and a combining dot, which "ismail" does not hold.
+        assertEquals(listOf("y1@example.com"), matching("ismail"))
+        // A Σ typed last lowercases to the final ς, which the name spells σ.
+        assertEquals(listOf("k2@example.com"), matching("ΚΑΣ"))
+    }
+
+    @Test
     fun `at most a few are suggested at once`() {
         val many = RecipientSuggestions.contacts(
             (1..9).map { mail(from = MailAddress(null, "student$it@example.com")) }, self, now,
