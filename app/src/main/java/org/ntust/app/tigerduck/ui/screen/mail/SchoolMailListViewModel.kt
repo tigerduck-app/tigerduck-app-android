@@ -407,7 +407,7 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob?.cancel()
         prefetchJob = null
         prefetchDone = false
-        forgetSearch()
+        forgetSearch(); submittedQuery = null
         lookedAt = null
         staleFolders.clear()
         cachePainted.clear()
@@ -603,7 +603,9 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob?.cancel()
         prefetchJob = null
         viewModelScope.launch {
-            if (_state.value.searchResults != null) runSearch() else fetchFirstPage()
+            val search = searchGeneration
+            if (_state.value.searchResults != null) runSearch()
+            else if (fetchFirstPage() && search == searchGeneration && _state.value.searchText.trim() == submittedQuery?.ifEmpty { null }) runSearch()
             // Restarted once the user's own request has landed, exactly as [selectFolder] does --
             // cancelling without restarting would end the warming for this view model's whole
             // life the first time anybody pulled to refresh.
@@ -616,18 +618,16 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob?.cancel()
         prefetchJob = null
         forgetSearch()
+        val search = searchGeneration
         listGeneration++
         _state.update {
-            it.copy(
-                selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchText = "",
-                searchLocalOnly = false, searchIndexPartial = false,
-            )
+            it.copy(selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchLocalOnly = false, searchIndexPartial = false)
         }
         // The new selection's own date, kept from its last fetch, until this one's lands.
         showFetchedAt()
         viewModelScope.launch {
             showCached()
-            fetchFirstPage()
+            if (fetchFirstPage() && search == searchGeneration && _state.value.searchText.isNotBlank()) runSearch()
             // Restarted, not merely cancelled. [startPrefetch] used to run from [load] alone, so
             // the first chip tap ended the warming for this view model's whole life -- a user who
             // tapped early left Drafts, Junk and Trash cold from then on and the feature simply
@@ -639,7 +639,7 @@ class SchoolMailListViewModel @Inject constructor(
     fun setUnreadOnly(value: Boolean) = _state.update { it.copy(unreadOnly = value) }
 
     fun setSearchText(text: String) {
-        if (text.isBlank()) forgetSearch()
+        if (text.isBlank()) { forgetSearch(); submittedQuery = null }
         _state.update {
             if (text.isBlank()) {
                 it.copy(searchText = text, searchResults = null, searchLocalOnly = false, searchIndexPartial = false)

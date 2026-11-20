@@ -949,9 +949,9 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `another folder picked while a search is out stops its spinner`() {
+    fun `another folder picked while a search is out reruns it there and drops the old answer`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"))
-        repo.add(SENT, mailSummary(2))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"), mailSummary(3, subject = "other"))
         vm.load()
         vm.selectFolder(FolderSelection.Real("INBOX"))
         val gate = CompletableDeferred<Unit>()
@@ -959,12 +959,163 @@ class SchoolMailListViewModelTest {
         vm.setSearchText("期中")
         vm.submitSearch()
 
+        // The new mailbox's search goes out ungated; the old one's is still held.
+        repo.onLoaded = { folder -> if (folder == SENT) repo.searchGate = null }
         vm.selectFolder(FolderSelection.Real(SENT))
+        repo.onLoaded = null
+        assertEquals("期中", vm.state.value.searchText)
+        assertEquals(listOf("INBOX", SENT), repo.searchesSent)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
         assertFalse(vm.state.value.searchBusy)
 
-        repo.searchGate = null
         gate.complete(Unit)
         assertFalse(vm.state.value.searchBusy)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `switching folders keeps the query and searches the mailbox picked`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考 Inbox"))
+        repo.add(SENT, mailSummary(2, subject = "期中考 Sent"), mailSummary(3, subject = "other"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+
+        vm.selectFolder(FolderSelection.Real(SENT))
+
+        assertEquals("期中", vm.state.value.searchText)
+        assertEquals(listOf("INBOX", SENT), repo.searchesSent)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `a mailbox left before its first page lands is not searched`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+
+        repo.onLoaded = { folder ->
+            if (folder == SENT) {
+                repo.onLoaded = null
+                vm.selectFolder(FolderSelection.Real("INBOX"))
+            }
+        }
+        vm.selectFolder(FolderSelection.Real(SENT))
+
+        assertEquals(listOf("INBOX", "INBOX"), repo.searchesSent)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `a mailbox left and picked again before its first page lands is searched once`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.selectFolder(FolderSelection.Real(SENT))
+
+        // Inbox picked, then Sent and Inbox again while the first Inbox page is still out: Sent,
+        // left before its page, searches nothing, and Inbox is searched once, for the last pick.
+        repo.onLoaded = { folder ->
+            if (folder == "INBOX") {
+                repo.onLoaded = null
+                vm.selectFolder(FolderSelection.Real(SENT))
+                vm.selectFolder(FolderSelection.Real("INBOX"))
+            }
+        }
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+
+        assertEquals(listOf("INBOX", SENT, "INBOX"), repo.searchesSent)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `a mailbox whose first page fails keeps the query and is not searched`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.folderLoadErrors[SENT] = MailError.Network()
+
+        vm.selectFolder(FolderSelection.Real(SENT))
+
+        assertEquals("期中", vm.state.value.searchText)
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+        assertEquals(null, vm.state.value.searchResults)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+
+        // Retry loads the list, then searches it for the query kept in the field.
+        repo.folderLoadErrors.remove(SENT)
+        vm.refresh()
+        assertEquals(listOf("INBOX", SENT), repo.searchesSent)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `Retry after a failed mailbox does not search a query typed since the last search`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.folderLoadErrors[SENT] = MailError.Network()
+        vm.selectFolder(FolderSelection.Real(SENT))
+        vm.setSearchText("寄件")
+
+        repo.folderLoadErrors.remove(SENT)
+        vm.refresh()
+
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+    }
+
+    @Test
+    fun `a pull with a query typed but not searched for only loads the list`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
+        vm.load()
+        vm.setSearchText("期中")
+
+        vm.refresh()
+
+        assertEquals(emptyList<String>(), repo.searchesSent)
+        assertEquals(2, vm.state.value.displayed.size)
+    }
+
+    @Test
+    fun `a pull after a search was cleared and its query typed again only loads the list`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.setSearchText("")
+        vm.setSearchText("期中")
+
+        vm.refresh()
+
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+        assertEquals(2, vm.state.value.displayed.size)
+    }
+
+    @Test
+    fun `switching folders with nothing typed shows the mailbox's list`() {
+        repo.add("INBOX", mailSummary(1))
+        repo.add(SENT, mailSummary(2), mailSummary(3))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+
+        vm.selectFolder(FolderSelection.Real(SENT))
+
+        assertEquals(emptyList<String>(), repo.searchesSent)
+        assertEquals(setOf(2L, 3L), vm.state.value.displayed.map { it.uid }.toSet())
     }
 
     @Test
@@ -1992,6 +2143,27 @@ class SchoolMailListViewModelTest {
         account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
+    }
+
+    @Test
+    fun `a search from before a sign-out is not run by a pull after the next sign-in`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        account.signOut(SignOutReason.MAIL)
+        main.dispatcher.scheduler.runCurrent()
+        runBlocking { account.signIn("b10000001", "pw") }
+        main.dispatcher.scheduler.runCurrent()
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+
+        vm.refresh()
+
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+        assertEquals(2, vm.state.value.displayed.size)
     }
 
     // --- the "Last synced" row --------------------------------------------------------------
