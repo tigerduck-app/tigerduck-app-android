@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.widget.content
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -118,6 +119,51 @@ class WidgetChangeMarksTest {
         assertEquals("", weekBlockRoom(roomless, 4, listOf("2", "3")))
         assertEquals("", weekBlockRoom(split, 4, emptyList()))
     }
+
+    @Test
+    fun `a one-period block names the room the school moved it to, not the timetable's, and no time`() {
+        val one = CourseBlock(compilers, 4, listOf("2"))
+        assertEquals(
+            WeekBlockLines(null, TileLine("⇄ TR-411", ink)),
+            linesOf(one.copy(movedRoom = "TR-411", changedStart = "09:30"), length = 1),
+        )
+        assertEquals(WeekBlockLines(null, TileLine("T4-501", textColor)), linesOf(one, length = 1))
+        assertEquals(WeekBlockLines(null, null), linesOf(one.copy(isCancelled = true), length = 1))
+    }
+
+    @Test
+    fun `where the lines do not fit a one-period block keeps its name alone`() {
+        val one = CourseBlock(compilers, 4, listOf("2"))
+        assertEquals(WeekBlockLines(null, null), linesOf(one, length = 1) { false })
+        assertEquals(WeekBlockLines(null, null), linesOf(one.copy(movedRoom = "TR-411"), length = 1) { false })
+    }
+
+    @Test
+    fun `where the lines do not fit a longer block drops the timetable's room but keeps its own change`() {
+        val two = CourseBlock(compilers, 4, listOf("2", "3"))
+        assertEquals(
+            WeekBlockLines(TileLine("09:30", ink), null),
+            linesOf(two.copy(changedStart = "09:30"), length = 2) { false },
+        )
+        assertEquals(
+            WeekBlockLines(TileLine("09:30", ink), TileLine("⇄ TR-411", ink)),
+            linesOf(two.copy(changedStart = "09:30", movedRoom = "TR-411"), length = 2) { false },
+        )
+        assertEquals(WeekBlockLines(null, null), linesOf(two, length = 2) { false })
+    }
+
+    @Test
+    fun `a block holds a line below its name only where its height has the room`() {
+        // 40dp less 6dp of padding is 34dp: a 14.5dp name and one 11.6dp line, not two.
+        assertEquals(true, blockLinesFit(40.dp, 1, 1f, 1f))
+        assertEquals(false, blockLinesFit(40.dp, 2, 1f, 1f))
+        // At 1.5 times the text, even one line no longer fits there.
+        assertEquals(false, blockLinesFit(40.dp, 1, 1f, 1.5f))
+        assertEquals(true, blockLinesFit(80.dp, 2, 1f, 1.5f))
+    }
+
+    private fun linesOf(change: CourseBlock?, length: Int, fits: (Int) -> Boolean = { true }) =
+        weekBlockLinesFor(change, "T4-501", length, "Cancelled", ink, stepBack, textColor, fits)
 
     private val ink = CourseChangeInkLight
     private val stepBack = WidgetTheme.Light.onSurfaceVariant

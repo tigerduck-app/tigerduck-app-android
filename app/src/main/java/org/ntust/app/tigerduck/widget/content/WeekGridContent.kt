@@ -410,18 +410,17 @@ private fun SoloCell(
     // A cancelled class steps back, as on the iPhone; it is never in session.
     val textColor = if (cancelled) colors.onSurfaceVariant else weekCourseTextColor(ongoing, colors, style)
     val fontScale = LocalContext.current.resources.configuration.fontScale
-    // A one-period block that cannot fit a second line besides its name keeps only the name.
-    val blockFits = length > 1 ||
-        tileNameLines(blockHeight, courseNameScale, fontScale, LocalWidgetScale.current) >= 2
-    // Only a block of more than one period has room to say what changed, as on iOS;
-    // the room below the name goes wherever it fits, and a cancelled class has none.
-    val lines = weekBlockLines(
-        change.takeIf { length > 1 },
-        room = room.takeIf { !cancelled && blockFits }.orEmpty(),
+    val widgetScale = LocalWidgetScale.current
+    val lines = weekBlockLinesFor(
+        change = change,
+        room = room,
+        length = length,
         cancelledLabel = LocalContext.current.getString(R.string.course_card_cancelled),
         ink = weekChangeInk(ongoing, colors, style),
         stepBack = colors.onSurfaceVariant,
         textColor = textColor,
+        // Period tiles gate their lines on their own height below.
+        fits = { style.classTableGridStyle == ClassTableGridStyle.PeriodTiles || blockLinesFit(blockHeight, it, courseNameScale, fontScale, widgetScale) },
     )
     when (style.classTableGridStyle) {
         ClassTableGridStyle.Blocks -> CourseTile(
@@ -441,7 +440,7 @@ private fun SoloCell(
         // The change goes on the first tile and the last, where they fit it.
         ClassTableGridStyle.PeriodTiles -> {
             val tileHeight = blockHeight / length
-            val nameLines = tileNameLines(tileHeight, courseNameScale, fontScale, LocalWidgetScale.current)
+            val nameLines = tileNameLines(tileHeight, courseNameScale, fontScale, widgetScale)
             val fits = nameLines >= 2
             GlanceStack(
                 items = List(length) { it },
