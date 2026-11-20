@@ -1090,6 +1090,22 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
+    fun `a pull after a search was cleared and its query typed again only loads the list`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.setSearchText("")
+        vm.setSearchText("期中")
+
+        vm.refresh()
+
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+        assertEquals(2, vm.state.value.displayed.size)
+    }
+
+    @Test
     fun `switching folders with nothing typed shows the mailbox's list`() {
         repo.add("INBOX", mailSummary(1))
         repo.add(SENT, mailSummary(2), mailSummary(3))
@@ -2127,6 +2143,27 @@ class SchoolMailListViewModelTest {
         account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
+    }
+
+    @Test
+    fun `a search from before a sign-out is not run by a pull after the next sign-in`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        account.signOut(SignOutReason.MAIL)
+        main.dispatcher.scheduler.runCurrent()
+        runBlocking { account.signIn("b10000001", "pw") }
+        main.dispatcher.scheduler.runCurrent()
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+
+        vm.refresh()
+
+        assertEquals(listOf("INBOX"), repo.searchesSent)
+        assertEquals(2, vm.state.value.displayed.size)
     }
 
     // --- the "Last synced" row --------------------------------------------------------------

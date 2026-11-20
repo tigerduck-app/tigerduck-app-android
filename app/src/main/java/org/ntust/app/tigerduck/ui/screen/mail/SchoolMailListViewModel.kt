@@ -407,7 +407,7 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob?.cancel()
         prefetchJob = null
         prefetchDone = false
-        forgetSearch()
+        forgetSearch(); submittedQuery = null
         lookedAt = null
         staleFolders.clear()
         cachePainted.clear()
@@ -639,7 +639,7 @@ class SchoolMailListViewModel @Inject constructor(
     fun setUnreadOnly(value: Boolean) = _state.update { it.copy(unreadOnly = value) }
 
     fun setSearchText(text: String) {
-        if (text.isBlank()) forgetSearch()
+        if (text.isBlank()) { forgetSearch(); submittedQuery = null }
         _state.update {
             if (text.isBlank()) {
                 it.copy(searchText = text, searchResults = null, searchLocalOnly = false, searchIndexPartial = false)
