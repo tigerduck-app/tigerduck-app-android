@@ -46,7 +46,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 // iOS-matched semantic colors so home status reads the same on both
@@ -291,6 +290,43 @@ internal fun formatAbsolute(date: Date): String {
     }.format(date)
 }
 
+private const val RELATIVE_MINUTE_MS = 60_000L
+private const val RELATIVE_HOUR_MINUTES = 60L
+private const val RELATIVE_DAY_MINUTES = 24L * RELATIVE_HOUR_MINUTES
+
+internal enum class RelativeTimeUnit { DAYS, HOURS, MINUTES }
+
+internal data class RelativeTime(
+    val value: Int,
+    val unit: RelativeTimeUnit,
+    val isPast: Boolean,
+)
+
+/**
+ * Resolves the display unit and count for an assignment's relative due time.
+ * The UI refreshes once per minute ([rememberAppClockVersion]), so minutes are
+ * the finest unit: future times (and the due time itself) round up to whole minutes,
+ * and past times floor at 1 minute.
+ */
+internal fun resolveRelativeTime(date: Date, now: Date): RelativeTime {
+    val diffMs = date.time - now.time
+    // Past only once the due time is, as AssignmentStatus has it (`!due.before(now)` is still
+    // pending), so the row never reads "ago" while its status is not overdue. Either side reads
+    // at least 1 minute.
+    val isPast = diffMs < 0L
+    val absMs = abs(diffMs)
+    val totalMinutes = if (isPast) {
+        maxOf(1L, absMs / RELATIVE_MINUTE_MS)
+    } else {
+        maxOf(1L, (absMs + RELATIVE_MINUTE_MS - 1L) / RELATIVE_MINUTE_MS)
+    }
+    val days = (totalMinutes / RELATIVE_DAY_MINUTES).toInt()
+    if (days > 3) return RelativeTime(days, RelativeTimeUnit.DAYS, isPast)
+    val hours = (totalMinutes / RELATIVE_HOUR_MINUTES).toInt()
+    if (hours > 0) return RelativeTime(hours, RelativeTimeUnit.HOURS, isPast)
+    return RelativeTime(totalMinutes.toInt(), RelativeTimeUnit.MINUTES, isPast)
+}
+
 /**
  * Port of iOS `Date.relativeTimeString(from:)`. Steps units naturally so the
  * reader can see how overdue (or how soon) something is at a glance, instead
@@ -298,21 +334,13 @@ internal fun formatAbsolute(date: Date): String {
  */
 @Composable
 private fun formatRelative(date: Date, now: Date): String {
-    val diffMs = date.time - now.time
-    val isPast = diffMs < 0
-    val suffix = if (isPast) stringResource(R.string.assignment_time_suffix_ago)
+    val relative = resolveRelativeTime(date, now)
+    val suffix = if (relative.isPast) stringResource(R.string.assignment_time_suffix_ago)
     else stringResource(R.string.assignment_time_suffix_later)
-    val absMs = abs(diffMs)
-    val days = TimeUnit.MILLISECONDS.toDays(absMs).toInt()
-    if (days > 3) return stringResource(R.string.assignment_time_days_with_suffix, days, suffix)
-    val hours = TimeUnit.MILLISECONDS.toHours(absMs).toInt()
-    if (hours > 0) return stringResource(R.string.assignment_time_hours_with_suffix, hours, suffix)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(absMs).toInt()
-    if (minutes > 0) return stringResource(
-        R.string.assignment_time_minutes_with_suffix,
-        minutes,
-        suffix
-    )
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(absMs).toInt()
-    return stringResource(R.string.assignment_time_seconds_with_suffix, seconds, suffix)
+    val resId = when (relative.unit) {
+        RelativeTimeUnit.DAYS -> R.string.assignment_time_days_with_suffix
+        RelativeTimeUnit.HOURS -> R.string.assignment_time_hours_with_suffix
+        RelativeTimeUnit.MINUTES -> R.string.assignment_time_minutes_with_suffix
+    }
+    return stringResource(resId, relative.value, suffix)
 }
