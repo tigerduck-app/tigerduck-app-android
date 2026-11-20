@@ -616,18 +616,17 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob?.cancel()
         prefetchJob = null
         forgetSearch()
+        val search = searchGeneration
         listGeneration++
         _state.update {
-            it.copy(
-                selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchText = "",
-                searchLocalOnly = false, searchIndexPartial = false,
-            )
+            it.copy(selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchLocalOnly = false, searchIndexPartial = false)
         }
         // The new selection's own date, kept from its last fetch, until this one's lands.
         showFetchedAt()
         viewModelScope.launch {
             showCached()
-            fetchFirstPage()
+            // The query stays: searched once this page is in, unless another search began (app#894).
+            if (fetchFirstPage() && search == searchGeneration && _state.value.searchText.isNotBlank()) runSearch()
             // Restarted, not merely cancelled. [startPrefetch] used to run from [load] alone, so
             // the first chip tap ended the warming for this view model's whole life -- a user who
             // tapped early left Drafts, Junk and Trash cold from then on and the feature simply
