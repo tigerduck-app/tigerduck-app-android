@@ -1051,6 +1051,24 @@ class SchoolMailListViewModelTest {
         assertEquals(listOf("INBOX"), repo.searchesSent)
         assertEquals(null, vm.state.value.searchResults)
         assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+
+        // Retry loads the list, then searches it for the query kept in the field.
+        repo.folderLoadErrors.remove(SENT)
+        vm.refresh()
+        assertEquals(listOf("INBOX", SENT), repo.searchesSent)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `a pull with a query typed but not searched for only loads the list`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2))
+        vm.load()
+        vm.setSearchText("期中")
+
+        vm.refresh()
+
+        assertEquals(emptyList<String>(), repo.searchesSent)
+        assertEquals(2, vm.state.value.displayed.size)
     }
 
     @Test

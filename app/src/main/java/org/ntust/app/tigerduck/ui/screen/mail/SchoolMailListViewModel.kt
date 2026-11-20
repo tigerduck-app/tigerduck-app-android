@@ -603,7 +603,9 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob?.cancel()
         prefetchJob = null
         viewModelScope.launch {
-            if (_state.value.searchResults != null) runSearch() else fetchFirstPage()
+            // A list reloaded under a query searched for, whose mailbox's page failed, is searched too.
+            if (_state.value.searchResults != null) runSearch()
+            else if (fetchFirstPage() && _state.value.searchText.trim().let { it.isNotEmpty() && it == submittedQuery }) runSearch()
             // Restarted once the user's own request has landed, exactly as [selectFolder] does --
             // cancelling without restarting would end the warming for this view model's whole
             // life the first time anybody pulled to refresh.
@@ -625,7 +627,6 @@ class SchoolMailListViewModel @Inject constructor(
         showFetchedAt()
         viewModelScope.launch {
             showCached()
-            // The query stays: searched once this page is in, unless another search began (app#894).
             if (fetchFirstPage() && search == searchGeneration && _state.value.searchText.isNotBlank()) runSearch()
             // Restarted, not merely cancelled. [startPrefetch] used to run from [load] alone, so
             // the first chip tap ended the warming for this view model's whole life -- a user who
