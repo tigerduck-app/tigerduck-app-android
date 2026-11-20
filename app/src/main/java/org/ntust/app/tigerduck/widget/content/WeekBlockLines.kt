@@ -75,6 +75,15 @@ internal fun blockNameLines(height: Dp, lineCount: Int, courseNameScale: Float, 
     return ((textHeight - lineCount * extraLine) / nameLine).toInt().coerceAtLeast(0)
 }
 
+/**
+ * The most lines a Week block of [length] periods gives its course name beside [lineCount] lines
+ * below or above it: three for a longer block and two for one period, less those lines, and never
+ * more than [nameLinesBeside] says its height holds, so a wrapping name never clips them. One at
+ * least, the name being the block.
+ */
+internal fun blockNameMaxLines(length: Int, lineCount: Int, nameLinesBeside: (lineCount: Int) -> Int): Int =
+    minOf((if (length >= 2) 3 else 2) - lineCount, nameLinesBeside(lineCount)).coerceAtLeast(1)
+
 /** The room the timetable has for [course]'s block over [periods] in the [weekday] column. */
 internal fun weekBlockRoom(course: Course, weekday: Int, periods: List<String>): String =
     if (periods.isEmpty()) "" else CourseBlock(course, weekday, periods).classroom

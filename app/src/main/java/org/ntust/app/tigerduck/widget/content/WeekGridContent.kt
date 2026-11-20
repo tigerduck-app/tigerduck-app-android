@@ -429,7 +429,7 @@ private fun SoloCell(
             textColor = textColor,
             height = blockHeight,
             cornerRadius = 6.dp.scaled,
-            maxLines = minOf((if (length >= 2) 3 else 2) - lines.count, nameLinesBeside(lines.count)).coerceAtLeast(1),
+            maxLines = blockNameMaxLines(length, lines.count, nameLinesBeside),
             courseNameScale = courseNameScale,
             struckThrough = cancelled,
             topLine = lines.top,

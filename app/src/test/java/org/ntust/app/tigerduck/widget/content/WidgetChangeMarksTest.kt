@@ -165,6 +165,19 @@ class WidgetChangeMarksTest {
         assertEquals(2, blockNameLines(60.dp, 1, 1f, 1f))
     }
 
+    @Test
+    fun `a block's name wraps only as far as its height leaves room beside its lines`() {
+        val beside = { lineCount: Int -> blockNameLines(40.dp, lineCount, 1f, 1f) }
+        // Two periods 40dp high with the room below: one name line, not the two it would wrap to.
+        assertEquals(1, blockNameMaxLines(2, 1, beside))
+        // With nothing below, the name takes what the height holds, at most three lines.
+        assertEquals(2, blockNameMaxLines(2, 0, beside))
+        assertEquals(3, blockNameMaxLines(2, 0) { 5 })
+        assertEquals(2, blockNameMaxLines(1, 0) { 5 })
+        // Never none: the name is the block.
+        assertEquals(1, blockNameMaxLines(2, 2, beside))
+    }
+
     private fun linesOf(change: CourseBlock?, length: Int, fits: (Int) -> Boolean = { true }) =
         weekBlockLinesFor(change, "T4-501", length, "Cancelled", ink, stepBack, textColor, fits)
 
