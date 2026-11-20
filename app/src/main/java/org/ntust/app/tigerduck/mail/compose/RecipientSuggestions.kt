@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.mail.compose
 
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import java.text.Normalizer
 import java.time.Duration
 import java.time.Instant
 import kotlin.math.pow
@@ -72,26 +73,41 @@ object RecipientSuggestions {
     }
 
     /**
-     * Those of [contacts] whose name or address holds [typed], ignoring case, at most [SHOWN]: the
-     * ones a name, a word of one or an address starts with it first, then the rest, each in
-     * [contacts]' order. None for nothing typed, nor any of [taken], the addresses the mail
+     * Those of [contacts] whose name or address holds [typed], ignoring case and width, at most
+     * [SHOWN]: the ones a name, a word of one or an address starts with it first, then the rest,
+     * each in [contacts]' order. None for nothing typed, nor any of [taken], the addresses the mail
      * already has.
      */
     fun matching(contacts: List<Contact>, typed: String, taken: Collection<String>): List<MailAddress> {
-        val query = typed.trim()
+        val query = typed.toNormalizedKey().trim()
         if (query.isEmpty()) return emptyList()
-        val excluded = taken.mapTo(mutableSetOf()) { it.lowercase() }
-        val found = contacts.filter { contact ->
-            val a = contact.address
-            a.address.lowercase() !in excluded &&
-                (a.address.contains(query, ignoreCase = true) || a.name?.contains(query, ignoreCase = true) == true)
-        }
-        val (starting, within) = found.partition { contact ->
-            val a = contact.address
-            a.address.startsWith(query, ignoreCase = true) ||
-                a.name?.split(' ')?.any { it.startsWith(query, ignoreCase = true) } == true
-        }
-        return (starting + within).take(SHOWN).map { it.address }
+        val excluded = taken.mapTo(HashSet()) { it.toNormalizedKey() }
+        return contacts.asSequence()
+            .map { it.address }
+            .mapNotNull { mail ->
+                val address = mail.address.toNormalizedKey()
+                if (address in excluded) return@mapNotNull null
+                val name = mail.name?.toNormalizedKey().orEmpty()
+                val rank = when {
+                    address.startsWith(query) || name.startsWith(query) || name.split(' ').any { it.startsWith(query) } -> 0
+                    query in address || query in name -> 1
+                    else -> return@mapNotNull null
+                }
+                rank to mail
+            }
+            .sortedBy { (rank, _) -> rank }
+            .map { (_, mail) -> mail }
+            .take(SHOWN)
+            .toList()
+    }
+
+    /**
+     * This as [matching] compares it: NFKC, which turns what a Chinese keyboard types in
+     * full-width mode (`ＷＡＮＧ`, `１２３`, `＠`) into its ASCII form, then each character
+     * lowercased through its uppercase, so `İ` reads as `i` and a final `ς` as `σ`.
+     */
+    private fun String.toNormalizedKey(): String = buildString {
+        Normalizer.normalize(this@toNormalizedKey, Normalizer.Form.NFKC).forEach { append(it.uppercaseChar().lowercaseChar()) }
     }
 
     private fun decay(at: Instant?, now: Instant): Double {
