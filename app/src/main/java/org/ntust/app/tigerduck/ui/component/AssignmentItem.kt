@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentStatus
@@ -41,6 +42,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -281,8 +283,13 @@ internal fun rememberAppClockVersion(): State<Long> {
     }
 }
 
-private fun formatAbsolute(date: Date): String =
-    SimpleDateFormat("M/d HH:mm:ss", Locale.getDefault()).format(date)
+internal fun formatAbsolute(date: Date): String {
+    val seconds = Calendar.getInstance(AppConstants.TAIPEI_TZ).apply { time = date }.get(Calendar.SECOND)
+    val pattern = if (seconds == 0) "M/d HH:mm" else "M/d HH:mm:ss"
+    return SimpleDateFormat(pattern, Locale.getDefault()).apply {
+        timeZone = AppConstants.TAIPEI_TZ
+    }.format(date)
+}
 
 /**
  * Port of iOS `Date.relativeTimeString(from:)`. Steps units naturally so the
