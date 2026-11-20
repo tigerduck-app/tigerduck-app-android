@@ -191,14 +191,13 @@ fun WeekGridContent(
                             // Per tile, not per course: only the block going
                             // on now lights up, not the course's other blocks.
                             isOngoing = { course, offset, span ->
-                                state.isOngoingTile(
-                                    course,
-                                    weekday,
-                                    state.activePeriodIds.rows(start + offset, span),
-                                )
+                                state.isOngoingTile(course, weekday, state.activePeriodIds.rows(start + offset, span))
                             },
                             changeOf = { course, offset, span ->
                                 weekBlockChange(state, course, weekday, state.activePeriodIds.rows(start + offset, span))
+                            },
+                            roomOf = { course, offset, span ->
+                                weekBlockRoom(course, weekday, state.activePeriodIds.rows(start + offset, span))
                             },
                             blockHeight = cellHeight * cell.length,
                             blockWidth = dayColWidth,
@@ -219,6 +218,9 @@ private typealias TileOngoing = (course: Course, offset: Int, span: Int) -> Bool
 
 /** A tile's block as the school changed it, from the same; see [weekBlockChange]. */
 private typealias TileChange = (course: Course, offset: Int, span: Int) -> CourseBlock?
+
+/** A tile's room as the timetable has it, from the same; see [weekBlockRoom]. */
+private typealias TileRoom = (course: Course, offset: Int, span: Int) -> String
 
 /** The period ids of [span] rows from row [start]. */
 private fun List<String>.rows(start: Int, span: Int): List<String> =
@@ -324,6 +326,7 @@ private fun ScheduleCellBox(
     courseColors: Map<String, Color>,
     isOngoing: TileOngoing,
     changeOf: TileChange,
+    roomOf: TileRoom,
     blockHeight: Dp,
     blockWidth: Dp,
     courseNameScale: Float,
@@ -336,6 +339,7 @@ private fun ScheduleCellBox(
             length = cell.length,
             ongoing = isOngoing(cell.course, 0, cell.length),
             change = changeOf(cell.course, 0, cell.length),
+            room = roomOf(cell.course, 0, cell.length),
             colors = colors,
             style = style,
             courseColors = courseColors,
@@ -393,6 +397,8 @@ private fun SoloCell(
     ongoing: Boolean,
     /** The block as the school changed it on its column's date; null for the timetable's. */
     change: CourseBlock?,
+    /** The room the timetable has for this block's periods; empty where it names none. */
+    room: String,
     colors: WidgetColors,
     style: VisualStylePolicy,
     courseColors: Map<String, Color>,
@@ -403,12 +409,18 @@ private fun SoloCell(
     val cellBg = weekCourseFill(course, ongoing, colors, style, courseColors, cancelled)
     // A cancelled class steps back, as on the iPhone; it is never in session.
     val textColor = if (cancelled) colors.onSurfaceVariant else weekCourseTextColor(ongoing, colors, style)
-    // Only a block of more than one period has room to say what changed, as on iOS.
-    val lines = weekBlockLines(
-        change.takeIf { length > 1 },
+    val fontScale = LocalContext.current.resources.configuration.fontScale
+    val widgetScale = LocalWidgetScale.current
+    val lines = weekBlockLinesFor(
+        change = change,
+        room = room,
+        length = length,
         cancelledLabel = LocalContext.current.getString(R.string.course_card_cancelled),
         ink = weekChangeInk(ongoing, colors, style),
         stepBack = colors.onSurfaceVariant,
+        textColor = textColor,
+        // Period tiles gate their lines on their own height below.
+        fits = { style.classTableGridStyle == ClassTableGridStyle.PeriodTiles || blockLinesFit(blockHeight, it, courseNameScale, fontScale, widgetScale) },
     )
     when (style.classTableGridStyle) {
         ClassTableGridStyle.Blocks -> CourseTile(
@@ -428,8 +440,7 @@ private fun SoloCell(
         // The change goes on the first tile and the last, where they fit it.
         ClassTableGridStyle.PeriodTiles -> {
             val tileHeight = blockHeight / length
-            val fontScale = LocalContext.current.resources.configuration.fontScale
-            val nameLines = tileNameLines(tileHeight, courseNameScale, fontScale, LocalWidgetScale.current)
+            val nameLines = tileNameLines(tileHeight, courseNameScale, fontScale, widgetScale)
             val fits = nameLines >= 2
             GlanceStack(
                 items = List(length) { it },
@@ -453,28 +464,6 @@ private fun SoloCell(
             }
         }
     }
-}
-
-/** A short line on a Week block besides its name, such as its changed time or room. */
-internal data class TileLine(val text: String, val color: Color)
-
-/** What a Week block says of [change] above its name and below it. */
-internal data class WeekBlockLines(val top: TileLine?, val bottom: TileLine?) {
-    val count: Int get() = listOfNotNull(top, bottom).size
-}
-
-/**
- * The lines a changed Week block adds, as iOS `WeekGridView.courseBlock`: a
- * changed time above the name in [ink]; below it the cancellation in
- * [stepBack] or a moved room after `⇄` in [ink]. None for no [change].
- */
-internal fun weekBlockLines(change: CourseBlock?, cancelledLabel: String, ink: Color, stepBack: Color): WeekBlockLines {
-    if (change == null) return WeekBlockLines(null, null)
-    if (change.isCancelled) return WeekBlockLines(null, TileLine(cancelledLabel, stepBack))
-    return WeekBlockLines(
-        top = change.changedTimeLabel?.let { TileLine(it, ink) },
-        bottom = change.takeIf { it.roomChanged }?.let { TileLine(it.roomLabel, ink) },
-    )
 }
 
 /**
