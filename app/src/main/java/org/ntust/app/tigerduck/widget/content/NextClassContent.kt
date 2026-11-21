@@ -258,14 +258,14 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, style: VisualSt
     val ongoing = state.ongoingBlocks
     val size = LocalSize.current
     val scale = LocalWidgetScale.current
-    // Widget is resizable between 2-cell (~110dp) and 4-cell (~250dp) heights.
-    // A midpoint threshold picks the right variant regardless of whether the
-    // widget is at its narrow (2-cell wide) or wide (3-cell wide) size.
+    // Widget is resizable between 2-cell (~110dp) and 4-cell (~250dp) heights. A midpoint threshold picks
+    // the right variant regardless of whether the widget is at its narrow (2-cell) or wide (3-cell) width.
     val tall = size.height.value >= 180f * scale.textBox
     // The class after it where it fits under the card, whose name then takes one line, as iOS's
     // `ViewThatFits` gives it room.
-    val upNext = state.upNextBlock
-        ?.takeIf { upNextFits(size, scale, context.resources.configuration.fontScale, state.courseNameScale) }
+    val upNext = state.upNextBlock?.takeIf {
+        upNextFits(it, onlineRoomWord(), size, scale, context.resources.configuration.fontScale, state.courseNameScale)
+    }
     Column(
         modifier = GlanceModifier.fillMaxSize().background(ColorProvider(colors.background)).padding(12.dp.scaled).clickable(tapAction),
     ) {

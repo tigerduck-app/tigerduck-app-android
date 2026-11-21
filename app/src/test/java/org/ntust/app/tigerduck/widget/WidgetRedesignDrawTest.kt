@@ -229,6 +229,17 @@ class WidgetRedesignDrawTest {
         assertFalse(drawn(WidgetLayout.NextClass, state("11:00", courseNameScale = 1.6f), DpSize(320.dp, 170.dp)).texts().contains("Afternoon"))
         // Too narrow for the row's range and some of its name: at 110dp the range takes the row's whole width.
         assertFalse(drawn(WidgetLayout.NextClass, state("11:00"), DpSize(110.dp, 200.dp)).texts().contains("Afternoon"))
+        // Or for its room, which is never cut, and some of its name.
+        drawn(WidgetLayout.NextClass, state("11:00"), DpSize(230.dp, 200.dp)).named("Afternoon")
+        val farRoom = WidgetDataLoader.state(
+            courses = listOf(early, morning, Course.fromSchedule("ZZ1003", "Afternoon", classroom = "系上自行安排", schedule = mapOf(4 to listOf("6")))),
+            now = thursday.atTime(11, 0),
+            isLoggedIn = true,
+            quietDays = QuietDays(AcademicCalendar.EMPTY, emptySet()),
+            changes = CourseChanges.EMPTY,
+            courseNameScale = 1f,
+        )
+        assertFalse(drawn(WidgetLayout.NextClass, farRoom, DpSize(230.dp, 200.dp)).texts().contains("Afternoon"))
     }
 
     @Test

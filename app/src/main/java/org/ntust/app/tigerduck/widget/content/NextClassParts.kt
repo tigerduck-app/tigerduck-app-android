@@ -209,25 +209,36 @@ internal fun countdownLabel(minutes: Int, locale: Locale): String {
 }
 
 /**
- * Whether a full Next Class widget of [size] has room for the class after its card, as iOS's
- * `ViewThatFits` keeps that row only where it fits. Type is drawn at [scale]'s text size and the
- * phone's [fontScale], capped, and course names grow by [courseNameScale] too.
+ * Whether a full Next Class widget of [size] has room for [block], the class after its card, as
+ * iOS's `ViewThatFits` keeps that row only where it fits. Type is drawn at [scale]'s text size and
+ * the phone's [fontScale], capped, and course names grow by [courseNameScale] too.
  *
  * Tall enough for the widget's padding, the row and the gap over it, and the taller card, a class
- * in session's, its name held to one line; wide enough for the row's time range and room, which
- * are never cut, and a few characters of its name, which takes what they leave.
+ * in session's, its name held to one line; wide enough for the row's time range and its room as
+ * written, [online] for one held online, which are never cut, and a few characters of its name,
+ * which takes what they leave.
  */
-internal fun upNextFits(size: DpSize, scale: WidgetScale, fontScale: Float, courseNameScale: Float): Boolean {
+internal fun upNextFits(
+    block: CourseBlock,
+    online: String,
+    size: DpSize,
+    scale: WidgetScale,
+    fontScale: Float,
+    courseNameScale: Float,
+): Boolean {
     val text = scale.text * WidgetScale.cappedFontScale(fontScale)
     // Padding 12 + 12, the gap 6, the badge's padding 6, spacers 6 + 3, the progress 5, the row's padding 12;
     // the badge 12sp, the time and the room 13sp each, the card's name 19sp, and the row's name and room 13sp.
     val height = 62f * scale.ui +
         WidgetScale.LINE_HEIGHT * text * (12f + 13f + 13f + 19f * courseNameScale + 13f * maxOf(courseNameScale, 1f))
     // Padding 12 + 12, the row's 10 + 10, the range's 8 and the room's 6; the range, "13:20–14:10", about
-    // 5.6em at 12sp, a room such as "TR-313" 3.2em at 13sp, and three characters of the name at 13sp.
-    val width = 58f * scale.ui + text * (5.6f * 12f + 3.2f * 13f + 3f * 13f * courseNameScale)
+    // 5.6em at 12sp, the room at 13sp, and three characters of the name at 13sp.
+    val width = 58f * scale.ui + text * (5.6f * 12f + ems(shownRoom(block, online)) * 13f + 3f * 13f * courseNameScale)
     return size.height.value >= height && size.width.value >= width
 }
+
+/** About how many em [text] takes in bold: one for each Chinese character, and a little over half for the rest. */
+private fun ems(text: String): Float = text.sumOf { if (it.code >= 0x2E80) 1.0 else 0.6 }.toFloat()
 
 /**
  * The class after the one the widget shows, as the iPhone's medium widget lists it: a tile of its

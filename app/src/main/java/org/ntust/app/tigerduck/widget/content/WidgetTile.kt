@@ -136,6 +136,10 @@ internal fun TileProgress(progress: Float, tile: WidgetTile, width: Dp, height: 
     }
 }
 
+/** The room [NameRoomLine] writes after [block]'s name, [online] for one held online: none for no room or a cancelled class. */
+internal fun shownRoom(block: CourseBlock, online: String): String =
+    if (block.classroom(online).isEmpty() || block.isCancelled) "" else block.roomLabel(online)
+
 /**
  * A course name and its room on one line, as iOS `NameRoomLine`: the room is never cut, so the
  * name takes what is left and is cut there. The room is [block]'s, after `⇄` in [WidgetTile.changeInk]
@@ -167,10 +171,10 @@ internal fun NameRoomLine(
                 note = nameNote,
             )
         }
-        val room = block.classroom(online)
-        if (room.isNotEmpty() && !block.isCancelled) {
+        val room = shownRoom(block, online)
+        if (room.isNotEmpty()) {
             Text(
-                text = block.roomLabel(online),
+                text = room,
                 style = TextStyle(
                     color = ColorProvider(if (block.roomChanged) tile.changeInk else tile.ink),
                     fontSize = roomSize,
