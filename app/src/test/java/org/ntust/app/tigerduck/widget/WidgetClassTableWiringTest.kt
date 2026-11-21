@@ -10,7 +10,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.datastore.preferences.core.preferencesOf
 import androidx.glance.ExperimentalGlanceApi
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.runComposition
 import kotlinx.coroutines.CompletableDeferred
@@ -182,6 +184,40 @@ class WidgetClassTableWiringTest {
         val deadline = System.currentTimeMillis() + 5_000
         while (alarms.scheduledAlarms.isEmpty() && System.currentTimeMillis() < deadline) Thread.sleep(50)
         assertEquals(1, alarms.scheduledAlarms.size)
+    }
+
+    @Test
+    fun `after a reboot the boundaries of a table a placed widget shows are armed too`() = runBlocking {
+        val calendar = AcademicCalendarStore(app, OkHttpClient(), prefs)
+        val cache = DataCache(app, calendar)
+        // The user's class is Monday 10:20; Ming's, shown on a placed Today widget, 08:10.
+        cache.saveCourses(listOf(Course.fromSchedule("CS1001301", "Calculus", schedule = mapOf(1 to listOf("3")))), testSignIn())
+        val semester = cache.currentSemesterCode()
+        val store = ImportedClassTableStore({ ImportedClassTableStore.fileIn(app) }, { null }, Dispatchers.IO)
+        val code = ClassTableShareCode(
+            ClassTableShareCode.Format.TIGER_DUCK, "B11300001", null, listOf(ClassTableShareCode.Term(semester, listOf("ZZ1001301"))),
+        )
+        val ming = store.add(
+            code, "Ming", mapOf(semester to listOf(Course.fromSchedule("ZZ1001301", "Early", schedule = mapOf(1 to listOf("1"))))),
+        )!!
+        val today = AppWidgetProviderInfo().apply { provider = ComponentName(app, WidgetClassTable.receivers.first()) }
+        shadowOf(AppWidgetManager.getInstance(app)).addBoundWidget(41, today)
+        updateAppWidgetState(app, GlanceAppWidgetManager(app).getGlanceIdBy(41)) { it[WidgetClassTable.PersonKey] = ming.id }
+        val updater = WidgetUpdater(
+            context = app,
+            dataCache = cache,
+            boundaryScheduler = WidgetBoundaryScheduler(app, calendar),
+            analyticsLogger = testAnalyticsLogger(app),
+            scope = scope,
+            uiLanguage = UiLanguageMonitor(emptyFlow(), Build.VERSION_CODES.R),
+            importedClassTables = store,
+        )
+        val realNow = System.currentTimeMillis()
+
+        updater.armBoundaries()
+
+        val alarm = shadowOf(app.getSystemService(AlarmManager::class.java)).scheduledAlarms.single()
+        assertEquals(70.0, (alarm.triggerAtTime - realNow) / 60_000.0, 1.0)
     }
 
     private fun emptyState() = WidgetState(
