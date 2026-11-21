@@ -59,4 +59,28 @@ class ClassTableListRowsTest {
         assertNull("the user stays", ClassTableListRows.step(rows, 1, down = true))
         assertNull("a header stays", ClassTableListRows.step(rows, 4, down = true))
     }
+
+    private fun height(row: Row): Float = if (row is Header) 40f else 56f
+
+    @Test(timeout = 5_000)
+    fun `a drag of exactly half the next row stays put rather than swapping back and forth`() {
+        val (still, left) = ClassTableListRows.dragged(rows, "Wen", 20f, ::height)
+        assertEquals(names(rows), names(still))
+        assertEquals(20f, left, 0f)
+    }
+
+    @Test
+    fun `a drag passes each row it has gone more than half of, and keeps the rest of the way`() {
+        val (once, left) = ClassTableListRows.dragged(rows, "Wen", 21f, ::height)
+        assertEquals(listOf("rotation", "me", "Ming", "longPressMenu", "Wen", "other", "Hua"), names(once))
+        assertEquals(-19f, left, 0f)
+
+        val (twice, rest) = ClassTableListRows.dragged(rows, "Wen", 61f, ::height)
+        assertEquals(listOf("rotation", "me", "Ming", "longPressMenu", "other", "Wen", "Hua"), names(twice))
+        assertEquals(-19f, rest, 0f)
+
+        val (up, back) = ClassTableListRows.dragged(rows, "Wen", -200f, ::height)
+        assertEquals(names(rows.toMutableList().apply { add(2, removeAt(3)) }), names(up))
+        assertEquals(-144f, back, 0f)
+    }
 }

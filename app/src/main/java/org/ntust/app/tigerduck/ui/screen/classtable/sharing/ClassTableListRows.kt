@@ -44,6 +44,27 @@ internal object ClassTableListRows {
         return rows.toMutableList().apply { add(to, removeAt(index)) }
     }
 
+    /**
+     * [rows] after the person [key] was dragged [offset] from its place, with what is left of the
+     * offset: it passes each row it has gone more than half of, [heightOf] giving that row's, in
+     * the offset's direction only. A row passed at exactly half would leave the other half, which
+     * passed back the other way would swap the two rows for ever.
+     */
+    fun dragged(rows: List<Row>, key: String, offset: Float, heightOf: (Row) -> Float?): Pair<List<Row>, Float> {
+        var moved = rows
+        var left = offset
+        val down = offset > 0
+        while (left != 0f && (left > 0) == down) {
+            val index = moved.indexOfFirst { it.key == key }.takeIf { it >= 0 } ?: break
+            val past = moved.getOrNull(if (down) index + 1 else index - 1) ?: break
+            val height = heightOf(past) ?: break
+            if (kotlin.math.abs(left) <= height / 2) break
+            moved = step(moved, index, down) ?: break
+            left += if (down) -height else height
+        }
+        return moved to left
+    }
+
     /** Where the person at [index] has gone: its section's placement, and the person after it there. */
     fun target(rows: List<Row>, index: Int): Pair<Placement, String?> {
         val placement = rows.take(index).filterIsInstance<Header>().last().placement

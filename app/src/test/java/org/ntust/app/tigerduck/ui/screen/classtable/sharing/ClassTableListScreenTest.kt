@@ -12,10 +12,12 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import org.junit.Assert.assertEquals
@@ -123,6 +125,26 @@ class ClassTableListScreenTest {
 
         assertEquals(emptyList<String>(), done)
         composeRule.onNodeWithText("Wen").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h640dp")
+    fun `a row held at the screen's bottom edge scrolls the list, down to a section that was off screen`() {
+        val many = (0 until 12).map { person("P$it") } + hua
+        showList(many)
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+        composeRule.onNodeWithText(string(R.string.class_table_list_section_other)).assertIsNotDisplayed()
+        val handle = composeRule.onNodeWithTag(classTableListHandleTag("p0"), useUnmergedTree = true)
+        val top = handle.fetchSemanticsNode().boundsInRoot.top
+        handle.performTouchInput {
+            down(center)
+            moveTo(Offset(center.x, root.bottom - 4f - top))
+        }
+        composeRule.mainClock.advanceTimeBy(6_000)
+        handle.performTouchInput { up() }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf("move p0 to other before null"), done)
     }
 
     @Test
