@@ -345,6 +345,27 @@ class MoodleMemberCoursesTest {
     }
 
     @Test
+    fun `a kept copy goes once Moodle refuses the call itself, though the cached functions list it, and a failure offline keeps it`() = runTest(UnconfinedTestDispatcher()) {
+        enrolled = setOf(COURSE_ID, algorithms.id)
+        cache.files["members/${classmate.id}/courses"] = listOf(algorithms) to 1L
+        site.before = { throw IOException("offline") }
+        val store = store()
+        store.refreshMembers()
+
+        store.memberCourses.refresh(classmate.id)
+        assertEquals(listOf(30001), store.shown().flatMap { it.courses }.map { it.id })
+
+        site.before = { throw org.ntust.app.tigerduck.network.MoodleWebserviceError.AccessDenied() }
+        store.memberCourses.refresh(classmate.id)
+        assertEquals(emptyList<MoodleCommonTerm>(), store.shown())
+
+        site.before = {}
+        site.shared = listOf(algorithms)
+        store.memberCourses.refresh(classmate.id)
+        assertEquals(listOf(30001), store.shown().flatMap { it.courses }.map { it.id })
+    }
+
+    @Test
     fun `a site whose functions cannot be read is asked nothing, and the page lists nothing`() = runTest(UnconfinedTestDispatcher()) {
         enrolled = setOf(COURSE_ID, algorithms.id)
         site.shared = listOf(algorithms)

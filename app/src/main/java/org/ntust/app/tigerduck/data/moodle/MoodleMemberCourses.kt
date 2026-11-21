@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
@@ -75,13 +76,21 @@ class MoodleMemberCourses(
      * for another user Moodle also lists the courses the account can merely see, such as open
      * ones. Nothing is asked, or kept, on the account's own page, before the members list names
      * the account, without the account's own courses, or where the site does not allow the call
-     * or its functions cannot be read, so the next open asks again.
+     * or its functions cannot be read, so the next open asks again. A refusal hides a kept copy too.
      */
     suspend fun refresh(memberId: Int) {
         if (!isSomeoneElse(memberId, members.value)) return
         val enrolled = own.enrolledIds()
         if (enrolled.isEmpty() || !allowsCall()) return
-        feed(memberId).refresh { api.sharedCourses(memberId).filter { it.id in enrolled } }
+        feed(memberId).refresh {
+            try {
+                api.sharedCourses(memberId).filter { it.id in enrolled }
+            } catch (e: MoodleWebserviceError.AccessDenied) {
+                // Refused again after the token's retry: the site no longer allows it, whatever its cached functions say.
+                refused.value = true
+                throw e
+            }
+        }
     }
 
     private suspend fun allowsCall(): Boolean = try {
