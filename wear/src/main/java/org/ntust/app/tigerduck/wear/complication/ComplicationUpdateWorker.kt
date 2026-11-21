@@ -20,9 +20,11 @@ class ComplicationUpdateWorker(ctx: Context, params: WorkerParameters) :
 
         // PeriodicWorkRequest minimum interval is 15 minutes per WorkManager.
         // Watch face systems already call onComplicationRequest on their own
-        // cadence, and the DataItem listener triggers immediate updates on
-        // schedule changes — this worker is just a backstop for wall-clock
-        // transitions (class start/end times).
+        // cadence, the DataItem listener triggers immediate updates on
+        // schedule changes, and each update carries a timeline through class
+        // starts and ends to the day after tomorrow — this worker is just a
+        // backstop: for a watch face too old for timelines, and for the
+        // ranged value's progress where the platform can't move it itself.
         fun ensureScheduled(context: Context) {
             val req =
                 PeriodicWorkRequestBuilder<ComplicationUpdateWorker>(15, TimeUnit.MINUTES).build()

@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.shared.TodayClassEntry
 import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import org.ntust.app.tigerduck.shared.WearProtocol
 import java.io.ByteArrayInputStream
+import java.time.Instant
 import java.time.LocalDate
 import java.util.zip.GZIPInputStream
 
@@ -341,6 +342,12 @@ data class WatchSnapshot(
      */
     fun nextClass(today: LocalDate, minuteOfDay: Int): NextClassResult =
         NextClassResolver.resolve(courses, today, minuteOfDay, courseChanges) { daysAhead ->
+            today.plusDays(daysAhead.toLong()) in quietDays
+        }
+
+    /** When [nextClass] changes after [minuteOfDay] on [today], over it and the [days] - 1 days after, quiet days left out. */
+    fun boundaries(today: LocalDate, minuteOfDay: Int, days: Int): List<Instant> =
+        NextClassResolver.boundaries(courses, today, minuteOfDay, days, courseChanges) { daysAhead ->
             today.plusDays(daysAhead.toLong()) in quietDays
         }
 

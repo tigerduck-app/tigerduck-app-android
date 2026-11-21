@@ -9,131 +9,59 @@ import androidx.wear.watchface.complications.data.ComplicationType
 import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.NoDataComplicationData
 import androidx.wear.watchface.complications.data.PlainComplicationText
+import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
+import androidx.wear.watchface.complications.datasource.ComplicationDataTimeline
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
-import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
+import androidx.wear.watchface.complications.datasource.SuspendingTimelineComplicationDataSourceService
+import androidx.wear.watchface.complications.datasource.TimeInterval
+import androidx.wear.watchface.complications.datasource.TimelineEntry
 import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
-import org.ntust.app.tigerduck.wear.ui.roomText
+import org.ntust.app.tigerduck.wear.ui.clockText
 import org.ntust.app.tigerduck.wear.ui.weekdayCaptionRes
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
 
-class NextClassComplicationService : SuspendingComplicationDataSourceService() {
+class NextClassComplicationService : SuspendingTimelineComplicationDataSourceService() {
 
-    override suspend fun onComplicationRequest(
-        request: ComplicationRequest,
-    ): ComplicationData {
+    override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationDataTimeline {
         val snapshot = SchedulePersistenceHolder.get(this).flow.first()
-        return renderComplication(snapshot, request.complicationType)
+        return complicationTimeline(this, snapshot, request.complicationType, AppClock.localDateTime(), launchAppPendingIntent())
     }
 
-    override fun getPreviewData(type: ComplicationType): ComplicationData? = when (type) {
-        ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
-            text = PlainComplicationText.Builder("CN").build(),
-            contentDescription = PlainComplicationText.Builder("Next class").build(),
-        ).setTitle(PlainComplicationText.Builder("14:30").build()).build()
+    override fun getPreviewData(type: ComplicationType): ComplicationData? {
+        val description = PlainComplicationText.Builder(getString(R.string.watch_widget_next_class)).build()
+        return when (type) {
+            ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
+                text = PlainComplicationText.Builder("T2-103").build(),
+                contentDescription = description,
+            ).setTitle(PlainComplicationText.Builder("14:30").build()).build()
 
-        ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-            text = PlainComplicationText.Builder("T2-103").build(),
-            contentDescription = PlainComplicationText.Builder("Next class").build(),
-        ).setTitle(PlainComplicationText.Builder("14:30 · CN").build()).build()
+            ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
+                text = PlainComplicationText.Builder("T2-103 · 14:30–15:20").build(),
+                contentDescription = description,
+            ).setTitle(PlainComplicationText.Builder("CN").build()).build()
 
-        else -> null
-    }
+            ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(0.4f, 0f, 1f, description)
+                .setText(PlainComplicationText.Builder("T2-103").build()).build()
 
-    private fun renderComplication(
-        snapshot: WatchSnapshot,
-        type: ComplicationType,
-    ): ComplicationData {
-        val now = AppClock.localDateTime()
-        val minuteOfDay = now.hour * 60 + now.minute
-
-        if (snapshot.syncedAtMs == null || snapshot.courses.isEmpty()) {
-            return NoDataComplicationData()
+            else -> null
         }
-
-        val tap = launchAppPendingIntent()
-        return when (val r = snapshot.nextClass(now.toLocalDate(), minuteOfDay)) {
-            is NextClassResult.Ongoing -> when (type) {
-                ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
-                    text = PlainComplicationText.Builder(truncate(r.course.displayName, 7)).build(),
-                    contentDescription = PlainComplicationText.Builder(r.course.displayName)
-                        .build(),
-                ).setTitle(PlainComplicationText.Builder("NOW").build()).setTapAction(tap).build()
-
-                ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-                    text = PlainComplicationText.Builder(roomText(r.classroom, moved = r.change?.room != null)).build(),
-                    contentDescription = PlainComplicationText.Builder(r.course.displayName)
-                        .build(),
-                ).setTitle(
-                    PlainComplicationText.Builder(
-                        "NOW · ${
-                            truncate(
-                                r.course.displayName,
-                                7
-                            )
-                        }"
-                    ).build()
-                )
-                    .setTapAction(tap).build()
-
-                else -> NoDataComplicationData()
-            }
-
-            is NextClassResult.NextToday -> shortOrLong(
-                type, r.course.displayName, roomText(r.classroom, moved = r.change?.room != null),
-                titleShort = formatHm(r.startMinute),
-                titleLong = "${formatHm(r.startMinute)} · ${truncate(r.course.displayName, 7)}",
-                tap = tap,
-            )
-
-            is NextClassResult.NextFuture -> shortOrLong(
-                type, r.course.displayName, roomText(r.classroom, moved = r.change?.room != null),
-                titleShort = formatHm(r.startMinute),
-                titleLong = laterDayTitle(this, r.daysAhead, r.weekday, formatHm(r.startMinute)),
-                tap = tap,
-            )
-
-            NextClassResult.Empty -> NoDataComplicationData()
-        }
-    }
-
-    private fun shortOrLong(
-        type: ComplicationType,
-        courseName: String,
-        classroom: String,
-        titleShort: String,
-        titleLong: String,
-        tap: PendingIntent,
-    ): ComplicationData = when (type) {
-        ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
-            text = PlainComplicationText.Builder(truncate(courseName, 7)).build(),
-            contentDescription = PlainComplicationText.Builder(courseName).build(),
-        ).setTitle(PlainComplicationText.Builder(titleShort).build()).setTapAction(tap).build()
-
-        ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-            text = PlainComplicationText.Builder(classroom).build(),
-            contentDescription = PlainComplicationText.Builder(courseName).build(),
-        ).setTitle(PlainComplicationText.Builder(titleLong).build()).setTapAction(tap).build()
-
-        else -> NoDataComplicationData()
     }
 
     private fun launchAppPendingIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java)
         return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
     }
-
-    private fun formatHm(minuteOfDay: Int): String =
-        "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)
-
-    private fun truncate(s: String, max: Int): String =
-        if (s.length <= max) s else s.take(max)
 
     companion object {
         fun requestUpdate(context: Context) {
@@ -146,13 +74,80 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
 }
 
 /**
- * The long text title for a class on a later day: its day, then its [startTime], as the
- * phone's Next class widget words it. "Tomorrow 08:10" for the next day, else the
- * weekday's caption, "Tue 08:10".
+ * The complication from [now] on the app clock: what it shows now, then what it shows from each
+ * moment that changes over today and tomorrow, as iOS's timeline: each start and end of a class,
+ * and midnight, when a later day's class becomes tomorrow's or today's. The watch face moves to
+ * each entry on its own, so neither the next class nor the one going on waits for an update; the
+ * ranged value's progress moves between them ([ClassComplication]). The entries are dated on the
+ * real clock the watch face runs on, as the debug clock can move the app's.
  */
-internal fun laterDayTitle(context: Context, daysAhead: Int, weekday: Int, startTime: String): String =
+internal fun complicationTimeline(
+    context: Context,
+    snapshot: WatchSnapshot,
+    type: ComplicationType,
+    now: LocalDateTime,
+    tap: PendingIntent?,
+): ComplicationDataTimeline {
+    val current = complicationAt(context, snapshot, type, now, tap)
+    // An entry must be of the type the timeline is; with nothing to show now, the next update fills it.
+    if (current is NoDataComplicationData) return ComplicationDataTimeline(current, emptyList())
+    val today = now.toLocalDate()
+    val midnights = (1L..2L).map { today.plusDays(it).atStartOfDay(TaipeiClock.zone).toInstant() }
+    val changes = (snapshot.boundaries(today, now.hour * 60 + now.minute, days = 2) + midnights).distinct().sorted()
+    val entries = changes.mapIndexedNotNull { i, at ->
+        val start = Instant.ofEpochMilli(AppClock.realTimeFor(at.toEpochMilli()))
+        val end = Instant.ofEpochMilli(AppClock.realTimeFor(changes.getOrElse(i + 1) { at.plus(Duration.ofDays(1)) }.toEpochMilli()))
+        if (start >= end) return@mapIndexedNotNull null
+        val data = complicationAt(context, snapshot, type, LocalDateTime.ofInstant(at, TaipeiClock.zone), tap)
+        TimelineEntry(TimeInterval(start, end), data)
+    }
+    return ComplicationDataTimeline(current, entries)
+}
+
+/** What the complication shows at [at] on the app clock: the class going on, else the next one. */
+internal fun complicationAt(
+    context: Context,
+    snapshot: WatchSnapshot,
+    type: ComplicationType,
+    at: LocalDateTime,
+    tap: PendingIntent?,
+): ComplicationData {
+    if (snapshot.syncedAtMs == null || snapshot.courses.isEmpty()) return NoDataComplicationData()
+    val content = when (val r = snapshot.nextClass(at.toLocalDate(), at.hour * 60 + at.minute)) {
+        is NextClassResult.Ongoing -> {
+            val start = at.toLocalDate().atStartOfDay(TaipeiClock.zone).plusMinutes(r.startMinute.toLong())
+            val seconds = (r.endMinute - r.startMinute) * 60
+            val elapsed = Duration.between(start, at.atZone(TaipeiClock.zone)).seconds.toInt().coerceIn(0, seconds)
+            val span = ClassSpan(Instant.ofEpochMilli(AppClock.realTimeFor(start.toInstant().toEpochMilli())), seconds, elapsed)
+            classComplication(
+                context, r.course, r.classroom, r.change?.room != null, r.startMinute, r.endMinute, daysAhead = 0,
+                weekday = r.weekday, shortTitle = "NOW", longTitle = "NOW · ${truncate(r.course.displayName, 7)}", span = span,
+            )
+        }
+
+        is NextClassResult.NextToday -> classComplication(
+            context, r.course, r.classroom, r.change?.room != null, r.startMinute, r.endMinute, daysAhead = 0,
+            weekday = r.weekday, shortTitle = clockText(r.startMinute), longTitle = r.course.displayName,
+        )
+
+        is NextClassResult.NextFuture -> classComplication(
+            context, r.course, r.classroom, r.change?.room != null, r.startMinute, r.endMinute, r.daysAhead, r.weekday,
+            shortTitle = laterDayTitle(context, r.daysAhead, r.weekday, clockText(r.startMinute)),
+            longTitle = r.course.displayName,
+        )
+
+        NextClassResult.Empty -> return NoDataComplicationData()
+    }
+    return content.dataFor(type, tap)
+}
+
+/**
+ * The day of a class after today before [time], its start or its range, as the phone's Next class
+ * widget words it. "Tomorrow 08:10" for the next day, else the weekday's caption, "Tue 08:10".
+ */
+internal fun laterDayTitle(context: Context, daysAhead: Int, weekday: Int, time: String): String =
     if (daysAhead == 1) {
-        context.getString(R.string.widget_tomorrow_time, startTime)
+        context.getString(R.string.widget_tomorrow_time, time)
     } else {
-        "${context.getString(weekdayCaptionRes(weekday))} $startTime"
+        "${context.getString(weekdayCaptionRes(weekday))} $time"
     }
