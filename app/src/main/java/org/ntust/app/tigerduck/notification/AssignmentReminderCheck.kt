@@ -68,7 +68,7 @@ class AssignmentReminderCheck internal constructor(
                 // in keeps the date: that is Moodle's to report, as handed in.
                 is StatusWrite.Written -> write.assignments.firstOrNull { it.assignmentId == assignmentId }
                     ?.takeUnless { it.isCompleted }
-                    ?.let { written -> cached = cached?.copy(dueAtMs = written.studentDueDate.time) }
+                    ?.let { written -> cached = cached?.copy(dueAtMs = written.studentDueDate?.time) }
                 StatusWrite.Unchanged -> Unit
                 // One asked for later came first: the cache as it stands now has it, and this
                 // answer, older, decides nothing.
@@ -90,7 +90,7 @@ class AssignmentReminderCheck internal constructor(
         )
         return CachedReminderAssignment(
             // As the scheduler armed it, an extension included, or every reminder would read as moved.
-            dueAtMs = assignment.studentDueDate.time,
+            dueAtMs = assignment.studentDueDate?.time,
             submitted = assignment.isCompleted,
             markedDone = assignmentId in dataCache.loadMarkedCompletedAssignments(),
             ignored = assignmentId in dataCache.loadIgnoredAssignments(),

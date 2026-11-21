@@ -71,6 +71,14 @@ class LiveActivityResolverTest {
         assertEquals("assignment-open", snapshot?.sourceId)
     }
 
+    @Test
+    fun `an assignment with no due date starts no Live Update`() {
+        val undated = dueInHours("undated", 1).copy(dueDate = null)
+
+        assertNull(resolve(listOf(undated)))
+        assertEquals("assignment-dated", resolve(listOf(undated, dueInHours("dated", 2)))?.sourceId)
+    }
+
     // A course meeting twice on Mondays, in a different room each time.
     private val twice = Course.fromSchedule(
         courseNo = "CS2001301",

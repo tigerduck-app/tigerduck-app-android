@@ -222,6 +222,7 @@ the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps th
 | tigerduck_prefs | `onboardingVersion` | device | |
 | tigerduck_prefs | `outlineRequiredCourses` | device | |
 | tigerduck_prefs | `pendingConflictCategories` | school | `AppPreferences.kt` `forgetSchoolChoices` |
+| tigerduck_prefs | `pinMyselfInCourseMembers` | device | |
 | tigerduck_prefs | `pinTodayCoursesOnClassTable` | device | |
 | tigerduck_prefs | `previousDefaultTabsChecked` | device | |
 | tigerduck_prefs | `push.device_uuid` | device | |

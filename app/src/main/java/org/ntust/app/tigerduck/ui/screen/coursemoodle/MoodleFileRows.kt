@@ -74,6 +74,7 @@ import org.ntust.app.tigerduck.data.moodle.MoodleAttachment
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.data.moodle.MoodleDownloadState
 import org.ntust.app.tigerduck.data.moodle.MoodleFileKind
+import org.ntust.app.tigerduck.data.moodle.MoodleFileLine
 import org.ntust.app.tigerduck.data.moodle.MoodleFileRef
 import org.ntust.app.tigerduck.data.moodle.MoodleMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
@@ -409,12 +410,11 @@ private fun MoodleRowMenu(expanded: Boolean, onDismiss: () -> Unit, onShare: () 
     }
 }
 
-/** "Date · size", the date with its year when it is not this year's. */
-private fun fileSubline(context: Context, file: MoodleFile): String {
-    val size = Formatter.formatShortFileSize(context, file.size)
-    val modified = file.modified ?: return size
-    return "${MoodleDates.date(modified, System.currentTimeMillis())} · $size"
-}
+/** "Date · size · type" ([MoodleFileLine]), the date with its year when it is not this year's. */
+private fun fileSubline(context: Context, file: MoodleFile): String = MoodleFileLine.of(
+    date = file.modified?.let { MoodleDates.date(it, System.currentTimeMillis()) },
+    size = Formatter.formatShortFileSize(context, file.size), fileName = file.name,
+)
 
 /** The link icon's teal, as iOS draws it. */
 internal val MoodleTeal = Color(0xFF30B0C7)

@@ -3,7 +3,10 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -11,9 +14,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.util.Date
 
@@ -75,5 +80,17 @@ class CourseDetailAssignmentRowTest {
         composeRule.onNodeWithText("Homework 3").assertHasClickAction().performClick()
 
         assertEquals(listOf(assignment), opened)
+    }
+
+    @Test
+    fun `one with no due date shows a dash for it, which TalkBack skips`() {
+        show(assignment(moodleUrl = null).copy(dueDate = null))
+
+        val dueLine = RuntimeEnvironment.getApplication().getString(R.string.course_detail_due_prefix, "—")
+        composeRule.onNodeWithText(dueLine, useUnmergedTree = true).assertIsDisplayed()
+        assertEquals(
+            listOf("Homework 3"),
+            composeRule.onNodeWithText("Homework 3").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)?.map { it.text },
+        )
     }
 }

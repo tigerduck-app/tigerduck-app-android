@@ -4,8 +4,10 @@ import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import org.junit.Assert.assertEquals
@@ -121,6 +123,17 @@ class SwipeableAssignmentRowA11yTest {
         assertEquals(
             listOf(text(R.string.assignment_mark_complete), text(R.string.assignment_ignore)),
             actions().map { it.label },
+        )
+    }
+
+    @Test
+    fun `a row with no due date shows a dash for its time, which TalkBack skips`() {
+        show(assignment = assignment.copy(dueDate = null))
+
+        composeRule.onNodeWithText("—", useUnmergedTree = true).assertIsDisplayed()
+        assertEquals(
+            listOf("Homework 3", "Calculus • CS1001301"),
+            composeRule.onNodeWithText("Homework 3").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)?.map { it.text },
         )
     }
 }

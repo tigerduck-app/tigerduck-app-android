@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import android.text.format.DateUtils
 import android.text.format.Formatter
 import android.webkit.MimeTypeMap
 import android.widget.Toast
@@ -62,6 +61,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeoutOrNull
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.moodle.MoodleFileLine
 import org.ntust.app.tigerduck.files.ArchiveItem
 import org.ntust.app.tigerduck.files.ArchiveLimits
 import org.ntust.app.tigerduck.files.ArchiveListing
@@ -75,6 +75,7 @@ import org.ntust.app.tigerduck.files.Archives
 import org.ntust.app.tigerduck.files.FileOpening
 import org.ntust.app.tigerduck.files.FileViewer
 import org.ntust.app.tigerduck.files.FileViewing
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleDates
 import org.ntust.app.tigerduck.util.fileProviderAuthority
 import java.io.File
 import java.io.FileNotFoundException
@@ -244,12 +245,11 @@ private fun FolderRow(folder: ArchiveNode.Folder, onClick: () -> Unit) {
 private fun FileRow(node: ArchiveNode.File, enabled: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
     val item = node.item
-    val details = listOfNotNull(
-        item.size?.let { Formatter.formatShortFileSize(context, it) },
-        item.modified?.let {
-            DateUtils.formatDateTime(context, it, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH)
-        },
-    ).joinToString(" · ")
+    val details = MoodleFileLine.of(
+        date = item.modified?.let { MoodleDates.date(it / 1000, System.currentTimeMillis()) },
+        size = item.size?.let { Formatter.formatShortFileSize(context, it) },
+        fileName = node.name,
+    )
     val reason = item.problem?.reason()?.let { stringResource(it) }
     ListItem(
         headlineContent = { Text(node.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },

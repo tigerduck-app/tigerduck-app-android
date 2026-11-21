@@ -51,12 +51,14 @@ class LiveActivityResolver {
         val current = ClassTimeline.ongoing(meeting, now.toInstant(), changes).firstOrNull()?.let(::Slot)
 
         if (preferences.showAssignment) {
+            // One with no due date has nothing to count down to.
             val urgent = assignments
                 .asSequence()
-                .filter { !it.isCompleted && it.studentDueDate.after(now) }
-                .filter { (it.studentDueDate.time - now.time) / 1000 <= preferences.assignmentLeadTimeSec }
-                .minByOrNull { it.studentDueDate }
-            if (urgent != null) return assignmentSnapshot(urgent, accentHex, duringClass = current != null)
+                .filter { !it.isCompleted }
+                .mapNotNull { a -> a.studentDueDate?.takeIf { it.after(now) }?.let { a to it } }
+                .filter { (_, due) -> (due.time - now.time) / 1000 <= preferences.assignmentLeadTimeSec }
+                .minByOrNull { (_, due) -> due }
+            if (urgent != null) return assignmentSnapshot(urgent.first, urgent.second, accentHex, duringClass = current != null)
         }
 
         if (preferences.showInClass && current != null) {
@@ -183,14 +185,14 @@ class LiveActivityResolver {
             assessment = slot.isAssessment,
         )
 
-    private fun assignmentSnapshot(a: Assignment, accentHex: Int, duringClass: Boolean): LiveActivitySnapshot =
+    private fun assignmentSnapshot(a: Assignment, due: Date, accentHex: Int, duringClass: Boolean): LiveActivitySnapshot =
         LiveActivitySnapshot(
             scenario = LiveActivityScenario.ASSIGNMENT_URGENT,
             title = a.title,
             subtitle = a.courseName,
             locationText = null,
             instructor = null,
-            countdownTarget = a.studentDueDate,
+            countdownTarget = due,
             progress = null,
             accentHex = accentHex,
             sourceId = "assignment-${a.assignmentId}",
