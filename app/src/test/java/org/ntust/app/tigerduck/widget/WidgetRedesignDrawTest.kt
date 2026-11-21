@@ -147,6 +147,25 @@ class WidgetRedesignDrawTest {
     }
 
     @Test
+    fun `a tall Today widget lists every row that fits, past Glance's ten children to a column`() {
+        val day = listOf("1", "2", "3", "4", "6", "7", "8").map { period ->
+            Course.fromSchedule("ZZ20$period", "Class $period", schedule = mapOf(4 to listOf(period)))
+        }
+        val state = WidgetDataLoader.state(
+            courses = day,
+            now = thursday.atTime(7, 0),
+            isLoggedIn = true,
+            quietDays = QuietDays(AcademicCalendar.EMPTY, emptySet()),
+            changes = CourseChanges.EMPTY,
+            courseNameScale = 1f,
+        )
+
+        val views = drawn(WidgetLayout.Today, state, DpSize(320.dp, 420.dp))
+
+        day.forEach { views.named(it.courseName) }
+    }
+
+    @Test
     fun `the Week widget writes the term's week and reads each block with its time and room`() {
         val term = SemesterTerm("1151", LocalDate.parse("2026-09-07"), LocalDate.parse("2027-01-08"))
         val state = state("11:00").copy(termWeek = WidgetDataLoader.termWeek(term, thursday))

@@ -121,10 +121,10 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
         val limit = (((available + gap) / (rowHeight + gap)).toInt()).coerceIn(1, MAX_ROWS)
         val shown = if (large) WidgetDayRows.window(rows, limit) else WidgetDayRows.upcoming(rows).take(limit)
         val tileWidth = size.width - padding * 2 - timeColumnWidth(large, box) - 8.dp.scaled
+        // The gap is each row's own padding, not a spacer: Glance draws only a column's first ten children.
         Column(modifier = GlanceModifier.fillMaxWidth()) {
             shown.forEachIndexed { index, row ->
-                if (index > 0) Spacer(GlanceModifier.height(gap))
-                TodayRow(row, large, state, colors, style, rowHeight, tileWidth)
+                TodayRow(row, large, state, colors, style, rowHeight, tileWidth, gapAbove = if (index > 0) gap else 0.dp)
             }
         }
     }
@@ -201,13 +201,17 @@ private fun TodayRow(
     style: VisualStylePolicy,
     height: Dp,
     tileWidth: Dp,
+    gapAbove: Dp,
 ) {
     val context = LocalContext.current
     val block = row.block
     val tile = widgetTile(block.course, state.courseColors, colors, style, stepsBack = (large && row.isPast) || block.isCancelled)
     val box = textBoxOf(LocalWidgetScale.current, context.resources.configuration.fontScale)
     val timeInk = if (block.timeChanged && !block.isCancelled) widgetChangeInk(colors.isDark) else colors.onSurface
-    Row(modifier = GlanceModifier.fillMaxWidth().height(height), verticalAlignment = Alignment.Vertical.CenterVertically) {
+    Row(
+        modifier = GlanceModifier.fillMaxWidth().height(height + gapAbove).padding(top = gapAbove),
+        verticalAlignment = Alignment.Vertical.CenterVertically,
+    ) {
         Column(
             modifier = GlanceModifier.width(timeColumnWidth(large, box)).semantics {
                 contentDescription = if (large) context.getString(R.string.a11y_time_range, block.startTime, block.endTime) else block.startTime
