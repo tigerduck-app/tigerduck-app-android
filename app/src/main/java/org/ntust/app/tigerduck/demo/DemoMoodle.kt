@@ -300,7 +300,7 @@ object DemoMoodleFixture {
                     cmid = a.cmid,
                     courseId = course.moodleId,
                     name = row.title,
-                    dueDate = row.dueDate.time / 1000,
+                    dueDate = row.dueDate?.let { it.time / 1000 } ?: 0,
                     cutoffDate = row.cutoffDate?.let { it.time / 1000 } ?: 0,
                     allowSubmissionsFrom = 0,
                     intro = a.intro,

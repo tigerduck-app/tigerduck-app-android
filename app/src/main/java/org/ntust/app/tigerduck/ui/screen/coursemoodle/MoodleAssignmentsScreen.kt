@@ -39,6 +39,8 @@ import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentEntry
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentLists
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.component.NO_DUE_DATE
+import org.ntust.app.tigerduck.ui.component.SkippedByTalkBack
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -108,7 +110,7 @@ fun MoodleAssignmentsScreen(
 @Composable
 internal fun AssignmentListRow(row: MoodleAssignmentLists.Row, onClick: () -> Unit) {
     val entry: MoodleAssignmentEntry = row.entry
-    // The student's own date, an extension included, as the list is ordered by.
+    // The student's own date, an extension included, as the list is ordered by; a dash TalkBack skips without one.
     val due = entry.studentDueSeconds.takeIf { it > 0 }?.let(MoodleDates::minute)
     val status = row.status?.let { statusLabel(it) }
     ListItem(
@@ -121,9 +123,9 @@ internal fun AssignmentListRow(row: MoodleAssignmentLists.Row, onClick: () -> Un
                     status?.let { (label, color) ->
                         Text(text = label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = color)
                     }
-                    due?.let {
+                    SkippedByTalkBack(hidden = due == null) {
                         Text(
-                            text = it,
+                            text = due ?: NO_DUE_DATE,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                         )

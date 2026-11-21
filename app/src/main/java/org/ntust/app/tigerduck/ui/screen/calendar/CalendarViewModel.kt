@@ -61,10 +61,10 @@ internal val CalendarRefreshPolicy = RefreshPolicy(
 )
 
 /**
- * [base] with its Moodle rows made from [assignments], the assignment
- * cache's, and none when it holds none: an answer from Moodle with no
- * assignments leaves it empty, and the rows of the ones it had must go
- * with them (issue #160).
+ * [base] with its Moodle rows made from [assignments], the assignment cache's,
+ * and none when it holds none: an answer from Moodle with no assignments leaves it
+ * empty, and the rows of the ones it had must go with them (issue #160). An
+ * assignment with no due date has no row (tigerduck-app#1029).
  */
 internal fun withMoodleRows(
     base: List<CalendarEvent>,
@@ -73,11 +73,11 @@ internal fun withMoodleRows(
     base.filterNot { it.sourceRaw == EventSource.MOODLE.raw } + assignments.toCalendarEvents()
 
 private fun List<Assignment>.toCalendarEvents(): List<CalendarEvent> =
-    map { assignment ->
+    mapNotNull { assignment ->
         CalendarEvent(
             eventId = CalendarEvent.moodleEventId(assignment.assignmentId),
             title = assignment.title,
-            date = assignment.studentDueDate,
+            date = assignment.studentDueDate ?: return@mapNotNull null,
             sourceRaw = EventSource.MOODLE.raw
         )
     }

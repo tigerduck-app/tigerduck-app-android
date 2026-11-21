@@ -67,7 +67,7 @@ class DemoFixtureTest {
         val assignment = fixture.assignments!!.single()
         assertEquals("900001", assignment.assignmentId)
         assertTrue(assignment.isCompleted)
-        assertEquals(Instant.parse("2026-09-15T15:59:00Z").toEpochMilli(), assignment.dueDate.time)
+        assertEquals(Instant.parse("2026-09-15T15:59:00Z").toEpochMilli(), assignment.dueDate!!.time)
 
         val bulletin = fixture.bulletins!!.single()
         assertEquals(1, bulletin.id)

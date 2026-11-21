@@ -26,17 +26,20 @@ enum class AssignmentStatus {
     OVERDUE_REJECTED,
 }
 
-/** Judged against the student's own dates, an extension included: [Assignment.studentDueDate]. */
+/**
+ * Judged against the student's own dates, an extension included: [Assignment.studentDueDate]. One
+ * without a due date is never late or overdue.
+ */
 fun Assignment.status(now: Date = Date(AppClock.nowMillis())): AssignmentStatus {
     val due = studentDueDate
     if (isCompleted) {
-        return if (submittedAt != null && submittedAt.after(due)) {
+        return if (submittedAt != null && due != null && submittedAt.after(due)) {
             AssignmentStatus.SUBMITTED_LATE
         } else {
             AssignmentStatus.SUBMITTED
         }
     }
-    if (!due.before(now)) return AssignmentStatus.PENDING
+    if (due == null || !due.before(now)) return AssignmentStatus.PENDING
     val cutoff = studentCutoffDate
     if (cutoff != null && now.after(cutoff)) return AssignmentStatus.OVERDUE_REJECTED
     return AssignmentStatus.OVERDUE_ACCEPTABLE

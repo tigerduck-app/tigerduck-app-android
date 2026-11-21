@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
@@ -252,6 +254,19 @@ class MoodleAssignmentScreenTest {
         composeRule.onNodeWithText("HW 2: Linked lists").assertIsDisplayed()
         composeRule.onNodeWithText(string(R.string.assignment_status_submitted)).assertIsDisplayed()
         composeRule.onNodeWithText(MoodleDates.minute(1_789_000_740L)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `a list row with no due date shows a dash for it, which TalkBack skips`() {
+        composeRule.setContent {
+            AssignmentListRow(MoodleAssignmentLists.Row(MoodleAssignmentEntry(record().copy(dueDate = 0), null), null), onClick = {})
+        }
+
+        composeRule.onNodeWithText("—", useUnmergedTree = true).assertIsDisplayed()
+        assertEquals(
+            listOf("HW 2: Linked lists"),
+            composeRule.onNodeWithText("HW 2: Linked lists").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)?.map { it.text },
+        )
     }
 
     private companion object {
