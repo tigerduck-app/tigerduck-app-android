@@ -143,4 +143,15 @@ class TaipeiClockTest {
         assertEquals(10 * 60 + 32, seen[2].hour * 60 + seen[2].minute)
         job.cancel()
     }
+
+    @Test
+    fun `a week counts seven days from the start's day, and an earlier day has none`() {
+        val start = LocalDate.of(2026, 9, 16)
+
+        assertEquals(1, TaipeiClock.week(of = start, countingFrom = start))
+        assertEquals(1, TaipeiClock.week(of = LocalDate.of(2026, 9, 22), countingFrom = start))
+        assertEquals(2, TaipeiClock.week(of = LocalDate.of(2026, 9, 23), countingFrom = start))
+        assertEquals(8, TaipeiClock.week(of = LocalDate.of(2026, 11, 10), countingFrom = start))
+        assertEquals(null, TaipeiClock.week(of = LocalDate.of(2026, 9, 15), countingFrom = start))
+    }
 }

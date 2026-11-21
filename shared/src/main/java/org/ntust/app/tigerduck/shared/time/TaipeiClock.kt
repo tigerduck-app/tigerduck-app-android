@@ -11,6 +11,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import java.util.TimeZone
 
 /**
@@ -29,6 +30,14 @@ object TaipeiClock {
     fun now(): ZonedDateTime = AppClock.instant().atZone(zone)
 
     fun today(): LocalDate = now().toLocalDate()
+
+    /**
+     * Counting from 1, the seven-day week from [countingFrom] that [of] falls in; null on an
+     * earlier day. Moodle's weekly sections and the term's week count this way. As iOS
+     * `Calendar.week(of:countingFrom:)`.
+     */
+    fun week(of: LocalDate, countingFrom: LocalDate): Int? =
+        ChronoUnit.DAYS.between(countingFrom, of).takeIf { it >= 0 }?.let { (it / 7 + 1).toInt() }
 
     fun minuteOfDay(at: Instant = AppClock.instant()): Int {
         val t = at.atZone(zone)

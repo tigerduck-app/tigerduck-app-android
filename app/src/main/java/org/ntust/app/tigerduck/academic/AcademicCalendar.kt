@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.academic
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.network.model.AcademicCalendarDto
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 /** One published term, with the inclusive days classes run between. */
@@ -109,6 +111,15 @@ data class AcademicCalendar(
     private fun startOfDayMillis(date: LocalDate): Long? = runCatching {
         date.atStartOfDay(AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
     }.getOrNull()
+
+    /**
+     * The week of term [of] that [on] falls in, week 1 being the Monday-to-Sunday week of the
+     * term's first day; null when the day is outside that term. As iOS `AcademicCalendar.week(of:on:)`.
+     */
+    fun week(of: String, on: LocalDate): Int? {
+        val term = terms.firstOrNull { it.code == of }?.takeIf { it.contains(on) } ?: return null
+        return TaipeiClock.week(of = on, countingFrom = term.start.with(DayOfWeek.MONDAY))
+    }
 
     fun holidaysOn(date: LocalDate): List<Holiday> = holidays.filter { it.contains(date) }
 

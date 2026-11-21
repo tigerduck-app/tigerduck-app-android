@@ -5,6 +5,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.academic.SemesterTerm
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import java.time.Instant
 import java.time.LocalDate
 
@@ -63,5 +66,29 @@ class ClassTableThisWeekTest {
             "the feed's term is not compared with the table's",
             ClassTableThisWeek.showsThisWeek(feedTerm = "1142", tableSemester = "1151", currentSemester = "1151"),
         )
+    }
+
+    private val calendar = AcademicCalendar(1L, listOf(SemesterTerm("1151", LocalDate.of(2026, 9, 16), LocalDate.of(2027, 1, 15))), emptyList())
+
+    private fun answered(term: String) = CourseChanges.decode("""{"term":"$term","changes":[]}""")
+
+    @Test
+    fun `the week from today carries the term's week, with today's mark`() {
+        val friday = LocalDate.of(2026, 11, 6)
+        val week = ClassTableThisWeek.weekOf(friday, answered("1151"), tableSemester = "1151", currentSemester = "1151", calendar)
+
+        assertEquals(friday, week?.today)
+        assertEquals(8, week?.termWeek)
+        assertNull("before the first answer", ClassTableThisWeek.weekOf(friday, CourseChanges.EMPTY, "1151", "1151", calendar))
+        assertNull("another term", ClassTableThisWeek.weekOf(friday, answered("1151"), "1142", "1151", calendar))
+    }
+
+    @Test
+    fun `a day outside the term, or a term the calendar lacks, shows today's mark with no week`() {
+        val summer = ClassTableThisWeek.weekOf(LocalDate.of(2027, 1, 20), answered("1151"), "1151", "1151", calendar)
+        assertEquals(LocalDate.of(2027, 1, 20), summer?.today)
+        assertNull(summer?.termWeek)
+        val unknown = ClassTableThisWeek.weekOf(LocalDate.of(2026, 11, 6), answered("1151"), "1151", "1151", AcademicCalendar.EMPTY)
+        assertNull(unknown?.termWeek)
     }
 }

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
@@ -21,6 +22,22 @@ object ClassTableThisWeek {
      */
     fun showsThisWeek(feedTerm: String, tableSemester: String, currentSemester: String): Boolean =
         feedTerm.isNotEmpty() && tableSemester == currentSemester
+
+    /**
+     * The week from [today] while [showsThisWeek] holds, with the term's week from [calendar];
+     * null for a plain timetable.
+     */
+    fun weekOf(
+        today: LocalDate,
+        changes: CourseChanges,
+        tableSemester: String,
+        currentSemester: String,
+        calendar: AcademicCalendar,
+    ): ClassTableWeek? = if (showsThisWeek(changes.term, tableSemester, currentSemester)) {
+        ClassTableWeek(today, changes, calendar.week(of = tableSemester, on = today))
+    } else {
+        null
+    }
 
     /**
      * The date the [weekday] column (1 = Monday … 7 = Sunday) shows. The week runs from [today], so
@@ -55,10 +72,11 @@ object ClassTableThisWeek {
 internal const val NOW_LINE_TAG = "class-table-now-line"
 
 /**
- * The week from [today] the class table shows, with the school's [changes] its blocks show.
- * As the iPhone's `showsThisWeek` mode.
+ * The week from [today] the class table shows, with the school's [changes] its blocks show and
+ * [termWeek], the term's week its header shows, null outside the term. As the iPhone's
+ * `showsThisWeek` mode.
  */
-data class ClassTableWeek(val today: LocalDate, val changes: CourseChanges) {
+data class ClassTableWeek(val today: LocalDate, val changes: CourseChanges, val termWeek: Int? = null) {
     val todayWeekday: Int get() = today.dayOfWeek.value
 
     /** The date the [weekday] column stands for. */

@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
@@ -23,9 +24,9 @@ import org.ntust.app.tigerduck.ui.component.PageSettingsItem
 
 /**
  * The ⋮ menu's items on the user's own class table, in the iPhone's order:
- * adding to it and subscribing to clubs, sharing it and taking in someone else's, exporting it, then
- * the page's settings right above resetting it, in red. Each action closes
- * the menu itself before it acts; [close] is for the settings.
+ * adding to it and subscribing to clubs, sharing it and taking in someone else's, exporting it as
+ * a screenshot or an ICS file, then the page's settings right above resetting it, in red. Each
+ * action closes the menu itself before it acts; [close] is for the settings.
  */
 @Composable
 internal fun ColumnScope.OwnClassTableMenuItems(
@@ -34,8 +35,7 @@ internal fun ColumnScope.OwnClassTableMenuItems(
     shareEnabled: Boolean,
     onShare: () -> Unit,
     onImport: () -> Unit,
-    exportEnabled: Boolean,
-    onExport: () -> Unit,
+    exports: ClassTableExports,
     onReset: () -> Unit,
     close: () -> Unit,
 ) {
@@ -63,12 +63,7 @@ internal fun ColumnScope.OwnClassTableMenuItems(
         onClick = onImport,
     )
     HorizontalDivider()
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.class_table_export_screenshot)) },
-        leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
-        onClick = onExport,
-        enabled = exportEnabled,
-    )
+    ClassTableExportItems(exports)
     HorizontalDivider()
     PageSettingsItem(PageSettings.CLASS_TABLE, close)
     DropdownMenuItem(
@@ -85,19 +80,13 @@ internal fun ColumnScope.OwnClassTableMenuItems(
  */
 @Composable
 internal fun ColumnScope.PersonClassTableMenuItems(
-    exportEnabled: Boolean,
-    onExport: () -> Unit,
+    exports: ClassTableExports,
     onImport: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
     close: () -> Unit,
 ) {
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.class_table_export_screenshot)) },
-        leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
-        onClick = onExport,
-        enabled = exportEnabled,
-    )
+    ClassTableExportItems(exports)
     HorizontalDivider()
     DropdownMenuItem(
         text = { Text(stringResource(R.string.class_table_import)) },
@@ -117,5 +106,28 @@ internal fun ColumnScope.PersonClassTableMenuItems(
             Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
         },
         onClick = onDelete,
+    )
+}
+
+/**
+ * What the ⋮ menu's two exports do, each null while it cannot, which shows it greyed out: the
+ * screenshot, and the term as an ICS file.
+ */
+internal class ClassTableExports(val onScreenshot: (() -> Unit)?, val onCalendar: (() -> Unit)?)
+
+/** The screenshot export, then Export ICS beside it, as on the iPhone. */
+@Composable
+private fun ColumnScope.ClassTableExportItems(exports: ClassTableExports) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_export_screenshot)) },
+        leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
+        onClick = { exports.onScreenshot?.invoke() },
+        enabled = exports.onScreenshot != null,
+    )
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_export_ics)) },
+        leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+        onClick = { exports.onCalendar?.invoke() },
+        enabled = exports.onCalendar != null,
     )
 }
