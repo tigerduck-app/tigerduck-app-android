@@ -41,6 +41,7 @@ internal val SettingsLink.route: String
         SettingsLink.CLASS_REMINDERS -> Screen.ClassReminderSettings.route
         SettingsLink.MAIL_NOTIFICATIONS -> Screen.SchoolMailNotificationSettings.route
         SettingsLink.MAIL_GUIDE -> Screen.SchoolMailGuide.route
+        SettingsLink.CLASS_TABLE_LIST -> Screen.ClassTableList.route
         SettingsLink.DEBUG_TIME -> Screen.Debug.route
         SettingsLink.DEBUG_NOTIFICATION -> Screen.NotificationDebug.route
         SettingsLink.DEBUG_TRIGGERS -> Screen.TriggersDebug.route

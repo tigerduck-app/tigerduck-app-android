@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
+import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.library.LibrarySession
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.ui.AppState
@@ -31,8 +33,12 @@ class SettingsGatesViewModel @Inject constructor(
     auth: AuthService,
     mail: MailAccount,
     library: LibrarySession,
+    importedClassTables: ImportedClassTableStore,
     val appState: AppState,
 ) : ViewModel() {
+    /** Whose class tables are imported: the class table's page lists them while there is anyone. */
+    val importedTables: StateFlow<ImportedClassTables> = importedClassTables.tables
+
     val accounts: StateFlow<SignedInAccounts> =
         combine(sessions.school.changes, sessions.mail.changes, library.signedIn, ::SignedInAccounts)
             .stateIn(

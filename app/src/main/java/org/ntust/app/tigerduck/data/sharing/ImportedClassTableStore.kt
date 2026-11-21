@@ -13,10 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.ImportedClassTablesFileDto
-import org.ntust.app.tigerduck.data.model.ImportedPersonDto
-import org.ntust.app.tigerduck.data.model.ImportedTermDto
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.shared.Course
@@ -29,34 +26,6 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
-
-/** Someone whose class table the user imported from a share code. */
-data class ImportedPerson(
-    val id: String,
-    /** Null when the share code carried none. */
-    val studentId: String?,
-    val nickname: String,
-    val importedAt: Instant,
-    val sharedAt: Instant?,
-    val terms: List<Term>,
-) {
-    data class Term(
-        /** The app's semester code, such as `1151`. */
-        val semester: String,
-        val courseNos: List<String>,
-        /** The courses' names, times and rooms from NTUST's course query. */
-        val courses: List<Course>,
-    )
-
-    /** Newest first, as the term picker lists them. */
-    val semesters: List<String> get() = terms.map { it.semester }.sortedWith(org.ntust.app.tigerduck.shared.time.AcademicTerm.newestFirst)
-
-    /** The term to open this class table on: [keeping] when the person shared it, else their latest. */
-    fun semester(keeping: String): String =
-        if (keeping in semesters) keeping else semesters.firstOrNull() ?: keeping
-
-    fun courses(semester: String): List<Course> = terms.firstOrNull { it.semester == semester }?.courses.orEmpty()
-}
 
 /**
  * What a change to a person did. One deleted, or imported again, since the change began is
@@ -254,6 +223,24 @@ class ImportedClassTableStore internal constructor(
         ImportedClassTableChange.SAVED
     }
 
+    /**
+     * Moves [id] into [placement], right before [before] when that person is there, else after
+     * everyone there; skipped for someone no longer here, or before themselves. The order within a
+     * placement is the people's order in the store.
+     */
+    suspend fun move(id: String, placement: ImportedPerson.Placement, before: String?): ImportedClassTableChange = locked {
+        loadIfNeeded()
+        val people = _tables.value.people
+        val moving = people.firstOrNull { it.id == id }
+        if (moving == null || before == id) return@locked ImportedClassTableChange.SKIPPED
+        val rest = people.filter { it.id != id }.toMutableList()
+        val index = rest.indexOfFirst { it.id == before && it.placement == placement }.takeIf { it >= 0 } ?: rest.size
+        rest.add(index, moving.copy(placement = placement))
+        if (!save(rest, owner)) return@locked ImportedClassTableChange.FAILED
+        _tables.update { it.copy(people = rest) }
+        ImportedClassTableChange.SAVED
+    }
+
     /** Shows [id]'s class table, or the user's own for null; an id not in the store is ignored. */
     fun show(id: String?) {
         synchronized(shownLock) {
@@ -277,15 +264,15 @@ class ImportedClassTableStore internal constructor(
     }
 
     /**
-     * Shows the class table after the shown one: the user's own, then each person in import
-     * order, then the user's own again.
+     * Shows the class table after the shown one: the user's own, then each person in the rotation
+     * in order, then the user's own again. From someone outside the rotation, the rotation's first.
      */
     fun showNext() {
         synchronized(shownLock) { showNextLocked() }
     }
 
     private fun showNextLocked() {
-        val order = listOf<String?>(null) + _tables.value.people.map { it.id }
+        val order = listOf<String?>(null) + _tables.value.people.filter { it.placement == ImportedPerson.Placement.ROTATION }.map { it.id }
         val index = order.indexOf(_tables.value.shownPersonId).coerceAtLeast(0)
         setShownLocked(order[(index + 1) % order.size])
     }
@@ -419,35 +406,4 @@ class ImportedClassTableStore internal constructor(
         /** In the no-backup folder, so neither a backup nor a restore carries other people's class tables. */
         internal fun fileIn(context: Context) = File(context.noBackupFilesDir, "imported_class_tables.json")
     }
-}
-
-private fun ImportedPerson.toDto() = ImportedPersonDto(
-    id = id,
-    studentId = studentId,
-    nickname = nickname,
-    importedAtMillis = importedAt.toEpochMilli(),
-    sharedAtMillis = sharedAt?.toEpochMilli(),
-    terms = terms.map { ImportedTermDto(it.semester, it.courseNos, it.courses) },
-)
-
-/** Null when a key the store always writes is missing. */
-private fun ImportedPersonDto.toPerson(): ImportedPerson? {
-    val id = id ?: return null
-    val nickname = nickname ?: return null
-    val terms = terms?.map { it?.toTerm() ?: return null } ?: return null
-    return ImportedPerson(
-        id = id,
-        studentId = studentId,
-        nickname = nickname,
-        importedAt = Instant.ofEpochMilli(importedAtMillis),
-        sharedAt = sharedAtMillis?.let(Instant::ofEpochMilli),
-        terms = terms,
-    )
-}
-
-private fun ImportedTermDto.toTerm(): ImportedPerson.Term? {
-    val semester = semester ?: return null
-    val courseNos = courseNos?.map { it ?: return null } ?: return null
-    val courses = courses?.filterNotNull() ?: return null
-    return ImportedPerson.Term(semester, courseNos, DataCache.usableRows(courses))
 }

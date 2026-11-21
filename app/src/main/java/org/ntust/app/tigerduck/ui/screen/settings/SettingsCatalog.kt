@@ -30,6 +30,8 @@ internal data class SettingsState(
     val hasUpdateCheck: Boolean = false,
     val hasWhatsNew: Boolean = false,
     val hasMoodleApp: Boolean = false,
+    /** Someone's class table is imported, so the class tables have a list to manage. */
+    val hasImportedClassTables: Boolean = false,
 )
 
 /** The root's sections, in order, around the list of pages. A section with no title has none shown. */
@@ -107,6 +109,7 @@ internal enum class SettingsRow(@StringRes val title: Int) {
     INVERT_SLIDER(R.string.settings_invert_slider_direction),
     ASSIGNMENT_REMINDERS(R.string.settings_assignment_due_reminder),
     LIVE_ACTIVITY(R.string.live_activity_channel_name),
+    CLASS_TABLE_LIST(R.string.class_table_list_title),
     PIN_TODAY_COURSES(R.string.settings_class_table_pin_today),
     SHOW_CLASSROOM(R.string.settings_class_table_show_classroom),
     OUTLINE_REQUIRED_COURSES(R.string.settings_class_table_outline_required),
@@ -143,7 +146,7 @@ internal enum class SettingsRow(@StringRes val title: Int) {
             VERSION, CHECK_FOR_UPDATES, SERVER_STATUS, WHATS_NEW, WEBSITE, ABOUT_OTHERS ->
                 SettingsPlace.Section(SettingsSection.ABOUT)
             SHOW_FULL_DUE_DATE, INVERT_SLIDER, ASSIGNMENT_REMINDERS, LIVE_ACTIVITY -> SettingsPlace.Page(PageSettings.HOME)
-            PIN_TODAY_COURSES, SHOW_CLASSROOM, OUTLINE_REQUIRED_COURSES, SHOW_ALL_PERIODS, COURSE_NAME_SIZE,
+            CLASS_TABLE_LIST, PIN_TODAY_COURSES, SHOW_CLASSROOM, OUTLINE_REQUIRED_COURSES, SHOW_ALL_PERIODS, COURSE_NAME_SIZE,
             CLASS_REMINDERS, ENGLISH_COURSE_NAMES, ENGLISH_CLASSROOM_NAMES, MANDARIN_CLASSROOM_NAMES,
             REASSIGN_COURSE_COLORS -> SettingsPlace.Page(PageSettings.CLASS_TABLE)
             BULLETIN_PUSH -> SettingsPlace.Page(PageSettings.BULLETINS)
@@ -176,6 +179,7 @@ internal enum class SettingsRow(@StringRes val title: Int) {
         FLIP_TO_LIBRARY -> state.hasFlipToLibrary
         LIBRARY_SIGN_OUT -> state.librarySignedIn
         MOODLE_OPEN_IN -> state.hasMoodleApp
+        CLASS_TABLE_LIST -> state.hasImportedClassTables
         else -> true
     }
 

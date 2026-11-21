@@ -128,7 +128,10 @@ class SettingsCatalogTest {
             SettingsRow.FLIP_TO_LIBRARY, SettingsRow.LIBRARY_SIGN_OUT, SettingsRow.WHATS_NEW, SettingsRow.MOODLE_OPEN_IN,
             SettingsRow.CHECK_FOR_UPDATES, SettingsRow.ACCENT_GRADIENT_ON_WATCH, SettingsRow.ACCENT_GRADIENT_ON_LIVE_ACTIVITIES,
             SettingsRow.ENGLISH_COURSE_NAMES, SettingsRow.ENGLISH_CLASSROOM_NAMES, SettingsRow.MANDARIN_CLASSROOM_NAMES,
+            SettingsRow.CLASS_TABLE_LIST,
         ).forEach { assertFalse("$it", it.isShown(bare)) }
+        // The class tables' list, first on the class table's page, while anyone is imported.
+        assertEquals(SettingsRow.CLASS_TABLE_LIST, PageSettings.CLASS_TABLE.rows.first { it.isShown(SettingsState(hasImportedClassTables = true)) })
 
         val english = SettingsState(coursesInEnglish = true)
         assertTrue(SettingsRow.ENGLISH_COURSE_NAMES.isShown(english))

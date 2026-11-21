@@ -101,6 +101,6 @@ internal class ClassTableTabDoubleTaps(private val now: () -> Long) {
     }
 
     companion object {
-        const val WINDOW_MS = 3_000L
+        const val WINDOW_MS = 1_500L
     }
 }

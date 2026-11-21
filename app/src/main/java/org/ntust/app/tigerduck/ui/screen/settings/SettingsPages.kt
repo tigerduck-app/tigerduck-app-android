@@ -41,7 +41,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 enum class SettingsLink(val debugOnly: Boolean = false) {
     TAB_EDITOR, ACCENT_COLOR, DISPLAY_SIZE, CLOUD_SYNC, NOTIFICATION_PERMISSIONS, LANGUAGE, APP_ICON, VIBRATION,
     API_ENDPOINT, STORAGE, ABOUT_OTHERS, ASSIGNMENT_REMINDERS, LIVE_ACTIVITY, COURSE_NAME_SIZE, CLASS_REMINDERS,
-    MAIL_NOTIFICATIONS, MAIL_GUIDE,
+    MAIL_NOTIFICATIONS, MAIL_GUIDE, CLASS_TABLE_LIST,
     DEBUG_TIME(true), DEBUG_NOTIFICATION(true), DEBUG_TRIGGERS(true), DEBUG_SERVER_FAILURE(true),
     DEBUG_OUTSIDE_APPS(true), DEBUG_MAIL_SERVER(true), DEBUG_BROWSER_ALLOWLIST(true), DEBUG_VIEWER_SAMPLES(true),
 }
@@ -143,13 +143,18 @@ private fun HomePageSettings(appState: AppState, state: SettingsState, open: (Se
 }
 
 /**
- * The class table's: today's courses above the grid and what each cell shows, the course name's
+ * The class table's: the list of imported class tables while there is one, today's courses above
+ * the grid and what each cell shows, the course name's
  * size, the class reminders, the English abbreviations where course names come in English, and
  * new colors for every course.
  */
 @Composable
 private fun ClassTablePageSettings(viewModel: SettingsViewModel, state: SettingsState, open: (SettingsLink) -> Unit) {
     val appState = viewModel.appState
+    if (SettingsRow.CLASS_TABLE_LIST.isShown(state)) {
+        ContentCard { PageLinkRow(SettingsRow.CLASS_TABLE_LIST, state) { open(SettingsLink.CLASS_TABLE_LIST) } }
+        PageGap()
+    }
     ContentCard {
         Column {
             SettingsToggleRow(SettingsRow.PIN_TODAY_COURSES.label(), appState.pinTodayCoursesOnClassTable) {

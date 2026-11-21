@@ -24,6 +24,7 @@ class SettingsSearchTest {
     private val everyRowShown = SettingsState(
         librarySignedIn = true, coursesInEnglish = true, usesEnglishClassroomNames = true, hasFlipToLibrary = true,
         hasWatch = true, hasLiveUpdateGradient = true, hasUpdateCheck = true, hasWhatsNew = true, hasMoodleApp = true,
+        hasImportedClassTables = true,
     )
 
     private fun search(query: String, state: SettingsState = everyRowShown) = SettingsSearch.results(query, state, label)

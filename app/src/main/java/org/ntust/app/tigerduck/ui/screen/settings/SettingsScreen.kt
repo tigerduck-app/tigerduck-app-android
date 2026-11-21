@@ -208,6 +208,7 @@ private fun NtustLoginErrorSnackbar(viewModel: SettingsViewModel, snackbarHostSt
 @Composable
 internal fun settingsState(hasWhatsNew: Boolean = false, gates: SettingsGatesViewModel = hiltViewModel()): SettingsState {
     val accounts by gates.accounts.collectAsStateWithLifecycle()
+    val importedTables by gates.importedTables.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val hasFlipToLibrary = remember(context) { FlipDetector.isSupported(context) }
     val hasLiveUpdateGradient = remember { LiveUpdateSegments.canShowGradient() }
@@ -228,6 +229,7 @@ internal fun settingsState(hasWhatsNew: Boolean = false, gates: SettingsGatesVie
         hasUpdateCheck = !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true),
         hasWhatsNew = hasWhatsNew,
         hasMoodleApp = hasMoodleApp,
+        hasImportedClassTables = importedTables.hasImportedClassTables,
     )
 }
 
