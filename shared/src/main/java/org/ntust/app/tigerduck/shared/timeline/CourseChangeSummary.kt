@@ -59,9 +59,11 @@ object CourseChangeSummary {
         val parts = mutableListOf<String>()
         for (meeting in meetings) {
             if (shown != null && meeting.date == shown.date && meeting.periods.any { it in shown.periods }) {
-                // The cards show the tapped class; a room its meeting's other classes move to they do not.
+                // The cards show the tapped class; a room its meeting's other classes move to they do
+                // not, where no newer online class overrides it.
                 parts += meeting.changes
                     .filter { change -> change.kind == CourseChange.Kind.ROOM && shown.periods.none(change::covers) }
+                    .filter { change -> meeting.periods.any { placeChange(meeting.changes, it) === change } }
                     .mapNotNull { it.room }
                 // A block over more meetings shows only its outer ends and is cancelled only whole, so
                 // this meeting's own cancellation, else its own time, says which part changed.

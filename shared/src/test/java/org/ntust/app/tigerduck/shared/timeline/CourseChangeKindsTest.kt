@@ -129,6 +129,31 @@ class CourseChangeKindsTest {
     }
 
     @Test
+    fun `a block over two meetings keeps the newest place of each period`() {
+        // With period 5 hidden, periods 4 and 6 are one block over two meetings.
+        val split = course(periods = listOf("4", "6"))
+        val changes = changes(
+            row(1, "online", periods = listOf("4", "6")),
+            row(2, "room", periods = listOf("6"), values = mapOf("room" to "TR-313")),
+        )
+
+        assertEquals("Online, TR-313", CourseMeetings.meeting(split, listOf("4", "6"), thursday, changes)!!.room("Online"))
+    }
+
+    @Test
+    fun `the changes list leaves out a room a newer online class overrides, beside the cards' class`() {
+        val changes = changes(
+            row(1, "cancelled", periods = listOf("2")),
+            row(2, "room", periods = listOf("4"), values = mapOf("room" to "TR-313")),
+            row(3, "online", periods = listOf("4")),
+        )
+        val cancelled = slots(changes).first()
+
+        assertTrue(cancelled.isCancelled)
+        assertEquals(listOf("Online"), rows(changes, shown = cancelled))
+    }
+
+    @Test
     fun `the changes list names each online class of a meeting`() {
         val changes = changes(
             row(1, "online", periods = listOf("2"), values = mapOf("note_zh" to "第一節線上", "note_en" to "First period online")),

@@ -91,7 +91,7 @@ data class ClassSlot(
 }
 
 /** The change that says where [period] is held, a room or online: the first, as the feed's newest wins. */
-private fun placeChange(changes: List<CourseChange>, period: String): CourseChange? =
+internal fun placeChange(changes: List<CourseChange>, period: String): CourseChange? =
     changes.firstOrNull { (it.kind == Kind.ROOM || it.kind == Kind.ONLINE) && it.covers(period) }
 
 /** A day with changes and its changed meetings. Ported from iOS `CourseTimeSlot.upcomingChanges`. */
@@ -217,6 +217,8 @@ object CourseMeetings {
         val timetableStart: LocalTime,
         val timetableEnd: LocalTime,
         val changes: List<CourseChange>,
+        /** The feed's changes of the course that day, newest first, which [merged] keeps the order of. */
+        val dayChanges: List<CourseChange>,
     ) {
         fun isCancelled(period: String): Boolean = changes.any { it.kind == Kind.CANCELLED && it.covers(period) }
 
@@ -302,7 +304,7 @@ object CourseMeetings {
                     else -> true
                 }
             }
-            Meeting(course, date, run, start, end, timetableStart, timetableEnd, applied)
+            Meeting(course, date, run, start, end, timetableStart, timetableEnd, applied, dayChanges)
         }
     }
 
@@ -318,6 +320,9 @@ object CourseMeetings {
         for (change in meetings.flatMap { it.changes }) {
             if ((isCancelled || change.kind != Kind.CANCELLED) && kept.none { it.id == change.id }) kept += change
         }
+        // Newest first again, as each meeting's own are: of a room and an online class over one
+        // period, the one the feed has last wins on a block over two meetings too.
+        kept.sortBy { change -> first.dayChanges.indexOfFirst { it.id == change.id } }
         return ClassSlot(
             id = slotId(first.course, first.date, first.periods.first()),
             course = first.course,
