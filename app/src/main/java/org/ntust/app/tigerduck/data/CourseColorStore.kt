@@ -53,11 +53,13 @@ class CourseColorStore @Inject constructor(
     }
 
     /**
-     * Keeps Moodle's course ids [ids]; a course waiting for its Moodle color among [courses] takes
-     * it now, shown on the screens and the widgets.
+     * Keeps Moodle's course ids [ids] and [enrolled], the ids of every course the account is
+     * enrolled in; a course waiting for its Moodle color among [courses] takes it now, shown on the
+     * screens and the widgets.
      */
-    suspend fun saveMoodleIds(ids: Map<String, Int>, courses: List<Course>, signIn: SignIn) {
+    suspend fun saveMoodleIds(ids: Map<String, Int>, enrolled: Set<Int>, courses: List<Course>, signIn: SignIn) {
         dataCache.saveMoodleCourseIds(ids, signIn)
+        dataCache.saveMoodleEnrolledCourseIds(enrolled, signIn)
         ensureMoodleColorsLoaded()
         val book = MoodleColorBook.shared
         book.setIds(ids)

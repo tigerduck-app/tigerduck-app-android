@@ -1722,7 +1722,7 @@ class ClassTableViewModel @Inject constructor(
             if (moodleAll.isNotEmpty()) {
                 val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
-                courseColorStore.saveMoodleIds(fresh, _courses.value, signIn)
+                courseColorStore.saveMoodleIds(fresh, moodleAll.mapTo(mutableSetOf()) { it.id }, _courses.value, signIn)
             }
 
             val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)
