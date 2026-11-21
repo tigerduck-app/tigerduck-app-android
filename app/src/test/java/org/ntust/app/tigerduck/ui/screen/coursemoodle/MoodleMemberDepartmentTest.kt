@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCacheContext
 import org.ntust.app.tigerduck.data.moodle.MoodleCachePort
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
+import org.ntust.app.tigerduck.data.moodle.MoodleDepartment
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
@@ -86,25 +87,13 @@ class MoodleMemberDepartmentTest {
     }
 
     @Test
-    fun `every department the app knows has a name for the page and one for the list`() {
-        val expected = mapOf(
-            "ad" to (R.string.course_member_department_ad to R.string.course_member_department_ad_short),
-            "ba" to (R.string.course_member_department_ba to R.string.course_member_department_ba_short),
-            "ch" to (R.string.course_member_department_ch to R.string.course_member_department_ch_short),
-            "cs" to (R.string.course_member_department_cs to R.string.course_member_department_cs_short),
-            "ct" to (R.string.course_member_department_ct to R.string.course_member_department_ct_short),
-            "dt" to (R.string.course_member_department_dt to R.string.course_member_department_dt_short),
-            "ee" to (R.string.course_member_department_ee to R.string.course_member_department_ee_short),
-            "et" to (R.string.course_member_department_et to R.string.course_member_department_et_short),
-            "hc" to (R.string.course_member_department_hc to R.string.course_member_department_hc_short),
-            "im" to (R.string.course_member_department_im to R.string.course_member_department_im_short),
-            "me" to (R.string.course_member_department_me to R.string.course_member_department_me_short),
-            "tx" to (R.string.course_member_department_tx to R.string.course_member_department_tx_short),
-        )
-        assertEquals(
-            expected,
-            expected.keys.associateWith { departmentNameRes(it, short = false) to departmentNameRes(it, short = true) },
-        )
+    fun `every department the app knows has a name for the page and one for the list, its key's`() {
+        fun res(name: String) = R.string::class.java.getField(name).getInt(null)
+        assertEquals(34, MoodleDepartment.keys.size)
+        for (key in MoodleDepartment.keys) {
+            assertEquals(key, res("course_member_department_$key"), departmentNameRes(key, short = false))
+            assertEquals(key, res("course_member_department_${key}_short"), departmentNameRes(key, short = true))
+        }
         assertNull(departmentNameRes("zz", short = false))
         assertNull(departmentNameRes("zz", short = true))
     }
@@ -114,7 +103,7 @@ class MoodleMemberDepartmentTest {
         val members = listOf(
             student(1, "B00015001 @ Amy"),
             student(2, "M00015002 @ Max"),
-            student(3, "B00009003 @ Uma"),
+            student(3, "M00035003 @ Uma"),
         )
         var rows: Map<Int, List<MemberRow>> = emptyMap()
         composeRule.setContent { rows = members.associate { it.id to memberRows(it) } }
@@ -129,24 +118,33 @@ class MoodleMemberDepartmentTest {
             ),
             rows[1],
         )
-        assertEquals("a master's ID has no code", listOf(MemberRow(studentId, "M00015002")), rows[2])
-        assertEquals("a code the app does not know", listOf(MemberRow(studentId, "B00009003")), rows[3])
+        assertEquals(
+            "a master's ID names its department too",
+            listOf(
+                MemberRow(studentId, "M00015002"),
+                MemberRow(department, "Department of Computer Science and Information Engineering"),
+            ),
+            rows[2],
+        )
+        assertEquals("a code the app does not know", listOf(MemberRow(studentId, "M00035003")), rows[3])
     }
 
     @Test
     fun `the list shows the short name beside the ID, and the search matches it`() {
-        val members = listOf(student(1, "B00015001 @ Amy"), student(2, "B00000002 @ Bob"))
+        val members = listOf(student(1, "B00015001 @ Amy"), student(2, "B00000002 @ Bob"), student(3, "D00015003 @ Dee"))
         val store = MoodleCourseStore(5, emptyList(), emptyList(), api(members), MoodleCacheContext("B1", cache, { true }), scope)
         var query by mutableStateOf("")
         composeRule.setContent {
             MembersList(store = store, query = query, onQueryChange = { query = it }, onOpen = {})
         }
-        composeRule.waitUntil(5_000) { store.members.value?.members?.size == 2 }
+        composeRule.waitUntil(5_000) { store.members.value?.members?.size == 3 }
         composeRule.waitForIdle()
 
         composeRule.onNode(hasContentDescription("Amy"))
             .assert(stateDescription("B00015001 · Computer Science and Information Engineering"))
         composeRule.onNode(hasContentDescription("Bob")).assert(stateDescription("B00000002"))
+        composeRule.onNode(hasContentDescription("Dee"))
+            .assert(stateDescription("D00015003 · Computer Science and Information Engineering"))
 
         query = "computer science"
         composeRule.waitForIdle()

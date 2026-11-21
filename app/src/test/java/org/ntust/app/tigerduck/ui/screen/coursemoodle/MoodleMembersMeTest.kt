@@ -2,6 +2,9 @@ package org.ntust.app.tigerduck.ui.screen.coursemoodle
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasProgressBarRangeInfo
@@ -15,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,6 +95,23 @@ class MoodleMembersMeTest {
         composeRule.onNodeWithContentDescription("Student Two").assertExists()
         composeRule.onNodeWithContentDescription("Teacher One").assertExists()
         assertEquals(1, composeRule.onAllNodes(hasContentDescription(tag, substring = true)).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `pinned, the signed-in student's row leads the students, and unpinned it keeps its place`() {
+        val store = MoodleCourseStore(5, emptyList(), emptyList(), api, MoodleCacheContext("B1", cache, { true }), scope)
+        var pinned by mutableStateOf(true)
+        composeRule.setContent { MembersList(store = store, query = "", onQueryChange = {}, onOpen = {}, pinsMyself = pinned) }
+        composeRule.waitUntil(5_000) { store.members.value?.members?.size == 3 }
+        composeRule.waitForIdle()
+
+        val tag = string(R.string.course_member_me)
+        fun top(description: String) = composeRule.onNodeWithContentDescription(description).fetchSemanticsNode().boundsInRoot.top
+        assertTrue(top("Student Three, $tag") < top("Student Two"))
+
+        pinned = false
+        composeRule.waitForIdle()
+        assertTrue(top("Student Two") < top("Student Three, $tag"))
     }
 
     @Test

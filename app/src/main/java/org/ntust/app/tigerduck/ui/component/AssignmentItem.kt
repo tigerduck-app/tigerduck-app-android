@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -170,6 +171,8 @@ private fun AssignmentTrailing(
     val emphasise = status == AssignmentStatus.OVERDUE_REJECTED
 
     val now = remember(clockVersion) { Date(AppClock.nowMillis()) }
+    val due = assignment.studentDueDate
+    val pastDue = due?.before(now) == true
 
     // Secondary overdue badge: when an item is locally completed or ignored
     // but past due, show the overdue badge stacked above (matches iOS
@@ -180,7 +183,7 @@ private fun AssignmentTrailing(
             markCompleteLabel to BadgeGreen
         (status == AssignmentStatus.SUBMITTED || status == AssignmentStatus.SUBMITTED_LATE) && isIgnored ->
             ignoredLabel to secondaryColor
-        (markedCompleted || isIgnored) && assignment.studentDueDate.before(now) -> {
+        (markedCompleted || isIgnored) && pastDue -> {
             if (assignment.studentCutoffDate?.let(now::after) == true)
                 overdueRejectedLabel to BadgeRed
             else overdueLabel to BadgeRed
@@ -210,22 +213,19 @@ private fun AssignmentTrailing(
             }
         }
 
-        val useAbsolute = showAbsoluteTime ||
-                ((assignment.isCompleted || markedCompleted || isIgnored) && assignment.studentDueDate.before(now))
-        // The student's own date, an extension included, as everything here judges by.
-        val timeText = if (useAbsolute) formatAbsolute(assignment.studentDueDate)
-        else formatRelative(assignment.studentDueDate, now)
-        val timeColor = when {
-            isOverdue -> BadgeRed
-            (isIgnored || markedCompleted) && assignment.studentDueDate.before(now) -> BadgeRed
-            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+        val useAbsolute = showAbsoluteTime || ((assignment.isCompleted || markedCompleted || isIgnored) && pastDue)
+        // The student's own date, an extension included, as everything here judges by; a dash without one.
+        val timeText = when {
+            due == null -> NO_DUE_DATE
+            useAbsolute -> formatAbsolute(due)
+            else -> formatRelative(due, now)
         }
+        val timeColor = if (isOverdue || ((isIgnored || markedCompleted) && pastDue)) BadgeRed
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         val timeWeight = if (emphasise) FontWeight.Bold else FontWeight.Normal
-        Text(
-            text = timeText,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = timeWeight),
-            color = timeColor,
-        )
+        SkippedByTalkBack(hidden = due == null) {
+            Text(text = timeText, style = MaterialTheme.typography.labelSmall.copy(fontWeight = timeWeight), color = timeColor)
+        }
     }
 }
 
@@ -280,6 +280,21 @@ internal fun rememberAppClockVersion(): State<Long> {
     return produceState(initialValue = AppClock.version(), resumes) {
         TaipeiClock.minuteTicksRestartedBy(resumes).collect { value += 1 }
     }
+}
+
+/**
+ * Where a due time goes when Moodle gives an assignment none: the dash the app shows for any
+ * missing value, as iOS shows it (tigerduck-app#1029).
+ */
+internal const val NO_DUE_DATE = "—"
+
+/**
+ * [content], drawn but left out of what TalkBack reads while [hidden]: the dash of an assignment
+ * with no due date, so its row reads its title and course alone, as VoiceOver does on iOS.
+ */
+@Composable
+internal fun SkippedByTalkBack(hidden: Boolean, content: @Composable () -> Unit) {
+    Box(if (hidden) Modifier.clearAndSetSemantics {} else Modifier) { content() }
 }
 
 internal fun formatAbsolute(date: Date): String {
