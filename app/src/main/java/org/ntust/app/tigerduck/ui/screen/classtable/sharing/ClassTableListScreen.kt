@@ -147,11 +147,16 @@ internal fun ClassTableList(
                 val index = rows.indexOfFirst { it.key == dragging }
                 dragging = null
                 offset = 0f
-                val moved = rows.getOrNull(index) as? ClassTableListRows.Person ?: return
-                if (rows != ClassTableListRows.of(latestPeople)) {
-                    val (placement, before) = ClassTableListRows.target(rows, index)
-                    latestActions.onMove(moved.person.id, placement, before)
+                val moved = rows.getOrNull(index) as? ClassTableListRows.Person
+                val stored = ClassTableListRows.of(latestPeople)
+                // Nothing to save, or the person went while dragged: back to what the store holds,
+                // which may have changed under the drag.
+                if (moved == null || rows == stored || latestPeople.none { it.id == moved.person.id }) {
+                    rows = stored
+                    return
                 }
+                val (placement, before) = ClassTableListRows.target(rows, index)
+                latestActions.onMove(moved.person.id, placement, before)
             }
         }
     }

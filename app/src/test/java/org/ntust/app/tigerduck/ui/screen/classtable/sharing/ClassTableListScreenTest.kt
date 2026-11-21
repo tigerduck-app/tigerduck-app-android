@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.SemanticsActions
@@ -100,6 +103,26 @@ class ClassTableListScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(listOf("move wen to longPressMenu before null"), done)
+    }
+
+    @Test
+    fun `a person deleted while dragged is not moved, and the list shows what the store holds`() {
+        var people by mutableStateOf(listOf(ming, wen, hua))
+        val actions = ClassTableListActions({}, {}, { id, _, _ -> done += "move $id" })
+        composeRule.setContent { MaterialTheme { ClassTableList(people, "B11300000", actions) } }
+        val rowHeight = composeRule.onNodeWithText("Wen").fetchSemanticsNode().boundsInRoot.height
+        val handle = composeRule.onNodeWithTag(classTableListHandleTag("wen"), useUnmergedTree = true)
+        handle.performTouchInput {
+            down(center)
+            repeat(2) { moveBy(Offset(0f, rowHeight / 2)) }
+        }
+        people = listOf(ming, hua)
+        composeRule.waitForIdle()
+        handle.performTouchInput { up() }
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<String>(), done)
+        composeRule.onNodeWithText("Wen").assertDoesNotExist()
     }
 
     @Test
