@@ -18,11 +18,18 @@ import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
+import org.ntust.app.tigerduck.ui.screen.emptyclassroom.ShrinkingText
+import org.ntust.app.tigerduck.util.replaceIosArg
 
 /** The period column's labels, one row each. */
 @Composable
@@ -68,8 +75,12 @@ internal fun ClassTableWeekdayHeader(
     dayColWidth: Dp,
     /** Today's weekday in a week from today, whose label alone takes the accent; null for a plain timetable. */
     today: Int? = null,
+    /** The term's week, over the period column; null for none. */
+    week: Int? = null,
 ) {
+    val style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = AbsoluteAlignment.TopLeft) {
+        if (week != null) ClassTableWeekLabel(week, periodColWidth, style)
         weekdays.forEachIndexed { dayIndex, day ->
             Box(
                 modifier = Modifier
@@ -79,7 +90,7 @@ internal fun ClassTableWeekdayHeader(
             ) {
                 Text(
                     text = dayLabels.getOrElse(day) { "$day" },
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    style = style,
                     color = if (today == null || day == today) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -88,6 +99,23 @@ internal fun ClassTableWeekdayHeader(
                 )
             }
         }
+    }
+}
+
+/**
+ * The term's week, such as W8, centered over the period column at the weekday names' size, shrunk
+ * to fit a narrow column, and read as a week. As iOS `TimetableHeaderRow`.
+ */
+@Composable
+private fun ClassTableWeekLabel(week: Int, periodColWidth: Dp, style: TextStyle) {
+    val description = stringResource(R.string.a11y_class_table_week).replaceIosArg(1, week.toLong())
+    Box(modifier = Modifier.width(periodColWidth), contentAlignment = Alignment.Center) {
+        ShrinkingText(
+            text = "W$week",
+            style = style.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+            minScale = 0.35f,
+            modifier = Modifier.semantics { contentDescription = description },
+        )
     }
 }
 
