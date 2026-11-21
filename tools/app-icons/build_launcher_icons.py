@@ -94,6 +94,8 @@ def over(top: np.ndarray, bottom: np.ndarray) -> np.ndarray:
 def carried_out(art: np.ndarray) -> np.ndarray:
     """[art] over its own edge colors, spread to every pixel it leaves uncovered."""
     known = art[..., 3] > 0.999
+    if not known.any():
+        raise SystemExit("error: the background has no opaque pixel to carry out: give the icon a fill or a back layer")
     color = np.where(known[..., None], art[..., :3], 0.0)
     while not known.all():
         total = np.zeros_like(color)
