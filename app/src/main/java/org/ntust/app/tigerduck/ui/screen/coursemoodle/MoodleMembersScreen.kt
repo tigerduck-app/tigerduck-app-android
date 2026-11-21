@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.coursemoodle
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -60,7 +59,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
-import org.ntust.app.tigerduck.data.moodle.MoodleDepartment
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberPlacement
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberSection
 import org.ntust.app.tigerduck.data.moodle.MoodleMembers
@@ -459,37 +457,4 @@ internal fun placementTitle(placement: MoodleMemberPlacement): String = when (pl
     is MoodleMemberPlacement.Other -> placement.name
     MoodleMemberPlacement.Auditors -> stringResource(R.string.course_members_auditors)
     MoodleMemberPlacement.Students -> stringResource(R.string.course_members_students)
-}
-
-/**
- * The app-translation string naming the department [key] ([MoodleDepartment]): the school's
- * official name for a member's page, or the [short] one for the members list; null for a key it
- * has none for. Chinese names in Chinese, the English name everywhere else (#697).
- */
-@StringRes
-internal fun departmentNameRes(key: String, short: Boolean): Int? = when (key) {
-    "ad" -> if (short) R.string.course_member_department_ad_short else R.string.course_member_department_ad
-    "ba" -> if (short) R.string.course_member_department_ba_short else R.string.course_member_department_ba
-    "ch" -> if (short) R.string.course_member_department_ch_short else R.string.course_member_department_ch
-    "cs" -> if (short) R.string.course_member_department_cs_short else R.string.course_member_department_cs
-    "ct" -> if (short) R.string.course_member_department_ct_short else R.string.course_member_department_ct
-    "dt" -> if (short) R.string.course_member_department_dt_short else R.string.course_member_department_dt
-    "ee" -> if (short) R.string.course_member_department_ee_short else R.string.course_member_department_ee
-    "et" -> if (short) R.string.course_member_department_et_short else R.string.course_member_department_et
-    "hc" -> if (short) R.string.course_member_department_hc_short else R.string.course_member_department_hc
-    "im" -> if (short) R.string.course_member_department_im_short else R.string.course_member_department_im
-    "me" -> if (short) R.string.course_member_department_me_short else R.string.course_member_department_me
-    "tx" -> if (short) R.string.course_member_department_tx_short else R.string.course_member_department_tx
-    else -> null
-}
-
-/** The short names the list shows, by department key, so its search matches what its rows say. */
-@Composable
-internal fun departmentShortNames(): Map<String, String> {
-    val names = mutableMapOf<String, String>()
-    for (key in MoodleDepartment.keys) {
-        val res = departmentNameRes(key, short = true) ?: continue
-        names[key] = stringResource(res)
-    }
-    return names
 }
