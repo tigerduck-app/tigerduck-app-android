@@ -3,6 +3,7 @@
      light twin does, in the theme the app follows, so it is hidden from the picker
      rather than removed, which would break those widgets. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="org.ntust.app.tigerduck.widget.WidgetClassTableActivity"
     android:description="@string/widget_week_light_desc"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:label="@string/widget_week_light_label"
@@ -16,4 +17,4 @@
     android:targetCellHeight="4"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
-    android:widgetFeatures="hide_from_picker" />
+    android:widgetFeatures="hide_from_picker|reconfigurable|configuration_optional" />

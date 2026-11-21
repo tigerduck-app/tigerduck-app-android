@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.widget
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.ui.graphics.Color
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -33,11 +34,16 @@ interface WidgetEntryPoint {
     fun academicCalendar(): org.ntust.app.tigerduck.academic.AcademicCalendarStore
     fun courseChangeStore(): CourseChangeStore
     fun moodleColorStore(): org.ntust.app.tigerduck.data.MoodleColorStore
+    fun importedClassTables(): org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 }
 
 object WidgetDataLoader {
 
-    suspend fun load(context: Context): WidgetState {
+    /**
+     * What a widget draws: the user's own class table, or, for a Today or Week widget set to
+     * [personId], that person's while they are still imported ([widgetTable]).
+     */
+    suspend fun load(context: Context, personId: String? = null): WidgetState {
         val entry = EntryPointAccessors.fromApplication(
             context.applicationContext,
             WidgetEntryPoint::class.java,
@@ -53,13 +59,18 @@ object WidgetDataLoader {
         // an expired 1h cookie or a process restart while offline makes the
         // widget say "Please sign in" even though we have cached courses.
         val isLoggedIn = entry.authService().authState.value
+        val person = personId?.let { WidgetClassTable.personOf(it, entry.importedClassTables().load().people) }
+        val table = widgetTable(
+            person, entry.dataCache().currentSemesterCode(), courses, isLoggedIn, entry.academicCalendar().quietDays(),
+        )
         val state = state(
-            courses = courses,
+            courses = table.courses,
             now = AppClock.localDateTime(),
-            isLoggedIn = isLoggedIn,
-            quietDays = entry.academicCalendar().quietDays(),
+            isLoggedIn = table.isLoggedIn,
+            quietDays = table.quietDays,
             changes = entry.courseChangeStore().current(),
             courseNameScale = entry.appPreferences().courseNameScale,
+            courseColors = table.courseColors,
         )
         val customCount = courses.count { it.customColorHex != null }
         Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${state.courseColors.size} color assignments")
@@ -73,6 +84,7 @@ object WidgetDataLoader {
      * What the widgets draw at [now], Taipei time, from the timetable as the
      * school's [changes] leave it: today's classes and the next days' as the
      * classes they split into, cancelled ones passed over for now and next.
+     * [courseColors] are the app's for [courses] unless they are someone else's.
      */
     internal fun state(
         courses: List<Course>,
@@ -81,6 +93,7 @@ object WidgetDataLoader {
         quietDays: QuietDays,
         changes: CourseChanges,
         courseNameScale: Float,
+        courseColors: Map<String, Color> = buildCourseColorAssignments(courses),
     ): WidgetState {
         val today = now.toLocalDate()
         val weekday = today.dayOfWeek.value
@@ -117,7 +130,7 @@ object WidgetDataLoader {
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
             tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
             tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
-            courseColors = buildCourseColorAssignments(courses),
+            courseColors = courseColors,
             courseNameScale = courseNameScale,
             today = today,
             courseChanges = changes,

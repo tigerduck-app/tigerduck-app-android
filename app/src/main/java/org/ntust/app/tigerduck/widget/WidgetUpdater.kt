@@ -15,10 +15,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -26,7 +29,10 @@ import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
+import org.ntust.app.tigerduck.data.sharing.ImportedPerson
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidget
@@ -43,13 +49,16 @@ import org.ntust.app.tigerduck.widget.receivers.WeekLightWidget
 import org.ntust.app.tigerduck.widget.receivers.WeekLightWidgetReceiver
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.di.ApplicationScope
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Redraws every placed widget, on demand and on a change of the app's
- * language or of the school's course changes ([courseChangesUpdated], empty
- * in a test that does not give one), then arms the next class boundary.
+ * language, of the school's course changes ([courseChangesUpdated], empty
+ * in a test that does not give one) or of the imported class tables a Today
+ * or Week widget may show ([importedClassTables], none in a test that does
+ * not give them), then arms the next class boundary.
  */
 @Singleton
 class WidgetUpdater internal constructor(
@@ -60,6 +69,7 @@ class WidgetUpdater internal constructor(
     private val scope: CoroutineScope,
     uiLanguage: UiLanguageMonitor,
     courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
+    private val importedClassTables: ImportedClassTableStore? = null,
 ) {
     @Inject constructor(
         @ApplicationContext context: Context,
@@ -69,11 +79,13 @@ class WidgetUpdater internal constructor(
         @ApplicationScope scope: CoroutineScope,
         uiLanguage: UiLanguageMonitor,
         courseChangeStore: CourseChangeStore,
+        importedClassTables: ImportedClassTableStore,
     ) : this(
         context, dataCache, boundaryScheduler, analyticsLogger, scope, uiLanguage,
         // Cold, so the store reads its copy from disk once this is collected
         // on the app's scope, not as the updater is injected at launch.
         flow { emitAll(courseChangeStore.changes) },
+        importedClassTables,
     )
 
     private val boundaryLock = Mutex()
@@ -95,6 +107,13 @@ class WidgetUpdater internal constructor(
         scope.launch {
             courseChangesUpdated.drop(1).conflate().collect { updateAll() }
         }
+        // And a change to the imported class tables: a widget set to someone
+        // deleted goes back to the user's own, and one set to someone renamed or
+        // looked up again redraws. A sign-out's wipe empties them and then
+        // redraws the widgets itself, so that redraw may come twice.
+        importedClassTables?.let { store ->
+            scope.launch { peopleChanges(store).conflate().collect { updateAll() } }
+        }
     }
 
     suspend fun updateAll() {
@@ -104,6 +123,9 @@ class WidgetUpdater internal constructor(
         // Without this, Glance's recomposition reuses the stale snapshot
         // captured when the widget's session was first established.
         val now = AppClock.nowMillis()
+        // The imported people the placed Today and Week widgets show, whose
+        // classes start and end at boundaries of their own.
+        val chosen: MutableSet<String> = ConcurrentHashMap.newKeySet()
         val manager = GlanceAppWidgetManager(context)
         val awm = AppWidgetManager.getInstance(context)
         coroutineScope {
@@ -136,6 +158,9 @@ class WidgetUpdater internal constructor(
                         runCatching {
                             updateAppWidgetState(context, id) { prefs ->
                                 prefs[WidgetState.TickKey] = now
+                                if ((widget as? BaseClassTableWidget)?.showsChosenTable == true) {
+                                    prefs[WidgetClassTable.PersonKey]?.let(chosen::add)
+                                }
                             }
                             widget.update(context, id)
                         }
@@ -160,7 +185,15 @@ class WidgetUpdater internal constructor(
         // Belt-and-suspenders: poke each provider via the system's
         // ACTION_APPWIDGET_UPDATE broadcast too.
         broadcastAppWidgetUpdate()
-        boundaryScheduler.scheduleForToday(dataCache.loadCourses())
+        boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen))
+    }
+
+    /** The current term's courses of the imported people [ids] names; none while no widget shows one. */
+    private suspend fun coursesOf(ids: Set<String>): List<Course> {
+        val store = importedClassTables ?: return emptyList()
+        if (ids.isEmpty()) return emptyList()
+        val semester = dataCache.currentSemesterCode()
+        return store.load().people.filter { it.id in ids }.flatMap { it.courses(semester) }
     }
 
     /**
@@ -239,6 +272,16 @@ class WidgetUpdater internal constructor(
     )
 
     companion object {
+        /**
+         * Each change to [store]'s people after its first read, which the
+         * widgets draw from already. The shown person, the class table page's
+         * own, is no change here.
+         */
+        internal fun peopleChanges(store: ImportedClassTableStore): Flow<List<ImportedPerson>> = flow {
+            val read = store.load().people
+            emitAll(store.tables.map { it.people }.distinctUntilChanged().dropWhile { it == read })
+        }
+
         // The *_dark kinds are hidden from the widget picker but still
         // refreshed: widgets placed from them before keep showing.
         private val WIDGETS = listOf(

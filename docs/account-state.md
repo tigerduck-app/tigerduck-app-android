@@ -90,7 +90,7 @@ Scopes:
 | Class-preparing alarms and the Live Update | `LiveActivityManager.stop()` in `AccountSessionEffects.onSignedOut` |
 | Background sync work, WorkManager's `homework_refresh_periodic` and `sync_trigger` | `BackgroundSyncWorker.cancel()` in `AccountSessionEffects.onSignedOut` |
 | The backend's device registration | `PushRegistrationService.unregister()` in `SignOutPlans`' school `clearAccount`, sent with the departing session until it lands: WorkManager's `departing_device_unregister` and the `owed` rows below |
-| Widgets | `WidgetUpdater.updateAll()`, the last step of the wipe the school's sign-out starts |
+| Widgets, and the imported class table a Today or Week widget was set to show (`WidgetClassTable.PersonKey`, the person's id in the widget's Glance state) | `WidgetUpdater.updateAll()`, the last step of the wipe the school's sign-out starts, after the imported class tables are cleared, so a widget set to someone draws the user's own again. The id stays, naming no one, until the widget is removed, when Glance deletes its state |
 | The watch's schedule | `WearScheduleBridge.publish()`, which `TigerDuckApp` runs at each sign-in and sign-out and which sends no courses while no one is signed in; the library account on the watch follows the library's own sign-out |
 | School Mail's cache (`cacheDir/mail/`), the mail held to send (`noBackupFilesDir/mail_held_sends/`), its checks (WorkManager) and its notifications | `MailAccount.signOut()` |
 | The library's pass code, in memory | `LibrarySession.refresh()`, which `LibrarySession.signOut()` calls |

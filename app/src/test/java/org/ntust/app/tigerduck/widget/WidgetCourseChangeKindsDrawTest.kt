@@ -79,7 +79,7 @@ class WidgetCourseChangeKindsDrawTest {
         layout,
         if (layout == WidgetLayout.Today) SizeMode.Single else SizeMode.Exact,
         preferencesOf = { prefs },
-        loadState = { state },
+        loadState = { _, _ -> state },
     ) {}
 
     /** The widget's views, laid out at 300 by 300. */
