@@ -62,7 +62,7 @@ class CourseBlockTest {
         assertEquals("10:20", block.startTime)
         assertEquals("12:10", block.endTime)
         assertEquals("3–4", block.periodRange)
-        assertEquals("TR-313", block.classroom)
+        assertEquals("TR-313", block.classroom("Online"))
         assertEquals(0.5f, block.progress(minute("11:15")), 0.001f)
     }
 
@@ -71,7 +71,7 @@ class CourseBlockTest {
         val block = WidgetDataLoader.computeOngoingBlocks(listOf(twice), monday("15:00"), CourseChanges.EMPTY).single()
 
         assertEquals("14:20–16:20 7–8", "${block.startTime}–${block.endTime} ${block.periodRange}")
-        assertEquals("TR-412", block.classroom)
+        assertEquals("TR-412", block.classroom("Online"))
     }
 
     @Test
@@ -79,7 +79,7 @@ class CourseBlockTest {
         val next = WidgetDataLoader.computeNextTodayBlock(listOf(twice), monday("12:30"), emptyList(), CourseChanges.EMPTY)!!
 
         assertEquals("14:20", next.startTime)
-        assertEquals("TR-412", next.classroom)
+        assertEquals("TR-412", next.classroom("Online"))
     }
 
     @Test
@@ -94,7 +94,7 @@ class CourseBlockTest {
                 "3–4 10:20–12:10 TR-313",
                 "7–8 14:20–16:20 TR-412",
             ),
-            rows.map { "${it.periodRange} ${it.startTime}–${it.endTime} ${it.classroom}" },
+            rows.map { "${it.periodRange} ${it.startTime}–${it.endTime} ${it.classroom("Online")}" },
         )
         assertEquals(listOf(false, true, false), rows.map { state.isOngoing(it) })
     }
@@ -132,6 +132,6 @@ class CourseBlockTest {
         val block = tomorrowFirstBlock(state)!!
 
         assertEquals("10:20", block.startTime)
-        assertEquals("TR-313", block.classroom)
+        assertEquals("TR-313", block.classroom("Online"))
     }
 }

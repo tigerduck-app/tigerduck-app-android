@@ -22,21 +22,21 @@ class ClassTableBlockLineTest {
     @Test
     fun `a moved room shows where rooms show, though the timetable named none`() {
         val moved = meeting(roomless, row(1, "room", values = mapOf("room" to "TR-214")))
-        assertEquals(BlockLine("TR-214", moved = true, cancelled = false), blockBottomLine(moved, null, true, "Cancelled"))
-        assertNull(blockBottomLine(moved, null, false, "Cancelled"))
+        assertEquals(BlockLine("TR-214", moved = true, cancelled = false), blockBottomLine(moved, null, true, "Cancelled", "Online"))
+        assertNull(blockBottomLine(moved, null, false, "Cancelled", "Online"))
     }
 
     @Test
     fun `a cancelled class says so whether or not rooms show`() {
         val cancelled = meeting(CourseChangeFixture.course(listOf("2", "3", "4")), row(1, "cancelled"))
-        assertEquals(BlockLine("Cancelled", moved = false, cancelled = true), blockBottomLine(cancelled, null, false, "Cancelled"))
-        assertEquals(BlockLine("Cancelled", moved = false, cancelled = true), blockBottomLine(cancelled, "T4-501", true, "Cancelled"))
+        assertEquals(BlockLine("Cancelled", moved = false, cancelled = true), blockBottomLine(cancelled, null, false, "Cancelled", "Online"))
+        assertEquals(BlockLine("Cancelled", moved = false, cancelled = true), blockBottomLine(cancelled, "T4-501", true, "Cancelled", "Online"))
     }
 
     @Test
     fun `an unchanged block keeps its room hint`() {
-        assertEquals(BlockLine("T4-501", moved = false, cancelled = false), blockBottomLine(null, "T4-501", true, "Cancelled"))
-        assertNull(blockBottomLine(null, null, false, "Cancelled"))
+        assertEquals(BlockLine("T4-501", moved = false, cancelled = false), blockBottomLine(null, "T4-501", true, "Cancelled", "Online"))
+        assertNull(blockBottomLine(null, null, false, "Cancelled", "Online"))
     }
 
     @Test
