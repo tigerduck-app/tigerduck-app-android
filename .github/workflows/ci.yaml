@@ -99,6 +99,17 @@ jobs:
           -Pkotlin.daemon.jvmargs=-Xmx3g
           $TASKS
 
+      # The log names a failing test and its exception's type only. The XML reports hold the
+      # whole trace, including what an earlier test leaked into an UncaughtExceptionsBeforeTest.
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-${{ matrix.leg }}
+          path: '*/build/test-results/**/*.xml'
+          if-no-files-found: ignore
+          retention-days: 7
+
       # The browser's school sign-in scripts give the stored password to a page, and the JVM has
       # no DOM to run them in: the play leg's unit tests write them out (SiteSignInScriptsExport)
       # and jsdom runs them against small copies of the sites' forms. The empty-window script
