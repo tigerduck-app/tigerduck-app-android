@@ -94,6 +94,19 @@ private class MonthTurns(
     private var turningTo: Int? = null
     private var announcement: Job? = null
 
+    /** The month the grid last told the view model of, which comes back as the view model's month. */
+    var told: Date? = null
+
+    /**
+     * The view model's month is [month]: Today, which calls off a month still to be said even when
+     * it is the month shown, as any button does; or the grid's own rest coming back, which does not.
+     */
+    fun follow(month: Date) {
+        if (month == told) return
+        announcement?.cancel()
+        turn(MonthPages.pageOf(month))
+    }
+
     /**
      * Turns the grid to [target]: one month over slides, as a swipe does, and a farther one jumps,
      * since the months between are not worth passing. The page a turn under way is headed for is
@@ -155,8 +168,8 @@ internal fun MonthCalendar(
     val turns = remember(pagerState, scope) { MonthTurns(pagerState, scope) }
     val locale = LocalConfiguration.current.locales[0]
 
-    // The view model's month to the grid: Today, which a swipe's own rest finds there already.
-    LaunchedEffect(displayedMonth) { turns.turn(MonthPages.pageOf(displayedMonth)) }
+    // The view model's month to the grid: Today, or a swipe's own rest coming back.
+    LaunchedEffect(displayedMonth) { turns.follow(displayedMonth) }
 
     // The grid's rest to the view model, once it rests: the page under the middle mid-swipe
     // would hand the effect above a month to turn back to. Null while the grid moves, so a rest
@@ -171,7 +184,10 @@ internal fun MonthCalendar(
             val moved = settled != last
             last = settled
             val month = MonthPages.monthAt(settled)
-            if (moved && MonthPages.pageOf(currentDisplayedMonth) != settled) currentOnMonthChanged(month)
+            if (moved && MonthPages.pageOf(currentDisplayedMonth) != settled) {
+                turns.told = month
+                currentOnMonthChanged(month)
+            }
             turns.rested(settled, moved, month = { monthAnnouncement(month, currentLocale) }, say = { currentAnnounce(it) })
         }
     }

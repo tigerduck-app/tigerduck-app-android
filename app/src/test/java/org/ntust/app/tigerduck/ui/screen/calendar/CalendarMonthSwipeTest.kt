@@ -129,6 +129,22 @@ class CalendarMonthSwipeTest {
     }
 
     @Test
+    fun `Today pressed on the month a swipe just reached calls its month off too`() {
+        show(month(2026, 7))
+        composeRule.mainClock.autoAdvance = false
+
+        pager.performTouchInput { swipeLeft(startX = centerX, endX = left) }
+        composeRule.mainClock.advanceTimeUntil(timeoutMillis = 3_000) { changed.isNotEmpty() }
+        // Today, when today is in August: the view model's month moves within the month shown.
+        displayed = Date.from(LocalDate.of(2026, 8, 15).atStartOfDay(taipei).toInstant())
+        composeRule.mainClock.advanceTimeBy(2_000)
+
+        assertEquals(listOf(month(2026, 8)), changed)
+        assertEquals(emptyList<String>(), announced)
+        title(2026, 8).assertExists()
+    }
+
+    @Test
     fun `an arrow's turn a drag takes back leaves the next swipe said`() {
         show(month(2026, 7))
         composeRule.mainClock.autoAdvance = false
