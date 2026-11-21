@@ -106,31 +106,35 @@ class ClassTableShownTableTest {
     }
 
     @Test
-    fun `a double tap within three seconds of the last steps on, and one after a pause swaps back`() {
+    fun `a double tap within one and a half seconds of the last steps on, and one after a pause swaps back`() {
         var now = 10_000L
         val taps = ClassTableTabDoubleTaps { now }
 
         assertFalse(taps.stepsOn())
-        now += 3_000
+        now += 1_500
         assertTrue(taps.stepsOn())
-        now += 2_999
+        now += 1_499
         assertTrue(taps.stepsOn())
-        now += 3_001
+        now += 1_501
         assertFalse(taps.stepsOn())
     }
 
     @Test
-    fun `the switcher lists import, the people in import order, then the user, a check on the one shown`() {
-        val sections = ClassTableSwitcherEntry.sections(tables("hua"), "B11300000")
+    fun `the switcher lists import, the user with the rotation, the long-press menu, then Other, a check on the one shown`() {
+        val wen = ming.copy(id = "wen", nickname = "Wen", placement = ImportedPerson.Placement.OTHER)
+        val lin = ming.copy(id = "lin", nickname = "Lin", placement = ImportedPerson.Placement.LONG_PRESS_MENU)
+        val sections = ClassTableSwitcherEntry.sections(ImportedClassTables(listOf(wen, ming, lin, hua), "wen"), "B11300000")
 
         assertEquals(
             listOf(
                 listOf(ClassTableSwitcherEntry.ImportClassTable),
                 listOf(
+                    ClassTableSwitcherEntry.User("B11300000", isShown = false),
                     ClassTableSwitcherEntry.Person("ming", "Ming", isShown = false),
-                    ClassTableSwitcherEntry.Person("hua", "Hua", isShown = true),
+                    ClassTableSwitcherEntry.Person("hua", "Hua", isShown = false),
                 ),
-                listOf(ClassTableSwitcherEntry.User("B11300000", isShown = false)),
+                listOf(ClassTableSwitcherEntry.Person("lin", "Lin", isShown = false)),
+                listOf(ClassTableSwitcherEntry.Others(listOf(ClassTableSwitcherEntry.Person("wen", "Wen", isShown = true)))),
             ),
             sections,
         )
