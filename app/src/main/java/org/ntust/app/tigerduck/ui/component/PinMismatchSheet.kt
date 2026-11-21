@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -120,20 +121,24 @@ fun PinMismatchHost(prompts: PinMismatchPrompts) {
         back = stringResource(R.string.action_back),
     )
     val rows = remember(shown) { certificateRows(shown, texts, locale) }
-    PinMismatchSheet(
-        host = shown.host,
-        texts = texts,
-        certificates = rows,
-        onCancel = prompts::cancel,
-        onContinue = prompts::continueToSite,
-    )
+    // A sheet of its own for each prompt: the next one after a swipe rises, not in the sheet closed.
+    key(shown) {
+        PinMismatchSheet(
+            host = shown.host,
+            texts = texts,
+            certificates = rows,
+            onCancel = prompts::cancel,
+            onContinue = prompts::continueToSite,
+            onDismiss = { prompts.dismiss(shown) },
+        )
+    }
 }
 
 /**
  * The prompt (A6): a lock-and-warning icon, the title and the message; the host and the leaf's
  * issuer; a details disclosure with the explanation and View certificate, which shows one section
  * per certificate of the validated chain; Cancel and Continue side by side, Continue in the
- * accent colour. Dismissing the sheet is a Cancel.
+ * accent colour. Closing the sheet any other way, by a swipe or Back, answers nothing ([onDismiss]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,10 +148,11 @@ fun PinMismatchSheet(
     certificates: List<PinCertificateRow>,
     onCancel: () -> Unit,
     onContinue: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     var detailsOpen by rememberSaveable(host) { mutableStateOf(false) }
     var certificatesOpen by rememberSaveable(host) { mutableStateOf(false) }
-    DetentSheet(onDismissed = onCancel) {
+    DetentSheet(onDismissed = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()

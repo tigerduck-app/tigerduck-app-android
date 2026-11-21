@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.network.tls
 
-import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -9,16 +8,12 @@ import org.junit.Test
 import org.ntust.app.tigerduck.shared.tls.PinDomain
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
-import org.ntust.app.tigerduck.util.JvmContext
 
-/** The prompt queue (TLS pins spec, A6 and D5). */
+/** The prompt queue (TLS pins spec, A6; tigerduck-app#958's Cancel and dismissal). */
 class PinMismatchPromptsTest {
 
-    private val context = JvmContext()
-    private val store = PinAcceptanceStore(context.getSharedPreferences(PinAcceptanceStore.FILE, Context.MODE_PRIVATE), 30)
-    private var now = 1_000_000L
     private val continued = mutableListOf<String>()
-    private val prompts = PinMismatchPrompts(store, { now }, onContinue = { continued += it.setId })
+    private val prompts = PinMismatchPrompts(onContinue = { continued += it.setId })
 
     private val school = PinTestChain().mismatch()
     private val library = PinTestChain(host = "api.lib.ntust.edu.tw").mismatch("library", listOf(PinDomain("api.lib.ntust.edu.tw", true)))
@@ -56,18 +51,88 @@ class PinMismatchPromptsTest {
     }
 
     @Test
-    fun `after a Cancel the set stays quiet for an hour, past the next launch`() {
+    fun `after a Cancel the next launch asks again, with no quiet period`() {
+        prompts.queue(school)
+        prompts.cancel()
+        prompts.queue(school)
+        assertNull("not again this launch", prompts.pending.value)
+
+        val nextLaunch = PinMismatchPrompts(onContinue = {})
+        nextLaunch.queue(school)
+
+        assertEquals("ntust", nextLaunch.pending.value?.setId)
+    }
+
+    @Test
+    fun `a Cancel is not undone by a browser opening`() {
         prompts.queue(school)
         prompts.cancel()
 
-        val nextLaunch = PinMismatchPrompts(store, { now }, onContinue = {})
-        now += PinAcceptanceStore.QUIET_MS - 1
-        nextLaunch.queue(school)
-        assertNull(nextLaunch.pending.value)
+        prompts.offerDismissedAgain()
+        prompts.queue(school)
 
-        now += 1
-        nextLaunch.queue(school)
-        assertEquals("ntust", nextLaunch.pending.value?.setId)
+        assertNull(prompts.pending.value)
+    }
+
+    @Test
+    fun `a prompt closed by a swipe answers no and stores nothing, and comes back once a browser opens`() {
+        prompts.queue(school)
+        val waiting = CompletableFuture.supplyAsync { prompts.awaitAnswer("ntust", 5_000) }
+        Thread.sleep(50)
+
+        prompts.dismiss(school)
+
+        assertFalse(waiting.get(5, TimeUnit.SECONDS))
+        assertNull(prompts.pending.value)
+        assertTrue(continued.isEmpty())
+        // Requests that keep failing don't bring it back the moment it closes.
+        prompts.queue(school)
+        assertNull(prompts.pending.value)
+
+        prompts.offerDismissedAgain()
+        prompts.queue(school)
+
+        assertEquals(school, prompts.pending.value)
+    }
+
+    @Test
+    fun `a browser opening brings back only what was closed unanswered, once`() {
+        prompts.queue(school)
+        prompts.dismiss(school)
+        prompts.offerDismissedAgain()
+        prompts.queue(school)
+        prompts.continueToSite()
+
+        prompts.offerDismissedAgain()
+        prompts.queue(school)
+
+        assertNull(prompts.pending.value)
+        assertEquals(listOf("ntust"), continued)
+    }
+
+    @Test
+    fun `a late close of a prompt since replaced changes nothing`() {
+        prompts.queue(school)
+        prompts.queue(library)
+        prompts.cancel()
+
+        // The sheet that showed the first goes away after the second came up.
+        prompts.dismiss(school)
+
+        assertEquals(library, prompts.pending.value)
+        prompts.offerDismissedAgain()
+        prompts.queue(school)
+        assertEquals("the Cancel stands", library, prompts.pending.value)
+    }
+
+    @Test
+    fun `closing one prompt shows the next`() {
+        prompts.queue(school)
+        prompts.queue(library)
+
+        prompts.dismiss(school)
+
+        assertEquals(library, prompts.pending.value)
     }
 
     @Test
@@ -98,7 +163,7 @@ class PinMismatchPromptsTest {
     @Test
     fun `a prompt no longer eligible stores nothing on Continue, and is skipped in the queue`() {
         var eligible = true
-        val gated = PinMismatchPrompts(store, { now }, { continued += it.setId }) { eligible }
+        val gated = PinMismatchPrompts({ continued += it.setId }) { eligible }
         gated.queue(school)
         gated.queue(library)
         val waiting = CompletableFuture.supplyAsync { gated.awaitAnswer("ntust", 5_000) }
@@ -113,12 +178,11 @@ class PinMismatchPromptsTest {
         assertFalse(skipped.get(5, TimeUnit.SECONDS))
         assertTrue(continued.isEmpty())
         assertNull(gated.pending.value)
-        assertFalse("not a Cancel: no quiet hour", store.isQuiet("ntust", now))
     }
 
     @Test
     fun `an ineligible mismatch isn't queued`() {
-        val gated = PinMismatchPrompts(store, { now }, {}) { false }
+        val gated = PinMismatchPrompts({}) { false }
 
         gated.queue(school)
 
@@ -149,7 +213,7 @@ class PinMismatchPromptsTest {
     @Test
     fun `a prompt no longer eligible when it comes to be shown is retired, and the next one shown`() {
         var eligible = setOf("ntust", "library")
-        val prompts = PinMismatchPrompts(store, { now }, onContinue = { continued += it.setId }, eligible = { it.setId in eligible })
+        val prompts = PinMismatchPrompts(onContinue = { continued += it.setId }, eligible = { it.setId in eligible })
         prompts.queue(school)
         prompts.queue(library)
 

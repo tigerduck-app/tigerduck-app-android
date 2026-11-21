@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.browser.BrowserZoom
 import org.ntust.app.tigerduck.browser.CertificateInfo
+import org.ntust.app.tigerduck.browser.CertificateRefusal
 import org.ntust.app.tigerduck.browser.UploadSource
 
 /** What the TigerDuck browser shows over or in place of the page. */
@@ -55,11 +56,20 @@ class BrowserPageState {
     var zoom by mutableIntStateOf(BrowserZoom.DEFAULT)
     var desktopSite by mutableStateOf(false)
 
+    /**
+     * Opened at the student's risk ([InAppBrowser.openAtRisk]): no page here is called secure, nothing
+     * signs in, and the zoom and desktop site stay as they start.
+     */
+    var atRisk by mutableStateOf(false)
+
     val host: String? get() = url?.toHttpUrlOrNull()?.host
     val isHttps: Boolean get() = url?.toHttpUrlOrNull()?.isHttps == true
 
     /** Whether the page's certificate was refused: then nothing calls its connection secure. */
     val certificateRefused: Boolean get() = error is BrowserError.BadCertificate
+
+    /** The refused page the student may open at their own risk, under the certificate notice. */
+    val riskRefusal: CertificateRefusal? get() = (error as? BrowserError.BadCertificate)?.refusal
 
     /** The certificate View certificate shows: the refused one while it is refused, never the page's before. */
     val shownCertificate: CertificateInfo?
@@ -75,8 +85,15 @@ sealed interface BrowserError {
     /** The page did not load: no network, a server not answering. */
     data class Unreachable(override val host: String?) : BrowserError
 
-    /** The page's [certificate] failed, when the WebView gave it; the page is never shown. */
-    data class BadCertificate(override val host: String?, val certificate: CertificateInfo? = null) : BrowserError
+    /**
+     * The page's [certificate] failed, when the WebView gave it; the page is never shown here. With a
+     * [refusal] where it may open at the student's risk, in a browser of its own.
+     */
+    data class BadCertificate(
+        override val host: String?,
+        val certificate: CertificateInfo? = null,
+        val refusal: CertificateRefusal? = null,
+    ) : BrowserError
 }
 
 /** Find in page: what is looked for, which match is on screen (from 1) and how many there are. */
