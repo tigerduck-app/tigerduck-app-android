@@ -39,13 +39,11 @@ class WidgetChangeMarksTest {
     }
 
     @Test
-    fun `a Today row marks a change in the theme's ink, but in its own text on a class in session in full color`() {
-        assertEquals(CourseChangeInkLight, todayRowInk(false, WidgetTheme.Light, tigerDuck))
-        assertEquals(CourseChangeInkDark, todayRowInk(false, WidgetTheme.Dark, tigerDuck))
-        assertEquals(Color.White, todayRowInk(true, WidgetTheme.Dark, tigerDuck))
-        // A pastel row stays light in either theme, so its ink does too.
-        assertEquals(CourseChangeInkLight, todayRowInk(true, WidgetTheme.Dark, tat))
-        assertEquals(CourseChangeInkLight, todayRowInk(false, WidgetTheme.Dark, tat))
+    fun `a Today tile marks a change in the ink its fill takes`() {
+        assertEquals(CourseChangeInkLight, widgetTile(compilers, courseColors, WidgetTheme.Light, tigerDuck).changeInk)
+        assertEquals(CourseChangeInkDark, widgetTile(compilers, courseColors, WidgetTheme.Dark, tigerDuck).changeInk)
+        // A pastel tile stays light in either theme, so its ink does too.
+        assertEquals(CourseChangeInkLight, widgetTile(compilers, courseColors, WidgetTheme.Dark, tat).changeInk)
     }
 
     @Test

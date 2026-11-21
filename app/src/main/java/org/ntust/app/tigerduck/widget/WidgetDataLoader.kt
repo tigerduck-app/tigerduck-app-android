@@ -9,6 +9,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
@@ -60,18 +61,19 @@ object WidgetDataLoader {
         // widget say "Please sign in" even though we have cached courses.
         val isLoggedIn = entry.authService().authState.value
         val person = personId?.let { WidgetClassTable.personOf(it, entry.importedClassTables().load().people) }
-        val table = widgetTable(
-            person, entry.dataCache().currentSemesterCode(), courses, isLoggedIn, entry.academicCalendar().quietDays(),
-        )
+        val semester = entry.dataCache().currentSemesterCode()
+        val table = widgetTable(person, semester, courses, isLoggedIn, entry.academicCalendar().quietDays())
+        val now = AppClock.localDateTime()
+        val term = entry.academicCalendar().current().terms.firstOrNull { it.code == semester }
         val state = state(
             courses = table.courses,
-            now = AppClock.localDateTime(),
+            now = now,
             isLoggedIn = table.isLoggedIn,
             quietDays = table.quietDays,
             changes = entry.courseChangeStore().current(),
             courseNameScale = entry.appPreferences().courseNameScale,
             courseColors = table.courseColors,
-        )
+        ).copy(termWeek = term?.let { termWeek(it, now.toLocalDate()) })
         val customCount = courses.count { it.customColorHex != null }
         Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${state.courseColors.size} color assignments")
         courses.filter { it.customColorHex != null }.forEach { c ->
@@ -116,6 +118,7 @@ object WidgetDataLoader {
             courses, minute, ongoing.map { it.course.courseNo }, changes,
         )
         val tomorrowFirst = computeTomorrowFirst(courses, today, quietDays, changes)
+        val upNext = if (quietToday) null else computeUpNext(courses, minute, ongoing.firstOrNull() ?: nextToday, changes)
 
         return WidgetState(
             courses = courses,
@@ -134,7 +137,34 @@ object WidgetDataLoader {
             courseNameScale = courseNameScale,
             today = today,
             courseChanges = changes,
+            upNextBlock = upNext,
         )
+    }
+
+    /**
+     * The class after [shown], the one going on at [now] or else the next today: the first other
+     * class today, not cancelled, not over at [shown]'s start, or at [now] while it is on. As iOS
+     * `WidgetTimelineDerivation.upNext`, whose `nowAndNext` this is at that time.
+     */
+    internal fun computeUpNext(courses: List<Course>, now: Instant, shown: CourseBlock?, changes: CourseChanges): CourseBlock? {
+        shown ?: return null
+        val day = now.atZone(TaipeiClock.zone).toLocalDate()
+        val from = parseHm(shown.startTime)?.let { day.atStartOfDay(TaipeiClock.zone).plusMinutes(it.toLong()).toInstant() }
+            ?.takeIf { it.isAfter(now) } ?: now
+        return ClassTimeline.meetings(courses, day, changes)
+            .filter { !it.isCancelled && it.endsAt.isAfter(from) }
+            .map(CourseBlock::of)
+            .firstOrNull { !it.isSameBlock(shown) }
+    }
+
+    /**
+     * [term]'s week on [day], counting from 1 from the Monday of the week it starts in; null on a
+     * day outside it. As iOS `QuietDayCalendar.Span.week`.
+     */
+    internal fun termWeek(term: SemesterTerm, day: LocalDate): Int? {
+        if (!term.contains(day)) return null
+        val monday = term.start.minusDays(term.start.dayOfWeek.value - 1L)
+        return (ChronoUnit.DAYS.between(monday, day) / 7).toInt() + 1
     }
 
     internal data class TomorrowFirst(

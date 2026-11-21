@@ -1381,30 +1381,18 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/NextClassContent.kt",
     "kind": "long-file",
-    "count": 650
+    "count": 518
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/NextClassContent.kt",
     "kind": "long-function",
     "name": "CompactLayout(WidgetState, WidgetColors, Action)",
-    "lines": 169
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/NextClassContent.kt",
-    "kind": "long-function",
-    "name": "FullLayout(WidgetState, WidgetColors, Action)",
-    "lines": 81
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/TodayListContent.kt",
-    "kind": "long-function",
-    "name": "TodayListContent(WidgetState, WidgetColors, VisualStylePolicy, Action)",
-    "lines": 160
+    "lines": 158
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
     "kind": "long-file",
-    "count": 834
+    "count": 672
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
@@ -1416,7 +1404,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
     "kind": "long-function",
     "name": "WeekGridContent(WidgetState, WidgetColors, VisualStylePolicy, Action)",
-    "lines": 150
+    "lines": 127
   },
   {
     "path": "shared/src/main/java/org/ntust/app/tigerduck/shared/LibraryCredentialStore.kt",

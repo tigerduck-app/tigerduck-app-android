@@ -54,11 +54,11 @@ abstract class BaseClassTableWidget(
     /** Whether the widget shows the class table chosen for it ([WidgetClassTable]): Next Class shows the user's own. */
     internal val showsChosenTable: Boolean get() = layout != WidgetLayout.NextClass
 
-    // SizeMode.Exact lets layouts read LocalSize.current (used by Week and
-    // NextClass for responsive variants). Today doesn't read LocalSize and
-    // switches to SizeMode.Single so RemoteViews fill match_parent — works
-    // around launchers (e.g. Motorola g34 stock) that report a smaller
-    // OPTION_APPWIDGET_MIN_HEIGHT than the actual host cell allocation.
+    // SizeMode.Exact lets layouts read LocalSize.current, for their responsive
+    // variants: Today's medium and large lists, Week's dates, Next Class's
+    // compact card. Every layout still fills match_parent, so a launcher that
+    // reports a smaller OPTION_APPWIDGET_MIN_HEIGHT than the cells it gives
+    // (the Motorola g34's) costs a Today widget rows, not its fill.
     override val sizeMode: SizeMode = sizeMode
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -80,8 +80,8 @@ abstract class BaseClassTableWidget(
             // The interface style, for the Week grid, which draws as the class table
             // does, and the Today list's course colors.
             val style = VisualStylePolicy(prefs.visualPreset)
-            // The widget sizes picked on the Display and text size page.
-            val scale = WidgetScale.of(prefs)
+            // The widget sizes picked on the Display and text size page, the phone's font size capped.
+            val scale = WidgetScale.of(prefs).capped(context.resources.configuration.fontScale)
 
             var state by remember { mutableStateOf<WidgetState?>(null) }
             LaunchedEffect(tick, personId) {

@@ -22,7 +22,8 @@ import javax.inject.Singleton
 /**
  * Arms the alarm that redraws the class widgets at the next class boundary:
  * a start or end of today's classes, the school's changed ones included, or
- * the first of the next day with a class.
+ * the first of the next day with a class; and, while class widgets are placed,
+ * the one that redraws them every few minutes through today's class hours.
  */
 @Singleton
 class WidgetBoundaryScheduler internal constructor(
@@ -39,7 +40,11 @@ class WidgetBoundaryScheduler internal constructor(
         courseChangeStore: CourseChangeStore,
     ) : this(context, academicCalendar, courseChangeStore::current)
 
-    fun scheduleForToday(courses: List<Course>) {
+    /**
+     * Arms the next boundary of [courses], and, with [ticking], the next tick of today's class
+     * hours (see [armTick]).
+     */
+    fun scheduleForToday(courses: List<Course>, ticking: Boolean = false) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         val pi = makePendingIntent()
         alarmManager.cancel(pi)
@@ -49,6 +54,7 @@ class WidgetBoundaryScheduler internal constructor(
         val nowMinute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = AppClock.localDateTime().toLocalDate()
         val changes = courseChanges()
+        armTick(alarmManager, if (ticking) courses else emptyList(), today, nowMinute, changes)
 
         val nextTodayMinute = nextBoundaryMinuteAfter(courses, weekday, nowMinute, today, changes)
         val triggerCal = if (nextTodayMinute != null) {
@@ -102,6 +108,27 @@ class WidgetBoundaryScheduler internal constructor(
         }
     }
 
+    /**
+     * Redraws the widgets at the next [WidgetDayRows.TICK_MINUTES] of today's class hours, for
+     * their progress bars and the Next Class countdown, as iOS adds those entries to its
+     * timelines. Not a wakeup: a tick due while the phone sleeps waits until it wakes, when the
+     * widgets can be seen again, so it costs nothing while the screen is off. Nothing on a quiet
+     * day, nor for no [courses].
+     */
+    private fun armTick(alarmManager: AlarmManager, courses: List<Course>, today: LocalDate, nowMinute: Int, changes: CourseChanges) {
+        val pi = makePendingIntent(ACTION_TICK, TICK_REQUEST_CODE)
+        alarmManager.cancel(pi)
+        if (courses.isEmpty() || today in academicCalendar.quietDays()) return
+        val minute = nextTickMinute(courses, today, nowMinute, changes) ?: return
+        val at = AppClock.calendar().apply {
+            set(Calendar.HOUR_OF_DAY, minute / 60)
+            set(Calendar.MINUTE, minute % 60)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        alarmManager.setWindow(AlarmManager.RTC, AppClock.realTimeFor(at.timeInMillis), TICK_WINDOW_MS, pi)
+    }
+
     private fun firstBoundaryOnOrAfterTomorrow(
         courses: List<Course>,
         fromWeekday: Int,
@@ -123,11 +150,11 @@ class WidgetBoundaryScheduler internal constructor(
         return null
     }
 
-    private fun makePendingIntent(): PendingIntent {
+    private fun makePendingIntent(action: String = ACTION_BOUNDARY, requestCode: Int = REQUEST_CODE): PendingIntent {
         val intent = Intent(context, WidgetBoundaryReceiver::class.java)
-            .setAction(ACTION_BOUNDARY)
+            .setAction(action)
         return PendingIntent.getBroadcast(
-            context, REQUEST_CODE, intent,
+            context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
@@ -141,6 +168,17 @@ class WidgetBoundaryScheduler internal constructor(
     companion object {
         internal const val ACTION_BOUNDARY = "org.ntust.app.tigerduck.WIDGET_BOUNDARY"
         internal const val REQUEST_CODE = 9001
+        internal const val ACTION_TICK = "org.ntust.app.tigerduck.WIDGET_TICK"
+        internal const val TICK_REQUEST_CODE = 9002
+
+        /** How late a tick may come, so the system can batch it with other work. */
+        private const val TICK_WINDOW_MS = 60_000L
+
+        /** The next tick after [minute] of [day]'s class hours, from [courses] under the school's [changes]. */
+        internal fun nextTickMinute(courses: List<Course>, day: LocalDate, minute: Int, changes: CourseChanges): Int? {
+            val blocks = courses.flatMap { CourseBlock.on(it, day, changes) }.sortedBy { parseHm(it.startTime) ?: Int.MAX_VALUE }
+            return WidgetDayRows.nextTick(WidgetDayRows.rows(blocks, minute), minute)
+        }
 
         /**
          * Earlier of the next class boundary and the next 開學 / 結業 flip.
