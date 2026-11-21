@@ -27,7 +27,8 @@ import java.util.Date
  * them ([ClassTimeline]), as iOS's `CourseTimelineResolver`
  * builds its timeline from them: a cancelled class is passed over like a
  * skipped one, and the rest run at their changed times in their changed
- * rooms.
+ * rooms, online ones in `online`'s, and a class with an assessment says so,
+ * as iOS's Live Activity starts do.
  */
 class LiveActivityResolver {
 
@@ -39,6 +40,8 @@ class LiveActivityResolver {
         accentHex: Int,
         now: Date = Date(),
         changes: CourseChanges = CourseChanges.EMPTY,
+        /** `course_change_online` in the app's language, the room of a class held online. */
+        online: String,
     ): LiveActivitySnapshot? {
         if (!preferences.isEnabled) return null
 
@@ -57,7 +60,7 @@ class LiveActivityResolver {
         }
 
         if (preferences.showInClass && current != null) {
-            return inClassSnapshot(current, now, accentHex)
+            return inClassSnapshot(current, now, accentHex, online)
         }
 
         if (preferences.showClassPreparing) {
@@ -66,7 +69,7 @@ class LiveActivityResolver {
             if (upcoming != null) {
                 val secUntil = (upcoming.start.time - now.time) / 1000
                 if (secUntil <= preferences.classPreparingLeadTimeSec) {
-                    return classPreparingSnapshot(upcoming, accentHex)
+                    return classPreparingSnapshot(upcoming, accentHex, online)
                 }
             }
         }
@@ -103,10 +106,13 @@ class LiveActivityResolver {
         val end: Date get() = Date.from(slot.endsAt)
 
         /**
-         * Its room, the changed one included: a course meeting twice a day
-         * can switch rooms in between.
+         * Its room, the changed one included, [online] for a class held
+         * online: a course meeting twice a day can switch rooms in between.
          */
-        val classroom: String get() = slot.room
+        fun classroom(online: String): String = slot.room(online)
+
+        /** Whether the class has an assessment, which its title marks. */
+        val isAssessment: Boolean get() = slot.assessment != null
     }
 
     /**
@@ -142,7 +148,7 @@ class LiveActivityResolver {
         return courses.filterNot { skipped(it, today) }
     }
 
-    private fun inClassSnapshot(slot: Slot, now: Date, accentHex: Int): LiveActivitySnapshot {
+    private fun inClassSnapshot(slot: Slot, now: Date, accentHex: Int, online: String): LiveActivitySnapshot {
         val total = (slot.end.time - slot.start.time).coerceAtLeast(1L)
         val elapsed = (now.time - slot.start.time).coerceAtLeast(0L)
         val progress = (elapsed.toDouble() / total.toDouble()).coerceIn(0.0, 1.0)
@@ -150,7 +156,7 @@ class LiveActivityResolver {
             scenario = LiveActivityScenario.IN_CLASS,
             title = slot.course.displayName,
             subtitle = formatTimeRange(slot.start, slot.end),
-            locationText = slot.classroom.ifBlank { null },
+            locationText = slot.classroom(online).ifBlank { null },
             instructor = slot.course.instructor.ifBlank { null },
             countdownTarget = slot.end,
             progress = progress,
@@ -158,21 +164,23 @@ class LiveActivityResolver {
             sourceId = "class-${slot.course.courseNo}-${slot.periods.firstOrNull()}",
             link = AppLink.ClassTable,
             duringClass = true,
+            assessment = slot.isAssessment,
         )
     }
 
-    private fun classPreparingSnapshot(slot: Slot, accentHex: Int): LiveActivitySnapshot =
+    private fun classPreparingSnapshot(slot: Slot, accentHex: Int, online: String): LiveActivitySnapshot =
         LiveActivitySnapshot(
             scenario = LiveActivityScenario.CLASS_PREPARING,
             title = slot.course.displayName,
             subtitle = formatTimeRange(slot.start, slot.end),
-            locationText = slot.classroom.ifBlank { null },
+            locationText = slot.classroom(online).ifBlank { null },
             instructor = slot.course.instructor.ifBlank { null },
             countdownTarget = slot.start,
             progress = null,
             accentHex = accentHex,
             sourceId = "prep-${slot.course.courseNo}-${slot.periods.firstOrNull()}",
             link = AppLink.ClassTable,
+            assessment = slot.isAssessment,
         )
 
     private fun assignmentSnapshot(a: Assignment, accentHex: Int, duringClass: Boolean): LiveActivitySnapshot =

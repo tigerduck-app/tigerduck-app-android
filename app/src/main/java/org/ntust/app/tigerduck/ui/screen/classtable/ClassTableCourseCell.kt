@@ -56,6 +56,7 @@ import androidx.compose.ui.window.Dialog
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.component.CourseName
 import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize
@@ -109,14 +110,14 @@ internal fun SoloCourseCell(
     val blockShape = RoundedCornerShape(if (tiles) PERIOD_TILE_CORNER else 6.dp)
     var showMenu by remember { mutableStateOf(false) }
     val cancelledLabel = stringResource(R.string.course_card_cancelled)
+    val online = stringResource(R.string.course_change_online)
     val locale = LocalConfiguration.current.locales[0]
-    val cellLabel = classTableCellLabels()
-        .label(
-            course, weekday, periodId, hasAssignment, assignmentsIgnored,
-            room = change?.takeIf { it.hasChangedRoom }?.room,
-        )
-        .let { label -> change?.let { label + spokenChanges(it, cancelledLabel, locale) } ?: label }
-    val bottomLine = blockBottomLine(change, roomHint, showsRooms, cancelledLabel)
+    val isAssessment = change?.assessment != null
+    val cellLabel = classTableCellLabels().label(
+        course, weekday, periodId, hasAssignment, assignmentsIgnored,
+        room = change?.takeIf { it.hasChangedRoom }?.room(online), isAssessment = isAssessment,
+    ).let { label -> change?.let { label + spokenChanges(it, cancelledLabel, locale) } ?: label }
+    val bottomLine = blockBottomLine(change, roomHint, showsRooms, cancelledLabel, online)
     val timeLine = change?.takeIf { !cancelled }?.let(::changedTimeText)
     // A notch under the course name, so the name keeps the visual weight:
     // the room is a reminder, not a second title.
@@ -158,7 +159,7 @@ internal fun SoloCourseCell(
     ) {
         if (tiles) {
             ClassTablePeriodTiles(
-                name = course.displayName,
+                name = course.displayName, isAssessment = isAssessment,
                 spanCount = spanCount,
                 cellHeight = cellHeight,
                 fill = cellBg,
@@ -176,7 +177,7 @@ internal fun SoloCourseCell(
             )
         } else {
             ClassTableCourseNameText(
-                text = course.displayName,
+                text = course.displayName, isAssessment = isAssessment,
                 color = cellTextColor,
                 textDecoration = nameDecoration,
                 maxLines = if (spanCount >= 2) 3 else 2,
@@ -292,13 +293,13 @@ internal fun SoloCourseCell(
 internal data class BlockLine(val text: String, val moved: Boolean, val cancelled: Boolean)
 
 /**
- * The cancellation whether or not rooms show, else a moved room where they do, though the
- * timetable named none; else the room hint.
+ * The cancellation whether or not rooms show, else a moved room, or [online] for a class held
+ * online, where they do, though the timetable named none; else the room hint.
  */
-internal fun blockBottomLine(change: ClassSlot?, roomHint: String?, showsRooms: Boolean, cancelled: String): BlockLine? =
+internal fun blockBottomLine(change: ClassSlot?, roomHint: String?, showsRooms: Boolean, cancelled: String, online: String): BlockLine? =
     when {
         change?.isCancelled == true -> BlockLine(cancelled, moved = false, cancelled = true)
-        change?.hasChangedRoom == true && showsRooms -> BlockLine(change.room, moved = true, cancelled = false)
+        change?.hasChangedRoom == true && showsRooms -> BlockLine(change.room(online), moved = true, cancelled = false)
         else -> roomHint?.let { BlockLine(it, moved = false, cancelled = false) }
     }
 
@@ -319,11 +320,8 @@ internal fun changedTimeText(meeting: ClassSlot): String? = when {
  * cancellation or the new time, then the notes.
  */
 internal fun spokenChanges(meeting: ClassSlot, cancelled: String, locale: java.util.Locale): String {
-    val parts = if (meeting.isCancelled) {
-        listOf(cancelled)
-    } else {
-        listOfNotNull("${hm(meeting.start)} - ${hm(meeting.end)}".takeIf { meeting.hasChangedTime })
-    }
+    val time = "${hm(meeting.start)} - ${hm(meeting.end)}".takeIf { meeting.hasChangedTime }
+    val parts = if (meeting.isCancelled) listOf(cancelled) else listOfNotNull(time)
     return (parts + meeting.notes.mapNotNull { it.note(locale) }).joinToString("") { ". $it" }
 }
 
@@ -418,11 +416,13 @@ internal fun ClassTableCourseNameText(
     modifier: Modifier = Modifier,
     /** A line through the name, as for a cancelled class. */
     textDecoration: TextDecoration? = null,
+    /** Whether the class has an assessment that day, which dashes a line under the name; see [CourseName]. */
+    isAssessment: Boolean = false,
 ) {
     val useMiddle = isEnglishUiLanguage()
     var displayText by remember(text, useMiddle) { mutableStateOf(text) }
-    Text(
-        text = displayText,
+    CourseName(
+        text = displayText, isAssessment = isAssessment,
         style = MaterialTheme.typography.labelSmall,
         color = color,
         textAlign = TextAlign.Center,
@@ -434,9 +434,9 @@ internal fun ClassTableCourseNameText(
         onTextLayout = { layout ->
             if (!useMiddle) {
                 if (displayText != text) displayText = text
-                return@Text
+                return@CourseName
             }
-            if (!layout.hasVisualOverflow || layout.lineCount == 0) return@Text
+            if (!layout.hasVisualOverflow || layout.lineCount == 0) return@CourseName
             val capacity = layout.getLineEnd(layout.lineCount - 1, visibleEnd = true)
             val next = middleEllipsize(text, capacity.coerceAtLeast(5))
             if (next != displayText) displayText = next

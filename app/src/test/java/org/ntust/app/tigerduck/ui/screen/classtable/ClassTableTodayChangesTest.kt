@@ -44,7 +44,7 @@ class ClassTableTodayChangesTest {
         val now = ongoing(CourseChanges.EMPTY, "10:30", listOf(twiceOnMonday), LocalDate.of(2026, 11, 2)).single()
 
         assertEquals(listOf("3", "4"), now.periods)
-        assertEquals("TR-313", now.room)
+        assertEquals("TR-313", now.room("Online"))
     }
 
     @Test
@@ -55,7 +55,7 @@ class ClassTableTodayChangesTest {
         )
 
         val now = ongoing(changes, "10:30").single()
-        assertEquals(morning to "TR-313", now.periods to now.room)
+        assertEquals(morning to "TR-313", now.periods to now.room("Online"))
         assertTrue(now.hasChangedRoom)
         assertTrue(ongoing(changes, "14:30").isEmpty())
         assertEquals(1, ongoing(CourseChanges.EMPTY, "14:30").size)
@@ -119,7 +119,7 @@ class ClassTableTodayChangesTest {
         val card = card(changes, "08:00")
         assertEquals(morning, card.periods)
         val meeting = requireNotNull(card.meeting)
-        assertEquals("TR-313", meeting.room)
+        assertEquals("TR-313", meeting.room("Online"))
         assertEquals(LocalTime.of(9, 10) to LocalTime.of(11, 40), meeting.start to meeting.end)
         assertEquals("the morning ends at its changed end", listOf("7", "8"), card(changes, "11:45").periods)
         assertNull("the afternoon has no change", card(changes, "11:45").meeting)

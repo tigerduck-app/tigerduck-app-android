@@ -172,7 +172,7 @@ class LiveActivityNotifier @Inject constructor(
         // accent still drives the watch, which reads it from prefs via
         // WearScheduleBridge, not from here.
         val builder = context.brandedNotification(CHANNEL_ID, skin = deviceSkin)
-            .setContentTitle(snapshot.title)
+            .setContentTitle(liveUpdateTitle(snapshot, localized))
             .setContentText(statusLine(snapshot, localized))
             .setContentIntent(contentIntent)
             .setOngoing(true)
@@ -409,7 +409,7 @@ class LiveActivityNotifier @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun localizedContext(): Context {
+    internal fun localizedContext(): Context {
         val language = appPreferences.appLanguage
         localized?.let { (cachedFor, cached) -> if (cachedFor == language) return cached }
         return AppLanguageManager.localizedContext(context, language)

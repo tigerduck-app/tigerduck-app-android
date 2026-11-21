@@ -67,4 +67,29 @@ data class ClassTableWeek(val today: LocalDate, val changes: CourseChanges) {
     /** The block of [course]'s [periods] on [weekday]'s date as the school changed it; null when it changed nothing. */
     fun meeting(course: Course, weekday: Int, periods: List<String>): ClassSlot? =
         CourseMeetings.meeting(course, periods, date(weekday), changes)?.takeIf { it.changes.isNotEmpty() }
+
+    /**
+     * What the slot of [role] on [weekday] shows of the school's changes, [periods] being the
+     * table's periods from the slot's own. A solo block shows its changed meeting; a 衝堂 cluster,
+     * whose lanes follow the timetable's spans, keeps the weekly look but for its courses'
+     * assessments, as on iOS.
+     */
+    fun marks(role: CellRole, weekday: Int, periods: List<String>): SlotMarks {
+        fun assessed(course: Course, offset: Int): Boolean =
+            periods.getOrNull(offset)?.let { meeting(course, weekday, listOf(it))?.assessment != null } == true
+        return when (role) {
+            is CellRole.SoloStart -> SlotMarks(change = meeting(role.course, weekday, periods.take(role.spanCount)))
+            is CellRole.ConflictStart -> SlotMarks(
+                assessed = listOf(role.courseA to role.offsetA, role.courseB to role.offsetB)
+                    .filter { (course, offset) -> assessed(course, offset) }.mapTo(HashSet()) { it.first.courseNo },
+            )
+            is CellRole.MultiConflictStart -> SlotMarks(
+                assessed = role.members.filter { assessed(it.course, it.offset) }.mapTo(HashSet()) { it.course.courseNo },
+            )
+            CellRole.Empty, CellRole.Skip -> SlotMarks()
+        }
+    }
 }
+
+/** A class table slot's course changes: a solo block's changed meeting, or the assessed courses of a 衝堂 cluster. */
+data class SlotMarks(val change: ClassSlot? = null, val assessed: Set<String> = emptySet())

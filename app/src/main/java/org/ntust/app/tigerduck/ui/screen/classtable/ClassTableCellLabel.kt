@@ -8,8 +8,9 @@ import org.ntust.app.tigerduck.util.replaceIosArg
 
 /**
  * What TalkBack reads for a course's tile in the class table: the weekday and
- * period first, then the course, the room and its assignment marks, as iOS
- * reads `a11y_timetable_cell`. Without the day and period the same course on
+ * period first, then the course, `course_change_assessment` for a class with
+ * an assessment, the room and its assignment marks, as iOS reads
+ * `a11y_timetable_cell` and `spokenCourse`. Without the day and period the same course on
  * Monday and Wednesday sounded identical.
  *
  * Built from [classTableCellLabels], so each cell resolves its strings
@@ -22,6 +23,7 @@ internal class ClassTableCellLabels(
     private val conflictPrefix: String,
     private val assignment: String,
     private val ignored: String,
+    private val assessment: String,
 ) {
     /**
      * The label of [course]'s tile on [weekday] starting at [periodId]. Without a period, the
@@ -37,9 +39,12 @@ internal class ClassTableCellLabels(
         conflict: Boolean = false,
         /** The room the school moved the class to, read instead of the timetable's. */
         room: String? = null,
+        /** Whether the class has an assessment that day, read right after the course. */
+        isAssessment: Boolean = false,
     ): String {
         val spoken = buildString {
             append(course.displayName)
+            if (isAssessment) append(", ").append(assessment)
             // The room of this slot, as tapping it shows, not every room the
             // course meets in that day.
             val room = room ?: if (periodId != null) course.classroom(weekday, periodId) else course.classroom(weekday)
@@ -74,4 +79,5 @@ internal fun classTableCellLabels(): ClassTableCellLabels = ClassTableCellLabels
     conflictPrefix = stringResource(R.string.a11y_class_table_conflict_prefix),
     assignment = stringResource(R.string.a11y_class_table_cell_assignment_indicator),
     ignored = stringResource(R.string.a11y_class_table_cell_assignments_ignored),
+    assessment = stringResource(R.string.course_change_assessment),
 )

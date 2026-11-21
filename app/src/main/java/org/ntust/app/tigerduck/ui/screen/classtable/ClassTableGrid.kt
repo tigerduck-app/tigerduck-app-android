@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.clubs.ClubOccurrence
-import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
@@ -161,19 +160,13 @@ internal fun TimetableGrid(
                         } else {
                             null
                         }
-                        // Solo blocks only, as on iOS: a 衝堂 cluster keeps the weekly look.
-                        val change = if (thisWeek != null && role is CellRole.SoloStart) {
-                            thisWeek.meeting(
-                                role.course, weekday, periods.drop(periodIndex).take(role.spanCount).map { it.id },
-                            )
-                        } else {
-                            null
-                        }
+                        // A 衝堂 cluster keeps the weekly look but for its assessments, as on iOS.
+                        val marks = thisWeek?.marks(role, weekday, periods.drop(periodIndex).map { it.id }) ?: SlotMarks()
 
                         key(weekday, period.id) {
                             CourseSlotFade(
                                 target = SlotCourses(
-                                    role, roomHint, courseNosWithAssignments, courseNosIgnoringAssignments, change,
+                                    role, roomHint, courseNosWithAssignments, courseNosIgnoringAssignments, marks,
                                 ),
                                 key = { ClassTableCellLayout.contentKey(it.role, it.roomHint) },
                                 modifier = Modifier.absoluteOffset(x = x, y = y),
@@ -197,7 +190,7 @@ internal fun TimetableGrid(
                                     onToggleIgnoreAssignments = onToggleIgnoreAssignments,
                                     onDelete = onDelete,
                                     onPickConflict = onPickConflict,
-                                    change = slot.change,
+                                    marks = slot.marks,
                                     showsRooms = showRoomHints,
                                 )
                             }
@@ -237,8 +230,8 @@ private data class SlotCourses(
     val roomHint: String?,
     val withAssignments: Set<String>,
     val ignoringAssignments: Set<String>,
-    /** A solo block as the school changed it on its column's date. */
-    val change: ClassSlot? = null,
+    /** A solo block as the school changed it on its column's date, or a cluster's assessed courses. */
+    val marks: SlotMarks = SlotMarks(),
 )
 
 /** The courses that start in one slot, drawn from the slot's own corner; the grid places it. */
@@ -263,7 +256,7 @@ private fun CourseSlot(
     onToggleIgnoreAssignments: ((Course) -> Unit)?,
     onDelete: (Course) -> Unit,
     onPickConflict: (Course, Course, Int, String) -> Unit,
-    change: ClassSlot?,
+    marks: SlotMarks,
     showsRooms: Boolean,
 ) {
     when (role) {
@@ -286,7 +279,7 @@ private fun CourseSlot(
             onPickColor = onPickColor,
             onToggleIgnoreAssignments = onToggleIgnoreAssignments,
             onDelete = onDelete,
-            change = change,
+            change = marks.change,
             showsRooms = showsRooms,
         )
 
@@ -298,10 +291,8 @@ private fun CourseSlot(
             y = 0.dp,
             weekday = weekday,
             periodId = periodId,
-            clusterPeriods = periods
-                .drop(periodIndex)
-                .take(role.combinedSpan)
-                .map { it.id },
+            clusterPeriods = periods.drop(periodIndex).take(role.combinedSpan).map { it.id },
+            assessed = marks.assessed,
             hasAssignmentA = role.courseA.courseNo in courseNosWithAssignments,
             hasAssignmentB = role.courseB.courseNo in courseNosWithAssignments,
             assignmentsIgnoredA = role.courseA.courseNo in courseNosIgnoringAssignments,
@@ -322,6 +313,7 @@ private fun CourseSlot(
             x = 0.dp,
             y = 0.dp,
             weekday = weekday,
+            assessed = marks.assessed,
             hasAssignment = { courseNo -> courseNo in courseNosWithAssignments },
             assignmentsIgnored = { courseNo -> courseNo in courseNosIgnoringAssignments },
             outlineRequired = outlineRequiredCourses,

@@ -16,6 +16,9 @@ import java.time.LocalTime
 object CourseChangeFixture {
     val thursday: LocalDate = LocalDate.of(2026, 11, 5)
 
+    /** What the tests write for an online class's room, where the app writes `course_change_online`. */
+    const val ONLINE = "Online"
+
     fun time(text: String): LocalTime = LocalTime.parse(text)
 
     fun at(text: String, day: LocalDate = thursday): Instant =

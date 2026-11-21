@@ -76,6 +76,8 @@ internal fun ConflictCourseCell(
      * the period its own block starts at and that period's room. Empty names [periodId] for both.
      */
     clusterPeriods: List<String> = emptyList(),
+    /** The courses with an assessment on the column's date, whose names are marked; see [ClassTableWeek.marks]. */
+    assessed: Set<String> = emptySet(),
     hasAssignmentA: Boolean,
     hasAssignmentB: Boolean,
     assignmentsIgnoredA: Boolean,
@@ -162,15 +164,10 @@ internal fun ConflictCourseCell(
             val bBarFraction = (soloBelowB + 0.5f * (1f - soloAboveB - soloBelowB))
                 .coerceAtLeast(0.1f)
             val labels = classTableCellLabels()
-            fun cellLabel(course: Course, offset: Int, hasAssignment: Boolean, assignmentsIgnored: Boolean) =
-                labels.label(
-                    course,
-                    weekday,
-                    clusterPeriods.getOrNull(offset) ?: periodId,
-                    hasAssignment,
-                    assignmentsIgnored,
-                    conflict = true,
-                )
+            fun cellLabel(course: Course, offset: Int, hasAssignment: Boolean, assignmentsIgnored: Boolean) = labels.label(
+                course, weekday, clusterPeriods.getOrNull(offset) ?: periodId, hasAssignment, assignmentsIgnored,
+                conflict = true, isAssessment = course.courseNo in assessed,
+            )
 
             val labelA = cellLabel(cellRole.courseA, cellRole.offsetA, hasAssignmentA, assignmentsIgnoredA)
             val labelB = cellLabel(cellRole.courseB, cellRole.offsetB, hasAssignmentB, assignmentsIgnoredB)
@@ -214,7 +211,7 @@ internal fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = cellRole.courseA.displayName,
+                        text = cellRole.courseA.displayName, isAssessment = cellRole.courseA.courseNo in assessed,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -269,7 +266,7 @@ internal fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = cellRole.courseB.displayName,
+                        text = cellRole.courseB.displayName, isAssessment = cellRole.courseB.courseNo in assessed,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -333,6 +330,8 @@ internal fun MultiConflictCourseCell(
     x: androidx.compose.ui.unit.Dp,
     y: androidx.compose.ui.unit.Dp,
     weekday: Int,
+    /** The courses with an assessment on the column's date, whose names are marked; see [ClassTableWeek.marks]. */
+    assessed: Set<String> = emptySet(),
     hasAssignment: (String) -> Boolean,
     assignmentsIgnored: (String) -> Boolean,
     /** Whether a required course's lane is outlined; see [AppPreferences.outlineRequiredCourses]. */
@@ -410,7 +409,7 @@ internal fun MultiConflictCourseCell(
                         contentAlignment = AbsoluteAlignment.TopLeft,
                     ) {
                         ClassTableCourseNameText(
-                            text = member.course.displayName,
+                            text = member.course.displayName, isAssessment = member.course.courseNo in assessed,
                             color = textColor,
                             maxLines = if (runs[labelRun].rowCount >= 2) 3 else 2,
                             modifier = Modifier
@@ -448,12 +447,8 @@ internal fun MultiConflictCourseCell(
                                         if (index == labelRun) {
                                             Modifier.semantics(mergeDescendants = true) {
                                                 contentDescription = labels.label(
-                                                    member.course,
-                                                    weekday,
-                                                    member.firstPeriodId,
-                                                    hasAssignmentForMember,
-                                                    ignoredForMember,
-                                                    conflict = true,
+                                                    member.course, weekday, member.firstPeriodId, hasAssignmentForMember, ignoredForMember,
+                                                    conflict = true, isAssessment = member.course.courseNo in assessed,
                                                 )
                                                 role = Role.Button
                                             }

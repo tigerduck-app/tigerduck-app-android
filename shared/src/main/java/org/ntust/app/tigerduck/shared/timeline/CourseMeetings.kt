@@ -60,22 +60,35 @@ data class ClassSlot(
 
     val notes: List<CourseChange> get() = changes.filter { it.kind == Kind.NOTE }
 
-    val hasChangedRoom: Boolean get() = changes.any { it.kind == Kind.ROOM }
+    /** The class's assessment, which marks its course name; none for a cancelled class, as on iOS. */
+    val assessment: CourseChange? get() = if (isCancelled) null else changes.firstOrNull { it.kind == Kind.ASSESSMENT }
+
+    /** The change that moves the class online, which shows in place of its room. */
+    val online: CourseChange? get() = changes.firstOrNull { it.kind == Kind.ONLINE }
+
+    /** Whether the school moved the class to another room or online. */
+    val hasChangedRoom: Boolean get() = changes.any { it.kind == Kind.ROOM || it.kind == Kind.ONLINE }
 
     val hasChangedTime: Boolean get() = originalStart != null || originalEnd != null || innerTimesChanged
 
     /**
-     * The changed room, else the timetable's room for these periods. A merged meeting moved to
-     * other rooms over different periods names each, in period order, where iOS names only the
-     * first.
+     * The places the school moved this class to, in period order and each once: a moved room, or
+     * [online] for a period held online, which a null [online] leaves out. Empty when none moved.
      */
-    val room: String
-        get() = periods
-            .mapNotNull { period -> changes.firstOrNull { it.kind == Kind.ROOM && it.covers(period) }?.room }
-            .distinct()
-            .joinToString(", ")
-            .ifEmpty { course.blockClassroom(weekday, periods) }
+    fun movedRooms(online: String?): List<String> =
+        periods.mapNotNull { period -> placeChange(changes, period)?.let { if (it.kind == Kind.ONLINE) online else it.room } }.distinct()
+
+    /**
+     * The changed room, [online] for a class held online, else the timetable's room for these
+     * periods. A merged meeting moved to other rooms over different periods names each, in period
+     * order, where iOS names only the first.
+     */
+    fun room(online: String): String = movedRooms(online).joinToString(", ").ifEmpty { course.blockClassroom(weekday, periods) }
 }
+
+/** The change that says where [period] is held, a room or online: the first, as the feed's newest wins. */
+private fun placeChange(changes: List<CourseChange>, period: String): CourseChange? =
+    changes.firstOrNull { (it.kind == Kind.ROOM || it.kind == Kind.ONLINE) && it.covers(period) }
 
 /** A day with changes and its changed meetings. Ported from iOS `CourseTimeSlot.upcomingChanges`. */
 data class ChangedDay(val day: LocalDate, val meetings: List<ClassSlot>)
@@ -84,10 +97,11 @@ data class ChangedDay(val day: LocalDate, val meetings: List<ClassSlot>)
  * A course's meetings on a day under the school's changes, and the classes they split into.
  *
  * A meeting is one run of consecutive timetable periods. A new start or end moves the meeting as a
- * whole; a cancellation or a room covers only its own periods, so a meeting splits into fragments
- * where those differ. The time surfaces (Home, widgets, Live Activity) run on fragments, so part of
- * a meeting can be cancelled while the rest still meets; the class table and the course detail show
- * the merged meeting, cancelled only when every period is. Ported from iOS `CourseTimeSlot`.
+ * whole; a cancellation, a room or an online class covers only its own periods, so a meeting splits
+ * into fragments where those differ. The time surfaces (Home, widgets, Live Activity) run on
+ * fragments, so part of a meeting can be cancelled while the rest still meets; the class table and
+ * the course detail show the merged meeting, cancelled only when every period is. Ported from iOS
+ * `CourseTimeSlot`.
  */
 object CourseMeetings {
     /** No class skipped by the user. */
@@ -132,7 +146,11 @@ object CourseMeetings {
             .mapNotNull { merged(listOf(it)) }
             .filter { it.changes.isNotEmpty() }
 
-    /** The classes of each meeting moved, cancelled or given a room on [date], as the day's slots show them. */
+    /**
+     * The classes of each meeting with more than a note on [date] (moved, cancelled, given a room,
+     * held online or assessed), as the day's slots show them. As iOS's, since the widgets mark an
+     * assessment; the watch, which does not, leaves a meeting only assessed out.
+     */
     fun changedClasses(course: Course, date: LocalDate, changes: CourseChanges): List<ClassSlot> =
         meetings(course, date, changes)
             .filter { meeting -> meeting.changes.any { it.kind != Kind.NOTE } }
@@ -187,21 +205,22 @@ object CourseMeetings {
     ) {
         fun isCancelled(period: String): Boolean = changes.any { it.kind == Kind.CANCELLED && it.covers(period) }
 
-        fun room(period: String): String? = changes.firstOrNull { it.kind == Kind.ROOM && it.covers(period) }?.room
+        /** Where [period] is held, as a key: a moved room and online differ, as on iOS. */
+        fun place(period: String): Pair<Kind, String?>? = placeChange(changes, period)?.let { it.kind to it.room }
 
         /** Its fragments, or the meeting whole when its new times leave none. */
         fun slots(): List<ClassSlot> = fragments().ifEmpty { listOfNotNull(merged(listOf(this))) }
 
         /**
-         * Runs of periods alike in cancellation and room. Inner boundaries keep the timetable times,
+         * Runs of periods alike in cancellation and place. Inner boundaries keep the timetable times,
          * clamped into the meeting; a run left empty is dropped, and the outer surviving ones meet
-         * the meeting's own start and end. Notes never split.
+         * the meeting's own start and end. Notes and assessments never split.
          */
         fun fragments(): List<ClassSlot> {
             val runs = mutableListOf<MutableList<String>>()
             for (period in periods) {
                 val last = runs.lastOrNull()?.last()
-                if (last != null && isCancelled(last) == isCancelled(period) && room(last) == room(period)) {
+                if (last != null && isCancelled(last) == isCancelled(period) && place(last) == place(period)) {
                     runs.last() += period
                 } else {
                     runs += mutableListOf(period)
@@ -257,6 +276,9 @@ object CourseMeetings {
                 end = timetableEnd
                 applied = applied.filter { it.kind != Kind.START && it.kind != Kind.END }
             }
+            // An assessment or online class over only cancelled periods marks none of the held ones.
+            val held = run.filter { period -> applied.none { it.kind == Kind.CANCELLED && it.covers(period) } }
+            applied = applied.filter { (it.kind != Kind.ASSESSMENT && it.kind != Kind.ONLINE) || held.any(it::covers) }
             Meeting(course, date, run, start, end, timetableStart, timetableEnd, applied)
         }
     }

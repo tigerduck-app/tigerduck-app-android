@@ -10,6 +10,12 @@ import java.util.Locale
 data class CourseChangeRow(val day: LocalDate, val summary: String)
 
 /**
+ * The words the 課程異動 list writes, in the app's language: 停課 (`course_card_cancelled`), 評量
+ * (`course_change_assessment`) and 線上 (`course_change_online`).
+ */
+data class CourseChangeWords(val cancelled: String, val assessment: String, val online: String)
+
+/**
  * The course detail's changes: the meeting its 教室 and 時間 cards show, and the 課程異動 list of
  * upcoming days. The list shows only when the detail has a date. Ported from iOS `CourseDetailSheet`.
  */
@@ -39,16 +45,17 @@ object CourseChangeSummary {
      * [CourseMeetings.upcomingChanges] gives them. The room, time or cancellation of the meeting the
      * cards show ([shown]) is left to the cards; its notes stay, as the cards have no place for them,
      * and so does the time of each meeting [shown] spans with others, as the cards show only its ends.
-     * [cancelled] is the 停課 word in the app's language, and [locale] picks each note's language.
+     * Each held meeting's assessments and online classes follow, then the notes, as `評量 · 期中考`
+     * and `線上 · <description>`. [locale] picks each note, name and description's language.
      */
-    fun rows(days: List<ChangedDay>, shown: ClassSlot?, cancelled: String, locale: Locale): List<CourseChangeRow> =
+    fun rows(days: List<ChangedDay>, shown: ClassSlot?, words: CourseChangeWords, locale: Locale): List<CourseChangeRow> =
         days.asSequence()
-            .map { CourseChangeRow(it.day, summary(it.meetings, shown, cancelled, locale)) }
+            .map { CourseChangeRow(it.day, summary(it.meetings, shown, words, locale)) }
             .filter { it.summary.isNotEmpty() }
             .take(MAX_ROWS)
             .toList()
 
-    private fun summary(meetings: List<ClassSlot>, shown: ClassSlot?, cancelled: String, locale: Locale): String {
+    private fun summary(meetings: List<ClassSlot>, shown: ClassSlot?, words: CourseChangeWords, locale: Locale): String {
         val parts = mutableListOf<String>()
         for (meeting in meetings) {
             if (shown != null && meeting.date == shown.date && meeting.periods.any { it in shown.periods }) {
@@ -60,7 +67,7 @@ object CourseChangeSummary {
                 // this meeting's own cancellation, else its own time, says which part changed.
                 if (shown.periods.any { it !in meeting.periods }) {
                     if (meeting.isCancelled) {
-                        parts += cancelled
+                        parts += words.cancelled
                     } else if (meeting.hasChangedTime) {
                         parts += "${hm(meeting.start)} - ${hm(meeting.end)}"
                     }
@@ -68,14 +75,29 @@ object CourseChangeSummary {
                 continue
             }
             if (meeting.isCancelled) {
-                parts += cancelled
+                parts += words.cancelled
                 continue
             }
-            if (meeting.hasChangedRoom) parts += meeting.room
+            // An online class is listed with its description below, not as a room.
+            meeting.movedRooms(online = null).takeIf { it.isNotEmpty() }?.let { parts += it.joinToString(", ") }
             if (meeting.hasChangedTime) parts += "${hm(meeting.start)} - ${hm(meeting.end)}"
         }
-        parts += meetings.flatMap { it.notes }.distinctBy { it.id }.mapNotNull { it.note(locale) }
+        val held = meetings.filter { !it.isCancelled }.flatMap { it.changes }
+        parts += (held.filter { it.kind == CourseChange.Kind.ASSESSMENT } + held.filter { it.kind == CourseChange.Kind.ONLINE } +
+            meetings.flatMap { it.notes })
+            .distinctBy { it.id }
+            .mapNotNull { listed(it, words, locale) }
         return parts.distinct().joinToString(" · ")
+    }
+
+    /** How [change] reads in the list: a note's text, `評量 · <name>`, or `線上` and its description. As iOS `listedText`. */
+    private fun listed(change: CourseChange, words: CourseChangeWords, locale: Locale): String? {
+        val detail = change.note(locale)?.takeIf { it.isNotEmpty() }
+        return when (change.kind) {
+            CourseChange.Kind.ASSESSMENT -> detail?.let { "${words.assessment} · $it" }
+            CourseChange.Kind.ONLINE -> listOfNotNull(words.online, detail).joinToString(" · ")
+            else -> detail
+        }
     }
 
     // Class times are on a 24-hour clock in every locale.

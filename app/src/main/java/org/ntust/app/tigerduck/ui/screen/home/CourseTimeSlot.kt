@@ -24,14 +24,16 @@ data class CourseTimeSlot(
     val date: Date,
     /** Whether the school cancelled this class. A cancelled class stays on the slider, struck through. */
     val isCancelled: Boolean = false,
-    /** The class as the school changed it, for the course detail. */
+    /** The class as the school changed it, for the course detail and its room. */
     val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot,
-    /** The room the school moved this class to; null keeps the timetable's. */
-    val movedRoom: String? = null,
     /** Whether the school moved this class's start or end off the timetable's. */
     val hasChangedTime: Boolean = false,
 ) {
-    val hasChangedRoom: Boolean get() = movedRoom != null
+    /** Whether the school moved this class to another room or online. */
+    val hasChangedRoom: Boolean get() = classSlot.hasChangedRoom
+
+    /** Whether the class has an assessment, which marks its name. */
+    val isAssessment: Boolean get() = classSlot.assessment != null
 
     companion object {
         /**
@@ -57,7 +59,6 @@ data class CourseTimeSlot(
             end = Date.from(slot.endsAt),
             date = on,
             isCancelled = slot.isCancelled,
-            movedRoom = slot.room.takeIf { slot.hasChangedRoom },
             hasChangedTime = slot.hasChangedTime,
             classSlot = slot,
         )
@@ -122,20 +123,20 @@ val CourseTimeSlot.detailSelection: CourseDetailSelection
     get() = CourseDetailSelection(course, weekday, periods.firstOrNull().orEmpty(), localDate, classSlot)
 
 /**
- * The room the school moved this slot to, else the classroom resolved per-period for this slot — iterates [periods] through
+ * The room the school moved this slot to, or [online] for a class held online, else the classroom
+ * resolved per-period for this slot — iterates [periods] through
  * [Course.classroom] (weekday + period) so a same-day course with split
  * rooms (morning lecture in A, afternoon lab in B) shows only the room(s)
  * that match *this* slot's periods, not the union across the whole day.
  */
-val CourseTimeSlot.classroom: String
-    get() {
-        movedRoom?.let { return it }
-        val seen = LinkedHashSet<String>()
-        for (period in periods) {
-            for (part in Course.splitRooms(course.classroom(weekday, period))) seen.add(part)
-        }
-        return if (seen.isEmpty()) course.classroom(weekday) else seen.joinToString(", ")
+fun CourseTimeSlot.classroom(online: String): String {
+    if (hasChangedRoom) return classSlot.room(online)
+    val seen = LinkedHashSet<String>()
+    for (period in periods) {
+        for (part in Course.splitRooms(course.classroom(weekday, period))) seen.add(part)
     }
+    return if (seen.isEmpty()) course.classroom(weekday) else seen.joinToString(", ")
+}
 
 sealed class CourseState<out T> {
     /**
