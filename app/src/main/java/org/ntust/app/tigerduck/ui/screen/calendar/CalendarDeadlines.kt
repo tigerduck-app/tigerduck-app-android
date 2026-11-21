@@ -1,10 +1,15 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * [base] with its Moodle rows made from [assignments], the assignment
@@ -50,6 +55,13 @@ internal suspend fun openableAssignmentIds(cache: DataCache): Set<String> {
     val shown = cache.loadCourses(semester).mapNotNullTo(mutableSetOf()) { course -> course.courseNo.takeIf { it !in hidden } }
     return openableAssignmentIds(cache.loadAssignments(), shown)
 }
+
+/**
+ * The term whose class table counts, read again on each minute of the app's clock and each
+ * calendar [published], so a term that turns while the calendar is open counts its own courses.
+ */
+internal fun DataCache.currentTerms(published: Flow<*>): Flow<String> =
+    merge(TaipeiClock.minuteTicks(), published).map { currentSemesterCode() }.distinctUntilChanged()
 
 /** The assignment this row opens: a deadline's, when it is one of [openable]; null for any other row. */
 internal fun CalendarEvent.assignmentToOpen(openable: Set<String>): String? = moodleAssignmentId?.takeIf { it in openable }
