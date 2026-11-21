@@ -15,10 +15,15 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -138,6 +143,31 @@ class SettingsGatedRowsTest {
 
         composeRule.onNodeWithText(RootPart.OTHER.name).assertIsDisplayed()
         composeRule.onNodeWithText(RootPart.ACCOUNT.name).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the same result found again scrolls again, after a drag stopped the first scroll`() {
+        val appIcon = context.getString(R.string.settings_app_icon)
+        val result = "${context.getString(R.string.settings_section_other_settings)} › $appIcon"
+        composeRule.setContent {
+            SettingsList(Modifier, SettingsState(), openPage = {}, header = { Text("Settings") }, initialQuery = appIcon) { part ->
+                Text(part.name, Modifier.height(800.dp))
+            }
+        }
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.onNodeWithText(result).performClick()
+        repeat(4) { composeRule.mainClock.advanceTimeByFrame() }
+        // A finger on the list stops the scroll part of the way.
+        composeRule.onRoot().performTouchInput { swipeDown() }
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        composeRule.onNode(hasSetTextAction()).performTextInput(appIcon)
+        composeRule.onNodeWithText(result).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(RootPart.OTHER.name).assertIsDisplayed()
     }
 
     @Test

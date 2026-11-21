@@ -139,7 +139,7 @@ internal fun SettingsList(
 ) {
     var query by rememberSaveable { mutableStateOf(initialQuery) }
     var searchFocused by remember { mutableStateOf(false) }
-    var revealed by remember { mutableStateOf<SettingsRow?>(null) }
+    var revealed by remember { mutableStateOf<Reveal?>(null) }
     val listState = rememberLazyListState()
     val searchReveal = rememberSearchRevealState()
     searchReveal.pinned = searchFocused || query.isNotEmpty()
@@ -147,13 +147,11 @@ internal fun SettingsList(
     val focusManager = LocalFocusManager.current
     val parts = remember { RootPart.entries.filter { it != RootPart.DEVELOPER || BuildConfig.DEBUG } }
     LaunchedEffect(revealed) {
-        val section = (revealed?.place as? SettingsPlace.Section)?.section ?: return@LaunchedEffect
+        val section = (revealed?.row?.place as? SettingsPlace.Section)?.section ?: return@LaunchedEffect
         val index = RootPart.FIRST_INDEX + parts.indexOf(RootPart.of(section))
         // The parts are back in the list from the layout after the query cleared, not this one.
         snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > index }
         listState.animateScrollToItem(index)
-        // Only now: a new key would cancel the scroll under way.
-        revealed = null
     }
     LazyColumn(
         state = listState,
@@ -171,12 +169,18 @@ internal fun SettingsList(
                 SettingsSearchResults(query, state, openPage) { row ->
                     focusManager.clearFocus()
                     query = ""
-                    revealed = row
+                    revealed = Reveal(row)
                 }
             }
         }
     }
 }
+
+/**
+ * A root row a search result asked to go back to. One for each tap, compared by identity, so the
+ * same row found again scrolls again, even after a finger stopped the last scroll part of the way.
+ */
+private class Reveal(val row: SettingsRow)
 
 /**
  * Shows a network error from the school sign-in as a snackbar; cleared after display so navigating
