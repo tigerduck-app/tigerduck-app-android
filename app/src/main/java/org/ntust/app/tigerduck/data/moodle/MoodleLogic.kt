@@ -316,46 +316,6 @@ object MoodlePersonName {
 val MoodleMember.name: String get() = MoodlePersonName.displayName(fullName)
 val MoodleMember.studentId: String? get() = idNumber ?: MoodlePersonName.studentId(fullName)
 
-/**
- * A student's department, read from their student ID (#697). Moodle's `department` field is of
- * no use: NTUST fills it for the signed-in student alone, and with the degree level. A bachelor's
- * ID is B, three digits of entry year, two of department and three of serial; the code is the
- * department the student was admitted to, which a student who changed department keeps.
- */
-object MoodleDepartment {
-
-    /**
-     * The `<code>` of `course_member_department_<code>` by department code: the codes the
-     * school's published course rosters confirm, and no other. The graduate codes are not
-     * confirmed, so only a bachelor's ID is read.
-     */
-    private val keysByCode = mapOf(
-        "01" to "im", "02" to "et", "03" to "me", "04" to "tx", "05" to "ct", "06" to "ch",
-        "07" to "ee", "08" to "ba", "10" to "dt", "13" to "ad", "15" to "cs", "30" to "hc",
-    )
-
-    /** Every department the app can name. */
-    val keys: Set<String> = keysByCode.values.toSet()
-
-    /**
-     * A bachelor's ID as NTUST writes it: B, or b as in a mail address, and eight ASCII digits, and
-     * nothing else, so a cut-short ID carries no code. As the iPhone's `NTUSTDepartment`.
-     */
-    private val bachelorId = Regex("""[Bb][0-9]{8}""")
-
-    /** The department code of a bachelor's [studentId], its 5th and 6th characters; null for any other or malformed ID. */
-    fun code(studentId: String?): String? {
-        if (studentId == null || !bachelorId.matches(studentId)) return null
-        return studentId.substring(4, 6)
-    }
-
-    /** The key of the department [studentId] was admitted to; null for a code the app cannot name. */
-    fun key(studentId: String?): String? = code(studentId)?.let(keysByCode::get)
-}
-
-/** The key of the member's department, from their student ID; null where there is none to show. */
-val MoodleMember.departmentKey: String? get() = MoodleDepartment.key(studentId)
-
 /** Where a member is listed. A role the app does not know goes after the assistants, under Moodle's name for it. */
 sealed class MoodleMemberPlacement : Comparable<MoodleMemberPlacement> {
     data object Instructors : MoodleMemberPlacement()
@@ -410,14 +370,15 @@ object MoodleMembers {
     fun showsOthers(list: MoodleMemberList): Boolean = list.members.any { it.id != list.ownId }
 
     /**
-     * The search runs here, never on Moodle, over what a row shows: the name, the student ID and
-     * the department as the list names it, [departmentNames] by [MoodleMember.departmentKey].
+     * The search runs here, never on Moodle, over what a row shows: the name, the student ID and the
+     * department as the list names it, [departmentNames] by [MoodleMember.departmentKey]. [pinned] leads its section.
      */
     fun sections(
         members: List<MoodleMember>,
         query: String = "",
         locale: Locale = Locale.getDefault(),
         departmentNames: Map<String, String> = emptyMap(),
+        pinned: Int? = null,
     ): List<MoodleMemberSection> {
         val needle = query.trim()
         val shown = if (needle.isEmpty()) members else members.filter { matches(it, needle, departmentNames) }
@@ -436,11 +397,10 @@ object MoodleMembers {
                 else -> byName.compare(a, b)
             }
         }
-        return shown.groupBy(MoodleMemberPlacement::of)
-            .toSortedMap()
-            .map { (placement, people) ->
-                MoodleMemberSection(placement, people.sortedWith(if (placement.listsByStudentId) byStudentId else byName))
-            }
+        val pinnedFirst = compareByDescending<MoodleMember> { it.id == pinned }
+        return shown.groupBy(MoodleMemberPlacement::of).toSortedMap().map { (placement, people) ->
+            MoodleMemberSection(placement, people.sortedWith(pinnedFirst.then(if (placement.listsByStudentId) byStudentId else byName)))
+        }
     }
 
     /** A member's [groups] in one line: Chinese and Japanese list with 、, other languages with a comma. */
