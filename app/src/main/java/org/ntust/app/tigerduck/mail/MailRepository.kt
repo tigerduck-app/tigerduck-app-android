@@ -569,17 +569,20 @@ class MailRepository @Inject constructor(
         }
         // Newest first, so the first page is the newest matches and the rest page back. One hold
         // of the connection, so the page and the UIDVALIDITY are the server's at the same time.
+        var recreated = false
         return withSession(stillWanted) { session ->
             val validity = session.uidValidity(folder)
             // The folder recreated since the index answered: the matches' UIDs name other mail,
             // and nothing of the new folder's was searched.
             val current = validity == indexedUnder
+            recreated = !current
             val found = if (current) matches else emptyList()
             val newest = found.take(PAGE_SIZE)
             SearchOutcome.Server(session.fetchByUids(folder, newest), found.drop(newest.size), validity, complete = whole && current)
-        }.also { found ->
-            // Recreated since the index answered, none of its mail was searched: a gap, as mail missing is.
-            if (whole && !found.complete) withContext(Dispatchers.IO) { askForTheRest(asked, signIn, folder, whole = false) }
+        }.also {
+            // A gap, as mail missing is, whatever the catch-up said: a download since it may have
+            // brought the old folder whole.
+            if (recreated) withContext(Dispatchers.IO) { askForTheRest(asked, signIn, folder, whole = false) }
         }
     }
 

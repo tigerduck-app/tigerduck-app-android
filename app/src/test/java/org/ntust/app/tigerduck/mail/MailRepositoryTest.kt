@@ -1327,6 +1327,37 @@ class MailRepositoryTest {
     }
 
     /**
+     * The search's catch-up left mail out, a download after it brought Inbox whole, and Inbox was
+     * then recreated before the search fetched its matches: Inbox is not whole, whatever the
+     * catch-up said.
+     */
+    @Test
+    fun `a search that finds its folder recreated after a download made it whole says it is not whole`() = runTest {
+        server.deliver("期中考 0")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.updateSearchIndex()
+        (1..MailRepository.SEARCH_CATCH_UP + 5).forEach { server.deliver("期中考 $it") }
+        // The download the catch-up's gap asks for, run as it is asked: before the search reads the index.
+        setup.indexScheduler.onRequestAgain = {
+            setup.indexScheduler.onRequestAgain = null
+            runBlocking { repo.updateSearchIndex() }
+        }
+        setup.searchIndex.onSearch = {
+            setup.searchIndex.onSearch = null
+            assertTrue("whole after the download", "INBOX" in repo.searchIndexWhole.value)
+            server.folders.getValue("INBOX").clear()
+            server.uidValidity++
+            server.nextUid = 1
+            server.deliver("other")
+        }
+
+        repo.search("INBOX", "期中")
+
+        assertFalse("INBOX" in repo.searchIndexWhole.value)
+    }
+
+    /**
      * A sign-in tells of the student leaving before it moves the sign-in on, and a download can
      * still come through for them in between: what it shows would stay on the next student's row.
      */
