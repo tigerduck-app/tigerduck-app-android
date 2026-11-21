@@ -601,26 +601,15 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
-    "kind": "long-file",
-    "count": 502
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
     "kind": "long-function",
     "name": "CalendarGrid(Date, Date, Map<LocalDate,List<CalendarEvent>>, (Date)->Unit)",
-    "lines": 130
+    "lines": 124
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
     "kind": "long-function",
     "name": "CalendarScreen(CalendarViewModel, ()->Unit, (assignmentId:String)->Unit)",
     "lines": 125
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
-    "kind": "long-function",
-    "name": "MonthCalendar(Date, Date, Map<LocalDate,List<CalendarEvent>>, (Date)->Unit, (Date)->Unit)",
-    "lines": 122
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarViewModel.kt",
@@ -895,30 +884,30 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-file",
-    "count": 458
+    "count": 453
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-function",
-    "name": "HomePage(List<HomeSection>, Boolean, ()->Unit, Boolean, ()->Unit, (fromId:String,toId:String)->Unit, (sectionId:String)->Unit, (sectionId:String,widgetId:String)->Unit, (sectionId:String,widgetId:String,toIndex:Int)->Unit, ()->Unit, @Composable()->Unit, (@Composable()->Unit)?, Modifier, LazyListState, @Composable(HomeSection)->Unit)",
-    "lines": 139
+    "name": "HomePage(List<HomeSection>, Boolean, ()->Unit, Boolean, ()->Unit, (fromId:String,toId:String)->Unit, (sectionId:String)->Unit, (sectionId:String,widgetId:String)->Unit, (sectionId:String,widgetId:String,toIndex:Int)->Unit, (LayoutStep)->HomeSectionLayout.Step?, ()->Unit, @Composable()->Unit, (@Composable()->Unit)?, Modifier, LazyListState, @Composable(HomeSection)->Unit)",
+    "lines": 135
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-function",
     "name": "HomeScreen(AppState, HomeViewModel, ()->Unit, (Assignment)->Unit, (CourseDetailSelection)->Unit, (AppFeature)->Unit)",
-    "lines": 219
+    "lines": 218
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeSections.kt",
     "kind": "long-file",
-    "count": 442
+    "count": 405
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeSections.kt",
     "kind": "long-function",
-    "name": "EditableSection(HomeSection, Boolean, Float, ()->Unit, (Float)->Unit, ()->Unit, (height:Float)->Unit, ()->Unit, (widgetId:String)->Unit, (widgetId:String,toIndex:Int)->Unit, ()->Unit)",
-    "lines": 115
+    "name": "EditableSection(HomeSection, List<String>, Boolean, Float, ()->Unit, (Float)->Unit, ()->Unit, (height:Float)->Unit, ()->Unit, (widgetId:String)->Unit, (widgetId:String,toIndex:Int)->Unit, (LayoutStep)->HomeSectionLayout.Step?, ()->Unit)",
+    "lines": 108
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeSections.kt",
@@ -946,13 +935,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/ShortcutGrid.kt",
     "kind": "long-function",
-    "name": "ShortcutCard(WidgetItem, Int, Int, Boolean, Boolean, ()->Unit, ()->Unit, (Int)->Unit, Modifier)",
-    "lines": 90
+    "name": "ShortcutCard(WidgetItem, Int, Int, Boolean, Boolean, ()->Unit, ()->Unit, (by:Int)->HomeSectionLayout.Step?, Modifier)",
+    "lines": 83
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/ShortcutGrid.kt",
     "kind": "long-function",
-    "name": "ShortcutGrid(List<WidgetItem>, Boolean, (AppFeature)->Unit, (WidgetItem)->Unit, (widgetId:String,toIndex:Int)->Unit, ()->Unit)",
+    "name": "ShortcutGrid(List<WidgetItem>, Boolean, (AppFeature)->Unit, (WidgetItem)->Unit, (widgetId:String,toIndex:Int)->Unit, ()->Unit, (widgetId:String,by:Int)->HomeSectionLayout.Step?)",
     "lines": 117
   },
   {
