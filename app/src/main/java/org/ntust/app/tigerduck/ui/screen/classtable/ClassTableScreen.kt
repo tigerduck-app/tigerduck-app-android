@@ -26,13 +26,11 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -81,6 +79,8 @@ import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState
 import org.ntust.app.tigerduck.data.sharing.ImportedPerson
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherEntry
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMenuItems
+import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ImportedPersonDeleteDialog
+import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ImportedPersonRenameDialog
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableShareSheet
 import org.ntust.app.tigerduck.ui.screen.classtable.clubs.ClassTableClubSheetsHost
@@ -168,8 +168,7 @@ fun ClassTableScreen(
     // Compose dependency, leaving badges stale until the next courses update.
     val outstandingAssignments by viewModel.outstandingAssignments.collectAsStateWithLifecycle()
     val courseNosWithAssignments by viewModel.courseNosWithAssignments.collectAsStateWithLifecycle()
-    val courseNosIgnoringAssignments by
-        viewModel.courseNosIgnoringAssignments.collectAsStateWithLifecycle()
+    val courseNosIgnoringAssignments by viewModel.courseNosIgnoringAssignments.collectAsStateWithLifecycle()
     val canIgnoreAssignments by viewModel.canIgnoreAssignments.collectAsStateWithLifecycle()
     // Hoisted alongside the other top-level subscriptions: a second
     // collectAsStateWithLifecycle for the same flow inside a conditional
@@ -224,18 +223,13 @@ fun ClassTableScreen(
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
     var conflictPicker by remember { mutableStateOf<ConflictPickerTarget?>(null) }
-    var tripleConflictError by remember {
-        mutableStateOf<TripleConflictError?>(
-            null
-        )
-    }
+    var tripleConflictError by remember { mutableStateOf<TripleConflictError?>(null) }
     val scrollState = rememberScrollState()
     // Read as the grid is placed, not drawn from, so neither is snapshot state.
     val scrolledContent = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val lastRowTops = remember { arrayOfNulls<ClassTableRowTops>(1) }
     val lastScroll = remember { intArrayOf(0) }
     var renamingPerson by remember { mutableStateOf<ImportedPerson?>(null) }
-    var nicknameDraft by remember { mutableStateOf("") }
     var deletingPerson by remember { mutableStateOf<ImportedPerson?>(null) }
     var importedTableProblem by remember { mutableStateOf<ImportedTableProblem?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -244,6 +238,19 @@ fun ClassTableScreen(
     val classTableTitle = stringResource(R.string.feature_class_table)
     val exportTitle = stringResource(R.string.class_table_export_screenshot)
     val exportFailedMessage = stringResource(R.string.class_table_export_failed)
+    val calendarExport: ClassTableCalendarExportViewModel = hiltViewModel()
+    val academicCalendar by calendarExport.calendar.collectAsStateWithLifecycle()
+    // Off while an export is in flight. The screenshot only while the grid below is drawn, as
+    // anything else would export a header over nothing; the ICS file only with a class to put in it.
+    fun exports(close: () -> Unit) = (exporting || calendarExport.isExporting).let { busy ->
+        ClassTableExports(
+            onScreenshot = { close(); exporting = true }.takeIf { hasGrid && !busy },
+            onCalendar = {
+                close()
+                calendarExport.shareOn(scope, context, shown, viewModel::displayLabel) { snackbarHostState.showSnackbar(exportFailedMessage) }
+            }.takeIf { !busy && ClassTableCalendarFile.canExport(shown, academicCalendar) },
+        )
+    }
     val errorNetworkUnavailable = stringResource(R.string.error_network_unavailable)
     val refreshingMessage = stringResource(R.string.refreshing_message)
     val weekdayShortLabels = listOf(
@@ -302,7 +309,6 @@ fun ClassTableScreen(
         sharing = null
     }
 
-
     PageScaffold(
         title = stringResource(R.string.feature_class_table),
         headerPosition = PageHeaderPosition.InContent,
@@ -326,14 +332,9 @@ fun ClassTableScreen(
                 // Someone else's class table is read-only: export and import
                 // as on the user's own, then what applies to the person.
                 PersonClassTableMenuItems(
-                    exportEnabled = hasGrid && !exporting,
-                    onExport = { close(); exporting = true },
+                    exports = exports(close),
                     onImport = { close(); onRequestImport() },
-                    onRename = {
-                        close()
-                        nicknameDraft = shownPerson.nickname
-                        renamingPerson = shownPerson
-                    },
+                    onRename = { close(); renamingPerson = shownPerson },
                     onDelete = { close(); deletingPerson = shownPerson },
                     close = close,
                 )
@@ -353,10 +354,7 @@ fun ClassTableScreen(
                         }
                     },
                     onImport = { close(); onRequestImport() },
-                    // Only exportable while the grid below is drawn; anything else would
-                    // export a header over nothing. Also off while one is in flight.
-                    exportEnabled = hasGrid && !exporting,
-                    onExport = { close(); exporting = true },
+                    exports = exports(close),
                     onReset = { close(); showResetConfirm = true },
                     close = close,
                 )
@@ -661,7 +659,7 @@ fun ClassTableScreen(
                     bitmap,
                     classTableExportFileName(classTableTitle, semesterLabel, studentId),
                 )
-                shareClassTableImage(context, file, exportTitle)
+                shareClassTableExport(context, file, exportTitle)
                 exporting = false
             },
             onFailed = {
@@ -762,43 +760,11 @@ fun ClassTableScreen(
     }
 
     renamingPerson?.let { person ->
-        TigerDuckDialog(
-            onDismissRequest = { renamingPerson = null },
-            title = stringResource(R.string.class_table_rename_title),
-            confirmText = stringResource(R.string.action_save),
-            // The store keeps no blank nickname.
-            confirmEnabled = nicknameDraft.isNotBlank(),
-            onConfirm = {
-                viewModel.renamePerson(person.id, nicknameDraft)
-                renamingPerson = null
-            },
-            dismissText = stringResource(R.string.action_cancel),
-        ) {
-            OutlinedTextField(
-                value = nicknameDraft,
-                onValueChange = { nicknameDraft = it },
-                label = { Text(stringResource(R.string.class_table_nickname)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        ImportedPersonRenameDialog(person, { viewModel.renamePerson(person.id, it); renamingPerson = null }) { renamingPerson = null }
     }
 
     deletingPerson?.let { person ->
-        TigerDuckDialog(
-            onDismissRequest = { deletingPerson = null },
-            title = stringResource(R.string.class_table_delete_user_confirm, person.nickname),
-            confirmText = stringResource(R.string.class_table_delete),
-            confirmColors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError,
-            ),
-            onConfirm = {
-                viewModel.deletePerson(person.id)
-                deletingPerson = null
-            },
-            dismissText = stringResource(R.string.action_cancel),
-        )
+        ImportedPersonDeleteDialog(person, { viewModel.deletePerson(person.id); deletingPerson = null }) { deletingPerson = null }
     }
 
     importedTableProblem?.let { problem ->

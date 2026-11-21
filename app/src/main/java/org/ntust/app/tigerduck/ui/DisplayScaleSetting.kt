@@ -7,7 +7,7 @@ import org.ntust.app.tigerduck.data.preferences.DisplayScale
 
 /**
  * AppState's copy of the sizes on the Display and text size page, held as
- * Compose state over their preferences. MainActivity watches [app], and makes
+ * Compose state over their preferences. MainActivityHost watches [app], and makes
  * itself again at a new one: the sizes apply to its configuration, which only
  * a new Activity takes. [onWidgetChange] hears each change of the widgets'
  * sizes, as the widgets redraw only when asked. Its own class because
@@ -33,7 +33,7 @@ internal class DisplayScaleSetting(
         if (scale == DisplayScale.WidgetUi || scale == DisplayScale.WidgetText) onWidgetChange()
     }
 
-    /** The app's sizes, as MainActivity applies them. */
+    /** The app's sizes, as MainActivityHost applies them. */
     val app: AppScale get() = AppScale(this[DisplayScale.AppUi], this[DisplayScale.AppText])
 
     /** Reads the store again, after a full reset wiped it. */

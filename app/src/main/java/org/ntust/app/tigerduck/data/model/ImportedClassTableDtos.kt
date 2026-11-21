@@ -21,6 +21,12 @@ data class ImportedPersonDto(
     val importedAtMillis: Long,
     val sharedAtMillis: Long?,
     val terms: List<ImportedTermDto?>?,
+    /**
+     * Where the class table switcher lists the person (`ImportedPerson.Placement.stored`). A file
+     * from before placements has none, which reads as the rotation; a file this version writes
+     * stays readable by an older one, which ignores the key and drops it on its next save.
+     */
+    val placement: String?,
 )
 
 data class ImportedTermDto(

@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.R
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -34,7 +34,7 @@ class LibraryQrShortcutTest {
         val intent = shortcut.intent
         assertEquals(Intent.ACTION_VIEW, intent.action)
         assertEquals("tigerduck://library", intent.dataString)
-        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, intent.component?.className)
     }
 
     @Test
@@ -58,14 +58,14 @@ class LibraryQrShortcutTest {
     }
 
     /**
-     * A language change reaches MainActivity as a configuration change, as the manifest handles
+     * A language change reaches MainActivityHost as a configuration change, as the manifest handles
      * `locale`, not as a new onCreate: the shortcut is relabelled there too.
      */
     @Test
     fun `the app's page publishes the shortcut again when the language changes`() {
         val source = File(appDir(), "src/main/java/org/ntust/app/tigerduck/MainActivity.kt").readText()
         val start = source.indexOf("override fun onConfigurationChanged(")
-        assertTrue("MainActivity has no onConfigurationChanged", start >= 0)
+        assertTrue("MainActivityHost has no onConfigurationChanged", start >= 0)
         val body = source.substring(start, source.indexOf("\n    }\n", start))
 
         assertTrue(body.contains("LibraryQrShortcut.publish(this)"))

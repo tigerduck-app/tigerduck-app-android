@@ -74,6 +74,7 @@ import java.util.Locale
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToTabEditor: () -> Unit = {},
+    onNavigateToClassTableList: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToAccentColor: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
@@ -126,10 +127,7 @@ fun SettingsScreen(
 
     val visualPreset = viewModel.appState.visualPreset
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
-    val alwaysShowAllPeriods = viewModel.appState.alwaysShowAllPeriods
-    val showClassroomInClassTable = viewModel.appState.showClassroomInClassTable
-    val pinTodayCoursesOnClassTable = viewModel.appState.pinTodayCoursesOnClassTable
-    val outlineRequiredCourses = viewModel.appState.outlineRequiredCourses
+    val importedClassTables by viewModel.importedClassTables.collectAsStateWithLifecycle()
     val browserPreference = viewModel.appState.browserPreference
     val moodleAppInstalled = rememberMoodleAppInstalled()
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
@@ -315,35 +313,7 @@ fun SettingsScreen(
                             viewModel.appState.showAbsoluteAssignmentTime = it
                         }
                         HorizontalDivider()
-                        // The class table's switches in the iPhone's order: today's
-                        // courses above the grid, then what each cell shows.
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_pin_today_courses_on_class_table),
-                            pinTodayCoursesOnClassTable
-                        ) {
-                            viewModel.appState.pinTodayCoursesOnClassTable = it
-                        }
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_show_classroom_on_class_table),
-                            showClassroomInClassTable
-                        ) {
-                            viewModel.appState.showClassroomInClassTable = it
-                        }
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_outline_required_courses),
-                            outlineRequiredCourses
-                        ) {
-                            viewModel.appState.outlineRequiredCourses = it
-                        }
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_always_show_periods_abc),
-                            alwaysShowAllPeriods
-                        ) {
-                            viewModel.appState.alwaysShowAllPeriods = it
-                        }
+                        ClassTableSettingsRows(viewModel.appState, importedClassTables.hasImportedClassTables, onNavigateToClassTableList)
                         HorizontalDivider()
                         // Link opening method
                         SettingsPickerRow(

@@ -853,7 +853,7 @@ class SchoolMailComposeViewModelTest {
     /** The store as the app sees it after a restart: nothing of it in use. */
     private fun afterRestart() = HeldSendStore(heldRoot)
 
-    /** The composer the app opens after a restart for kept mail [id], as MainActivity routes to it. */
+    /** The composer the app opens after a restart for kept mail [id], as MainActivityHost routes to it. */
     private fun reopened(id: String) = SchoolMailComposeViewModel(
         SavedStateHandle(mapOf("mode" to "NEW", "folder" to "", "uid" to -1L, "mailto" to "", "held" to id)),
         repo, account, cache, noPicks, notices, main.dispatcher, afterRestart(),

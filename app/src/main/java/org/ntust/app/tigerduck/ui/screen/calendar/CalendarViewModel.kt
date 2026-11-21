@@ -188,7 +188,7 @@ class CalendarViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // The published calendar arrives asynchronously: `MainActivity`
+            // The published calendar arrives asynchronously: `MainActivityHost`
             // starts the fetch on resume, which routinely lands after this
             // screen has already built its rows from the on-disk copy. A
             // snapshot read would leave a newly published semester or

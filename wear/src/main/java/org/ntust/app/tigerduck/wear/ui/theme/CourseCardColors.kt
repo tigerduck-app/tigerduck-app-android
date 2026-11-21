@@ -30,9 +30,9 @@ data class CourseCardColors(
     val fill: Color,
     /** The course's name. */
     val text: Color,
-    /** Room, instructor and times. */
+    /** Rooms and times: the Today list's line, Now & Next's caption ("Next · 13:20–14:10"). */
     val secondaryText: Color,
-    /** The status line ("Starts 12:20", "Next"). */
+    /** The course's own color where it reads: Now & Next's room, the Today list's mark of the class going on. */
     val emphasis: Color,
     /** The ongoing class's progress bar and its track. */
     val progress: Color,

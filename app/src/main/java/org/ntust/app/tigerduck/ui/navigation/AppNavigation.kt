@@ -79,6 +79,7 @@ import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportHost
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ScannerShareSheet
+import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableListScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherEntry
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMenuItems
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
@@ -103,6 +104,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OpenSourceLicensesScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AppIconScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SyncContentScreen
@@ -139,6 +141,7 @@ sealed class Screen(val route: String) {
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
+    object ClassTableList : Screen("classTableList")
     object LanguagePicker : Screen("languagePicker")
     object AccentColor : Screen("accentColor")
     object LiveActivitySettings : Screen("liveActivitySettings")
@@ -148,6 +151,7 @@ sealed class Screen(val route: String) {
     object ClassReminderSettings : Screen("classReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object AppIcon : Screen("appIcon")
     object AboutOthers : Screen("aboutOthers")
     object OpenSourceLicenses : Screen("openSourceLicenses")
     object LicenseDetail : Screen("openSourceLicenses/{key}") {
@@ -223,7 +227,7 @@ fun AppNavigation(
  * Opens the screen a widget, a notification or a link asked for, on top of
  * the current one. Returns whether it opened.
  *
- * MainActivity only passes routes it accepts (`startRouteOf`), but a route
+ * MainActivityHost only passes routes it accepts (`startRouteOf`), but a route
  * the graph cannot take, or an argument it cannot read, must still leave the
  * app where it is: thrown here, it would end the effect that called this,
  * and the app with it, and come back with the intent from Recents.
@@ -446,7 +450,7 @@ fun MainNavigation(
                                         contentDescription = stringResource(feature.displayNameRes)
                                     )
                                     if (isClassTable) {
-                                        // On the tab, above it: the user's own row ends nearest.
+                                        // On the tab, above it, in the iPhone's order.
                                         DropdownMenu(
                                             expanded = showClassTableSwitcher,
                                             onDismissRequest = { showClassTableSwitcher = false },
@@ -668,6 +672,7 @@ fun MainNavigation(
             page(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
+                    onNavigateToClassTableList = { navController.navigate(Screen.ClassTableList.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToAccentColor = { navController.navigate(Screen.AccentColor.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
@@ -773,14 +778,14 @@ fun MainNavigation(
             page(Screen.OtherSettings.route) {
                 OtherSettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToApiEndpoint = {
-                        navController.navigate(Screen.ApiEndpointDebug.route)
-                    },
+                    onNavigateToApiEndpoint = { navController.navigate(Screen.ApiEndpointDebug.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                     onNavigateToDisplaySize = { navController.navigate(Screen.DisplaySizeSettings.route) },
                     onNavigateToStorage = { navController.navigate(Screen.Storage.route) },
+                    onNavigateToAppIcon = { navController.navigate(Screen.AppIcon.route) },
                 )
             }
+            page(Screen.AppIcon.route) { AppIconScreen(onBack = { navController.popBackStack() }) }
             page(Screen.Storage.route) {
                 StorageScreen(onBack = { navController.popBackStack() })
             }
@@ -837,9 +842,8 @@ fun MainNavigation(
             page(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
             }
-            page(Screen.AccentColor.route) {
-                AccentColorScreen(onBack = { navController.popBackStack() })
-            }
+            page(Screen.AccentColor.route) { AccentColorScreen(onBack = { navController.popBackStack() }) }
+            page(Screen.ClassTableList.route) { ClassTableListScreen(switcherUserName, onBack = { navController.popBackStack() }) }
             page(Screen.TabEditor.route) {
                 TabEditorScreen(
                     appState = appState,

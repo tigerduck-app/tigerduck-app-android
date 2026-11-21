@@ -14,7 +14,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Which `start_route` extras MainActivity follows. It is exported, so any app
+ * Which `start_route` extras MainActivityHost follows. It is exported, so any app
  * can put one on an intent: only the routes the app's own widgets and
  * notifications use may come through, and anything else must be dropped,
  * never handed to the NavHost.

@@ -351,7 +351,7 @@ class AutomaticSignInTest {
         assertNull(manager.authHeader())
         assertFalse(manager.isLoggedIn)
 
-        // What MainActivity.onResume calls.
+        // What MainActivityHost.onResume calls.
         clock += 299_000
         assertFalse(manager.signInIfSignedOut())
         assertEquals(1, backend.received(LOGIN).size)

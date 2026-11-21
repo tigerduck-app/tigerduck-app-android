@@ -11,7 +11,7 @@ private val TEXT_STEPS = listOf(0.8f, 0.85f, 0.9f, 0.95f, 1f, 1.1f, 1.2f, 1.3f, 
 
 /**
  * The sizes on the Display and text size page, each a multiplier on what the
- * phone's own Display size and Font size give: the app's, which MainActivity
+ * phone's own Display size and Font size give: the app's, which MainActivityHost
  * applies to its whole configuration, and the widgets', which they multiply
  * their own dimensions and type by. 1x, the phone's sizes as they are, is the
  * default and the value of anything stored that is not one of [steps].

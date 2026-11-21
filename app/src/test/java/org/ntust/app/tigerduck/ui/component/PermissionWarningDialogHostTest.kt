@@ -1,5 +1,5 @@
 // Drives the warning popup down the path a launch-prompt refusal takes on a
-// phone: the system prompt covers the activity (pause), MainActivity's
+// phone: the system prompt covers the activity (pause), MainActivityHost's
 // callback hands the answer to SystemPermissions.recordLaunchPromptResult,
 // and the activity resumes — where the popup's ON_RESUME re-check has to pick
 // the refusal up. SystemPermissionsWarningTest pins which permissions are

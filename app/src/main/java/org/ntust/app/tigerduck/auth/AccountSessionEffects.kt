@@ -28,7 +28,7 @@ import javax.inject.Singleton
  * from scratch, and the full reset left the reminders and the Live Update running.
  *
  * Follows the account's [AccountEvent]s rather than the pages, and so only its changes: the state
- * the process starts in is not one. MainActivity schedules the background sync for an account
+ * the process starts in is not one. MainActivityHost schedules the background sync for an account
  * already signed in at launch. Never waits on anything slow, the browser's clearing least of
  * all, so no sign-out goes unseen.
  */

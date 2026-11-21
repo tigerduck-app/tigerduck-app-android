@@ -463,17 +463,17 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * The class table as a week from today, with the school's course changes on its blocks, while
-     * it shows the term in session and the changes feed has answered; null for a plain timetable.
-     * Rechecked each minute, for the day and the term to roll over. As the iPhone's `showsThisWeek`.
+     * it shows the term in session and the changes feed has answered, with the term's week; null for
+     * a plain timetable. Rechecked each minute, for the day and the term to roll over, and as the
+     * academic calendar loads. As the iPhone's `showsThisWeek`.
      */
     val thisWeek: StateFlow<ClassTableWeek?> = combine(
         courseChangeStore.changes,
         shownTable,
         _currentDayTime,
-    ) { changes, shown, _ ->
-        ClassTableWeek(AppClock.localDateTime().toLocalDate(), changes).takeIf {
-            ClassTableThisWeek.showsThisWeek(changes.term, shown.semester, courseService.currentSemesterCode())
-        }
+        academicCalendar.calendar,
+    ) { changes, shown, _, calendar ->
+        ClassTableThisWeek.weekOf(AppClock.localDateTime().toLocalDate(), changes, shown.semester, courseService.currentSemesterCode(), calendar)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _isRefreshingShownPerson = MutableStateFlow(false)
@@ -656,7 +656,7 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * A double tap on the Class Table tab while it shows: back to the class table shown before,
-     * or within three seconds of the last double tap, the next one. Returns whether it switched.
+     * or within 1.5 seconds of the last double tap, the next in the rotation. Returns whether it switched.
      */
     fun tabDoubleTapped(): Boolean {
         val before = importedTables.value.shownPersonId
@@ -1722,7 +1722,7 @@ class ClassTableViewModel @Inject constructor(
             if (moodleAll.isNotEmpty()) {
                 val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
-                courseColorStore.saveMoodleIds(fresh, _courses.value, signIn)
+                courseColorStore.saveMoodleIds(fresh, moodleAll.mapTo(mutableSetOf()) { it.id }, _courses.value, signIn)
             }
 
             val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)

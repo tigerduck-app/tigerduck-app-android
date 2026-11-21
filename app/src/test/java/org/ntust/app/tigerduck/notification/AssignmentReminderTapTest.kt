@@ -9,7 +9,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Where an assignment reminder's tap lands: the assignment it names, which
- * MainActivity opens in the Moodle app or the browser.
+ * MainActivityHost opens in the Moodle app or the browser.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -41,7 +41,7 @@ class AssignmentReminderTapTest {
         assertTrue("a tap target others cannot fill in", tap.isImmutable)
         val intent = tap.savedIntent
         assertEquals(Intent.ACTION_VIEW, intent.action)
-        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, intent.component?.className)
         assertEquals("tigerduck://assignment/900001", intent.dataString)
     }
 
@@ -62,7 +62,7 @@ class AssignmentReminderTapTest {
         AssignmentNotificationReceiver.post(context, "system", "Preview", "Course", "debug-1", AssignmentReminderOffset.HR1)
 
         val intent = shadowOf(postedReminder().contentIntent).savedIntent
-        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, intent.component?.className)
         assertNull(intent.data)
     }
 }

@@ -77,6 +77,8 @@ class MoodleCourseRepository internal constructor(
     /** The sign-in now, which a page's request goes out under. */
     private val currentSignIn: () -> SignIn = SignInSeries().let { series -> { series.current } },
     private val monotonicNowMs: () -> Long = SystemClock::elapsedRealtime,
+    /** The account's own courses, which each member's courses in common are found among. */
+    private val ownCourses: MoodleOwnCourses = MoodleOwnCourses.NONE,
 ) {
     @OptIn(StartsAccountWork::class)
     @Inject
@@ -114,6 +116,7 @@ class MoodleCourseRepository internal constructor(
         listedAssignments = { dataCache.assignmentsVersion.map { dataCache.loadAssignments() } },
         takeStatus = { answer -> statusWriter.take(answer) },
         currentSignIn = { sessions.school.current },
+        ownCourses = MoodleOwnCourses(dataCache::loadMoodleEnrolledCourseIds, dataCache::loadCourses, dataCache.coursesVersion),
     )
 
     private val lock = Mutex()
@@ -160,6 +163,7 @@ class MoodleCourseRepository internal constructor(
             decodePicture = decode,
             onOwnPictureChanged = { ownPictureChanged(account, courseId) },
             assignmentRecords = assignmentsLocked(account, api).records.map { it.orEmpty() },
+            ownCourses = ownCourses,
         ).also { stores[account to courseId] = it }
     }
 
@@ -262,6 +266,7 @@ class MoodleCourseRepository internal constructor(
         override suspend fun submission(assignId: Int) = api.submission(assignId)
         override suspend fun comments(cmid: Int, submissionId: Int) = api.comments(cmid, submissionId)
         override suspend fun groups(courseId: Int) = api.groups(courseId)
+        override suspend fun sharedCourses(userId: Int) = api.sharedCourses(userId)
         override suspend fun download(file: MoodleFile, target: File, maxBytes: Long, progress: (Float) -> Unit) =
             api.download(file, target, maxBytes, progress)
     }
