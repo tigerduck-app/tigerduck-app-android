@@ -35,6 +35,15 @@ object ClassTimeline {
         return NowAndNext(current, next)
     }
 
+    /**
+     * Whether a class from [start] to [end], minutes of its day, is on at [minute] of that day, by
+     * the rule above, for a screen that reads the day by its minutes, as the widgets do.
+     */
+    fun isOn(start: Int, end: Int, minute: Int): Boolean = start <= minute && minute < end
+
+    /** Whether a class ending at [end], a minute of its day, is over at [minute] of that day, as [isOn] reads it. */
+    fun isOver(end: Int, minute: Int): Boolean = end <= minute
+
     /** Every class of [courses] on [date], by start; a cancelled one is in the list and marked. */
     fun meetings(courses: List<Course>, date: LocalDate, changes: CourseChanges): List<ClassSlot> =
         CourseMeetings.buildSlots(courses, date, changes)

@@ -233,4 +233,15 @@ class ClassTimelineTest {
         assertEquals("on=CC904_20261105_3 next=CC903_20261105_3", nowAndNext(listOf(two, one), "10:20"))
         assertEquals("on=null next=CC903_20261105_3", nowAndNext(listOf(one, two), "10:19"))
     }
+
+    @Test
+    fun `a day read by its minutes follows the same rule, on from the start minute and over from the end minute`() {
+        // 09:10 to 10:00.
+        assertEquals(false, ClassTimeline.isOn(550, 600, 549))
+        assertEquals(true, ClassTimeline.isOn(550, 600, 550))
+        assertEquals(true, ClassTimeline.isOn(550, 600, 599))
+        assertEquals(false, ClassTimeline.isOn(550, 600, 600))
+        assertEquals(false, ClassTimeline.isOver(600, 599))
+        assertEquals(true, ClassTimeline.isOver(600, 600))
+    }
 }

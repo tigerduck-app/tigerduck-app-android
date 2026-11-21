@@ -69,7 +69,7 @@ class LibraryShortcutWidget(
             val accent = resolveWidgetAccent(prefs, isDark)
             CompositionLocalProvider(
                 androidx.glance.LocalContext provides widgetContext(context, prefs.appLanguage),
-                LocalWidgetScale provides WidgetScale.of(prefs),
+                LocalWidgetScale provides WidgetScale.of(prefs).capped(context.resources.configuration.fontScale),
             ) {
                 LibraryShortcutContent(isDark = isDark, accent = accent, onTap = tapAction)
             }

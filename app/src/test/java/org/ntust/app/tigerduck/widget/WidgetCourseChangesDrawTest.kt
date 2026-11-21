@@ -111,9 +111,9 @@ class WidgetCourseChangesDrawTest {
     ) {}
 
     @OptIn(ExperimentalGlanceApi::class)
-    private fun texts(widget: GlanceAppWidget): List<TextView> = runBlocking {
+    private fun texts(widget: GlanceAppWidget, size: DpSize = DpSize(300.dp, 300.dp)): List<TextView> = runBlocking {
         val views: RemoteViews = withTimeout(10_000) {
-            widget.runComposition(app, sizes = listOf(DpSize(300.dp, 300.dp)))
+            widget.runComposition(app, sizes = listOf(size))
                 .first { textsIn(it).isNotEmpty() }
         }
         textsIn(views)
@@ -146,8 +146,18 @@ class WidgetCourseChangesDrawTest {
         texts.named("Cancelled")
         assertFalse(texts.named("Moved").isStruckThrough())
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
-        assertEquals(ink, texts.named("13:40–14:10").currentTextColor)
+        assertEquals(ink, texts.named("13:40").currentTextColor)
         assertTrue(texts.none { it.text.toString() == "T1-101" })
+    }
+
+    @Test
+    fun `the medium Today widget reads a cancelled class's cancellation, which it shows only by the stroke`() {
+        val texts = texts(widget(WidgetLayout.Today, state("08:00")), DpSize(320.dp, 150.dp))
+
+        assertTrue(texts.named("Gone").isStruckThrough())
+        assertTrue(texts.none { it.text.toString() == "Cancelled" })
+        assertEquals("Gone, Cancelled", texts.named("Gone").contentDescription?.toString())
+        assertEquals(null, texts.named("Moved").contentDescription)
     }
 
     @Test
@@ -155,7 +165,7 @@ class WidgetCourseChangesDrawTest {
         val texts = texts(widget(WidgetLayout.NextClass, state("12:00")))
 
         texts.named("Moved")
-        assertEquals(ink, texts.named("13:40").currentTextColor)
+        assertEquals(ink, texts.named("13:40–14:10").currentTextColor)
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
     }
 
@@ -163,7 +173,7 @@ class WidgetCourseChangesDrawTest {
     fun `the Next class widget marks the changed time of a class in session in ink`() {
         val texts = texts(widget(WidgetLayout.NextClass, state("13:45")))
 
-        assertEquals(ink, texts.named("13:40–14:10  6").currentTextColor)
+        assertEquals(ink, texts.named("13:40–14:10").currentTextColor)
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
     }
 

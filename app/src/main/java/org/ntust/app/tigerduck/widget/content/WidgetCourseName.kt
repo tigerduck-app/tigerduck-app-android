@@ -20,7 +20,8 @@ import org.ntust.app.tigerduck.ui.component.AssessmentInk
  * widget comes to the app's dashed underline: a widget's text takes no underline of a color or
  * dashes of its own, so the name's background is a dashed line in [AssessmentInk] ([isDark] picks
  * which) along its bottom, as wide as the name. TalkBack reads `course_change_assessment` right
- * after the name. As the iPhone widgets' `CourseName`.
+ * after the name. As the iPhone widgets' `CourseName`. TalkBack reads [note] after the name too, for
+ * what the widget shows of the class without words, such as a cancellation by its stroke alone.
  *
  * Glance draws a background image as a box around the text, sized by the text, so the name takes
  * no size of its own here, or the dashes would take that size.
@@ -32,20 +33,21 @@ internal fun WidgetCourseName(
     isDark: Boolean,
     style: TextStyle,
     maxLines: Int = Int.MAX_VALUE,
+    note: String? = null,
 ) {
+    val assessment = if (isAssessment) LocalContext.current.getString(R.string.course_change_assessment) else null
     val marked = if (isAssessment) {
-        val spoken = "$text, ${LocalContext.current.getString(R.string.course_change_assessment)}"
-        GlanceModifier
-            .background(
-                ImageProvider(R.drawable.widget_assessment_dashes),
-                ContentScale.FillBounds,
-                ColorFilter.tint(ColorProvider(AssessmentInk.of(isDark))),
-            )
-            .semantics { contentDescription = spoken }
+        GlanceModifier.background(
+            ImageProvider(R.drawable.widget_assessment_dashes),
+            ContentScale.FillBounds,
+            ColorFilter.tint(ColorProvider(AssessmentInk.of(isDark))),
+        )
     } else {
         GlanceModifier
     }
-    Text(text = text, modifier = marked, style = style, maxLines = maxLines)
+    val notes = listOfNotNull(assessment, note)
+    val spoken = if (notes.isEmpty()) marked else marked.semantics { contentDescription = (listOf(text) + notes).joinToString(", ") }
+    Text(text = text, modifier = spoken, style = style, maxLines = maxLines)
 }
 
 /** `course_change_online`, which a widget writes in place of the room of a class held online. */
