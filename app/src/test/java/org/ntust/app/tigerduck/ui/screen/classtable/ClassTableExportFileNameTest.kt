@@ -42,4 +42,10 @@ class ClassTableExportFileNameTest {
             classTableExportFileName("Class table/Timetable", "114-2", "B11315000"),
         )
     }
+
+    @Test
+    fun `an ICS file takes its own extension, and a long nickname is cut`() {
+        assertEquals("課表_114-2_Ming.ics", classTableExportFileName("課表", "114-2", "Ming", "ics"))
+        assertEquals("課表_114-2_" + "a".repeat(40) + ".png", classTableExportFileName("課表", "114-2", "a".repeat(300)))
+    }
 }

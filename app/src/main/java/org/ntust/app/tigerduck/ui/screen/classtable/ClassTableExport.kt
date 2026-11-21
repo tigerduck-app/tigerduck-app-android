@@ -1,5 +1,5 @@
 // "Export screenshot": the timetable drawn into a PNG off
-// screen, then handed to the system share sheet.
+// screen, then handed to the system share sheet, as Export ICS hands its file.
 
 package org.ntust.app.tigerduck.ui.screen.classtable
 
@@ -46,6 +46,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.data.storage.AppStorage
 import org.ntust.app.tigerduck.util.fileProviderAuthority
 import java.io.File
+import java.io.OutputStream
 import java.util.UUID
 
 /**
@@ -222,8 +223,9 @@ private class RecordingCount {
  * command line without quoting or %20. The student id is left out, not left
  * as a trailing underscore, when there is none.
  */
-internal fun classTableExportFileName(title: String, semesterLabel: String, studentId: String?): String =
-    listOf(title, semesterLabel, studentId.orEmpty())
+internal fun classTableExportFileName(title: String, semesterLabel: String, studentId: String?, extension: String = "png"): String =
+    // A nickname has no length limit, and a file name past 255 bytes cannot be written.
+    listOf(title, semesterLabel, studentId.orEmpty().take(40))
         // Path separators, the characters FAT-formatted storage refuses, and
         // control characters — a translation could carry any of them.
         .map { part ->
@@ -233,12 +235,23 @@ internal fun classTableExportFileName(title: String, semesterLabel: String, stud
                 .joinToString("_")
         }
         .filter { it.isNotEmpty() }
-        .joinToString("_") + ".png"
+        .joinToString("_") + "." + extension
 
 private val WHITESPACE = Regex("\\s+")
 
+/** Writes [bitmap] as a PNG; see [writeClassTableExport]. */
+internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap, fileName: String): File =
+    writeClassTableExport(context, fileName) { out ->
+        // A layer may hand back a hardware bitmap, whose pixels live on
+        // the GPU; copy them down before encoding.
+        val android = bitmap.asAndroidBitmap().let {
+            if (it.config == Bitmap.Config.HARDWARE) it.copy(Bitmap.Config.ARGB_8888, false) else it
+        }
+        check(android.compress(Bitmap.CompressFormat.PNG, 100, out)) { "PNG encoding failed" }
+    }
+
 /**
- * Writes [bitmap] as a PNG in a directory of its own and returns the file.
+ * Writes an export through [write] in a directory of its own and returns the file.
  *
  * A fresh directory per export: the name repeats for the same term and
  * student, so at a shared path a share target still holding the previous
@@ -248,20 +261,14 @@ private val WHITESPACE = Regex("\\s+")
  * can, and are swept only after this one is written — a failed export takes
  * nothing with it but its own directory.
  */
-internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap, fileName: String): File =
+internal suspend fun writeClassTableExport(context: Context, fileName: String, write: (OutputStream) -> Unit): File =
     withContext(Dispatchers.IO) {
         // Under cacheDir, and served by the app's FileProvider (`file_provider_paths.xml`).
         val root = File(context.cacheDir, AppStorage.CLASS_TABLE_EXPORT_DIR)
         val dir = File(root, UUID.randomUUID().toString()).apply { mkdirs() }
         val file = File(dir, fileName)
         try {
-            // A layer may hand back a hardware bitmap, whose pixels live on
-            // the GPU; copy them down before encoding.
-            val android = bitmap.asAndroidBitmap().let {
-                if (it.config == Bitmap.Config.HARDWARE) it.copy(Bitmap.Config.ARGB_8888, false) else it
-            }
-            val written = file.outputStream().use { android.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            check(written) { "PNG encoding failed" }
+            file.outputStream().use(write)
         } catch (e: Throwable) {
             dir.deleteRecursively()
             throw e
@@ -274,17 +281,17 @@ internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap,
     }
 
 /**
- * Hands [file] to the system share sheet, where the user can save it (Files,
- * Photos, Drive) or send it anywhere.
+ * Hands [file], of the media [type], to the system share sheet, where the user can save it
+ * (Files, Photos, Drive, a calendar) or send it anywhere.
  */
-internal fun shareClassTableImage(context: Context, file: File, chooserTitle: String) {
+internal fun shareClassTableExport(context: Context, file: File, chooserTitle: String, type: String = "image/png") {
     val uri = FileProvider.getUriForFile(context, fileProviderAuthority(context), file)
     val send = Intent(Intent.ACTION_SEND)
-        .setType("image/png")
+        .setType(type)
         .putExtra(Intent.EXTRA_STREAM, uri)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     // The ClipData is what carries the read grant to the share sheet itself,
-    // which needs it to show the image's preview.
+    // which needs it to show the file's preview.
     send.clipData = ClipData.newRawUri(file.name, uri)
     context.startActivity(Intent.createChooser(send, chooserTitle))
 }

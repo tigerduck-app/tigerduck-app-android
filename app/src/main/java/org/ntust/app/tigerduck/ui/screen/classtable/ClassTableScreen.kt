@@ -168,8 +168,7 @@ fun ClassTableScreen(
     // Compose dependency, leaving badges stale until the next courses update.
     val outstandingAssignments by viewModel.outstandingAssignments.collectAsStateWithLifecycle()
     val courseNosWithAssignments by viewModel.courseNosWithAssignments.collectAsStateWithLifecycle()
-    val courseNosIgnoringAssignments by
-        viewModel.courseNosIgnoringAssignments.collectAsStateWithLifecycle()
+    val courseNosIgnoringAssignments by viewModel.courseNosIgnoringAssignments.collectAsStateWithLifecycle()
     val canIgnoreAssignments by viewModel.canIgnoreAssignments.collectAsStateWithLifecycle()
     // Hoisted alongside the other top-level subscriptions: a second
     // collectAsStateWithLifecycle for the same flow inside a conditional
@@ -224,11 +223,7 @@ fun ClassTableScreen(
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
     var conflictPicker by remember { mutableStateOf<ConflictPickerTarget?>(null) }
-    var tripleConflictError by remember {
-        mutableStateOf<TripleConflictError?>(
-            null
-        )
-    }
+    var tripleConflictError by remember { mutableStateOf<TripleConflictError?>(null) }
     val scrollState = rememberScrollState()
     // Read as the grid is placed, not drawn from, so neither is snapshot state.
     val scrolledContent = remember { arrayOfNulls<LayoutCoordinates>(1) }
@@ -244,6 +239,18 @@ fun ClassTableScreen(
     val classTableTitle = stringResource(R.string.feature_class_table)
     val exportTitle = stringResource(R.string.class_table_export_screenshot)
     val exportFailedMessage = stringResource(R.string.class_table_export_failed)
+    val calendarExport: ClassTableCalendarExportViewModel = hiltViewModel()
+    // Off while an export is in flight. The screenshot only while the grid below is drawn, as
+    // anything else would export a header over nothing; the ICS file only with a class to put in it.
+    fun exports(close: () -> Unit) = (exporting || calendarExport.isExporting).let { busy ->
+        ClassTableExports(
+            onScreenshot = { close(); exporting = true }.takeIf { hasGrid && !busy },
+            onCalendar = {
+                close()
+                calendarExport.shareOn(scope, context, shown, viewModel::displayLabel) { snackbarHostState.showSnackbar(exportFailedMessage) }
+            }.takeIf { !busy && calendarExport.canExport(shown) },
+        )
+    }
     val errorNetworkUnavailable = stringResource(R.string.error_network_unavailable)
     val refreshingMessage = stringResource(R.string.refreshing_message)
     val weekdayShortLabels = listOf(
@@ -302,7 +309,6 @@ fun ClassTableScreen(
         sharing = null
     }
 
-
     PageScaffold(
         title = stringResource(R.string.feature_class_table),
         headerPosition = PageHeaderPosition.InContent,
@@ -326,14 +332,9 @@ fun ClassTableScreen(
                 // Someone else's class table is read-only: export and import
                 // as on the user's own, then what applies to the person.
                 PersonClassTableMenuItems(
-                    exportEnabled = hasGrid && !exporting,
-                    onExport = { close(); exporting = true },
+                    exports = exports(close),
                     onImport = { close(); onRequestImport() },
-                    onRename = {
-                        close()
-                        nicknameDraft = shownPerson.nickname
-                        renamingPerson = shownPerson
-                    },
+                    onRename = { close(); nicknameDraft = shownPerson.nickname; renamingPerson = shownPerson },
                     onDelete = { close(); deletingPerson = shownPerson },
                     close = close,
                 )
@@ -353,10 +354,7 @@ fun ClassTableScreen(
                         }
                     },
                     onImport = { close(); onRequestImport() },
-                    // Only exportable while the grid below is drawn; anything else would
-                    // export a header over nothing. Also off while one is in flight.
-                    exportEnabled = hasGrid && !exporting,
-                    onExport = { close(); exporting = true },
+                    exports = exports(close),
                     onReset = { close(); showResetConfirm = true },
                     close = close,
                 )
@@ -661,7 +659,7 @@ fun ClassTableScreen(
                     bitmap,
                     classTableExportFileName(classTableTitle, semesterLabel, studentId),
                 )
-                shareClassTableImage(context, file, exportTitle)
+                shareClassTableExport(context, file, exportTitle)
                 exporting = false
             },
             onFailed = {

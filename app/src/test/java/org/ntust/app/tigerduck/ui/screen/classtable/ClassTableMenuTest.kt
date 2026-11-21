@@ -44,8 +44,7 @@ class ClassTableMenuTest {
                             shareEnabled = true,
                             onShare = {},
                             onImport = {},
-                            exportEnabled = true,
-                            onExport = {},
+                            exports = ClassTableExports(onScreenshot = {}, onCalendar = { asked += "export ICS" }),
                             onReset = {},
                             close = { asked += "close" },
                         )
@@ -64,6 +63,7 @@ class ClassTableMenuTest {
             R.string.class_table_share,
             R.string.class_table_import,
             R.string.class_table_export_screenshot,
+            R.string.class_table_export_ics,
             R.string.action_settings,
             R.string.class_table_reset_title,
         )
@@ -87,14 +87,28 @@ class ClassTableMenuTest {
         assertEquals(listOf("subscribe clubs"), asked)
     }
 
-    private fun showPersonMenu(exportEnabled: Boolean = true, picked: MutableList<String> = mutableListOf()) {
+    @Test
+    fun `Export ICS exports the term as a calendar file`() {
+        showMenu()
+
+        composeRule.onNodeWithText(string(R.string.class_table_export_ics)).assertIsEnabled().performClick()
+        assertEquals(listOf("export ICS"), asked)
+    }
+
+    private fun showPersonMenu(
+        exportEnabled: Boolean = true,
+        calendarEnabled: Boolean = true,
+        picked: MutableList<String> = mutableListOf(),
+    ) {
         composeRule.setContent {
             CompositionLocalProvider(LocalOpenPageSettings provides { picked += "settings of $it" }) {
                 MaterialTheme {
                     Column {
                         PersonClassTableMenuItems(
-                            exportEnabled = exportEnabled,
-                            onExport = { picked += "export" },
+                            exports = ClassTableExports(
+                                onScreenshot = { picked += "export" }.takeIf { exportEnabled },
+                                onCalendar = { picked += "export ICS" }.takeIf { calendarEnabled },
+                            ),
                             onImport = { picked += "import" },
                             onRename = { picked += "rename" },
                             onDelete = { picked += "delete" },
@@ -112,6 +126,7 @@ class ClassTableMenuTest {
         showPersonMenu(picked = picked)
         val order = listOf(
             R.string.class_table_export_screenshot,
+            R.string.class_table_export_ics,
             R.string.class_table_import,
             R.string.class_table_rename_title,
             R.string.action_settings,
@@ -123,7 +138,7 @@ class ClassTableMenuTest {
 
         items.forEach { it.performClick() }
         assertEquals(
-            listOf("export", "import", "rename", "close", "settings of ${PageSettings.CLASS_TABLE}", "delete"),
+            listOf("export", "export ICS", "import", "rename", "close", "settings of ${PageSettings.CLASS_TABLE}", "delete"),
             picked,
         )
     }
@@ -132,5 +147,14 @@ class ClassTableMenuTest {
     fun `someone else's class table can't be exported with no grid drawn`() {
         showPersonMenu(exportEnabled = false)
         composeRule.onNodeWithText(string(R.string.class_table_export_screenshot)).assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.class_table_export_ics)).assertIsEnabled()
+    }
+
+    @Test
+    fun `Export ICS is greyed out when it cannot act`() {
+        val picked = mutableListOf<String>()
+        showPersonMenu(calendarEnabled = false, picked = picked)
+        composeRule.onNodeWithText(string(R.string.class_table_export_ics)).assertIsNotEnabled().performClick()
+        assertEquals(emptyList<String>(), picked)
     }
 }
