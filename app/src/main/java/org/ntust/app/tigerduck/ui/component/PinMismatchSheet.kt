@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -120,14 +121,17 @@ fun PinMismatchHost(prompts: PinMismatchPrompts) {
         back = stringResource(R.string.action_back),
     )
     val rows = remember(shown) { certificateRows(shown, texts, locale) }
-    PinMismatchSheet(
-        host = shown.host,
-        texts = texts,
-        certificates = rows,
-        onCancel = prompts::cancel,
-        onContinue = prompts::continueToSite,
-        onDismiss = { prompts.dismiss(shown) },
-    )
+    // A sheet of its own for each prompt: the next one after a swipe rises, not in the sheet closed.
+    key(shown) {
+        PinMismatchSheet(
+            host = shown.host,
+            texts = texts,
+            certificates = rows,
+            onCancel = prompts::cancel,
+            onContinue = prompts::continueToSite,
+            onDismiss = { prompts.dismiss(shown) },
+        )
+    }
 }
 
 /**

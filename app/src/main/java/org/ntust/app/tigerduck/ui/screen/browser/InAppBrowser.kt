@@ -102,6 +102,8 @@ object InAppBrowser {
             .putStringArrayListExtra(EXTRA_RISK_ACCEPTED, acceptance.encoded())
             .putExtra(EXTRA_RISK_PROFILE, profile)
             .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        // The opener's restriction as it stood, with the first host it gained at its opening.
+        if (from.hasExtra(EXTRA_ENTRIES)) intent.putStringArrayListExtra(EXTRA_ENTRIES, ArrayList(allowlistFor(from).entries.map { it.text }))
         return start(context, intent)
     }
 

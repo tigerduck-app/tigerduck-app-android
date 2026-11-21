@@ -68,7 +68,8 @@ class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
         if (!isMadeHere(name)) return done()
         try {
             profiles.clear(name, done)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // An Error too, as from an older WebView: a clearing waits for done, and the browser with it.
             Log.w(TAG, "a profile opened at risk was not cleared: ${e.javaClass.simpleName}")
             done()
         }

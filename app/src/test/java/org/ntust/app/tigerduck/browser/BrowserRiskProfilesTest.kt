@@ -132,6 +132,22 @@ class BrowserRiskProfilesTest {
     }
 
     @Test
+    fun `a clearing that fails with an error still says it is done`() {
+        val fake = object : WebViewProfiles {
+            override fun supported() = true
+            override fun names() = emptyList<String>()
+            override fun delete(name: String) = Unit
+            override fun clear(name: String, done: () -> Unit): Unit = throw NoSuchMethodError("an older WebView")
+        }
+        val profiles = BrowserRiskProfiles(fake)
+        var done = false
+
+        profiles.clear(profiles.create(cleanup)!!) { done = true }
+
+        assertTrue(done)
+    }
+
+    @Test
     fun `a clearing that fails still says it is done`() {
         val fake = object : WebViewProfiles {
             override fun supported() = true
