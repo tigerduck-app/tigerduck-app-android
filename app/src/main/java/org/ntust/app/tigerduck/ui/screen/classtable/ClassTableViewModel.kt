@@ -951,7 +951,7 @@ class ClassTableViewModel @Inject constructor(
      */
     fun selectedChangeRows(
         shown: org.ntust.app.tigerduck.shared.timeline.ClassSlot?,
-        cancelled: String,
+        words: org.ntust.app.tigerduck.shared.timeline.CourseChangeWords,
         locale: java.util.Locale,
     ): List<org.ntust.app.tigerduck.shared.timeline.CourseChangeRow> {
         val course = _selectedCourse.value ?: return emptyList()
@@ -961,7 +961,7 @@ class ClassTableViewModel @Inject constructor(
         return org.ntust.app.tigerduck.shared.timeline.CourseChangeSummary.rows(
             org.ntust.app.tigerduck.shared.timeline.CourseMeetings.upcomingChanges(course, today, changes),
             shown,
-            cancelled,
+            words,
             locale,
         )
     }

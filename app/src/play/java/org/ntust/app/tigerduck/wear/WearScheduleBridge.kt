@@ -12,13 +12,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
-import org.ntust.app.tigerduck.shared.timeline.CourseChanges
-import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
@@ -31,8 +29,6 @@ import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.AccentGradientStyle
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.WatchClassChange
-import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.toned
@@ -40,8 +36,6 @@ import org.ntust.app.tigerduck.shared.tls.PinAcceptances
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
-import java.time.LocalTime
-import java.util.Locale
 import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -143,7 +137,9 @@ class WearScheduleBridge @Inject constructor(
             academicCalendar.optedInHolidayIds,
             AppClock.localDateTime().toLocalDate(),
         )
-        val courseChanges = wearCourseChanges(courses, courseChangeStore.current())
+        // A class held online goes as a room change to 線上 in the phone's language, as the iPhone sends it.
+        val online = AppLanguageManager.localizedContext(context, appPreferences.appLanguage).getString(R.string.course_change_online)
+        val courseChanges = wearCourseChanges(courses, courseChangeStore.current(), online)
 
         val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
             dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
@@ -342,33 +338,6 @@ internal fun wearQuietDays(
 ): ArrayList<String> = WearProtocol.Schedule.encodeQuietDays(
     calendar.quietDays(optedInHolidayIds, today, today.plusDays(WEAR_QUIET_DAYS_AHEAD))
 )
-
-/**
- * The classes the school changed in [courses], on every day of the feed, past days included, in
- * the form the watch reads under [WearProtocol.Schedule.KEY_COURSE_CHANGES]: each meeting moved,
- * cancelled or given a room, as the classes it splits into, cancelled ones included. A meeting
- * with only a note is left out. As the iPhone's `WatchPayloadEncoder` fills `changes`.
- */
-internal fun wearCourseChanges(courses: List<Course>, changes: CourseChanges): String {
-    val byCourse = courses.associate { course ->
-        course.courseNo to changes.days(course.courseNo)
-            .associateWith { day -> CourseMeetings.changedClasses(course, day, changes).map(::wearClassChange) }
-            .filterValues { it.isNotEmpty() }
-    }
-    return WearProtocol.Schedule.encodeCourseChanges(WatchCourseChanges(byCourse.filterValues { it.isNotEmpty() }))
-}
-
-/** [slot] with only the values the school changed, as the iPhone's `SnapshotCourseChange`. */
-private fun wearClassChange(slot: ClassSlot) = WatchClassChange(
-    periods = slot.periods,
-    cancelled = slot.isCancelled,
-    room = slot.room.takeIf { slot.hasChangedRoom },
-    start = slot.originalStart?.let { wearHm(slot.start) },
-    end = slot.originalEnd?.let { wearHm(slot.end) },
-)
-
-// Latin digits in every locale, as the watch parses them.
-private fun wearHm(time: LocalTime): String = "%02d:%02d".format(Locale.US, time.hour, time.minute)
 
 internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBridge.CourseDto(
     courseNo = courseNo,

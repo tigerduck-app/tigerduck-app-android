@@ -44,7 +44,7 @@ class WidgetCourseChangesTest {
 
     /** A block as a widget shows it, with what the school changed. */
     private fun CourseBlock.shown(): String = buildString {
-        append("$periodRange $startTime–$endTime $classroom")
+        append("$periodRange $startTime–$endTime ${classroom("Online")}")
         if (isCancelled) append(" cancelled")
         if (timeChanged) append(" time")
         if (roomChanged) append(" room")

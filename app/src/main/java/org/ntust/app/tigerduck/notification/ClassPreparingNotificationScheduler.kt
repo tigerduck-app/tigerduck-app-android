@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
@@ -30,7 +31,9 @@ import javax.inject.Singleton
  *
  * The classes are the timetable's as the school's [courseChanges] leave them,
  * as iOS's `ScheduleSyncService` sends them to the server: none for a
- * cancelled class, and the rest at their changed start in their changed room.
+ * cancelled class, and the rest at their changed start in their changed room,
+ * `course_change_online` for one held online, and an assessment's name before
+ * the time, as the backend's class reminders write them.
  * LiveActivityManager arms them again when the feed changes, which brings the
  * reminders already up in step too; see [refreshShownLocked].
  *
@@ -122,11 +125,9 @@ class ClassPreparingNotificationScheduler internal constructor(
                 current
             }
             val intent = Intent(context, ClassPreparingNotificationReceiver::class.java).apply {
-                putExtra(
-                    ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME,
-                    slot.course.displayName
-                )
+                putExtra(ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME, slot.course.displayName)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.classroom)
+                putExtra(ClassPreparingNotificationReceiver.EXTRA_ASSESSMENT, slot.assessment)
                 putExtra(
                     ClassPreparingNotificationReceiver.EXTRA_INSTRUCTOR,
                     slot.course.instructor
@@ -208,7 +209,8 @@ class ClassPreparingNotificationScheduler internal constructor(
             val unchanged = slot != null &&
                 posted.extras.getLong(ClassPreparingNotificationReceiver.EXTRA_CLASS_START_MS) == slot.startMs &&
                 posted.extras.getLong(ClassPreparingNotificationReceiver.EXTRA_CLASS_END_MS) == slot.endMs &&
-                posted.extras.getString(ClassPreparingNotificationReceiver.EXTRA_CLASS_ROOM) == slot.classroom
+                posted.extras.getString(ClassPreparingNotificationReceiver.EXTRA_CLASS_ROOM) == slot.classroom &&
+                posted.extras.getString(ClassPreparingNotificationReceiver.EXTRA_CLASS_ASSESSMENT) == slot.assessment
             when {
                 unchanged -> Unit
                 // Through the stack, so its summary goes with the last banner.
@@ -218,7 +220,7 @@ class ClassPreparingNotificationScheduler internal constructor(
                     context, appLanguage(), sbn.id,
                     slot.course.displayName, slot.classroom, slot.course.instructor,
                     slot.startMs, slot.endMs, leadTimeMs,
-                    classId = slot.classId, update = true,
+                    classId = slot.classId, update = true, assessment = slot.assessment,
                 )
             }
         }
@@ -282,6 +284,8 @@ class ClassPreparingNotificationScheduler internal constructor(
          * a day can switch rooms in between.
          */
         val classroom: String,
+        /** The name of the class's assessment in the app's language, which the reminder begins with; null for none. */
+        val assessment: String?,
     )
 
     private fun upcomingSlots(
@@ -295,6 +299,10 @@ class ClassPreparingNotificationScheduler internal constructor(
         val today = AppClock.localDateTime().toLocalDate()
         val results = mutableListOf<UpcomingSlot>()
         val skipped = CourseMeetings.skipsFrom(skippedDates)
+        // In the language the reminder is written in: the room of a class held online, and an assessment's name.
+        val localized = AppLanguageManager.localizedContext(context, appLanguage())
+        val online = localized.getString(R.string.course_change_online)
+        val locale = localized.resources.configuration.locales[0]
         for (dayOffset in 0 until daysAhead) {
             val date = today.plusDays(dayOffset.toLong())
             // No 即將上課 alarms outside the term. The timetable is populated
@@ -325,7 +333,8 @@ class ClassPreparingNotificationScheduler internal constructor(
                     endMs = slot.endsAt.toEpochMilli(),
                     id = "${slot.course.courseNo}@${isoDate}#${slot.periods.first()}-${slot.periods.last()}",
                     classId = slot.id,
-                    classroom = slot.room,
+                    classroom = slot.room(online),
+                    assessment = slot.assessment?.note(locale)?.takeIf { it.isNotEmpty() },
                 )
             }
         }

@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeRow
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeSummary
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeWords
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -42,7 +43,8 @@ class CourseDetailChangesTest {
         CourseChangeSummary.shownMeeting(course, null, periods, CourseChangeFixture.thursday, changes)
 
     private fun rows(shown: ClassSlot?): List<CourseChangeRow> = CourseChangeSummary.rows(
-        CourseMeetings.upcomingChanges(course, CourseChangeFixture.thursday, changes), shown, text(R.string.course_card_cancelled), Locale.US,
+        CourseMeetings.upcomingChanges(course, CourseChangeFixture.thursday, changes), shown,
+        CourseChangeWords(text(R.string.course_card_cancelled), text(R.string.course_change_assessment), text(R.string.course_change_online)), Locale.US,
     )
 
     private fun show(meeting: ClassSlot?, rows: List<CourseChangeRow>) {
