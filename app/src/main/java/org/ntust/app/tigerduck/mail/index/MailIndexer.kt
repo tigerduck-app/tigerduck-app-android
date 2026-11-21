@@ -23,15 +23,7 @@ data class MailIndexProgress(
      * folder recreated meanwhile -- and left mail out of search, until one gets through.
      */
     val running: Boolean = true,
-    /**
-     * The folders the downloads have brought whole: every mail the server had when one last
-     * planned them is downloaded, and no search has found one lacking mail since.
-     */
-    val whole: Set<String> = emptySet(),
 ) {
-    /** Whether every one of [folders] is [whole]: a search of them misses nothing. */
-    fun holdsAll(folders: Collection<String>): Boolean = whole.containsAll(folders)
-
     companion object {
         /** Under way, with no total yet: every folder listed, planned and its flags asked for first. */
         val COUNTING = MailIndexProgress(0, null)

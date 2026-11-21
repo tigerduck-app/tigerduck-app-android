@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.index.MailIndexProgress
 import java.text.NumberFormat
 import java.util.Locale
@@ -27,17 +28,17 @@ import java.util.Locale
 /**
  * The end of the mail list, as the iPhone's (tigerduck-app/tigerduck-app#996): a spinner while a
  * further page is on its way ([busy]), and, after a search that may have missed mail
- * ([searchIndexPartial]), how far the download for search has come while the folders it searched
- * ([targets]) are not yet whole -- "20/2,000", with the spinner while the download runs; the
- * spinner alone while it still counts; the count alone once it stopped, or the partial-index
- * sentence where it stopped before it had one. TalkBack reads that sentence for it, not the count.
+ * ([searchIndexPartial], kept until the folders it searched are whole), how far the download for
+ * search has come -- "20/2,000", with the spinner while the download runs; the spinner alone while
+ * it still counts; the count alone once it stopped, or the partial-index sentence where it stopped
+ * before it had one. TalkBack reads that sentence for it, not the count.
  *
  * It collects [progress] itself, so a batch downloaded recomposes the footer, not the rows above it.
  */
 @Composable
-internal fun MailListFooter(progress: StateFlow<MailIndexProgress?>, searchIndexPartial: Boolean, targets: List<String>, busy: Boolean) {
+internal fun MailListFooter(progress: StateFlow<MailIndexProgress?>, searchIndexPartial: Boolean, busy: Boolean) {
     val index by progress.collectAsStateWithLifecycle()
-    val shown = index?.takeIf { searchIndexPartial && !it.holdsAll(targets) }
+    val shown = index?.takeIf { searchIndexPartial }
     val spins = footerSpins(shown, busy)
     if (shown == null && !spins) return
     val sentence = stringResource(R.string.school_mail_search_index_partial)
@@ -76,12 +77,13 @@ internal fun footerText(shown: MailIndexProgress, spins: Boolean, sentence: Stri
     indexProgressText(shown) ?: sentence.takeUnless { spins }
 
 /**
- * [this], its search no longer said to have missed mail once [progress] has every folder it
- * searched whole: the run again that would say so is skipped while the user edits the query or
- * has paged the results, and another folder still downloading is none of its business (#752).
+ * [this], its search no longer said to have missed mail once every folder it searched is [whole]
+ * ([SchoolMailRepository.searchIndexWhole]): the run again that would say so is skipped while the
+ * user edits the query or has paged the results, and another folder still downloading is none of
+ * its business (#752).
  */
-internal fun SchoolMailListViewModel.UiState.wholeAsOf(progress: MailIndexProgress?): SchoolMailListViewModel.UiState =
-    if (searchIndexPartial && progress?.holdsAll(targets) == true) copy(searchIndexPartial = false) else this
+internal fun SchoolMailListViewModel.UiState.wholeAsOf(whole: Set<String>): SchoolMailListViewModel.UiState =
+    if (searchIndexPartial && whole.containsAll(targets)) copy(searchIndexPartial = false) else this
 
 /**
  * [progress] as the sync dot's popup and the end of the search results show it: mail downloaded

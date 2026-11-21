@@ -7,8 +7,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * How far the download into the search index has come, for the screens: the sync dot's row, and
- * the end of the search results, which also reads the folders it brought whole
- * ([MailIndexProgress.whole]). One mailbox's at a time, by address and index epoch.
+ * the end of the search results, which also reads the folders it brought whole ([whole]). One
+ * mailbox's at a time, by address and index epoch.
  *
  * [gapsFound] is the repository's count of searches whose catch-up left mail out, moved on here.
  * [shows] says whether an [MailIndexer.Owner]'s download may still show anything: the index still
@@ -27,15 +27,19 @@ internal class MailIndexCoverage(
     private val lock = Any()
     private var progressMailbox: Pair<String, Int>? = null
 
-    // Under lock: the folders of [wholeMailbox] the downloads have brought whole. They outlive the
-    // progress, which a download that got through clears, so the next one starts from them; only
-    // the mailbox's own leaving or the downloaded mail's deletion forgets them.
+    // Under lock: the mailbox, as [progressMailbox], whose folders [whole] names.
     private var wholeMailbox: Pair<String, Int>? = null
-    private var whole = emptySet<String>()
+    private val _whole = MutableStateFlow<Set<String>>(emptySet())
+
+    /**
+     * The folders the downloads have brought whole: every mail the server had when one last planned
+     * them is downloaded, and no search has found one lacking mail since. They outlive the progress,
+     * which a download that got through clears; only the mailbox's own leaving, or the downloaded
+     * mail's deletion, forgets them.
+     */
+    val whole: StateFlow<Set<String>> = _whole.asStateFlow()
 
     private fun MailIndexer.Owner.mailbox() = address to epoch
-
-    private fun wholeOf(owner: MailIndexer.Owner) = if (wholeMailbox == owner.mailbox()) whole else emptySet()
 
     // [progress] of [owner]'s download, while the index is still its own and its student has not
     // left: a sign-in tells of the student leaving before it ends their sign-in, and a download of
@@ -43,7 +47,7 @@ internal class MailIndexCoverage(
     fun show(owner: MailIndexer.Owner, progress: MailIndexProgress): Unit = synchronized(lock) {
         if (!shows(owner)) return
         progressMailbox = owner.mailbox()
-        _progress.value = progress.copy(whole = wholeOf(owner))
+        _progress.value = progress
     }
 
     // [owner]'s progress, stopped, left on screen while mail is missing from search (#587):
@@ -58,10 +62,9 @@ internal class MailIndexCoverage(
     // not see the mail the search found missing. Under the lock [noteGap] moves the count under.
     fun noteWhole(owner: MailIndexer.Owner, folder: String, whole: Boolean, gaps: Int): Unit = synchronized(lock) {
         if (!shows(owner) || (whole && gapsFound.get() != gaps)) return
-        val before = wholeOf(owner)
+        val before = if (wholeMailbox == owner.mailbox()) _whole.value else emptySet()
         wholeMailbox = owner.mailbox()
-        this.whole = if (whole) before + folder else before - folder
-        if (progressMailbox == owner.mailbox()) _progress.value = _progress.value?.copy(whole = this.whole)
+        _whole.value = if (whole) before + folder else before - folder
     }
 
     // No progress: [owner]'s download got through with no gap found since its last pass planned
@@ -84,14 +87,11 @@ internal class MailIndexCoverage(
     // the lock the last pass's clear asks [gapsFound] under, so it cannot clear past this gap.
     fun noteGap(folder: String): Unit = synchronized(lock) {
         gapsFound.incrementAndGet()
-        whole -= folder
-        _progress.value?.let { shown ->
-            _progress.value = shown.copy(whole = shown.whole - folder)
-            return
-        }
+        _whole.value -= folder
+        if (_progress.value != null) return
         val owner = ownerNow() ?: return
         progressMailbox = owner.mailbox()
-        _progress.value = MailIndexProgress.COUNTING.copy(running = false, whole = wholeOf(owner))
+        _progress.value = MailIndexProgress.COUNTING.copy(running = false)
     }
 
     // The folders whole go with the mailbox's progress where it left ([forget]), but not where its
@@ -99,7 +99,7 @@ internal class MailIndexCoverage(
     private fun clearWhere(forget: Boolean = false, mailbox: (Pair<String, Int>) -> Boolean): Unit = synchronized(lock) {
         if (forget && wholeMailbox?.let(mailbox) == true) {
             wholeMailbox = null
-            whole = emptySet()
+            _whole.value = emptySet()
         }
         val shown = progressMailbox ?: return
         if (!mailbox(shown)) return

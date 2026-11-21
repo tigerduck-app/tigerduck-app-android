@@ -172,7 +172,8 @@ class SchoolMailSearchFooterTest {
         scrollToFooter()
         footer().assertExists()
 
-        repo.searchIndexProgress.value = MailIndexProgress(40, 2_000, whole = setOf("INBOX"))
+        repo.searchIndexWhole.value = setOf("INBOX")
+        repo.searchIndexProgress.value = MailIndexProgress(40, 2_000)
         composeRule.waitForIdle()
 
         footer().assertDoesNotExist()

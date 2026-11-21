@@ -37,7 +37,7 @@ class MailListFooterTest {
     private var partial by mutableStateOf(true)
 
     private fun show() {
-        composeRule.setContent { MailListFooter(progress, partial, targets = listOf("INBOX"), busy = false) }
+        composeRule.setContent { MailListFooter(progress, partial, busy = false) }
         composeRule.waitForIdle()
     }
 
@@ -52,12 +52,13 @@ class MailListFooterTest {
     }
 
     @Test
-    fun `it goes once the folders searched are whole, though another still downloads`() {
-        progress.value = MailIndexProgress(20, 2_000, whole = setOf("寄件備份匣"))
+    fun `it goes once the search no longer may have missed mail, though the download goes on`() {
+        progress.value = MailIndexProgress(20, 2_000)
         show()
         composeRule.onNodeWithContentDescription(sentence).assertExists()
 
-        progress.value = MailIndexProgress(30, 2_000, whole = setOf("INBOX", "寄件備份匣"))
+        partial = false
+        progress.value = MailIndexProgress(30, 2_000)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithContentDescription(sentence).assertDoesNotExist()

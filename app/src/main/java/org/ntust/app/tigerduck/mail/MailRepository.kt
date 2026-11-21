@@ -577,10 +577,14 @@ class MailRepository @Inject constructor(
             val found = if (current) matches else emptyList()
             val newest = found.take(PAGE_SIZE)
             SearchOutcome.Server(session.fetchByUids(folder, newest), found.drop(newest.size), validity, complete = whole && current)
+        }.also { found ->
+            // Recreated since the index answered, none of its mail was searched: a gap, as mail missing is.
+            if (whole && !found.complete) withContext(Dispatchers.IO) { askForTheRest(asked, signIn, folder, whole = false) }
         }
     }
 
     override val searchIndexProgress: StateFlow<MailIndexProgress?> get() = coverage.progress
+    override val searchIndexWhole: StateFlow<Set<String>> get() = coverage.whole
 
     /** Held by the download under way, so the in-app one and the background one never both run. */
     private val indexing = Mutex()
@@ -715,7 +719,8 @@ class MailRepository @Inject constructor(
                     coverage.show(owner, MailIndexProgress(done, total))
                 }
                 whole = whole && filled
-                coverage.noteWhole(owner, plan.folder, filled, gaps)
+                // A plan lacking nothing has nothing to fetch, and was told of with its flags.
+                if (plan.missing.isNotEmpty()) coverage.noteWhole(owner, plan.folder, filled, gaps)
             }
             if (whole) lastWhole = WholeDownload(owner, clock(), gaps)
             through = whole

@@ -375,7 +375,7 @@ fun SchoolMailScreen(
                         // The end of the rows or of the empty list's own state, never under one still
                         // loading or searching, whose spinner is the one that shows (#752).
                         if (displayed.isNotEmpty() || emptyState) item(key = "footer") {
-                            MailListFooter(viewModel.searchIndexProgress, state.searchIndexPartial, state.targets, busy = state.isPaginating || state.isSearching)
+                            MailListFooter(viewModel.searchIndexProgress, state.searchIndexPartial, busy = state.isPaginating || state.isSearching)
                         }
                         // Room for the compose button too, so the last row scrolls clear of it.
                         if (!emptyState && !(displayed.isEmpty() && state.isSearching)) {

@@ -389,7 +389,7 @@ class SchoolMailListViewModel @Inject constructor(
                 }
         }
         // Kept as the download brings the folders searched whole, though another still downloads (#752).
-        viewModelScope.launch { repository.searchIndexProgress.collect { p -> _state.update { it.wholeAsOf(p) } } }
+        viewModelScope.launch { repository.searchIndexWhole.collect { whole -> _state.update { it.wholeAsOf(whole) } } }
         // A sign-out must not leave the mail on screen for whoever signs in next (spec §7.5), nor
         // may another student signing in over a rejected account act on their mailbox with its UIDs.
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -1353,7 +1353,7 @@ class SchoolMailListViewModel @Inject constructor(
                 searchResults = ordered(selection, rows),
                 searchLocalOnly = outcomes.any { (_, outcome) -> outcome is SearchOutcome.LoadedOnly },
                 searchIndexPartial = outcomes.any { (_, outcome) -> (outcome as? SearchOutcome.Server)?.complete == false },
-            )
+            ).wholeAsOf(repository.searchIndexWhole.value)
             // Run again silently, it fetches no pages of its own: one whose first pages show
             // nothing here, as under unread only, leaves the results on screen as they were, and
             // the rest of them still to fetch.
