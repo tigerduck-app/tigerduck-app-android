@@ -7,6 +7,7 @@ import androidx.webkit.ProfileStore
 import androidx.webkit.WebStorageCompat
 import androidx.webkit.WebViewFeature
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** The WebView's named profiles, as [BrowserRiskProfiles] uses them; a test's stand-in. On the main thread. */
 interface WebViewProfiles {
@@ -63,15 +64,41 @@ class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
     @Synchronized
     fun madeHere(): Set<String> = made.toSet()
 
-    /** Deletes what the profile [name], made here, keeps, calling [done] once it has, or at once for another. */
-    fun clear(name: String, done: () -> Unit = {}) {
-        if (!isMadeHere(name)) return done()
+    /**
+     * Deletes what the profile [name], made here, keeps, calling [done] once it has, with whether it
+     * did; at once for another, which holds nothing of this process's.
+     */
+    fun clear(name: String, done: (cleared: Boolean) -> Unit = {}) {
+        if (!isMadeHere(name)) return done(true)
         try {
-            profiles.clear(name, done)
+            profiles.clear(name) { done(true) }
         } catch (e: Throwable) {
             // An Error too, as from an older WebView: a clearing waits for done, and the browser with it.
             Log.w(TAG, "a profile opened at risk was not cleared: ${e.javaClass.simpleName}")
-            done()
+            done(false)
+        }
+    }
+
+    /**
+     * At a clearing of the browser: what each profile made here keeps, and each profile an earlier
+     * process left ([sweep]). Not in time, nor settled, when one made here was not cleared: its
+     * cookies may still be there, so the clearing stays owed ([BrowserCleanup]).
+     */
+    suspend fun clearAll(cleanup: BrowserCleanup, timeoutMs: Long): StorageClearing {
+        val failed = AtomicBoolean(false)
+        val deletions = madeHere().map { name ->
+            startDeletion { done ->
+                clear(name) { cleared ->
+                    if (!cleared) failed.set(true)
+                    done()
+                }
+            }
+        }
+        sweep(cleanup)
+        val inTime = deletions.all { reportsInTime(it, timeoutMs) } && !failed.get()
+        return StorageClearing(inTime) {
+            deletions.forEach { it.await() }
+            !failed.get()
         }
     }
 

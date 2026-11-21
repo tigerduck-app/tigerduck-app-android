@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -121,14 +122,14 @@ class BrowserRiskProfilesTest {
         val fake = FakeWebViewProfiles()
         val profiles = BrowserRiskProfiles(fake)
         val made = profiles.create(cleanup)!!
-        var done = 0
+        val done = mutableListOf<Boolean>()
 
-        profiles.clear(made) { done++ }
-        profiles.clear(BrowserRiskProfiles.PREFIX + "from-before") { done++ }
-        profiles.clear("Default") { done++ }
+        profiles.clear(made) { done += it }
+        profiles.clear(BrowserRiskProfiles.PREFIX + "from-before") { done += it }
+        profiles.clear("Default") { done += it }
 
         assertEquals(listOf(made), fake.cleared)
-        assertEquals("each says it is done", 3, done)
+        assertEquals("each says it is done", listOf(true, true, true), done)
     }
 
     @Test
@@ -140,15 +141,15 @@ class BrowserRiskProfilesTest {
             override fun clear(name: String, done: () -> Unit): Unit = throw NoSuchMethodError("an older WebView")
         }
         val profiles = BrowserRiskProfiles(fake)
-        var done = false
+        var done: Boolean? = null
 
-        profiles.clear(profiles.create(cleanup)!!) { done = true }
+        profiles.clear(profiles.create(cleanup)!!) { done = it }
 
-        assertTrue(done)
+        assertEquals("done, and not cleared", false, done)
     }
 
     @Test
-    fun `a clearing that fails still says it is done`() {
+    fun `a clearing that fails still says it is done, and that it failed`() {
         val fake = object : WebViewProfiles {
             override fun supported() = true
             override fun names() = emptyList<String>()
@@ -156,10 +157,44 @@ class BrowserRiskProfilesTest {
             override fun clear(name: String, done: () -> Unit): Unit = throw IllegalStateException("gone")
         }
         val profiles = BrowserRiskProfiles(fake)
-        var done = false
+        var done: Boolean? = null
 
-        profiles.clear(profiles.create(cleanup)!!) { done = true }
+        profiles.clear(profiles.create(cleanup)!!) { done = it }
 
-        assertTrue(done)
+        assertEquals("done, and not cleared", false, done)
+    }
+
+    @Test
+    fun `a browser clearing clears each profile made here and deletes those left, and says it all went`() = runTest {
+        val fake = FakeWebViewProfiles()
+        val left = BrowserRiskProfiles(fake).create(cleanup)!!
+        fake.onDisk += left
+        val profiles = BrowserRiskProfiles(fake)
+        val made = profiles.create(cleanup)!!
+
+        val clearing = profiles.clearAll(cleanup, timeoutMs = 1_000)
+
+        assertTrue(clearing.inTime)
+        assertTrue(clearing.settled())
+        assertEquals(listOf(made), fake.cleared)
+        assertFalse(left in fake.onDisk)
+    }
+
+    @Test
+    fun `a browser clearing whose profile was not cleared stays owed`() = runTest {
+        val fake = object : WebViewProfiles {
+            override fun supported() = true
+            override fun names() = emptyList<String>()
+            override fun delete(name: String) = Unit
+            override fun clear(name: String, done: () -> Unit): Unit = throw IllegalStateException("gone")
+        }
+        val profiles = BrowserRiskProfiles(fake)
+        profiles.create(cleanup)
+
+        val clearing = profiles.clearAll(cleanup, timeoutMs = 1_000)
+
+        assertFalse("its cookies may still be there", clearing.inTime)
+        assertFalse(clearing.settled())
+        assertTrue("and the browser opens again once it settled", BrowserSession.usable)
     }
 }

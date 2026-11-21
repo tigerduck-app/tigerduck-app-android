@@ -250,11 +250,9 @@ class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
             inTime = false
         }
         // Each profile a page opened at risk loaded in, and those an earlier process left.
-        val risk = BrowserRiskProfiles.shared
-        val riskData = risk.madeHere().map { name -> startDeletion { done -> risk.clear(name, done) } }
-        risk.sweep(BrowserCleanup.of(context))
-        if (riskData.any { !reportsInTime(it, CLEAR_TIMEOUT_MS) }) {
-            Log.w(TAG, "a profile opened at risk did not report back yet")
+        val riskData = BrowserRiskProfiles.shared.clearAll(BrowserCleanup.of(context), CLEAR_TIMEOUT_MS)
+        if (!riskData.inTime) {
+            Log.w(TAG, "a profile opened at risk was not cleared yet")
             inTime = false
         }
         WebStorage.getInstance().deleteAllData()
@@ -270,11 +268,10 @@ class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
             browsingData != null && run {
                 cookieRemoval.await()
                 browsingData.await()
-                riskData.forEach { it.await() }
                 // The flush above may have come before a cookie removal that reported late.
                 withContext(Dispatchers.Main) { cookies.flush() }
                 true
-            }
+            } && riskData.settled()
         }
     }
 
