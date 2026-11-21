@@ -96,11 +96,20 @@ class CalendarDeadlinesFollowTheCoursesTest {
         error("the write never finished")
     }
 
-    /** The set once it reads [expected], or as it stands when it never does. */
+    /**
+     * The set once it reads [expected] and the reads still queued have run, so a write after it is
+     * one no read already under way can see; or the set as it stands when it never reads [expected].
+     */
     private fun openableWhen(expected: Set<String>): Set<String> {
         repeat(100) {
             dispatcher.scheduler.runCurrent()
-            if (calendar.openableAssignmentIds.value == expected) return expected
+            if (calendar.openableAssignmentIds.value == expected) {
+                repeat(20) {
+                    Thread.sleep(20)
+                    dispatcher.scheduler.runCurrent()
+                }
+                return calendar.openableAssignmentIds.value
+            }
             Thread.sleep(20)
         }
         return calendar.openableAssignmentIds.value
@@ -120,11 +129,11 @@ class CalendarDeadlinesFollowTheCoursesTest {
     }
 
     @Test
-    fun `a course hidden by a sync stops its deadlines from opening, though the term still lists it`() {
+    fun `a hide written alone stops its course's deadlines from opening, though the term still lists it`() {
         assertEquals(setOf("1", "2"), openableWhen(setOf("1", "2")))
 
+        // As a sync, or Use Server on a courses conflict, writes the server's hides, and nothing else.
         write { cache.saveDeletedCourseNos(setOf(CourseTombstoneKeys.key(semester, "MA201")), testSignIn()) }
-        cache.notifyBackgroundSyncComplete()
 
         assertEquals(setOf("1"), openableWhen(setOf("1")))
     }
