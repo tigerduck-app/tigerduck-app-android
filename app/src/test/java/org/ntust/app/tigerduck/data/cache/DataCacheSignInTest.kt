@@ -81,6 +81,7 @@ class DataCacheSignInTest {
             },
             Write(File(cacheFolder, "course_lookups.json")) { mark, s -> cache.saveCourseLookups(mapOf(mark to DataCache.CourseLookupEntry(emptyList(), 1L)), s) },
             Write(File(cacheFolder, "moodle_course_ids.json")) { mark, s -> cache.saveMoodleCourseIds(mapOf(mark to 1), s) },
+            Write(File(cacheFolder, "moodle_enrolled_course_ids.json")) { mark, s -> cache.saveMoodleEnrolledCourseIds(setOf(mark.hashCode()), s) },
             Write(File(cacheFolder, "closed_assignments.json")) { mark, s -> cache.saveClosedAssignments(mapOf(mark.hashCode() to 1L), s) },
             Write(File(cacheFolder, "score_$STUDENT.json")) { mark, s ->
                 cache.saveScoreReport(ScoreReport.EMPTY.copy(student = mark), STUDENT, s)

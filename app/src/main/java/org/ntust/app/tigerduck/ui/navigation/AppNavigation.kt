@@ -104,6 +104,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OpenSourceLicensesScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AppIconScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SyncContentScreen
@@ -150,6 +151,7 @@ sealed class Screen(val route: String) {
     object ClassReminderSettings : Screen("classReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object AppIcon : Screen("appIcon")
     object AboutOthers : Screen("aboutOthers")
     object OpenSourceLicenses : Screen("openSourceLicenses")
     object LicenseDetail : Screen("openSourceLicenses/{key}") {
@@ -225,7 +227,7 @@ fun AppNavigation(
  * Opens the screen a widget, a notification or a link asked for, on top of
  * the current one. Returns whether it opened.
  *
- * MainActivity only passes routes it accepts (`startRouteOf`), but a route
+ * MainActivityHost only passes routes it accepts (`startRouteOf`), but a route
  * the graph cannot take, or an argument it cannot read, must still leave the
  * app where it is: thrown here, it would end the effect that called this,
  * and the app with it, and come back with the intent from Recents.
@@ -776,14 +778,14 @@ fun MainNavigation(
             page(Screen.OtherSettings.route) {
                 OtherSettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToApiEndpoint = {
-                        navController.navigate(Screen.ApiEndpointDebug.route)
-                    },
+                    onNavigateToApiEndpoint = { navController.navigate(Screen.ApiEndpointDebug.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                     onNavigateToDisplaySize = { navController.navigate(Screen.DisplaySizeSettings.route) },
                     onNavigateToStorage = { navController.navigate(Screen.Storage.route) },
+                    onNavigateToAppIcon = { navController.navigate(Screen.AppIcon.route) },
                 )
             }
+            page(Screen.AppIcon.route) { AppIconScreen(onBack = { navController.popBackStack() }) }
             page(Screen.Storage.route) {
                 StorageScreen(onBack = { navController.popBackStack() })
             }
@@ -840,9 +842,7 @@ fun MainNavigation(
             page(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
             }
-            page(Screen.AccentColor.route) {
-                AccentColorScreen(onBack = { navController.popBackStack() })
-            }
+            page(Screen.AccentColor.route) { AccentColorScreen(onBack = { navController.popBackStack() }) }
             page(Screen.ClassTableList.route) { ClassTableListScreen(switcherUserName, onBack = { navController.popBackStack() }) }
             page(Screen.TabEditor.route) {
                 TabEditorScreen(

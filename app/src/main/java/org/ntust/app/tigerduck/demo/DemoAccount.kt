@@ -172,6 +172,7 @@ class DemoAccount @Inject constructor(
                 MoodleCourseIds.normalizedIdnumber(term + it.courseNo) to it.moodleId
             }
             dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids, signIn)
+            dataCache.saveMoodleEnrolledCourseIds(dataCache.loadMoodleEnrolledCourseIds() + ids.values, signIn)
         }
         fixture.assignments?.let { dataCache.saveAssignments(it, signIn) }
         // The assignments' pages read these, as a round would have kept them.

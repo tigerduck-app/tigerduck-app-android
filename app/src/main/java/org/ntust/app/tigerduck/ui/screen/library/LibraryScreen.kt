@@ -93,7 +93,7 @@ fun LibraryScreen(
     // Lock the activity to whatever orientation it is in when the user enters
     // the library page — the rotating QR is meant to be held up to a scanner,
     // and an unexpected rotate animation mid-scan disrupts that. Restore the
-    // previous request on exit so MainActivity's rotation preference resumes.
+    // previous request on exit so MainActivityHost's rotation preference resumes.
     val activity = LocalActivity.current
     DisposableEffect(activity) {
         val previous = activity?.requestedOrientation

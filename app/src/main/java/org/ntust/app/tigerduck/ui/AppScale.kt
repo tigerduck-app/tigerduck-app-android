@@ -8,7 +8,7 @@ import org.ntust.app.tigerduck.data.preferences.DisplayScale
 
 /**
  * The app's display size and text size from the Display and text size page,
- * as MainActivity applies them: over the phone's own, to the Activity's
+ * as MainActivityHost applies them: over the phone's own, to the Activity's
  * whole configuration, as the phone's Display size and Font size are
  * applied. Compose, its dialogs and sheets, Views and WebViews therefore all
  * follow, which a density handed to Compose alone would not give the windows
@@ -22,7 +22,7 @@ data class AppScale(val ui: Float, val text: Float) {
 
     /**
      * Whether the display size moves the screen's size in dp off the phone's,
-     * which a rotation or a resized window then makes stale: MainActivity
+     * which a rotation or a resized window then makes stale: MainActivityHost
      * handles those itself, so it recreates itself for them.
      */
     val resizesScreen: Boolean get() = ui != DisplayScale.DEFAULT

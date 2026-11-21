@@ -11,7 +11,7 @@ import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** When MainActivity opens the page of the assignment a `tigerduck://assignment/<id>` link names. */
+/** When MainActivityHost opens the page of the assignment a `tigerduck://assignment/<id>` link names. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class LinkedAssignmentTest {

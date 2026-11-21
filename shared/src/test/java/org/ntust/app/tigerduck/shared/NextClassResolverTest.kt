@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.shared
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import java.time.Instant
 import java.time.LocalDate
 
 class NextClassResolverTest {
@@ -266,6 +268,72 @@ class NextClassResolverTest {
         assertEquals(listOf("TR-411", ""), today.map { it.classroom })
         assertEquals(listOf(14 * 60 + 20, 15 * 60 + 30), today.map { it.startMinute })
         assertEquals(listOf(15 * 60 + 10, 16 * 60), today.map { it.endMinute })
+    }
+
+    // ---- the end of a class shown next, for its range ----
+
+    @Test
+    fun `a class next today and one on a later day carry their ends`() {
+        val courses = listOf(mondayMorningCourse, mondayAfternoonCourse, tuesdayCourse)
+        val ongoing = NextClassResolver.resolve(courses, day(1), 8 * 60 + 30) as NextClassResult.Ongoing
+        assertEquals(16 * 60 + 20, ongoing.nextToday?.endMinute)
+
+        val today = NextClassResolver.resolve(courses, day(1), 11 * 60) as NextClassResult.NextToday
+        assertEquals(16 * 60 + 20, today.endMinute)
+
+        val later = NextClassResolver.resolve(courses, day(1), 17 * 60) as NextClassResult.NextFuture
+        assertEquals(12 * 60 + 10, later.endMinute)
+    }
+
+    @Test
+    fun `a class the school changed is next with its changed end`() {
+        val change = WatchClassChange(listOf("3", "4"), end = "11:45")
+        val r = NextClassResolver.resolve(listOf(tuesdayCourse), day(1), 22 * 60, changesOn("DB", 1, change))
+        assertEquals(11 * 60 + 45, (r as NextClassResult.NextFuture).endMinute)
+    }
+
+    // ---- the moments what is now and next changes, for the complication's timeline ----
+
+    private fun instant(day: LocalDate, minute: Int): Instant =
+        day.atTime(minute / 60, minute % 60).atZone(TaipeiClock.zone).toInstant()
+
+    @Test
+    fun `boundaries are the starts and ends after now of today's and tomorrow's classes`() {
+        val courses = listOf(mondayMorningCourse, mondayAfternoonCourse, tuesdayCourse, wednesdayCourse)
+        assertEquals(
+            listOf(
+                instant(day(1), 10 * 60), instant(day(1), 14 * 60 + 20), instant(day(1), 16 * 60 + 20),
+                instant(day(2), 10 * 60 + 20), instant(day(2), 12 * 60 + 10),
+            ),
+            NextClassResolver.boundaries(courses, day(1), 9 * 60, days = 2),
+        )
+    }
+
+    @Test
+    fun `a boundary at the minute now is already past`() {
+        assertEquals(
+            listOf(instant(day(1), 16 * 60 + 20)),
+            NextClassResolver.boundaries(listOf(mondayAfternoonCourse), day(1), 14 * 60 + 20, days = 1),
+        )
+    }
+
+    @Test
+    fun `boundaries leave out quiet days and cancelled classes and follow changed times`() {
+        val courses = listOf(mondayMorningCourse, tuesdayCourse)
+        assertEquals(
+            listOf(instant(day(1), 8 * 60 + 10), instant(day(1), 10 * 60)),
+            NextClassResolver.boundaries(courses, day(1), 7 * 60, days = 2) { it == 1 },
+        )
+        val changes = WatchCourseChanges(
+            mapOf(
+                "CN" to mapOf(day(1) to listOf(WatchClassChange(listOf("1", "2"), cancelled = true))),
+                "DB" to mapOf(day(2) to listOf(WatchClassChange(listOf("3", "4"), end = "11:45"))),
+            ),
+        )
+        assertEquals(
+            listOf(instant(day(2), 10 * 60 + 20), instant(day(2), 11 * 60 + 45)),
+            NextClassResolver.boundaries(courses, day(1), 7 * 60, days = 2, changes = changes),
+        )
     }
 
     // ---- a class is over from its end minute (D2: start <= now < end) ----

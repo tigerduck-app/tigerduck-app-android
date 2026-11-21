@@ -9,7 +9,7 @@ import java.io.File
  * Where [ReviewPrompt] is told about the class table and where the ask is
  * launched (tigerduck-app-android#332). The two view models take some twenty
  * collaborators each and cannot be built in a JVM test, so what this pins is
- * that they, their pages and MainActivity still make the calls; read from
+ * that they, their pages and MainActivityHost still make the calls; read from
  * the source, as ClassTableWiringTest does.
  */
 class ReviewPromptWiringTest {
@@ -130,7 +130,7 @@ class ReviewPromptWiringTest {
     fun `the host launches only while the activity's window has the focus`() {
         val text = source(mainActivity).joinToString("\n")
         val start = text.indexOf("reviewPrompt.launchIfStillCalm(")
-        assertTrue("MainActivity no longer launches through launchIfStillCalm", start >= 0)
+        assertTrue("MainActivityHost no longer launches through launchIfStillCalm", start >= 0)
         val call = text.substring(start, text.indexOf("inAppReview.launch(", start))
         assertTrue("launchIfStillCalm no longer requires the window focus", "hasWindowFocus()" in call)
     }

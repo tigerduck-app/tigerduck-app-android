@@ -12,7 +12,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppLink
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.robolectric.RobolectricTestRunner
@@ -67,7 +67,7 @@ class LiveActivityNotifierTapTest {
         notifier.apply(snapshot(LiveActivityScenario.ASSIGNMENT_URGENT, AppLink.Assignment("900002")))
 
         val intent = postedTap()
-        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, intent.component?.className)
         assertEquals("tigerduck://assignment/900002", intent.dataString)
     }
 
@@ -83,7 +83,7 @@ class LiveActivityNotifierTapTest {
         notifier.apply(snapshot(LiveActivityScenario.ASSIGNMENT_URGENT, link = null))
 
         val intent = postedTap()
-        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, intent.component?.className)
         assertNull(intent.data)
     }
 }

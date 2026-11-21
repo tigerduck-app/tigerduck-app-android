@@ -141,7 +141,7 @@ class AccentSettingTest {
         setting.pick(pink)
         var primary: Color? = null
         composeRule.setContent {
-            // As MainActivity does: the root theme takes AppState's copy.
+            // As MainActivityHost does: the root theme takes AppState's copy.
             TigerDuckAppTheme(
                 darkTheme = false,
                 accentColor = AccentPolicy.fixedColor(setting.lightHex, isDark = false),

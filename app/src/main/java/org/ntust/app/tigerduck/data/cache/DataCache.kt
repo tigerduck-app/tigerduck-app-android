@@ -242,7 +242,7 @@ class DataCache @Inject constructor(
         // objects with null-typed-as-non-null Strings — the first caller that reads `courseNo` /
         // `displayName` NPEs. DataMigration sweeps these files on first injection of AppState, but
         // Application.onCreate launches wearBridge.publish() on Dispatchers.IO and can race ahead of
-        // MainActivity-triggered migration. Guard at every read.
+        // MainActivityHost-triggered migration. Guard at every read.
         val remote = load<List<Course>>(
             type,
             coursesFilename(semester),
@@ -1433,22 +1433,21 @@ class DataCache @Inject constructor(
         return load<Map<String, CourseLookupEntry>>(type, "course_lookups.json") ?: emptyMap()
     }
 
-    // --- Moodle course id map (idnumber → numeric id) ---
-    // Powers the course-detail "Open in Moodle" deep link, which needs the
-    // numeric id (Moodle's web endpoint won't accept the idnumber). The map
-    // is harvested from `fetchEnrolledCourses` across ALL semesters so
-    // historical terms keep working too. Cached so a transient Moodle
-    // failure doesn't make the button vanish for the rest of the session;
-    // wiped on logout via [clearAllUserData] so it can't survive an
-    // account switch.
+    // --- Moodle course ids ---
+    // The idnumber → numeric id map behind "Open in Moodle" (whose web endpoint won't take the idnumber), and every enrolled course,
+    // where a member's courses in common are found: from `fetchEnrolledCourses` across ALL terms, cached so a failure hides neither; wiped on logout.
 
     suspend fun saveMoodleCourseIds(map: Map<String, Int>, signIn: SignIn) =
         save(map, "moodle_course_ids.json", signIn)
 
-    suspend fun loadMoodleCourseIds(): Map<String, Int> {
-        val type = object : TypeToken<Map<String, Int>>() {}.type
-        return load<Map<String, Int>>(type, "moodle_course_ids.json") ?: emptyMap()
-    }
+    suspend fun loadMoodleCourseIds(): Map<String, Int> =
+        load<Map<String, Int>>(object : TypeToken<Map<String, Int>>() {}.type, "moodle_course_ids.json") ?: emptyMap()
+
+    suspend fun saveMoodleEnrolledCourseIds(ids: Set<Int>, signIn: SignIn) =
+        save(ids.sorted(), "moodle_enrolled_course_ids.json", signIn)
+
+    suspend fun loadMoodleEnrolledCourseIds(): Set<Int> =
+        load<List<Int>>(object : TypeToken<List<Int>>() {}.type, "moodle_enrolled_course_ids.json").orEmpty().toSet()
 
     // --- A course's Moodle data, per account ---
     // What the course detail's Moodle screens show (forums, announcements,
@@ -1582,6 +1581,7 @@ class DataCache @Inject constructor(
                         "calendar_events.json",
                         "course_lookups.json",
                         "moodle_course_ids.json",
+                        "moodle_enrolled_course_ids.json",
                         "closed_assignments.json",
                         ASSIGNMENT_RECORDS_FILE,
                     ).forEach { name ->

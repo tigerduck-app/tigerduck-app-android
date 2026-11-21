@@ -74,6 +74,8 @@ class MoodleCourseStore(
     term: String? = null,
     /** The records of the account's last assignment round, which the section's Assignments row counts. */
     assignmentRecords: Flow<List<MoodleAssignmentRecord>> = kotlinx.coroutines.flow.flowOf(emptyList()),
+    /** The account's own courses, which [memberCourses] finds each member's in common among. */
+    ownCourses: MoodleOwnCourses = MoodleOwnCourses.NONE,
 ) {
     /** Every course of the term, which one forums call covers. */
     val termCourseIds: List<Int> = (termCourseIds + courseId).distinct().sorted()
@@ -192,21 +194,9 @@ class MoodleCourseStore(
     @Synchronized
     fun discussions(forum: MoodleForum): MoodleDiscussionPages = discussionPages.getOrPut(forum.id) {
         val feed = if (forum.isNews) {
-            MoodleFeed<MoodleDiscussionList>(
-                "courses/$courseId/announcements",
-                object : TypeToken<MoodleDiscussionList>() {}.type,
-                MoodleRefreshInterval.ANNOUNCEMENTS_MS,
-                context,
-                scope,
-            )
+            feed<MoodleDiscussionList>("courses/$courseId/announcements", MoodleRefreshInterval.ANNOUNCEMENTS_MS)
         } else {
-            MoodleFeed(
-                "courses/$courseId/forums/${forum.id}",
-                object : TypeToken<MoodleDiscussionList>() {}.type,
-                MoodleRefreshInterval.FORUMS_MS,
-                context,
-                scope,
-            )
+            feed<MoodleDiscussionList>("courses/$courseId/forums/${forum.id}", MoodleRefreshInterval.FORUMS_MS)
         }
         MoodleDiscussionPages(forum.id, feed, byModified = !forum.isNews, forums, api, scope)
     }
@@ -407,6 +397,9 @@ class MoodleCourseStore(
             }
         }
     }
+
+    /** The courses each other member shares with the account, for their page. */
+    val memberCourses = MoodleMemberCourses(courseId, members, api, context, scope, ownCourses)
 
     // --- The account's own picture ---
 
