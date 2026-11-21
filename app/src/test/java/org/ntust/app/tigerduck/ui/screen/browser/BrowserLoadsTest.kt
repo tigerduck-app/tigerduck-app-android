@@ -8,6 +8,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.browser.BrowserSignIn
 import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.browser.CertificateInfo
+import org.ntust.app.tigerduck.browser.CertificateRefusal
 import org.ntust.app.tigerduck.browser.MoodleBrowserSignIn
 
 /**
@@ -185,6 +186,33 @@ class BrowserLoadsTest {
 
         assertEquals(BrowserError.BadCertificate("moodle2.ntust.edu.tw", refused), state.error)
         assertEquals(B, loads.loadingUrl)
+    }
+
+    @Test
+    fun `a refused page carries what opens it at risk, and only for its own address`() {
+        val leaf = "c".repeat(64)
+        loads.requested(B)
+        loads.started(B)
+
+        assertFalse(loads.certificateFailed(IMAGE, "files.ntust.edu.tw", refusal = CertificateRefusal(IMAGE, leaf)))
+        assertNull(state.riskRefusal)
+        assertTrue(loads.certificateFailed(B, "moodle2.ntust.edu.tw", refusal = CertificateRefusal(B, leaf)))
+        assertEquals(CertificateRefusal(B, leaf), state.riskRefusal)
+
+        // Another page starting takes the error, and the way past it, down.
+        loads.requested(A)
+        loads.started(A)
+        assertNull(state.riskRefusal)
+    }
+
+    @Test
+    fun `a refusal named for another address is not offered`() {
+        loads.requested(B)
+
+        assertTrue(loads.certificateFailed(B, "moodle2.ntust.edu.tw", refusal = CertificateRefusal(A, "c".repeat(64))))
+
+        assertTrue(state.certificateRefused)
+        assertNull(state.riskRefusal)
     }
 
     @Test

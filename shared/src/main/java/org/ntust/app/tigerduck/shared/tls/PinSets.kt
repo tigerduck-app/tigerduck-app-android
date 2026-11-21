@@ -97,12 +97,15 @@ object BuiltInPins {
     )
 }
 
+/** [host] as the pin sets' domains name it: lowercased, without the trailing dot of a fully qualified name. */
+fun pinHostName(host: String): String = host.trimEnd('.').lowercase()
+
 /**
  * The set whose domain matches [host] most specifically, or null for an unpinned host: an exact
  * name beats a suffix match, and a longer suffix beats a shorter one (A2).
  */
 fun List<PinSet>.matching(host: String): PinSet? {
-    val name = host.trimEnd('.').lowercase()
+    val name = pinHostName(host)
     var best: PinSet? = null
     var bestRank = -1
     for (set in this) {

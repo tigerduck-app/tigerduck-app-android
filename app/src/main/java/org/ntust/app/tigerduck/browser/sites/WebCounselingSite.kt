@@ -7,8 +7,10 @@ object WebCounselingSite : SchoolSite {
     override val logoutRules = listOf(SiteLogoutRule("/WebCounseling/OAuth2/Logout"), SiteLogoutRule("/classroom_user/sign-out"))
     override val logoutSelectors = logoutRules.flatMap { it.selectors(hosts) }
 
+    override val signInLinkPage = "/webcounseling/"
+
     override fun signInLink(page: HttpUrl): String? {
-        if (page.encodedPath.lowercase() != "/webcounseling/") return null
+        if (page.encodedPath.lowercase() != signInLinkPage) return null
         return "https://sa02.ntust.edu.tw/WebCounseling/OAuth2/Login"
     }
 }

@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.auth.StoredPasswordRetry
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.auth.session.follow
+import org.ntust.app.tigerduck.browser.BrowserRiskProfiles
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -213,7 +214,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
         uiLanguage.onLocales(resources.configuration.locales.toLanguageTags())
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
-
+        // What browsers opened at risk left, which only a later process can delete.
+        BrowserRiskProfiles.shared.sweepAtStart(this)
         startTlsPins()
         startClubFeeds()
         // Wear OS bridge — publish to paired watch on schedule/auth/accent changes.
