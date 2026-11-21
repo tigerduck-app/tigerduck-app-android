@@ -53,7 +53,13 @@ internal fun LibrarySettingsScreen(
                         )
                     }
                 }
-                item { PageFootnote(stringResource(R.string.settings_flip_to_library_summary)) }
+                // As iOS's footer: what the flip does, and that it rests while the library is closed.
+                item {
+                    PageFootnote(
+                        stringResource(R.string.settings_flip_to_library_summary) + "\n" +
+                            stringResource(R.string.settings_flip_to_library_closed_note),
+                    )
+                }
             }
             if (SettingsRow.LIBRARY_SIGN_OUT.isShown(state)) {
                 if (SettingsRow.FLIP_TO_LIBRARY.isShown(state)) item { PageGap() }
