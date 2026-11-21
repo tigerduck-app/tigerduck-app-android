@@ -130,9 +130,7 @@ fun HomeScreen(
     // Intercept the system back gesture while editing — exit edit mode
     // instead of navigating away. This matches Android-native expectations
     // for any screen with a distinct modal edit state.
-    BackHandler(enabled = isEditing) {
-        editing.finish()
-    }
+    BackHandler(enabled = isEditing, onBack = editing::finish)
 
     LaunchedEffect(Unit) { 
         viewModel.load()
@@ -201,6 +199,7 @@ fun HomeScreen(
             onRemoveSection = viewModel::removeSection,
             onRemoveWidget = viewModel::removeWidget,
             onMoveWidget = viewModel::moveWidget,
+            onStep = viewModel::step,
             onAddQuickFeature = { showAddSectionDialog = true },
             listState = listState,
             header = { Header() },
@@ -301,6 +300,8 @@ internal fun HomePage(
     onRemoveSection: (sectionId: String) -> Unit,
     onRemoveWidget: (sectionId: String, widgetId: String) -> Unit,
     onMoveWidget: (sectionId: String, widgetId: String, toIndex: Int) -> Unit,
+    /** TalkBack's Move up or Move down, for a section or a card: HomeViewModel.step. */
+    onStep: (LayoutStep) -> HomeSectionLayout.Step?,
     /** An arranged shortcut section's empty-grid button: the Add dialog. */
     onAddQuickFeature: () -> Unit,
     header: @Composable () -> Unit,
@@ -380,12 +381,10 @@ internal fun HomePage(
                 }
                 EditableSection(
                     section = section,
+                    shown = order,
                     isDragging = draggingId == section.id,
                     dragOffsetY = if (draggingId == section.id) dragOffsetY else 0f,
-                    onDragStart = {
-                        draggingId = section.id
-                        dragOffsetY = 0f
-                    },
+                    onDragStart = { draggingId = section.id; dragOffsetY = 0f },
                     onDrag = { delta ->
                         dragOffsetY += delta
                         val fromIdx = sections.indexOfFirst { it.id == section.id }
@@ -414,16 +413,12 @@ internal fun HomePage(
                             }
                         }
                     },
-                    onDragEnd = {
-                        draggingId = null
-                        dragOffsetY = 0f
-                    },
-                    onMeasured = { height ->
-                        sectionHeights[section.id] = height
-                    },
+                    onDragEnd = { draggingId = null; dragOffsetY = 0f },
+                    onMeasured = { height -> sectionHeights[section.id] = height },
                     onRemove = { onRemoveSection(section.id) },
                     onRemoveWidget = { onRemoveWidget(section.id, it) },
                     onMoveWidget = { widgetId, toIndex -> onMoveWidget(section.id, widgetId, toIndex) },
+                    onStep = onStep,
                     onAddQuickFeature = onAddQuickFeature,
                 )
             }

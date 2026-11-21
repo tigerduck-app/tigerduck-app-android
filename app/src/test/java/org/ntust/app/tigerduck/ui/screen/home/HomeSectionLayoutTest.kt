@@ -55,7 +55,7 @@ class HomeSectionLayoutTest {
 
     @Test
     fun `a move onto itself returns the very same list`() {
-        // Identity, not just equality: HomeViewModel uses `!==` to decide
+        // Identity, not just equality: HomeViewModel uses `===` to decide
         // whether to write preferences, so a no-op has to be the same object.
         assertSame(threeSections, HomeSectionLayout.move(threeSections, "b", "b"))
     }
@@ -120,6 +120,82 @@ class HomeSectionLayoutTest {
         )
         assertEquals(listOf(0, 1, 2, 3), out.map { it.sortOrder })
         assertEquals(listOf("a", "b", "d", "new"), out.map { it.id })
+    }
+
+    // --- TalkBack's Move up and Move down (iOS #990) ---
+
+    @Test
+    fun `a step moves a section one place and says where it landed`() {
+        val down = HomeSectionLayout.stepSection(threeSections, "a", by = 1, shown = listOf("a", "b", "c"))!!
+        assertEquals(listOf("b", "a", "c"), down.sections.map { it.id })
+        assertEquals(listOf(0, 1, 2), down.sections.map { it.sortOrder })
+        assertEquals(2 to 3, down.position to down.count)
+
+        val up = HomeSectionLayout.stepSection(threeSections, "c", by = -1, shown = listOf("a", "b", "c"))!!
+        assertEquals(listOf("a", "c", "b"), up.sections.map { it.id })
+        assertEquals(2 to 3, up.position to up.count)
+    }
+
+    @Test
+    fun `a step passes the shown neighbor as a drag does, and counts only the shown`() {
+        // "hidden" is the time slider out of term: Home draws a, b, c, and a drag of a past b
+        // is move(a, b), which leaves the hidden one where it was among the others.
+        val withHidden = listOf(section("a", 0), section("hidden", 1), section("b", 2), section("c", 3))
+        val shown = listOf("a", "b", "c")
+
+        val step = HomeSectionLayout.stepSection(withHidden, "a", by = 1, shown = shown)!!
+
+        assertEquals(HomeSectionLayout.move(withHidden, "a", "b"), step.sections)
+        assertEquals(listOf("b", "a", "c"), step.sections.map { it.id }.filter { it in shown })
+        assertEquals(2 to 3, step.position to step.count)
+    }
+
+    @Test
+    fun `a step reads the order as it is when it runs`() {
+        // The action was offered while a was first; a sync has since put it last.
+        val now = listOf(section("b", 0), section("c", 1), section("a", 2))
+
+        assertEquals(null, HomeSectionLayout.stepSection(now, "a", by = 1, shown = listOf("a", "b", "c")))
+        val up = HomeSectionLayout.stepSection(now, "a", by = -1, shown = listOf("a", "b", "c"))!!
+        assertEquals(listOf("b", "a", "c"), up.sections.map { it.id })
+        assertEquals(2 to 3, up.position to up.count)
+    }
+
+    @Test
+    fun `a step past either end, of a section not shown, or of an unknown one moves nothing`() {
+        val shown = listOf("a", "b", "c")
+        assertEquals(null, HomeSectionLayout.stepSection(threeSections, "a", by = -1, shown = shown))
+        assertEquals(null, HomeSectionLayout.stepSection(threeSections, "c", by = 1, shown = shown))
+        assertEquals(null, HomeSectionLayout.stepSection(threeSections, "zzz", by = 1, shown = shown + "zzz"))
+        assertEquals(null, HomeSectionLayout.stepSection(threeSections, "b", by = 1, shown = listOf("a", "c")))
+        assertEquals(null, HomeSectionLayout.stepSection(threeSections, "b", by = 0, shown = shown))
+    }
+
+    @Test
+    fun `a step moves a shortcut one place within its section`() {
+        val sections = builtinOnly + shortcutSection(
+            "qw", HomeSection.HomeSectionType.QUICK_WIDGETS,
+            AppFeature.ANNOUNCEMENTS, AppFeature.SCORE, AppFeature.EMPTY_CLASSROOM,
+        )
+
+        val step = HomeSectionLayout.stepWidget(sections, "qw", "w-score", by = 1)!!
+
+        assertEquals(HomeSectionLayout.moveWidget(sections, "qw", "w-score", toIndex = 2), step.sections)
+        assertEquals(3 to 3, step.position to step.count)
+        val up = HomeSectionLayout.stepWidget(sections, "qw", "w-score", by = -1)!!
+        assertEquals(listOf("w-score", "w-announcements", "w-emptyClassroom"), up.sections.last().widgets.map { it.id })
+        assertEquals(1 to 3, up.position to up.count)
+    }
+
+    @Test
+    fun `a shortcut step past either end or of an unknown one moves nothing`() {
+        val sections = builtinOnly + shortcutSection(
+            "qw", HomeSection.HomeSectionType.QUICK_WIDGETS, AppFeature.ANNOUNCEMENTS, AppFeature.SCORE,
+        )
+        assertEquals(null, HomeSectionLayout.stepWidget(sections, "qw", "w-announcements", by = -1))
+        assertEquals(null, HomeSectionLayout.stepWidget(sections, "qw", "w-score", by = 1))
+        assertEquals(null, HomeSectionLayout.stepWidget(sections, "qw", "nope", by = 1))
+        assertEquals(null, HomeSectionLayout.stepWidget(sections, "nope", "w-score", by = -1))
     }
 
     // --- Shortcuts (quick features) ---
@@ -253,7 +329,7 @@ class HomeSectionLayoutTest {
 
     @Test
     fun `a shortcut move that changes nothing returns the very same list`() {
-        // Same identity contract as `move`: HomeViewModel persists on `!==`,
+        // Same identity contract as `move`: HomeViewModel skips the write on `===`,
         // and a drag is a stream of these calls, most of them no-ops.
         val sections = builtinOnly + shortcutSection(
             "qw", HomeSection.HomeSectionType.QUICK_WIDGETS, AppFeature.ANNOUNCEMENTS, AppFeature.SCORE,
