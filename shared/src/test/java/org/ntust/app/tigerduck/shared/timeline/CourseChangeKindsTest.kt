@@ -101,6 +101,19 @@ class CourseChangeKindsTest {
     }
 
     @Test
+    fun `a newer room change over an older online class leaves the class in the room`() {
+        val changes = changes(
+            row(1, "online", periods = morning),
+            row(2, "room", periods = morning, values = mapOf("room" to "TR-313")),
+        )
+
+        val morningClass = slots(changes).first()
+        assertEquals("TR-313", morningClass.room("Online"))
+        assertNull(morningClass.online)
+        assertTrue(morningClass.hasChangedRoom)
+    }
+
+    @Test
     fun `a meeting with only an assessment or an online class is a changed class, a note alone is not`() {
         val changes = changes(
             row(1, "assessment", periods = morning, values = midterm),

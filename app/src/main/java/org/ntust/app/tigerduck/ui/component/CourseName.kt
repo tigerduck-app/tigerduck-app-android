@@ -50,7 +50,8 @@ fun assessmentInk(): Color = AssessmentInk.of(TigerDuckTheme.isDarkMode)
 /**
  * A course name; for a class with an assessment ([isAssessment]), a dashed line in [AssessmentInk]
  * under each of its lines, and TalkBack reads `course_change_assessment` right after it, adding
- * no other text to the screen. As the iPhone's `CourseName`.
+ * no other text to the screen. As the iPhone's `CourseName`. [readsAssessment] false leaves the
+ * reading to a label of the caller's own, which already names the assessment.
  */
 @Composable
 fun CourseName(
@@ -65,14 +66,14 @@ fun CourseName(
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
     onTextLayout: (TextLayoutResult) -> Unit = {},
+    readsAssessment: Boolean = true,
 ) {
     // Read while drawing, so a new layout redraws the dashes without composing again.
     val layout = remember { mutableStateOf<TextLayoutResult?>(null) }
     val marked = if (isAssessment) {
         val spoken = "$text, ${stringResource(R.string.course_change_assessment)}"
         val ink = assessmentInk()
-        modifier
-            .semantics { contentDescription = spoken }
+        (if (readsAssessment) modifier.semantics { contentDescription = spoken } else modifier)
             .drawWithContent {
                 drawContent()
                 layout.value?.let { drawAssessmentDashes(it, ink) }

@@ -75,21 +75,27 @@ data class ClassTableWeek(val today: LocalDate, val changes: CourseChanges) {
      * assessments, as on iOS.
      */
     fun marks(role: CellRole, weekday: Int, periods: List<String>): SlotMarks {
-        fun assessed(course: Course, offset: Int): Boolean =
-            periods.getOrNull(offset)?.let { meeting(course, weekday, listOf(it))?.assessment != null } == true
+        // A block's meetings whole, as one over hidden period 5 is two.
+        fun assessed(course: Course, offset: Int, span: Int): Boolean =
+            periods.drop(offset).take(span).let { it.isNotEmpty() && meeting(course, weekday, it)?.assessment != null }
         return when (role) {
             is CellRole.SoloStart -> SlotMarks(change = meeting(role.course, weekday, periods.take(role.spanCount)))
             is CellRole.ConflictStart -> SlotMarks(
-                assessed = listOf(role.courseA to role.offsetA, role.courseB to role.offsetB)
-                    .filter { (course, offset) -> assessed(course, offset) }.mapTo(HashSet()) { it.first.courseNo },
+                assessed = listOf(Triple(role.courseA, role.offsetA, role.spanA), Triple(role.courseB, role.offsetB, role.spanB))
+                    .filter { (course, offset, span) -> assessed(course, offset, span) }
+                    .mapTo(HashSet()) { (course, offset) -> course.courseNo to offset },
             )
             is CellRole.MultiConflictStart -> SlotMarks(
-                assessed = role.members.filter { assessed(it.course, it.offset) }.mapTo(HashSet()) { it.course.courseNo },
+                assessed = role.members.filter { assessed(it.course, it.offset, it.span) }.mapTo(HashSet()) { it.course.courseNo to it.offset },
             )
             CellRole.Empty, CellRole.Skip -> SlotMarks()
         }
     }
 }
 
-/** A class table slot's course changes: a solo block's changed meeting, or the assessed courses of a 衝堂 cluster. */
-data class SlotMarks(val change: ClassSlot? = null, val assessed: Set<String> = emptySet())
+/**
+ * A class table slot's course changes: a solo block's changed meeting, or the blocks of a 衝堂
+ * cluster with an assessment, by course number and the row the block starts at in the cluster, as
+ * a course can meet twice in one.
+ */
+data class SlotMarks(val change: ClassSlot? = null, val assessed: Set<Pair<String, Int>> = emptySet())

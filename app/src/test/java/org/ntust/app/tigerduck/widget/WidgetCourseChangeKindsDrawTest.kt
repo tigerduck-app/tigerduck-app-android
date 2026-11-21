@@ -162,6 +162,21 @@ class WidgetCourseChangeKindsDrawTest {
     }
 
     @Test
+    fun `the Week widget dashes a block over hidden period 5 for an assessment of its later meeting`() {
+        val split = Course.fromSchedule("CC903", "Split", classroom = "T1-103", schedule = mapOf(4 to listOf("4", "6")))
+        val state = WidgetDataLoader.state(
+            courses = listOf(split),
+            now = thursday.atTime(LocalTime.parse("08:00")),
+            isLoggedIn = true,
+            quietDays = QuietDays(AcademicCalendar.EMPTY, emptySet()),
+            changes = changes(row(1, "assessment", periods = listOf("6"), values = mapOf("note_zh" to "小考", "note_en" to "Quiz"), courseNo = "CC903")),
+            courseNameScale = 1f,
+        )
+
+        assertEquals("Split, $assessment", all(drawn(widget(WidgetLayout.Week, state))).named("Split").contentDescription)
+    }
+
+    @Test
     fun `the Week widget dashes the assessed block and names the online class's room`() {
         val views = all(drawn(widget(WidgetLayout.Week, state("08:00"))))
 

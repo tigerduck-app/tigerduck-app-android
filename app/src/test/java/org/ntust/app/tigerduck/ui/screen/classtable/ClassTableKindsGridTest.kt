@@ -92,6 +92,27 @@ class ClassTableKindsGridTest {
         val assessment = text(R.string.course_change_assessment)
 
         assertTrue(labels("Parsing").toString(), labels("Parsing").any { "Parsing, $assessment" in it })
+        assertTrue("read once: ${labels("Parsing")}", labels("Parsing").all { it.split("Parsing, $assessment").size <= 2 })
         assertTrue(labels("Compilers").toString(), labels("Compilers").none { "Compilers, $assessment" in it })
+    }
+
+    @Test
+    fun `a course twice in one 衝堂 cluster marks only the meeting with the assessment`() {
+        val algebra = Course.fromSchedule(courseNo = "CC910", courseName = "Algebra", classroom = "T4-510", schedule = mapOf(4 to listOf("1", "2", "4")))
+        val biology = Course.fromSchedule(courseNo = "CC911", courseName = "Biology", classroom = "T4-511", schedule = mapOf(4 to listOf("2", "3", "4")))
+        show(listOf(algebra, biology), row(1, "assessment", periods = listOf("1", "2"), values = midterm, courseNo = "CC910"))
+        val assessment = text(R.string.course_change_assessment)
+
+        assertEquals(labels("Algebra").toString(), 1, labels("Algebra").count { "Algebra, $assessment" in it })
+    }
+
+    @Test
+    fun `a 衝堂 block over hidden period 5 is marked for an assessment of its later meeting`() {
+        val split = Course.fromSchedule(courseNo = "CC912", courseName = "Signals", classroom = "T4-512", schedule = mapOf(4 to listOf("4", "6")))
+        val other = Course.fromSchedule(courseNo = "CC913", courseName = "Optics", classroom = "T4-513", schedule = mapOf(4 to listOf("4")))
+        show(listOf(split, other), row(1, "assessment", periods = listOf("6"), values = midterm, courseNo = "CC912"))
+        val assessment = text(R.string.course_change_assessment)
+
+        assertTrue(labels("Signals").toString(), labels("Signals").any { "Signals, $assessment" in it })
     }
 }

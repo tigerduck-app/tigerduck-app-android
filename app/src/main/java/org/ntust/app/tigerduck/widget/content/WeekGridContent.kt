@@ -824,7 +824,10 @@ internal fun weekChangeInk(highlighted: Boolean, colors: WidgetColors, style: Vi
 internal fun weekBlockChange(state: WidgetState, course: Course, weekday: Int, periods: List<String>): CourseBlock? {
     val today = state.today ?: return null
     val date = ClassTableThisWeek.columnDate(weekday, today)
-    val meeting = CourseMeetings.changedMeetings(course, date, state.courseChanges)
-        .firstOrNull { it.periods.firstOrNull() == periods.firstOrNull() } ?: return null
-    return CourseBlock.of(meeting).takeIf { it.isCancelled || it.roomChanged || it.timeChanged || it.isAssessment }
+    val meetings = CourseMeetings.changedMeetings(course, date, state.courseChanges).filter { m -> m.periods.any { it in periods } }
+    val first = meetings.firstOrNull { it.periods.firstOrNull() == periods.firstOrNull() }?.let(CourseBlock::of)
+    // An assessment of any meeting the tile draws marks it, unless the tile reads as cancelled.
+    val assessed = meetings.any { it.assessment != null } && first?.isCancelled != true
+    val block = first?.copy(isAssessment = assessed) ?: CourseBlock(course, weekday, periods, isAssessment = true).takeIf { assessed }
+    return block?.takeIf { it.isCancelled || it.roomChanged || it.timeChanged || it.isAssessment }
 }

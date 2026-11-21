@@ -416,13 +416,13 @@ internal fun ClassTableCourseNameText(
     modifier: Modifier = Modifier,
     /** A line through the name, as for a cancelled class. */
     textDecoration: TextDecoration? = null,
-    /** Whether the class has an assessment that day, which dashes a line under the name; see [CourseName]. */
+    /** Whether the class has an assessment that day, which dashes a line under the name; the cell's label reads it. */
     isAssessment: Boolean = false,
 ) {
     val useMiddle = isEnglishUiLanguage()
     var displayText by remember(text, useMiddle) { mutableStateOf(text) }
     CourseName(
-        text = displayText, isAssessment = isAssessment,
+        text = displayText, isAssessment = isAssessment, readsAssessment = false,
         style = MaterialTheme.typography.labelSmall,
         color = color,
         textAlign = TextAlign.Center,
