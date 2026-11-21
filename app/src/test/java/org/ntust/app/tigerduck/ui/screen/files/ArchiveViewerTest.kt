@@ -4,6 +4,8 @@ import android.app.Application
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -94,6 +96,16 @@ class ArchiveViewerTest {
 
         composeRule.onNodeWithContentDescription(string(R.string.file_viewer_archive_up)).performClick()
         composeRule.onNodeWithText("readme.txt").assertExists()
+    }
+
+    @Test
+    fun `a file's line is its date, size and type, as a Moodle file's`() {
+        show(zip())
+        waitFor("readme.txt")
+
+        val line = composeRule.onNodeWithText("readme.txt").fetchSemanticsNode()
+            .config.getOrNull(SemanticsProperties.Text)?.map { it.text }?.getOrNull(1).orEmpty()
+        assertTrue(line, line.matches(Regex("""(\d{4}/)?\d{2}/\d{2} · \S.* · TXT""")))
     }
 
     @Test
