@@ -210,6 +210,8 @@ internal fun ClassTablePeriodTiles(
     nameDecoration: TextDecoration? = null,
     /** What the first tile's name leaves above it, for a changed time's line. */
     firstTileTopSpace: Dp = 0.dp,
+    /** Whether the class has an assessment that day, which every tile's name marks. */
+    isAssessment: Boolean = false,
 ) {
     val tileShape = RoundedCornerShape(PERIOD_TILE_CORNER)
     Column(verticalArrangement = Arrangement.spacedBy(PERIOD_TILE_GAP)) {
@@ -224,6 +226,7 @@ internal fun ClassTablePeriodTiles(
             ) {
                 ClassTableCourseNameText(
                     text = name,
+                    isAssessment = isAssessment,
                     color = textColor,
                     textDecoration = nameDecoration,
                     maxLines = 3,

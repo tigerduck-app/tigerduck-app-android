@@ -313,6 +313,7 @@ into `library_password_refusals` when it opens.
 | club_directory | `stored_at` | device | |
 | course_changes | `endpoint` | device | |
 | course_changes | `etag` | device | |
+| course_changes | `kinds` | device | |
 | course_changes | `payload` | device | |
 | class_preparing_tracker | `next_request_code` | device | |
 | class_preparing_tracker | `scheduled_ids` | school | `ClassPreparingNotificationScheduler.kt` `cancelAllTrackedLocked` |

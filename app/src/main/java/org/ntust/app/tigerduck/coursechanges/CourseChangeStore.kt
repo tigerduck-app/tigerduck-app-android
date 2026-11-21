@@ -31,7 +31,9 @@ import javax.inject.Singleton
  * without an account, whatever the sync setting and the flavor; but nothing is asked before
  * onboarding ends. Each answer is the whole term and replaces the stored one; a 304, a 404 (no
  * current term) or a failure keeps it. The copy is kept with the endpoint it came from: another
- * endpoint's feed is dropped, not shown.
+ * endpoint's feed is dropped, not shown. It is kept with the [KINDS] it was asked for too: a copy
+ * asked for with other kinds, as an older build's, which has the new kinds as notes, still shows,
+ * but its ETag is not sent, so the next answer is the whole term with them (ADR 0031).
  */
 @Singleton
 class CourseChangeStore internal constructor(
@@ -97,9 +99,10 @@ class CourseChangeStore internal constructor(
                 // Read first, so a stored feed this build cannot read is dropped with its ETag
                 // rather than kept behind a 304.
                 _changes.value
-                val etag = prefs.getString(KEY_ETAG, null)
-                    ?.takeIf { it.isNotEmpty() && prefs.getString(KEY_PAYLOAD, null) != null }
-                val call = api.at(base).courseChanges("application/json", etag)
+                val etag = prefs.getString(KEY_ETAG, null)?.takeIf {
+                    it.isNotEmpty() && prefs.getString(KEY_PAYLOAD, null) != null && prefs.getString(KEY_KINDS, null) == KINDS
+                }
+                val call = api.at(base).courseChanges(KINDS, "application/json", etag)
                 inFlight = call
                 Triple(base, generation, call)
             }
@@ -116,6 +119,7 @@ class CourseChangeStore internal constructor(
                                     .putString(KEY_PAYLOAD, body)
                                     .putString(KEY_ETAG, response.header("ETag").orEmpty())
                                     .putString(KEY_ENDPOINT, base)
+                                    .putString(KEY_KINDS, KINDS)
                                     .apply()
                                 _changes.value = parsed
                             }
@@ -145,7 +149,7 @@ class CourseChangeStore internal constructor(
 
     /** Drops the stored feed, as for another endpoint's. */
     private fun forget() {
-        prefs.edit().remove(KEY_PAYLOAD).remove(KEY_ETAG).remove(KEY_ENDPOINT).apply()
+        prefs.edit().remove(KEY_PAYLOAD).remove(KEY_ETAG).remove(KEY_ENDPOINT).remove(KEY_KINDS).apply()
         _changes.value = CourseChanges.EMPTY
     }
 
@@ -162,11 +166,17 @@ class CourseChangeStore internal constructor(
     }
 
     companion object {
+        /** The kinds beyond `cancelled`, `room`, `start`, `end` and `note` this build reads. */
+        internal const val KINDS = "assessment,online"
+
         private const val TAG = "CourseChanges"
         private const val PREFS_NAME = "course_changes"
         private const val KEY_PAYLOAD = "payload"
         private const val KEY_ETAG = "etag"
         private const val KEY_ENDPOINT = "endpoint"
+
+        /** The kinds the stored copy was asked for; absent on an older build's copy. */
+        private const val KEY_KINDS = "kinds"
         private const val HTTP_NOT_MODIFIED = 304
     }
 }

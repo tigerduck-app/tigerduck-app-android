@@ -1097,12 +1097,11 @@ class HomeViewModel @Inject constructor(
     }
 
     fun moveSections(fromId: String, toId: String) {
-        val moved = HomeSectionLayout.move(_sections.value, fromId, toId)
-        // Identity, not equality: HomeSectionLayout.move hands back the very
-        // list it was given when the drag was a no-op, and a no-op must not
-        // write to preferences.
-        if (moved !== _sections.value) persistSections(moved)
+        persistSections(HomeSectionLayout.move(_sections.value, fromId, toId))
     }
+
+    /** A TalkBack move ([HomeSectionLayout.stepSection]) on the layout as it is now, saved at once. */
+    fun step(move: LayoutStep): HomeSectionLayout.Step? = move(_sections.value)?.also { persistSections(it.sections) }
 
     // companion object {
     //     private val SKIP_DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
@@ -1133,21 +1132,22 @@ class HomeViewModel @Inject constructor(
             widgetId = java.util.UUID.randomUUID().toString(),
             quickWidgetsTitle = quickWidgetsTitle,
         )
-        if (added !== _sections.value) persistSections(added)
+        persistSections(added)
     }
 
     fun removeWidget(sectionId: String, widgetId: String) {
-        val removed = HomeSectionLayout.removeWidget(_sections.value, sectionId, widgetId)
-        if (removed !== _sections.value) persistSections(removed)
+        persistSections(HomeSectionLayout.removeWidget(_sections.value, sectionId, widgetId))
     }
 
-    /** One step of a shortcut drag; see [moveSections] for why a no-op must not write. */
+    /** One step of a shortcut drag. */
     fun moveWidget(sectionId: String, widgetId: String, toIndex: Int) {
-        val moved = HomeSectionLayout.moveWidget(_sections.value, sectionId, widgetId, toIndex)
-        if (moved !== _sections.value) persistSections(moved)
+        persistSections(HomeSectionLayout.moveWidget(_sections.value, sectionId, widgetId, toIndex))
     }
 
+    // Identity, not equality: HomeSectionLayout hands back the very list it was given when a
+    // change is a no-op, as most steps of a drag are, and a no-op must not write to preferences.
     private fun persistSections(sections: List<HomeSection>) {
+        if (sections === _sections.value) return
         _sections.value = sections
         prefs.homeSections = sections
     }

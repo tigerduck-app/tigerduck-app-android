@@ -786,6 +786,70 @@ class SchoolMailListViewModelTest {
         assertFalse(vm.state.value.searchIndexPartial)
     }
 
+    /**
+     * The search on screen stops saying it may have missed mail once the download has brought the
+     * folders it searched whole, while another folder still downloads, though a query being edited
+     * keeps it from running again, and though the download is gone by the time it is looked at (#752).
+     */
+    @Test
+    fun `a search that may have missed mail stops saying so once the folders it searched are whole`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        repo.searchComplete = false
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.setSearchText("期中考")
+        assertTrue(vm.state.value.searchIndexPartial)
+
+        repo.searchIndexWhole.value = setOf("寄件備份匣")
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue("only another folder is whole", vm.state.value.searchIndexPartial)
+
+        repo.searchIndexWhole.value = setOf("INBOX", "寄件備份匣")
+        repo.searchIndexProgress.value = null
+        main.dispatcher.scheduler.runCurrent()
+        assertFalse(vm.state.value.searchIndexPartial)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** All mail's search waits on every folder it merged, but not on Junk or Trash, which it leaves out. */
+    @Test
+    fun `All mail's search that may have missed mail waits on every folder it searched, and on no other`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        repo.searchComplete = false
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.setSearchText("期中考")
+        val searched = vm.state.value.targets
+        assertTrue(vm.state.value.searchIndexPartial)
+
+        repo.searchIndexWhole.value = (searched - "Moodle 課程討論區").toSet()
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(vm.state.value.searchIndexPartial)
+
+        repo.searchIndexWhole.value = searched.toSet()
+        main.dispatcher.scheduler.runCurrent()
+        assertFalse(vm.state.value.searchIndexPartial)
+    }
+
+    /** Folders the download brought whole while the search ran are not still said to have missed mail. */
+    @Test
+    fun `a search whose folders were brought whole while it ran does not say it may have missed mail`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        repo.searchComplete = false
+        repo.onSearched = { repo.searchIndexWhole.value = setOf("INBOX") }
+        vm.setSearchText("期中")
+
+        vm.submitSearch()
+
+        assertFalse(vm.state.value.searchIndexPartial)
+    }
+
     @Test
     fun `clearing the search clears its note that it may have missed mail`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"))

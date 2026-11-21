@@ -46,6 +46,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(rawContext: Context, intent: Intent) {
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: return
         val classroom = intent.getStringExtra(EXTRA_CLASSROOM).orEmpty()
+        val assessment = intent.getStringExtra(EXTRA_ASSESSMENT)
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
         val startMs = intent.getLongExtra(EXTRA_START_MS, 0L)
         val endMs = intent.getLongExtra(EXTRA_END_MS, 0L)
@@ -95,7 +96,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         post(
             rawContext, deps.appPreferences().appLanguage,
             notificationId, courseName, classroom, instructor, startMs, endMs, leadTimeMs,
-            classId = classId,
+            classId = classId, assessment = assessment,
         )
     }
 
@@ -104,6 +105,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val CHANNEL_ID = NotificationChannels.CLASS_PREPARING
         const val EXTRA_COURSE_NAME = "course_name"
         const val EXTRA_CLASSROOM = "classroom"
+
+        /** The name of the class's assessment, which the reminder begins with; absent for none, and on older alarms. */
+        const val EXTRA_ASSESSMENT = "assessment"
         const val EXTRA_INSTRUCTOR = "instructor"
         const val EXTRA_START_MS = "start_ms"
         const val EXTRA_END_MS = "end_ms"
@@ -166,6 +170,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_POSTED_CLASS_ID = "org.ntust.app.tigerduck.class_id"
         const val EXTRA_CLASS_END_MS = "org.ntust.app.tigerduck.class_end_ms"
         const val EXTRA_CLASS_ROOM = "org.ntust.app.tigerduck.class_room"
+        const val EXTRA_CLASS_ASSESSMENT = "org.ntust.app.tigerduck.class_assessment"
 
         /**
          * The class reminder switch is on, and the app may post
@@ -193,7 +198,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
          *
          * [classId] names the class on the banner; see [EXTRA_POSTED_CLASS_ID].
          * [update] is for a banner already up whose class has changed: it is
-         * replaced without sounding again.
+         * replaced without sounding again. [assessment] is the name of the
+         * class's assessment, which the text begins with, as the backend's
+         * class reminders do (`期中考 · 09:10 · IB-101`).
          */
         fun post(
             baseContext: Context,
@@ -207,12 +214,14 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             leadTimeMs: Long,
             classId: String? = null,
             update: Boolean = false,
+            assessment: String? = null,
         ) {
             val context = AppLanguageManager.localizedContext(baseContext, appLanguage)
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             val timeRange = formatTimeRange(startMs, endMs)
             val detail = listOfNotNull(
+                assessment?.takeIf { it.isNotBlank() },
                 timeRange.takeIf { it.isNotBlank() },
                 classroom.takeIf { it.isNotBlank() },
                 instructor.takeIf { it.isNotBlank() },
@@ -257,6 +266,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
                             putString(EXTRA_POSTED_CLASS_ID, classId)
                             putLong(EXTRA_CLASS_END_MS, endMs)
                             putString(EXTRA_CLASS_ROOM, classroom)
+                            putString(EXTRA_CLASS_ASSESSMENT, assessment)
                         }
                     }
                 )

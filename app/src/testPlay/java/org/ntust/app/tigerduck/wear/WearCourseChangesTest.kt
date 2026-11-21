@@ -15,6 +15,10 @@ import java.time.LocalDate
 /** The classes the school changed, as the phone sends them to the watch. */
 class WearCourseChangesTest {
 
+    private companion object {
+        const val ONLINE = "Online"
+    }
+
     // Thursdays: 2-3 (09:10-11:10) and 7 (14:20-15:10) in TR-313.
     private val course = Course.fromSchedule(
         courseNo = "CC900",
@@ -52,6 +56,7 @@ class WearCourseChangesTest {
                 """{"id":3,"course_no":"CC900","kind":"cancelled","periods":["2"],"class_days":["2026-11-19"]}""",
                 """{"id":4,"course_no":"CC900","kind":"room","room":"TR-411","periods":["3"],"class_days":["2026-11-26"]}""",
             ),
+            ONLINE,
         )
 
         assertEquals(listOf("2-3 09:10-11:10 TR-313"), shown(sent, "2026-11-05"))
@@ -79,6 +84,7 @@ class WearCourseChangesTest {
                 """{"id":5,"course_no":"CC900","kind":"start","start":"09:30","periods":["2"],"class_days":["2026-12-03"]}""",
                 """{"id":6,"course_no":"CC900","kind":"end","end":"11:00","periods":["3"],"class_days":["2026-12-03"]}""",
             ),
+            ONLINE,
         )
         assertEquals(
             listOf(WatchClassChange(listOf("2", "3"), start = "09:30", end = "11:00")),
@@ -87,11 +93,33 @@ class WearCourseChangesTest {
         assertEquals(listOf("2-3 09:30-11:00 TR-313", "7 14:20-15:10 TR-313"), shown(sent, "2026-12-03"))
     }
 
+    /** Ported from iOS `WatchPayloadEncoderTests.test_anOnlineClassIsARoomChangeAndAnAssessmentAloneChangesNothing`. */
+    @Test
+    fun `an online class goes as a room change to online, and an assessment alone sends nothing`() {
+        val sent = wearCourseChanges(
+            listOf(course),
+            feed(
+                """{"id":1,"course_no":"CC900","kind":"online","periods":["2","3"],"class_days":["2026-11-05"]}""",
+                """{"id":2,"course_no":"CC900","kind":"assessment","note_zh":"期中考","note_en":"Midterm exam","class_days":["2026-11-12"]}""",
+                """{"id":3,"course_no":"CC900","kind":"assessment","note_zh":"期中考","note_en":"Midterm exam","periods":["2","3"],"class_days":["2026-11-19"]}""",
+                """{"id":4,"course_no":"CC900","kind":"room","room":"TR-411","periods":["3"],"class_days":["2026-11-19"]}""",
+            ),
+            ONLINE,
+        )
+
+        assertEquals(listOf("2-3 09:10-11:10 Online", "7 14:20-15:10 TR-313"), shown(sent, "2026-11-05"))
+        assertEquals(WatchClassChange(listOf("2", "3"), room = ONLINE), shownOn(sent, "2026-11-05").first().change)
+        val changes = WearProtocol.Schedule.decodeCourseChanges(sent)
+        assertEquals(emptyList<WatchClassChange>(), changes.on("CC900", LocalDate.parse("2026-11-12")))
+        assertEquals(listOf("2 09:10-10:00 TR-313", "3 10:20-11:10 TR-411", "7 14:20-15:10 TR-313"), shown(sent, "2026-11-19"))
+    }
+
     @Test
     fun `days already past are sent as well as the ones ahead`() {
         val sent = wearCourseChanges(
             listOf(course),
             feed("""{"id":7,"course_no":"CC900","kind":"cancelled","periods":["7"],"class_days":["2020-01-02","2036-01-03"]}"""),
+            ONLINE,
         )
         val changes = WearProtocol.Schedule.decodeCourseChanges(sent)
         assertEquals(setOf(LocalDate.parse("2020-01-02"), LocalDate.parse("2036-01-03")), changes.byCourse.getValue("CC900").keys)
@@ -99,13 +127,13 @@ class WearCourseChangesTest {
 
     @Test
     fun `no feed, a note alone, or a course not taken sends no changes`() {
-        assertEquals(WatchCourseChanges.EMPTY, WearProtocol.Schedule.decodeCourseChanges(wearCourseChanges(listOf(course), CourseChanges.EMPTY)))
+        assertEquals(WatchCourseChanges.EMPTY, WearProtocol.Schedule.decodeCourseChanges(wearCourseChanges(listOf(course), CourseChanges.EMPTY, ONLINE)))
         val others = feed(
             """{"id":8,"course_no":"CC900","kind":"note","note_zh":"帶課本","class_days":["2026-11-05"]}""",
             """{"id":9,"course_no":"ZZ999","kind":"cancelled","class_days":["2026-11-05"]}""",
         )
-        assertEquals(WatchCourseChanges.EMPTY, WearProtocol.Schedule.decodeCourseChanges(wearCourseChanges(listOf(course), others)))
-        assertEquals("{}", wearCourseChanges(emptyList(), others))
+        assertEquals(WatchCourseChanges.EMPTY, WearProtocol.Schedule.decodeCourseChanges(wearCourseChanges(listOf(course), others, ONLINE)))
+        assertEquals("{}", wearCourseChanges(emptyList(), others, ONLINE))
     }
 
     // ---- pieces the change left empty are not sent, and stay gone on the watch ----
@@ -121,7 +149,7 @@ class WearCourseChangesTest {
 
     /** What the watch says at [minute] on Tuesday, after the feed went through the phone's encoder and the watch's decoder. */
     private fun watch(courses: List<Course>, minute: Int, vararg rows: String): String {
-        val changes = WearProtocol.Schedule.decodeCourseChanges(wearCourseChanges(courses, feed(*rows)))
+        val changes = WearProtocol.Schedule.decodeCourseChanges(wearCourseChanges(courses, feed(*rows), ONLINE))
         fun hm(m: Int) = "%02d:%02d".format(m / 60, m % 60)
         return when (val r = NextClassResolver.resolve(courses, tuesday, minute, changes)) {
             is NextClassResult.Ongoing -> "ongoing ${r.course.courseNo} ${r.periods.joinToString("")} ${hm(r.startMinute)}-${hm(r.endMinute)}"

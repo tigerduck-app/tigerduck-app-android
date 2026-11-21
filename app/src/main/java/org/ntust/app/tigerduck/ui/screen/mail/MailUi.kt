@@ -1,13 +1,23 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.MailError
@@ -49,3 +59,18 @@ fun ForgotMailPasswordLink(browserPreference: String) {
         Text(stringResource(R.string.school_mail_forgot_password), style = MaterialTheme.typography.labelMedium)
     }
 }
+
+/**
+ * The unread dot before a mail's sender, written in [senderFont]: 7dp at the default text size,
+ * growing with the sender's text as the iPhone's does.
+ */
+@Composable
+internal fun MailUnreadDot(senderFont: TextUnit) {
+    Box(Modifier.size(unreadDotSize(LocalDensity.current, senderFont)).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+}
+
+/** The dot's 7dp beside [senderFont] unscaled, in step with that text as [density] scales it. */
+internal fun unreadDotSize(density: Density, senderFont: TextUnit): Dp =
+    with(density) { senderFont.toDp() } * (UNREAD_DOT_DP / senderFont.value)
+
+private const val UNREAD_DOT_DP = 7f

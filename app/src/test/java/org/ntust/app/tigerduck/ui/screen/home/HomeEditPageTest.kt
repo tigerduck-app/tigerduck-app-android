@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.app.Application
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.foundation.lazy.LazyListState
@@ -12,13 +14,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -53,6 +61,7 @@ import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.LocalDate
 
@@ -122,6 +131,8 @@ class HomeEditPageTest {
                     onRefresh = { refreshes++ },
                     // What HomeViewModel.moveSections does, without the view model.
                     onMoveSection = { from, to -> this.sections.value = HomeSectionLayout.move(this.sections.value, from, to) },
+                    // And what HomeViewModel.step does.
+                    onStep = { move -> move(this.sections.value)?.also { this.sections.value = it.sections } },
                     onRemoveSection = { removed += it },
                     onRemoveWidget = { _, widgetId -> removedWidgets += widgetId },
                     onMoveWidget = { _, widgetId, _ -> movedWidgets += widgetId },
@@ -201,7 +212,7 @@ class HomeEditPageTest {
     fun `the drag handle sits above the section's header`() {
         show(listOf(assignments), isEditing = true)
 
-        val handle = composeRule.onNodeWithText(text(R.string.home_section_drag_hint)).fetchSemanticsNode().boundsInRoot
+        val handle = handleAbove(text(R.string.home_section_upcoming_assignments))
         val header = composeRule.onNodeWithText(text(R.string.home_section_upcoming_assignments)).fetchSemanticsNode().boundsInRoot
         assertTrue("the handle ends at ${handle.bottom}, below the header's top ${header.top}", handle.bottom <= header.top)
     }
@@ -360,14 +371,73 @@ class HomeEditPageTest {
 
     private fun bounds(text: String): Rect = composeRule.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
 
-    /** The drag handle of the resting section titled [title]: the one nearest above its header. */
-    private fun handleAbove(title: String): Rect {
-        val header = bounds(title)
-        return composeRule.onAllNodesWithText(text(R.string.home_section_drag_hint))
-            .fetchSemanticsNodes()
-            .map { it.boundsInRoot }
-            .filter { it.bottom <= header.top }
-            .maxBy { it.bottom }
+    /** The drag handle of the section titled [title], which TalkBack reads as that title. */
+    private fun handleAbove(title: String): Rect =
+        composeRule.onNodeWithContentDescription(title).fetchSemanticsNode().boundsInRoot
+
+    private val moveUp get() = text(R.string.a11y_home_edit_move_up)
+    private val moveDown get() = text(R.string.a11y_home_edit_move_down)
+
+    /** The handle of the section titled [title], scrolled to, as TalkBack reaches it. */
+    private fun handle(title: String): SemanticsNodeInteraction {
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasContentDescription(title))
+        return composeRule.onNodeWithContentDescription(title)
+    }
+
+    private fun moves(title: String) =
+        handle(title).fetchSemanticsNode().config.getOrNull(SemanticsActions.CustomActions).orEmpty()
+
+    private val accessibility get() = shadowOf(composeRule.activity.getSystemService(AccessibilityManager::class.java))
+
+    /** What was said through TalkBack's announcements, with it on. */
+    private fun announced(): List<String> = accessibility.sentAccessibilityEvents
+        .filter { it.eventType == AccessibilityEvent.TYPE_ANNOUNCEMENT }
+        .map { it.text.joinToString("") }
+
+    @Test
+    fun `each section's handle is one element named for it, with moves that stop at either end`() {
+        show((1..3).map(::custom), isEditing = true)
+
+        assertEquals(listOf(moveDown), moves("Section 1").map { it.label })
+        assertEquals(listOf(moveUp, moveDown), moves("Section 2").map { it.label })
+        assertEquals(listOf(moveUp), moves("Section 3").map { it.label })
+        // The hint only shows what the handle is for, and the header under it would say the
+        // name a second time.
+        composeRule.onNodeWithText(text(R.string.home_section_drag_hint)).assertDoesNotExist()
+        composeRule.onNodeWithText("Section 2")
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.HideFromAccessibility))
+        composeRule.onNodeWithContentDescription("$remove Section 2").assertHasClickAction()
+    }
+
+    @Test
+    fun `a section's move is a drag's, and it says where the section landed`() {
+        show((1..3).map(::custom), isEditing = true)
+        accessibility.setEnabled(true)
+
+        val handled = moves("Section 1").first { it.label == moveDown }.action()
+        composeRule.waitForIdle()
+
+        assertTrue(handled)
+        assertEquals(listOf(2, 1, 3).map { "custom-$it" }, sections.value.map { it.id })
+        assertEquals(listOf("Position 2 of 3"), announced())
+        // Second now, so it goes either way.
+        assertEquals(listOf(moveUp, moveDown), moves("Section 1").map { it.label })
+    }
+
+    @Test
+    fun `a section's move offered before a change reads the order as it is`() {
+        show((1..3).map(::custom), isEditing = true)
+        accessibility.setEnabled(true)
+        val down = moves("Section 1").first { it.label == moveDown }
+        // Another device's layout lands before the action runs, Section 1 already last.
+        sections.value = listOf(2, 3, 1).map(::custom)
+
+        val handled = down.action()
+        composeRule.waitForIdle()
+
+        assertEquals(false, handled)
+        assertEquals(listOf(2, 3, 1).map { "custom-$it" }, sections.value.map { it.id })
+        assertEquals(emptyList<String>(), announced())
     }
 
     @Test

@@ -73,6 +73,10 @@ class DataCache @Inject constructor(
      */
     val coursesVersion: StateFlow<Int> = _coursesVersion.asStateFlow()
 
+    private val _courseHidesVersion = MutableStateFlow(0)
+    /** Bumped after every write of the course hides, for a reader of which courses the class table shows. */
+    val courseHidesVersion: StateFlow<Int> = _courseHidesVersion.asStateFlow()
+
     private val _assignmentsVersion = MutableStateFlow(0)
 
     /**
@@ -83,15 +87,12 @@ class DataCache @Inject constructor(
     val assignmentsVersion: StateFlow<Int> = _assignmentsVersion.asStateFlow()
 
     private val _assignmentRecordsVersion = MutableStateFlow(0)
-
     /** Bumped after every write of [saveAssignmentRecords]. */
     val assignmentRecordsVersion: StateFlow<Int> = _assignmentRecordsVersion.asStateFlow()
 
     private val _assignmentMarksVersion = MutableStateFlow(0)
 
-    /**
-     * Bumped after every write of the ignored, marked-done and ignored-course sets, so a screen that only reads them reads them again.
-     */
+    /** Bumped after every write of the ignored, marked-done and ignored-course sets, for a screen that only reads them. */
     val assignmentMarksVersion: StateFlow<Int> = _assignmentMarksVersion.asStateFlow()
 
     private val _marksAdoptedVersion = MutableStateFlow(0)
@@ -775,11 +776,10 @@ class DataCache @Inject constructor(
     }
 
     /**
-     * [nos] written as the hides, under [courseHidesMutex], with the marks and
-     * the courses being brought back kept in step; see [hideDeletedCourse]. A
-     * mark goes once its hide does, and so does one whose hide was gone
-     * before this write, as a damaged file leaves it; a course being brought
-     * back goes once it is hidden again. Nothing, once [signIn] has ended.
+     * [nos] written as the hides, under [courseHidesMutex], with the marks and the courses being brought back
+     * kept in step ([hideDeletedCourse]), and told on [courseHidesVersion]. A mark goes once its hide does, as
+     * does one whose hide was gone before this write, as a damaged file leaves it; a course being brought back
+     * goes once it is hidden again. Nothing, once [signIn] has ended.
      */
     private suspend fun writeDeletedCourseNos(nos: Set<String>, signIn: SignIn) {
         val before = loadDeletedCourseNos()
@@ -790,6 +790,7 @@ class DataCache @Inject constructor(
         val restored = loadRestoredCourses()
         val keptRestored = restored.filterKeys { it !in nos }
         if (keptRestored != restored) saveToUserData(keptRestored, RESTORED_COURSES_FILE, signIn)
+        _courseHidesVersion.update { it + 1 }
     }
 
     // --- Hides of deleted hand-added courses (scoped keys) ---

@@ -22,7 +22,7 @@ class CourseChangeSummaryTest {
     private val morning = listOf("2", "3", "4")
 
     private fun rows(days: List<ChangedDay>, shown: ClassSlot?, locale: Locale = Locale.ENGLISH) =
-        CourseChangeSummary.rows(days, shown, cancelled = "停課", locale = locale)
+        CourseChangeSummary.rows(days, shown, CourseChangeWords("停課", "評量", "線上"), locale = locale)
 
     @Test
     fun `the changes list shows upcoming days earliest first and at most eight`() {
@@ -96,11 +96,11 @@ class CourseChangeSummaryTest {
 
         assertEquals(true, shown(slots[0])?.isCancelled)
         assertNull(shown(slots[1]))
-        assertEquals("TR-313", shown(slots[2])?.room)
+        assertEquals("TR-313", shown(slots[2])?.room("Online"))
         val block = shown(null, morning)!!
         assertEquals(morning, block.periods)
         assertFalse(block.isCancelled)
-        assertEquals("TR-313", block.room)
+        assertEquals("TR-313", block.room("Online"))
         val days = CourseMeetings.upcomingChanges(course(), thursday, changes)
         assertTrue(rows(days, shown(slots[2])).isEmpty())
         assertEquals(listOf("TR-313"), rows(days, shown(slots[0])).map { it.summary })
@@ -123,7 +123,7 @@ class CourseChangeSummaryTest {
     fun `the cancelled word is the caller's`() {
         val days = CourseMeetings.upcomingChanges(course(), thursday, changes(row(1, "cancelled", periods = listOf("7", "8"))))
 
-        assertEquals(listOf("Cancelled"), CourseChangeSummary.rows(days, null, cancelled = "Cancelled", locale = Locale.ENGLISH).map { it.summary })
+        assertEquals(listOf("Cancelled"), CourseChangeSummary.rows(days, null, CourseChangeWords("Cancelled", "Assessment", "Online"), Locale.ENGLISH).map { it.summary })
     }
 
     @Test

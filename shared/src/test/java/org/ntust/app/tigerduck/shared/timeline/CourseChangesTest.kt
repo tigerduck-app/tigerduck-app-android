@@ -147,8 +147,8 @@ class CourseChangesTest {
 
         assertEquals(listOf(8, 3), ofKind("room", low, high))
         assertEquals(listOf(8, 3), ofKind("room", high, low))
-        assertEquals("TR-808", slots(changes(low, high)).first().room)
-        assertEquals("TR-808", slots(changes(high, low)).first().room)
+        assertEquals("TR-808", slots(changes(low, high)).first().room(CourseChangeFixture.ONLINE))
+        assertEquals("TR-808", slots(changes(high, low)).first().room(CourseChangeFixture.ONLINE))
     }
 
     @Test

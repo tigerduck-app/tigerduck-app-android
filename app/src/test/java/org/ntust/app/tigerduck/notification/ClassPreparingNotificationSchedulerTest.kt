@@ -13,6 +13,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.academic.SemesterTerm
@@ -255,6 +256,52 @@ class ClassPreparingNotificationSchedulerTest {
         assertEquals(listOf("T4-501", "TR-313"), armedOnThursday().map { it.second.room() })
     }
 
+    /** openspec `course-change-assessments`, "Assessment in pushes" and "Online class in pushes". */
+    @Test
+    fun `a reminder begins with its class's assessment, and names an online class's room as online`() {
+        NotificationChannelRegistrar(context, AppPreferences(context)).register()
+        armThursday(
+            changes(
+                row(1, "assessment", periods = morning, values = mapOf("note_zh" to "期中考", "note_en" to "Midterm exam")),
+                row(2, "online", periods = listOf("7", "8")),
+            ),
+        )
+
+        val armed = armedOnThursday().map { it.second }
+        assertEquals(listOf("Midterm exam", null), armed.map { it.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_ASSESSMENT) })
+        assertEquals(listOf("T4-501", context.getString(R.string.course_change_online)), armed.map { it.room() })
+        clockAt("08:55")
+        goOff(armed.first())
+        assertEquals(listOf("Midterm exam · 09:10–12:10 · T4-501"), shown().map { it.text })
+    }
+
+    @Test
+    fun `a reminder of an assessment is written in the app's language, and a cancelled class has none`() {
+        ClassPreparingNotificationScheduler(context, appLanguage = { "zh-Hant" }) {
+            changes(
+                row(1, "assessment", values = mapOf("note_zh" to "期中考", "note_en" to "Midterm exam")),
+                row(2, "cancelled", periods = listOf("7", "8")),
+            )
+        }.also { clockAt("07:00") }.scheduleAll(
+            coursesByTerm = mapOf(noCalendarTerm to listOf(CourseChangeFixture.course())),
+            skippedDates = emptyMap(),
+            leadTimeSec = 15 * 60,
+            calendar = AcademicCalendar.EMPTY,
+            optedInHolidayIds = emptySet(),
+        )
+
+        assertEquals(listOf("期中考"), armedOnThursday().map { it.second.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_ASSESSMENT) })
+    }
+
+    @Test
+    fun `a reminder already up begins with an assessment the school adds to its class`() {
+        remindedOfTheMorningClass()
+
+        newFeedAtNine(changes(row(1, "assessment", periods = morning, values = mapOf("note_zh" to "小考", "note_en" to "Quiz"))))
+
+        assertEquals("Quiz · 09:10–12:10 · T4-501", shown().single().text)
+    }
+
     @Test
     fun `a reminder for a class cancelled after it was armed is not posted`() {
         armThursday(CourseChanges.EMPTY)
@@ -293,6 +340,7 @@ class ClassPreparingNotificationSchedulerTest {
         endMs = alarm.getLongExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, 0L),
         leadTimeMs = alarm.getLongExtra(ClassPreparingNotificationReceiver.EXTRA_LEAD_TIME_MS, 0L),
         classId = alarm.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_CLASS_ID),
+        assessment = alarm.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_ASSESSMENT),
     )
 
     /** Arms Thursday at 07:00 as the timetable has it, and has the 09:10 class's reminder go off at 08:55. */
