@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -58,7 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.compose.material3.Switch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -74,11 +71,9 @@ import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,6 +90,7 @@ fun CalendarScreen(
     val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
+    val openable by viewModel.openableAssignmentIds.collectAsStateWithLifecycle()
     val resources = LocalResources.current
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,7 +107,6 @@ fun CalendarScreen(
             snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
         }
     }
-
 
     PageScaffold(
         title = stringResource(R.string.feature_calendar),
@@ -197,7 +192,7 @@ fun CalendarScreen(
                                 onNotifyOnHolidayChange = holidayId?.let { id ->
                                     { on: Boolean -> viewModel.setNotifyOnHoliday(id, on) }
                                 },
-                                onOpenAssignment = onOpenAssignment,
+                                onOpen = event.assignmentToOpen(openable)?.let { id -> { onOpenAssignment(id) } },
                             )
                         }
                     }
@@ -504,77 +499,4 @@ private fun isSameMonth(a: Date, b: Date): Boolean {
     val cb = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = b }
     return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
             ca.get(Calendar.MONTH) == cb.get(Calendar.MONTH)
-}
-
-
-@Composable
-internal fun EventRow(
-    event: CalendarEvent,
-    notifyOnHoliday: Boolean? = null,
-    onNotifyOnHolidayChange: ((Boolean) -> Unit)? = null,
-    onOpenAssignment: ((assignmentId: String) -> Unit)? = null,
-) {
-    val timeFmt = remember {
-        SimpleDateFormat("HH:mm", Locale.TAIWAN).apply {
-            timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-        }
-    }
-    // A Moodle deadline opens its assignment's page, as a row on Home does.
-    val assignmentId = event.moodleAssignmentId
-    val open = if (assignmentId != null && onOpenAssignment != null) {
-        Modifier.clickable(role = Role.Button) { onOpenAssignment(assignmentId) }
-    } else {
-        Modifier
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(open)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(36.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(event.source.color)
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(event.title, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                stringResource(event.source.labelRes),
-                style = MaterialTheme.typography.labelSmall,
-                color = event.source.color
-            )
-        }
-        if (notifyOnHoliday != null && onNotifyOnHolidayChange != null) {
-            // Where a timed row has its time: a holiday is a whole day, so it
-            // has none to show.
-            //
-            // The switch is labelled rather than bare: on its own it asked
-            // the user to guess what it governed, and a screen reader had
-            // only the accessibility string to go on.
-            Text(
-                stringResource(R.string.calendar_holiday_notify_title),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                maxLines = 1,
-            )
-            Spacer(Modifier.width(8.dp))
-            Switch(
-                checked = notifyOnHoliday,
-                onCheckedChange = onNotifyOnHolidayChange,
-            )
-        } else if (!event.isAllDay) {
-            // A whole day has no time worth showing: "00:00" read as a
-            // midnight deadline.
-            Text(
-                timeFmt.format(event.date),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
-        }
-    }
 }

@@ -16,8 +16,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
@@ -59,28 +61,6 @@ internal val CalendarRefreshPolicy = RefreshPolicy(
     background = 15.minutes,
     minInterval = 1.minutes,
 )
-
-/**
- * [base] with its Moodle rows made from [assignments], the assignment cache's,
- * and none when it holds none: an answer from Moodle with no assignments leaves it
- * empty, and the rows of the ones it had must go with them (issue #160). An
- * assignment with no due date has no row (tigerduck-app#1029).
- */
-internal fun withMoodleRows(
-    base: List<CalendarEvent>,
-    assignments: List<Assignment>,
-): List<CalendarEvent> =
-    base.filterNot { it.sourceRaw == EventSource.MOODLE.raw } + assignments.toCalendarEvents()
-
-private fun List<Assignment>.toCalendarEvents(): List<CalendarEvent> =
-    mapNotNull { assignment ->
-        CalendarEvent(
-            eventId = CalendarEvent.moodleEventId(assignment.assignmentId),
-            title = assignment.title,
-            date = assignment.studentDueDate ?: return@mapNotNull null,
-            sourceRaw = EventSource.MOODLE.raw
-        )
-    }
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
@@ -287,6 +267,18 @@ class CalendarViewModel @Inject constructor(
         combine(eventsByDay, _selectedDate) { days, selectedDate ->
             days[selectedDate.taipeiDate()].orEmpty().sortedBy { it.date }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * The Moodle deadlines whose rows open their assignment's page, read again as the
+     * assignments, the courses, their hides, the term or the account change; see
+     * [openableAssignmentIds]. A hide can land alone, as Use Server writes the server's.
+     * Conflated: a change landing during a read needs one more read, not one each.
+     */
+    val openableAssignmentIds: StateFlow<Set<String>> = merge(
+        dataCache.assignmentsVersion, dataCache.coursesVersion, dataCache.courseHidesVersion,
+        dataCache.currentTerms(academicCalendar.calendar), sessions.school.changes,
+    ).conflate().map { openableAssignmentIds(dataCache) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     fun eventsOnDate(date: Date): List<CalendarEvent> =
         _events.value.filter { it.date.isSameDay(date) }
