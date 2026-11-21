@@ -291,9 +291,17 @@ object CourseMeetings {
                 end = timetableEnd
                 applied = applied.filter { it.kind != Kind.START && it.kind != Kind.END }
             }
-            // An assessment or online class over only cancelled periods marks none of the held ones.
+            // An assessment or online class over only cancelled periods marks none of the held ones,
+            // and an online class holds none where a newer room change wins.
             val held = run.filter { period -> applied.none { it.kind == Kind.CANCELLED && it.covers(period) } }
-            applied = applied.filter { (it.kind != Kind.ASSESSMENT && it.kind != Kind.ONLINE) || held.any(it::covers) }
+            val places = held.mapNotNull { placeChange(applied, it) }
+            applied = applied.filter {
+                when (it.kind) {
+                    Kind.ASSESSMENT -> held.any(it::covers)
+                    Kind.ONLINE -> places.any { place -> place === it }
+                    else -> true
+                }
+            }
             Meeting(course, date, run, start, end, timetableStart, timetableEnd, applied)
         }
     }

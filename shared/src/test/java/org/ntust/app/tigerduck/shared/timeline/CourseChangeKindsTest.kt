@@ -115,6 +115,20 @@ class CourseChangeKindsTest {
     }
 
     @Test
+    fun `an online class a newer room change overrides on every held period is dropped`() {
+        val changes = changes(
+            row(1, "online", periods = listOf("2", "3")),
+            row(2, "room", periods = listOf("3"), values = mapOf("room" to "TR-313")),
+            row(3, "cancelled", periods = listOf("2")),
+        )
+
+        val meeting = CourseMeetings.meeting(course(), morning, thursday, changes)!!
+        assertNull(meeting.online)
+        assertEquals("TR-313", meeting.room("Online"))
+        assertEquals(listOf("TR-313"), rows(changes))
+    }
+
+    @Test
     fun `the changes list names each online class of a meeting`() {
         val changes = changes(
             row(1, "online", periods = listOf("2"), values = mapOf("note_zh" to "第一節線上", "note_en" to "First period online")),
