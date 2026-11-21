@@ -4,6 +4,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.PeriodTimes
+import org.ntust.app.tigerduck.shared.blockClassroom
 import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
@@ -69,7 +70,7 @@ object ClassTableCalendarFile {
                     uid = "${term.code}-${course.courseNo}-$weekday-${meeting.periods.first()}" +
                         owner?.let { "-$it" }.orEmpty() + "@tigerduck.app",
                     summary = course.displayName,
-                    location = meeting.room,
+                    location = course.blockClassroom(weekday, meeting.periods),
                     description = listOf(course.instructor, course.courseNo).filter { it.isNotEmpty() }.joinToString("\n"),
                     start = days[held].atTime(meeting.start),
                     end = days[held].atTime(meeting.end),
