@@ -656,7 +656,7 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * A double tap on the Class Table tab while it shows: back to the class table shown before,
-     * or within three seconds of the last double tap, the next one. Returns whether it switched.
+     * or within 1.5 seconds of the last double tap, the next in the rotation. Returns whether it switched.
      */
     fun tabDoubleTapped(): Boolean {
         val before = importedTables.value.shownPersonId
