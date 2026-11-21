@@ -23,9 +23,20 @@ class BrowserRoutingTest {
     }
 
     @Test
-    fun `a mail link goes to the mail app`() {
-        val mail = "mailto:someone@example.com"
-        assertEquals(NavigationDecision.HandOff(mail), BrowserRouting.navigation(mail, allowlist))
+    fun `a mail link the student taps goes to the mail app, and one a script opens goes nowhere`() {
+        listOf("mailto:someone@example.com", "MAILTO:someone@example.com?subject=hi").forEach { mail ->
+            assertEquals(mail, NavigationDecision.HandOff(mail), BrowserRouting.navigation(mail, allowlist, tapped = true))
+            assertEquals(mail, NavigationDecision.Refuse, BrowserRouting.navigation(mail, allowlist, tapped = false))
+            assertEquals(mail, NavigationDecision.Refuse, BrowserRouting.navigation(mail, allowlist))
+        }
+    }
+
+    @Test
+    fun `a tap changes nothing but a mail link`() {
+        listOf("https://moodle2.ntust.edu.tw/my/", "https://example.com/", "about:blank", "intent://x#Intent;end", "tel:123").forEach {
+            assertEquals(it, BrowserRouting.navigation(it, allowlist), BrowserRouting.navigation(it, allowlist, tapped = true))
+        }
+        assertEquals(NavigationDecision.Refuse, BrowserRouting.navigation(logouts.first(), allowlist, tapped = true))
     }
 
     @Test

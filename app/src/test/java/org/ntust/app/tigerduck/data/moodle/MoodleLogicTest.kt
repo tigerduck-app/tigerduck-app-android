@@ -136,6 +136,44 @@ class MoodleLogicTest {
         assertEquals("students by ID, one without after", listOf(2, 1, 7), sections[3].members.map { it.id })
     }
 
+    // The pin-myself list of tigerduck-app#1032: two teachers, and the account (42) among three students.
+    private val pinList = listOf(
+        member(5, "Zed Teacher", "editingteacher"),
+        member(6, "Amy Teacher", "editingteacher"),
+        member(43, "B11399001 @ Duck One", "student", idNumber = "B11399001"),
+        member(42, "B11399005 @ Tiger Duck", "student", idNumber = "B11399005"),
+        member(44, "B11399009 @ Duck Nine", "student", idNumber = "B11399009"),
+    )
+
+    private fun pinnedIds(query: String = "", pinned: Int?, members: List<MoodleMember> = pinList) =
+        MoodleMembers.sections(members, query, Locale.ENGLISH, pinned = pinned).map { section -> section.members.map { it.id } }
+
+    @Test
+    fun `pinned, the account's own row comes first in its section and only there`() {
+        assertEquals(listOf(listOf(6, 5), listOf(42, 43, 44)), pinnedIds(pinned = 42))
+        assertEquals(listOf(listOf(6, 5), listOf(43, 42, 44)), pinnedIds(pinned = null))
+    }
+
+    @Test
+    fun `a search keeps the account's row first while it matches`() {
+        assertEquals(listOf(listOf(42, 43, 44)), pinnedIds("duck", pinned = 42))
+        assertEquals(listOf(listOf(43, 42, 44)), pinnedIds("duck", pinned = null))
+        assertEquals(listOf(listOf(44)), pinnedIds("nine", pinned = 42))
+    }
+
+    @Test
+    fun `an own id not on the list moves nothing`() {
+        assertEquals(listOf(listOf(6, 5), listOf(43, 42, 44)), pinnedIds(pinned = 99))
+    }
+
+    @Test
+    fun `an account listed with the assistants comes first among them`() {
+        val members = pinList.map { if (it.id == 42) member(42, "Tiger Duck", "teacher") else it } + member(7, "Amy Assistant", "teacher")
+
+        assertEquals(listOf(listOf(6, 5), listOf(42, 7), listOf(43, 44)), pinnedIds(pinned = 42, members = members))
+        assertEquals(listOf(listOf(6, 5), listOf(7, 42), listOf(43, 44)), pinnedIds(pinned = null, members = members))
+    }
+
     @Test
     fun `the search matches name, student ID or the department name the row shows`() {
         val members = listOf(
@@ -153,22 +191,28 @@ class MoodleLogicTest {
     }
 
     @Test
-    fun `a bachelor's student ID names the department its code stands for`() {
+    fun `a bachelor's, master's or doctoral student ID names the department its code stands for`() {
         assertEquals("15", MoodleDepartment.code("B00015999"))
         assertEquals("cs", MoodleDepartment.key("B00015999"))
-        // The 12 confirmed codes, and no other (#697).
-        val confirmed = mapOf(
-            "B00001999" to "im", "B00002999" to "et", "B00003999" to "me", "B00004999" to "tx",
-            "B00005999" to "ct", "B00006999" to "ch", "B00007999" to "ee", "B00008999" to "ba",
-            "B00010999" to "dt", "B00013999" to "ad", "B00015999" to "cs", "B00030999" to "hc",
+        // The codes of the school's course department code table (tigerduck-app#1030).
+        val keys = mapOf(
+            "01" to "im", "02" to "et", "03" to "me", "04" to "tx", "05" to "ct", "06" to "ch", "07" to "ee",
+            "08" to "ba", "09" to "mi", "10" to "dt", "11" to "ve", "12" to "ac", "13" to "ad", "15" to "cs",
+            "16" to "mg", "17" to "fl", "18" to "fn", "19" to "eo", "20" to "tm", "21" to "ma", "22" to "en",
+            "23" to "be", "24" to "pa", "25" to "ci", "27" to "ic", "30" to "hc", "31" to "ce", "32" to "ec",
+            "33" to "mb", "37" to "gd", "51" to "si", "52" to "ai", "53" to "es", "54" to "as",
         )
-        assertEquals(confirmed, confirmed.keys.associateWith(MoodleDepartment::key))
-        assertEquals(confirmed.values.toSet(), MoodleDepartment.keys)
+        for ((code, key) in keys) {
+            for (letter in listOf("B", "b", "M", "m", "D", "d")) {
+                assertEquals("$letter$code", key, MoodleDepartment.key("${letter}199${code}042"))
+            }
+        }
+        assertEquals(keys.values.toSet(), MoodleDepartment.keys)
     }
 
     @Test
-    fun `only a bachelor's ID has a department code`() {
-        for (id in listOf("M00015999", "D00015999", "T00015999")) {
+    fun `another letter's ID has no department code`() {
+        for (id in listOf("T00015999", "A19915042")) {
             assertNull(id, MoodleDepartment.code(id))
             assertNull(id, MoodleDepartment.key(id))
         }
@@ -178,20 +222,16 @@ class MoodleLogicTest {
     }
 
     @Test
-    fun `a lowercase b is a bachelor's ID too, as on the iPhone`() {
-        assertEquals("15", MoodleDepartment.code("b00015999"))
-        assertEquals("cs", MoodleDepartment.key("b00015999"))
-    }
-
-    @Test
     fun `a code the app has no name for shows no department`() {
-        assertEquals("09", MoodleDepartment.code("B00009999"))
-        assertNull(MoodleDepartment.key("B00009999"))
-        assertNull(MoodleDepartment.key("B00099999"))
+        assertEquals("99", MoodleDepartment.code("B19999042"))
+        // 34 and 35 are left out on purpose, the list and real IDs disagree; 14 and 41 to 45 are discontinued.
+        for (id in listOf("B19999042", "M19926042", "B19934042", "M19935042", "D19914042", "B19941042", "D19945042")) {
+            assertNull(id, MoodleDepartment.key(id))
+        }
     }
 
     @Test
-    fun `an ID that is not B and eight digits has no department, whatever its 5th and 6th characters`() {
+    fun `an ID that is not a letter and eight digits has no department, whatever its 5th and 6th characters`() {
         // Cut short at 6, 7 and 8 characters, or one too long, each with a confirmed code in place.
         for (id in listOf("B00015", "B000159", "B0001599", "B000159999")) {
             assertNull(id, MoodleDepartment.code(id))

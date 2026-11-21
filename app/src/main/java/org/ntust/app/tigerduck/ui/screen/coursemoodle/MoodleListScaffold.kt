@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.coursemoodle
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -12,8 +13,8 @@ import org.ntust.app.tigerduck.ui.component.PageSettingsItem
 
 /**
  * The shell of one of a course's Moodle lists, as iOS's `moodleListChrome`: its title on one line,
- * the way back, "Open in Moodle" for [moodlePath] ([OpenInMoodleAction]) and a ⋮ with Settings,
- * where the Moodle rows sit.
+ * the way back, "Open in Moodle" for [moodlePath] ([OpenInMoodleAction]) and a ⋮ with the list's
+ * own [menuItems], then Settings, where the Moodle rows sit.
  */
 @Composable
 internal fun MoodleListScaffold(
@@ -21,6 +22,7 @@ internal fun MoodleListScaffold(
     onBack: () -> Unit,
     moodlePath: String?,
     willOpenPage: () -> Unit = {},
+    menuItems: @Composable ColumnScope.(close: () -> Unit) -> Unit = {},
     content: @Composable PageScope.(PaddingValues) -> Unit,
 ) = PageScaffold(
     title = title,
@@ -28,6 +30,7 @@ internal fun MoodleListScaffold(
     oneLineTitle = true,
     actions = { OpenInMoodleAction(moodlePath, willOpenPage) },
     menu = PageMenu(label = stringResource(R.string.action_more_actions)) { close ->
+        menuItems(close)
         PageSettingsItem(PageSettings.MOODLE, close)
     },
     content = content,
