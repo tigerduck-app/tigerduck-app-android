@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageScaffold
@@ -32,9 +33,10 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
  * 其他設定, one card per group: 顯示與文字大小 (課程字體大小 is on its page),
- * 反轉滑條方向, 螢幕翻轉, 震動, API 端點, 顏色主題 with 重新分配課表顏色, 儲存空間 (on its page:
- * downloaded files and caches, Moodle's and School Mail's among them), 使用分析. iOS has the same page without 震動,
- * 螢幕翻轉, 顏色主題 and 使用分析, which it does not offer.
+ * 反轉滑條方向, 螢幕翻轉, 震動, 程式圖標 (on its page, [AppIconScreen]), API 端點,
+ * 顏色主題 with 重新分配課表顏色, 儲存空間 (on its page: downloaded files and caches, Moodle's and
+ * School Mail's among them), 使用分析. iOS has the same page without 震動, 螢幕翻轉, 顏色主題 and
+ * 使用分析, which it does not offer.
  * The library switches live on [LibrarySettingsScreen], the other entry in
  * Settings' 其他設定 section, and the links out on [AboutOthersScreen].
  */
@@ -46,9 +48,11 @@ fun OtherSettingsScreen(
     onNavigateToVibration: () -> Unit,
     onNavigateToDisplaySize: () -> Unit,
     onNavigateToStorage: () -> Unit,
+    onNavigateToAppIcon: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
+    val appIcon by viewModel.prefs.appIcon.flow.collectAsStateWithLifecycle()
     val invertSlider = viewModel.appState.invertSliderDirection
     val themeMode = viewModel.appState.themeMode
     val rotationMode = viewModel.appState.rotationMode
@@ -65,13 +69,7 @@ fun OtherSettingsScreen(
                 .padding(scaffoldPadding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.settings_display_size_title)) {
-                        onNavigateToDisplaySize()
-                    }
-                }
-            }
+            item { LinkCard(stringResource(R.string.settings_display_size_title), onClick = onNavigateToDisplaySize) }
 
             item { Spacer(Modifier.height(24.dp)) }
 
@@ -111,23 +109,15 @@ fun OtherSettingsScreen(
 
             item { Spacer(Modifier.height(24.dp)) }
 
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.vibration_settings_title)) {
-                        onNavigateToVibration()
-                    }
-                }
-            }
+            item { LinkCard(stringResource(R.string.vibration_settings_title), onClick = onNavigateToVibration) }
 
             item { Spacer(Modifier.height(24.dp)) }
 
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.settings_api_endpoint)) {
-                        onNavigateToApiEndpoint()
-                    }
-                }
-            }
+            item { LinkCard(stringResource(R.string.settings_app_icon), stringResource(appIcon.title), onNavigateToAppIcon) }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item { LinkCard(stringResource(R.string.settings_api_endpoint), onClick = onNavigateToApiEndpoint) }
 
             item { Spacer(Modifier.height(24.dp)) }
 
@@ -169,13 +159,7 @@ fun OtherSettingsScreen(
 
             item { Spacer(Modifier.height(24.dp)) }
 
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.settings_storage_title)) {
-                        onNavigateToStorage()
-                    }
-                }
-            }
+            item { LinkCard(stringResource(R.string.settings_storage_title), onClick = onNavigateToStorage) }
 
             item { Spacer(Modifier.height(24.dp)) }
 
@@ -215,5 +199,13 @@ fun OtherSettingsScreen(
             dismissText = stringResource(R.string.action_cancel),
             onDismiss = { showResetColorsConfirm = false },
         )
+    }
+}
+
+/** One link row in a card of its own, as each group of this page is, with [value] beside it if any. */
+@Composable
+private fun LinkCard(label: String, value: String? = null, onClick: () -> Unit) {
+    ContentCard {
+        if (value == null) SettingsLinkRow(label, onClick = onClick) else SettingsLinkRowWithValue(label, value, onClick = onClick)
     }
 }

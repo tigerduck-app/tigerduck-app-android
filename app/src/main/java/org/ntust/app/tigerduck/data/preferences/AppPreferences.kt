@@ -435,6 +435,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putString(MOODLE_OPEN_IN_KEY, value).apply()
 
     val pinMyselfInCourseMembers = PinMyselfPreference(prefs)
+    val appIcon = AppIconPreference(prefs)
 
     /** One of "system", "dark", "light". */
     var themeMode: String
@@ -1087,21 +1088,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         val accentBefore = watchAccent()
         val presetBefore = visualPreset
         prefs.edit().clear().apply()
-        // The watch hears of the accent and the interface style only through
-        // accentColorChanged and visualPresetChanged, and a reset while signed
-        // out publishes nothing else.
+        // The watch hears of the accent and the interface style only through accentColorChanged
+        // and visualPresetChanged, and a reset while signed out publishes nothing else.
         if (watchAccent() != accentBefore) _accentColorChanged.tryEmit(Unit)
         if (visualPreset != presetBefore) _visualPresetChanged.tryEmit(Unit)
         forgetLegacyLastCourseSyncAt()
-        // `alwaysShowAllPeriods` and the class table's display switches are
-        // read from in-memory mirrors rather than the file, so clearing the
-        // file alone leaves the class table pinned — and the Settings rows
-        // reading "on" — until the next process start.
+        // `alwaysShowAllPeriods`, the class table's display switches and the app icon are read from
+        // in-memory mirrors rather than the file, so clearing the file alone leaves the class table
+        // pinned, and the Settings rows reading "on", until the next process start.
         _alwaysShowAllPeriods.value = false
         _showClassroomInClassTable.value = true
         _pinTodayCoursesOnClassTable.value = false
         _outlineRequiredCourses.value = false
         pinMyselfInCourseMembers.reload()
+        appIcon.reload()
         _schoolDataSyncedAtMs.value = 0L
         _librarySyncedAtMs.value = 0L
     }
