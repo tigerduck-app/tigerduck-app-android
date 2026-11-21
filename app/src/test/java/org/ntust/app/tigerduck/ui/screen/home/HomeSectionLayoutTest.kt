@@ -55,7 +55,7 @@ class HomeSectionLayoutTest {
 
     @Test
     fun `a move onto itself returns the very same list`() {
-        // Identity, not just equality: HomeViewModel uses `!==` to decide
+        // Identity, not just equality: HomeViewModel uses `===` to decide
         // whether to write preferences, so a no-op has to be the same object.
         assertSame(threeSections, HomeSectionLayout.move(threeSections, "b", "b"))
     }
@@ -329,7 +329,7 @@ class HomeSectionLayoutTest {
 
     @Test
     fun `a shortcut move that changes nothing returns the very same list`() {
-        // Same identity contract as `move`: HomeViewModel persists on `!==`,
+        // Same identity contract as `move`: HomeViewModel skips the write on `===`,
         // and a drag is a stream of these calls, most of them no-ops.
         val sections = builtinOnly + shortcutSection(
             "qw", HomeSection.HomeSectionType.QUICK_WIDGETS, AppFeature.ANNOUNCEMENTS, AppFeature.SCORE,
