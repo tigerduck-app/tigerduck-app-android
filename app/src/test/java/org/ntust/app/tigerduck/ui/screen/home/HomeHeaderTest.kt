@@ -110,6 +110,7 @@ class HomeHeaderTest {
                             onRemoveSection = {},
                             onRemoveWidget = { _, _ -> },
                             onMoveWidget = { _, _, _ -> },
+                            onStep = { null },
                             onAddQuickFeature = {},
                             header = { Header() },
                             banner = null,
