@@ -244,30 +244,9 @@ class MoodleService @Inject constructor(
         // Flatten the nested course→assignments response.
         val assignments = round.courses
             .flatMap { c -> c.assignments.map { a -> c.id to a } }
-            .mapNotNull { (courseId, a) ->
-                if (a.duedate <= 0) return@mapNotNull null
-                // Info-only entries with no submission target — nothing to
-                // complete or ignore; skip to match iOS.
-                if (a.nosubmissions != 0) return@mapNotNull null
-                val course = coursesById[courseId]
-                val (submitted, submittedAt) = submissionState(
-                    a.id, round.confirmed, round.statuses[a.id]?.lastattempt,
-                )
-                Assignment(
-                    assignmentId = a.id.toString(),
-                    courseNo = courseNoById[courseId] ?: "",
-                    courseName = courseName(course?.fullname).decodeHtmlEntities(),
-                    title = a.name.decodeHtmlEntities(),
-                    dueDate = Date(a.duedate * 1000),
-                    isCompleted = submitted,
-                    moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${a.cmid}",
-                    cutoffDate = a.cutoffdate?.takeIf { it > 0 }?.let { Date(it * 1000) },
-                    submittedAt = submittedAt,
-                    semester = currentSemester,
-                    extensionDueDate = extensionDueDate(
-                        a.id, a.id in round.statuses, round.statuses[a.id]?.lastattempt, cachedExtensions,
-                    ),
-                )
+            .mapNotNull { (id, a) ->
+                val name = courseName(coursesById[id]?.fullname).decodeHtmlEntities()
+                listedAssignment(a, courseNoById[id] ?: "", name, currentSemester, round.confirmed, round.statuses[a.id], cachedExtensions)
             }
         val statuses = round.statuses.mapNotNull { (id, status) ->
             val askedAt = round.askedAtMs[id] ?: return@mapNotNull null
@@ -403,6 +382,29 @@ class MoodleService @Inject constructor(
             return if (idx >= 0 && idx + 1 < parts.size) parts[idx + 1] else fullname
         }
 
+        /**
+         * Home's row for [a], with its [status] when asked; null for one taking no submission, nothing to
+         * complete or ignore, as iOS. One with no due date (`duedate` 0) is listed with none (tigerduck-app#1029).
+         */
+        internal fun listedAssignment(
+            a: MoodleAssignmentNode, courseNo: String, courseName: String, semester: String,
+            confirmed: Map<Int, Date>, status: MoodleSubmissionStatusEnvelope?, cachedExtensions: Map<String, Date>,
+        ): Assignment? {
+            if (a.nosubmissions != 0) return null
+            val (submitted, submittedAt) = submissionState(a.id, confirmed, status?.lastattempt)
+            return Assignment(
+                assignmentId = a.id.toString(), courseNo = courseNo, courseName = courseName,
+                title = a.name.decodeHtmlEntities(),
+                dueDate = a.duedate.takeIf { it > 0 }?.let { Date(it * 1000) },
+                isCompleted = submitted,
+                moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${a.cmid}",
+                cutoffDate = a.cutoffdate?.takeIf { it > 0 }?.let { Date(it * 1000) },
+                submittedAt = submittedAt,
+                semester = semester,
+                extensionDueDate = extensionDueDate(a.id, status != null, status?.lastattempt, cachedExtensions),
+            )
+        }
+
         /** The write behind [MoodleService.storeAssignments], on the given cache and ledger. */
         internal suspend fun storeAssignments(
             dataCache: DataCache,
@@ -505,12 +507,10 @@ class MoodleService @Inject constructor(
          * included, shows only after a pull, which asks about everything.
          */
         /**
-         * The assignments of a round Moodle is asked about: not one without a
-         * due date or taking no submissions, which the list leaves out
-         * anyway; not one the cache has [confirmed]; and not one [closed]
-         * (by id, when Moodle said so, epoch ms) within the last
-         * [CLOSED_FOR_MS]. As iOS's `AppServiceBridge.recordsToAskAbout`
-         * (tigerduck-app/tigerduck-app#257).
+         * The assignments of a round Moodle is asked about: not one taking no submissions, which
+         * the list leaves out anyway, though one without a due date (tigerduck-app#1029); not one
+         * the cache has [confirmed]; and not one [closed] (by id, when Moodle said so, epoch ms)
+         * within the last [CLOSED_FOR_MS]. As iOS's `AppServiceBridge.recordsToAskAbout`.
          */
         internal fun assignmentsToAsk(
             assignments: List<MoodleAssignmentNode>,
@@ -518,7 +518,7 @@ class MoodleService @Inject constructor(
             closed: Map<Int, Long>,
             nowMs: Long,
         ): List<MoodleAssignmentNode> = assignments.filter {
-            it.duedate > 0 && it.nosubmissions == 0 && it.id !in confirmed && !stillClosed(closed[it.id], nowMs)
+            it.nosubmissions == 0 && it.id !in confirmed && !stillClosed(closed[it.id], nowMs)
         }
 
         /**

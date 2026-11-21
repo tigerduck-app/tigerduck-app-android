@@ -8,7 +8,11 @@ data class Assignment(
     val courseNo: String,
     val courseName: String,
     val title: String,
-    val dueDate: Date,
+    /**
+     * Moodle's due date; null for an assignment Moodle gives none (`duedate` 0), listed after every
+     * dated one, as iOS lists it (tigerduck-app#1029). Every cache written before then has one.
+     */
+    val dueDate: Date?,
     val isCompleted: Boolean = false,
     val moodleUrl: String? = null,
     /** Final cutoff after which Moodle rejects further submissions. Null when
@@ -32,12 +36,12 @@ data class Assignment(
     val extensionDueDate: Date? = null,
 ) {
     /**
-     * The date the student is held to: the later of [dueDate] and [extensionDueDate]. Everything
-     * that judges the assignment late, overdue or near reads this, as iOS does
-     * (tigerduck-app#729).
+     * The date the student is held to: the later of [dueDate] and [extensionDueDate], the extension
+     * when there is no due date, null with neither. Everything that judges the assignment late,
+     * overdue or near reads this, as iOS does (tigerduck-app#729, tigerduck-app#1029).
      */
-    val studentDueDate: Date
-        get() = extensionDueDate?.takeIf { it.after(dueDate) } ?: dueDate
+    val studentDueDate: Date?
+        get() = listOfNotNull(dueDate, extensionDueDate).maxOrNull()
 
     /**
      * The last date the student can still hand in: [cutoffDate], unless an extension runs past it,
@@ -46,8 +50,9 @@ data class Assignment(
     val studentCutoffDate: Date?
         get() = cutoffDate?.let { cutoff -> extensionDueDate?.takeIf { it.after(cutoff) } ?: cutoff }
 
+    /** Never for one without a due date. */
     val isOverdue: Boolean
-        get() = !isCompleted && studentDueDate.before(Date(AppClock.nowMillis()))
+        get() = !isCompleted && studentDueDate?.before(Date(AppClock.nowMillis())) == true
 
     /**
      * The Moodle app's link to the assignment's page, or null when Moodle gave

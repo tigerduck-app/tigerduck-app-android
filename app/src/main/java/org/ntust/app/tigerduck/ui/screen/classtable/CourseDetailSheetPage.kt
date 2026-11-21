@@ -28,16 +28,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -74,6 +70,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeRow
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.sortedByDueDate
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.SheetContentScroll
 import org.ntust.app.tigerduck.ui.component.WholeWordsText
@@ -90,9 +87,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.formatCredits
-import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * The class table's selected course, in full, as its sheet's page:
@@ -149,7 +144,7 @@ internal fun CourseDetailSheetPage(
         viewModel.selectedChangeRows(meeting, cancelledLabel, locale)
     }
     val assignments = remember(outstanding, course.courseNo, readOnly) {
-        if (readOnly) emptyList() else outstanding.filter { it.courseNo == course.courseNo }
+        if (readOnly) emptyList() else outstanding.filter { it.courseNo == course.courseNo }.sortedByDueDate()
     }
     val moodleCourseId = remember(course.courseNo, moodleIds) { viewModel.moodleCourseIdFor(course) }
     LaunchedEffect(moodleCourseId, showsMoodle) {
@@ -404,7 +399,7 @@ internal fun CourseDetailContent(
                                 color = cardDividerColor(),
                             )
                         }
-                        AssignmentRow(assignment) { onOpenAssignment(assignment) }
+                        CourseDetailAssignmentRow(assignment) { onOpenAssignment(assignment) }
                     }
                 }
             }
@@ -450,36 +445,6 @@ private fun CourseChangesSection(rows: List<CourseChangeRow>) {
 }
 
 private fun hourMinute(time: java.time.LocalTime): String = "%02d:%02d".format(time.hour, time.minute)
-
-/** An outstanding assignment: its title and due time, opening its page. */
-@Composable
-private fun AssignmentRow(assignment: Assignment, onClick: () -> Unit) {
-    val due = remember(assignment.studentDueDate) {
-        SimpleDateFormat("M/d HH:mm", Locale.getDefault()).apply { timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ }
-            .format(assignment.studentDueDate)
-    }
-    ListItem(
-        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-        leadingContent = {
-            Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        },
-        headlineContent = { Text(assignment.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            Text(
-                text = stringResource(R.string.course_detail_due_prefix, due),
-                color = if (assignment.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        trailingContent = {
-            Icon(
-                Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-            )
-        },
-    )
-}
 
 /**
  * Big-text card used for the two fields that earn visual emphasis

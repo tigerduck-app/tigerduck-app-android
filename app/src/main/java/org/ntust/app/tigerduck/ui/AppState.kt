@@ -23,7 +23,6 @@ import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.AppFeature
-import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -43,6 +42,7 @@ import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.shared.toned
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.screen.calendar.withMoodleRows
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import org.ntust.app.tigerduck.util.logSummary
@@ -717,16 +717,10 @@ class AppState @Inject constructor(
             var changed = false
 
             if (assignmentsResult.isSuccess) {
-                val moodleEvents = dataCache.loadAssignments().map { assignment ->
-                    CalendarEvent(
-                        eventId = CalendarEvent.moodleEventId(assignment.assignmentId),
-                        title = assignment.title,
-                        date = assignment.studentDueDate,
-                        sourceRaw = EventSource.MOODLE.raw
-                    )
-                }
-                cached.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
-                cached.addAll(moodleEvents)
+                // As the calendar makes them.
+                val withMoodle = withMoodleRows(cached, dataCache.loadAssignments())
+                cached.clear()
+                cached.addAll(withMoodle)
                 changed = true
             }
 

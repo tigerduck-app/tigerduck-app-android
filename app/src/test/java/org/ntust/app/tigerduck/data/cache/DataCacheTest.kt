@@ -70,6 +70,16 @@ class DataCacheTest {
     }
 
     @Test
+    fun `an assignment with no due date is kept with none, beside a cache's dated ones`() = runTest {
+        cache.saveAssignments(listOf(assignment("dated"), assignment("undated").copy(dueDate = null)), testSignIn())
+
+        val loaded = cache.loadAssignments().associateBy { it.assignmentId }
+        assertEquals(Date(1_700_000_000_000), loaded.getValue("dated").dueDate)
+        assertNull(loaded.getValue("undated").dueDate)
+        assertNull(loaded.getValue("undated").studentDueDate)
+    }
+
+    @Test
     fun `outstanding assignments leave out submitted, ignored and marked-done work`() = runTest {
         cache.saveAssignments(
             listOf(

@@ -57,4 +57,11 @@ class CalendarMoodleRowsTest {
 
         assertEquals(listOf(Date(86_400_000)), rows.map { it.date })
     }
+
+    @Test
+    fun `an assignment with no due date has no calendar row`() {
+        val undated = assignment("2").copy(dueDate = null)
+
+        assertEquals(listOf(moodleRow("3")), withMoodleRows(listOf(moodleRow("1")), listOf(undated, assignment("3"))))
+    }
 }
