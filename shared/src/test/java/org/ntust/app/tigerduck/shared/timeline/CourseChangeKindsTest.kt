@@ -113,6 +113,18 @@ class CourseChangeKindsTest {
     }
 
     @Test
+    fun `the watch's changed classes leave out a meeting only assessed, but not one that lost a period`() {
+        val changes = changes(
+            row(1, "assessment", periods = morning, values = midterm),
+            row(2, "cancelled", periods = listOf("7")),
+            row(3, "start", periods = listOf("7", "8"), values = mapOf("start" to "15:30")),
+        )
+
+        assertEquals(listOf(listOf("8")), CourseMeetings.changedTimetableClasses(course(), thursday, changes).map { it.periods })
+        assertEquals(listOf(morning, listOf("8")), CourseMeetings.changedClasses(course(), thursday, changes).map { it.periods })
+    }
+
+    @Test
     fun `the changes list names an assessment and an online class, even of the meeting the cards show`() {
         val changes = changes(
             row(1, "assessment", periods = morning, values = midterm),

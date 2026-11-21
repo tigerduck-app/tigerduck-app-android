@@ -149,11 +149,22 @@ object CourseMeetings {
     /**
      * The classes of each meeting with more than a note on [date] (moved, cancelled, given a room,
      * held online or assessed), as the day's slots show them. As iOS's, since the widgets mark an
-     * assessment; the watch, which does not, leaves a meeting only assessed out.
+     * assessment.
      */
     fun changedClasses(course: Course, date: LocalDate, changes: CourseChanges): List<ClassSlot> =
+        classesOfMeetings(course, date, changes) { it != Kind.NOTE }
+
+    /**
+     * [changedClasses] but for a meeting only assessed: the classes of each meeting that no longer
+     * runs as the timetable has it, as the watch takes them, which marks no assessment. A class a
+     * change left empty is not among them, which the meeting's other changes still say.
+     */
+    fun changedTimetableClasses(course: Course, date: LocalDate, changes: CourseChanges): List<ClassSlot> =
+        classesOfMeetings(course, date, changes) { it != Kind.NOTE && it != Kind.ASSESSMENT }
+
+    private fun classesOfMeetings(course: Course, date: LocalDate, changes: CourseChanges, kind: (Kind) -> Boolean) =
         meetings(course, date, changes)
-            .filter { meeting -> meeting.changes.any { it.kind != Kind.NOTE } }
+            .filter { meeting -> meeting.changes.any { kind(it.kind) } }
             .flatMap { it.slots() }
 
     /** The feed's days on or after [from] with a changed meeting of [course], earliest first. */
