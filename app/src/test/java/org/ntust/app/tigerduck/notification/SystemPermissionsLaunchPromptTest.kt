@@ -61,7 +61,7 @@ class SystemPermissionsLaunchPromptTest {
         assertFalse(systemPermissions.shouldRequestNotificationsAtLaunch())
     }
 
-    // Below API 33 there is no runtime permission to ask for. MainActivity
+    // Below API 33 there is no runtime permission to ask for. MainActivityHost
     // used to return early on the SDK level itself; that check now lives here.
     // API 30, the level robolectric.properties picks for below 33.
     @Test

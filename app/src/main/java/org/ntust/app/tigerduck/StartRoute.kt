@@ -5,10 +5,10 @@ import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 
 /**
- * The [EXTRA] the app's own notifications put on a [MainActivity] intent to
+ * The [EXTRA] the app's own notifications put on a [MainActivityHost] intent to
  * open a screen, and the routes it may name.
  *
- * MainActivity is exported, so the extra can arrive on any app's intent too.
+ * MainActivityHost is exported, so the extra can arrive on any app's intent too.
  * [accepted] lets through exactly the routes the app itself sends — School
  * Mail's notifications, and the class table and Library widgets as an older
  * build drew them — and drops everything else, so no other screen can be

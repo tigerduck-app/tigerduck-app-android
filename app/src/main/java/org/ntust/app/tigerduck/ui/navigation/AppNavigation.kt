@@ -225,7 +225,7 @@ fun AppNavigation(
  * Opens the screen a widget, a notification or a link asked for, on top of
  * the current one. Returns whether it opened.
  *
- * MainActivity only passes routes it accepts (`startRouteOf`), but a route
+ * MainActivityHost only passes routes it accepts (`startRouteOf`), but a route
  * the graph cannot take, or an argument it cannot read, must still leave the
  * app where it is: thrown here, it would end the effect that called this,
  * and the app with it, and come back with the intent from Recents.

@@ -8,7 +8,7 @@ import javax.inject.Singleton
  * F-Droid stub. That build has no Play Store to rate the app on, so there is
  * no review flow to hand out; [request] is always null, so [ReviewPrompt]
  * records nothing as asked. Same FQN and shape as the play-flavor
- * implementation so `MainActivity` in `main/` can inject and call it
+ * implementation so `MainActivityHost` in `main/` can inject and call it
  * regardless of which flavor is being built — same pattern as
  * `UpdateChecker`. No GMS dependencies, so this compiles on fdroid.
  */

@@ -18,12 +18,13 @@ import org.ntust.app.tigerduck.library.LibraryQrShortcut
 import org.ntust.app.tigerduck.util.logSummary
 
 /**
- * The app's entries on the launcher: an `activity-alias` of MainActivity per [AppIcon], each with
- * the launcher's intent filter. The manifest enables [AppIcon.DEFAULT]'s alone, and [show] enables
- * another's in its place, so the launcher has exactly one entry for the app at a time.
+ * The app's entries on the launcher: an `activity-alias` of MainActivityHost per [AppIcon], each
+ * with the launcher's intent filter. The manifest enables [AppIcon.DEFAULT]'s alone, and [show]
+ * enables another's in its place, so the launcher has exactly one entry for the app at a time.
  *
- * MainActivity has no launcher entry of its own and is never disabled, so every intent that names
- * it (links, notifications, widgets, the library QR shortcut) opens it whichever icon is shown.
+ * MainActivityHost has no launcher entry of its own and is never disabled, so every intent that
+ * names it (links, notifications, widgets, the library QR shortcut) opens it whichever icon is
+ * shown. The app's own intents name it, never an alias, which another pick may turn off.
  * Each change keeps the app running (DONT_KILL_APP); the system tells the launcher of it within
  * seconds, and the launcher swaps the icon, a home screen copy too where it can.
  *

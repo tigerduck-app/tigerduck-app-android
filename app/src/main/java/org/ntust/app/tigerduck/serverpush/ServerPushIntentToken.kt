@@ -10,10 +10,10 @@ import javax.inject.Singleton
 /**
  * Per-install random token shared between
  * [org.ntust.app.tigerduck.push.FcmService] (which embeds it into the popup
- * PendingIntent's extras) and [org.ntust.app.tigerduck.MainActivity] (which
+ * PendingIntent's extras) and [org.ntust.app.tigerduck.MainActivityHost] (which
  * validates it before honouring `tigerduck://server-push/...` deep links).
  *
- * MainActivity is exported as the launcher, so without this gate any
+ * MainActivityHost is exported as the launcher, so without this gate any
  * installed app could craft an explicit intent against it with
  * attacker-chosen title / body and the user would see an in-app popup
  * under TigerDuck branding. The token only ever lives in the app's
@@ -23,7 +23,7 @@ import javax.inject.Singleton
  * Persistent (not per-process) because PendingIntents created by
  * FcmService survive across process death — a notification tapped
  * minutes after FcmService exited still has to validate in a fresh
- * MainActivity process.
+ * MainActivityHost process.
  */
 @Singleton
 class ServerPushIntentToken @Inject constructor(
@@ -40,7 +40,7 @@ class ServerPushIntentToken @Inject constructor(
             // commit (not apply) — FcmService stores this value into a
             // PendingIntent right after retrieval; an unflushed apply could
             // be lost if the process is killed before the disk write lands,
-            // leaving MainActivity unable to validate a notification tapped
+            // leaving MainActivityHost unable to validate a notification tapped
             // later.
             prefs.edit(commit = true) { putString(KEY, hex) }
             hex

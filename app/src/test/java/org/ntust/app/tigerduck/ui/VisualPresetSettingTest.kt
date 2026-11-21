@@ -44,7 +44,7 @@ class VisualPresetSettingTest {
         val setting = VisualPresetSetting(prefs)
         var seen: VisualPreset? = null
         composeRule.setContent {
-            // As MainActivity does: the root theme takes AppState's copy.
+            // As MainActivityHost does: the root theme takes AppState's copy.
             TigerDuckAppTheme(darkTheme = false, visualPreset = setting.value) {
                 seen = LocalVisualStylePolicy.current.preset
             }

@@ -16,7 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.library.LibraryQrShortcut
@@ -26,8 +26,8 @@ import org.robolectric.annotation.Config
 
 /**
  * The app icon picked in Settings, on the launcher, as on the iPhone (tigerduck-app#1026): an
- * `activity-alias` of MainActivity per icon, exactly one of them the launcher's at a time, and
- * MainActivity reachable by name whichever is shown. Runs on API 33, where [LauncherIcons] sets
+ * `activity-alias` of MainActivityHost per icon, exactly one of them the launcher's at a time, and
+ * MainActivityHost reachable by name whichever is shown. Runs on API 33, where [LauncherIcons] sets
  * every alias in one change; [LauncherIconsBeforeApi33Test] runs it one alias at a time.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -54,18 +54,32 @@ open class LauncherIconsTest {
     private fun state(icon: AppIcon) = packageManager.getComponentEnabledSetting(ComponentName(context, icon.alias))
 
     @Test
-    fun `an install that never picked an icon has the build's own on the launcher, and MainActivity no entry`() {
+    fun `an install that never picked an icon has the build's own on the launcher, and MainActivityHost no entry`() {
         assertEquals(listOf(AppIcon.DEFAULT.alias), launcherEntries())
     }
 
+    /**
+     * Launchers keep a home screen icon by its component, and until the icons this app's entry was
+     * `org.ntust.app.tigerduck.MainActivityHost`: the default keeps that name, so an update changes
+     * nothing on the home screen.
+     */
     @Test
-    fun `each icon has an alias of MainActivity that draws it`() {
+    fun `the default's entry keeps the component every earlier build had, and opens the app by it`() {
+        val earlier = ComponentName(context.packageName, "org.ntust.app.tigerduck.MainActivity")
+
+        assertEquals(earlier.className, AppIcon.DEFAULT.alias)
+        assertEquals(listOf(earlier.className), launcherEntries())
+        assertNotNull(packageManager.resolveActivity(Intent().setComponent(earlier), 0))
+    }
+
+    @Test
+    fun `each icon has an alias of MainActivityHost that draws it`() {
         AppIcon.entries.forEach { icon ->
             val info = packageManager.getActivityInfo(
                 ComponentName(context, icon.alias),
                 PackageManager.MATCH_DISABLED_COMPONENTS,
             )
-            assertEquals(icon.name, MainActivity::class.java.name, info.targetActivity)
+            assertEquals(icon.name, MainActivityHost::class.java.name, info.targetActivity)
             assertEquals(icon.name, icon.icon, info.iconResource)
             assertEquals(icon.name, icon == AppIcon.DEFAULT, info.enabled)
         }
@@ -88,15 +102,15 @@ open class LauncherIconsTest {
     }
 
     @Test
-    fun `MainActivity opens by name whichever icon is shown`() {
+    fun `MainActivityHost opens by name whichever icon is shown`() {
         AppIcon.entries.forEach { icon ->
             LauncherIcons(context).show(icon)
 
-            assertNotNull(icon.name, packageManager.resolveActivity(Intent(context, MainActivity::class.java), 0))
+            assertNotNull(icon.name, packageManager.resolveActivity(Intent(context, MainActivityHost::class.java), 0))
             assertEquals(
                 icon.name,
                 PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
-                packageManager.getComponentEnabledSetting(ComponentName(context, MainActivity::class.java)),
+                packageManager.getComponentEnabledSetting(ComponentName(context, MainActivityHost::class.java)),
             )
         }
     }

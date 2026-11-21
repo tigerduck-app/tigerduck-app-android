@@ -23,7 +23,7 @@ import javax.inject.Singleton
  * gets.
  *
  * The fdroid variant ships a stub at the same FQN that never hands out a
- * flow, so `MainActivity` in `main/` calls this without conditional code —
+ * flow, so `MainActivityHost` in `main/` calls this without conditional code —
  * same pattern as `UpdateChecker` and `FcmBootstrap`.
  */
 @Singleton

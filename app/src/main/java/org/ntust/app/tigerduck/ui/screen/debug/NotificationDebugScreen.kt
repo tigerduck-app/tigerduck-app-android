@@ -29,7 +29,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.StartRoute
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
@@ -102,7 +102,7 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
         val inbox = PendingIntent.getActivity(
             context,
             id,
-            Intent(context, MainActivity::class.java)
+            Intent(context, MainActivityHost::class.java)
                 .putExtra(StartRoute.EXTRA, MailRoutes.LIST)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

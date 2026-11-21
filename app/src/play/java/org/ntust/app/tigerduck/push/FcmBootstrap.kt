@@ -64,7 +64,7 @@ class FcmBootstrap @Inject constructor(
      * Retries a device registration that has not landed, if one is due:
      * [PushRegistrationService.retryRegistrationIfDue] decides that, applying
      * the consent and flavor gates before anything is fetched or sent. Called
-     * on app foreground (`MainActivity.onResume`), from
+     * on app foreground (`MainActivityHost.onResume`), from
      * `BackgroundSyncWorker.doWork`, and when connectivity returns.
      */
     fun retryRegistrationIfDue() {

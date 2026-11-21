@@ -27,7 +27,7 @@ import org.ntust.app.tigerduck.R
 
 /**
  * Three-action "an update is ready" prompt, mounted at the app root by
- * `MainActivity`'s [UpdatePromptHost]. Mirrors the iOS `UpdatePromptView`
+ * `MainActivityHost`'s [UpdatePromptHost]. Mirrors the iOS `UpdatePromptView`
  * triad (Update now / Later / Skip this version) so the two platforms share
  * the same UX and the same per-version-skip + 7-day cooldown semantics.
  *
