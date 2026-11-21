@@ -25,6 +25,9 @@ class MoodleFileLineTest {
             "lab4.tbz2" to "TBZ2",
             "lab4.tar.xz" to "TXZ",
             "lab4.txz" to "TXZ",
+            // Four dots or more before it are a name, as Foundation's pathExtension has it.
+            "....pdf" to "PDF",
+            "....7z" to "7Z",
         )
         for ((name, label) in labels) {
             assertEquals(name, label, MoodleFileLine.typeLabel(name))
