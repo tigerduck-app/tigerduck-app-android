@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data.moodle
 
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.DateTimeException
 import java.time.Instant
 import java.time.LocalDate
@@ -26,9 +27,9 @@ object MoodleCurrentWeek {
     ): Int? {
         val today = now.atZone(zone).toLocalDate()
         if (format != WEEKLY_FORMAT || startDate == null) return sectionIdByNames(sections, today)
-        val days = ChronoUnit.DAYS.between(Instant.ofEpochSecond(startDate).atZone(zone).toLocalDate(), today)
-        if (days < 0) return null
-        return sections.firstOrNull { it.number?.toLong() == days / 7 + 1 }?.id
+        val start = Instant.ofEpochSecond(startDate).atZone(zone).toLocalDate()
+        val week = TaipeiClock.week(of = today, countingFrom = start) ?: return null
+        return sections.firstOrNull { it.number == week }?.id
     }
 
     private class DatedSection(val id: Int, val start: LocalDate, val end: LocalDate)

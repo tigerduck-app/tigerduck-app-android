@@ -115,7 +115,7 @@ internal fun TimetableGrid(
         val totalHeight = cellHeight * periods.size
 
         Column(modifier = Modifier.fillMaxWidth()) {
-            ClassTableWeekdayHeader(weekdays, dayLabels, periodColWidth, dayColWidth, today = thisWeek?.todayWeekday)
+            ClassTableWeekdayHeader(weekdays, dayLabels, periodColWidth, dayColWidth, thisWeek?.todayWeekday, thisWeek?.termWeek)
 
             // Grid body — use Box with absolute positioning so blocks can span rows.
             // Offsets from the top left in either direction: a Box aligns to the

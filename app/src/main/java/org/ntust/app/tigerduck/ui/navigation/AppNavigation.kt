@@ -79,6 +79,7 @@ import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportHost
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ScannerShareSheet
+import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableListScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherEntry
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMenuItems
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
@@ -140,6 +141,7 @@ sealed class Screen(val route: String) {
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
+    object ClassTableList : Screen("classTableList")
     object LanguagePicker : Screen("languagePicker")
     object AccentColor : Screen("accentColor")
     object LiveActivitySettings : Screen("liveActivitySettings")
@@ -448,7 +450,7 @@ fun MainNavigation(
                                         contentDescription = stringResource(feature.displayNameRes)
                                     )
                                     if (isClassTable) {
-                                        // On the tab, above it: the user's own row ends nearest.
+                                        // On the tab, above it, in the iPhone's order.
                                         DropdownMenu(
                                             expanded = showClassTableSwitcher,
                                             onDismissRequest = { showClassTableSwitcher = false },
@@ -670,6 +672,7 @@ fun MainNavigation(
             page(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
+                    onNavigateToClassTableList = { navController.navigate(Screen.ClassTableList.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToAccentColor = { navController.navigate(Screen.AccentColor.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
@@ -839,9 +842,8 @@ fun MainNavigation(
             page(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
             }
-            page(Screen.AccentColor.route) {
-                AccentColorScreen(onBack = { navController.popBackStack() })
-            }
+            page(Screen.AccentColor.route) { AccentColorScreen(onBack = { navController.popBackStack() }) }
+            page(Screen.ClassTableList.route) { ClassTableListScreen(switcherUserName, onBack = { navController.popBackStack() }) }
             page(Screen.TabEditor.route) {
                 TabEditorScreen(
                     appState = appState,
