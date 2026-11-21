@@ -474,13 +474,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/AppNavigation.kt",
     "kind": "long-file",
-    "count": 1027
+    "count": 942
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/AppNavigation.kt",
     "kind": "long-function",
     "name": "MainNavigation(NavHostController, AppState, AnalyticsLogger, String?, ()->Unit)",
-    "lines": 690
+    "lines": 612
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/CoursePages.kt",
@@ -1212,12 +1212,6 @@
     "count": 431
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/OtherSettingsScreen.kt",
-    "kind": "long-function",
-    "name": "OtherSettingsScreen(()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, SettingsViewModel)",
-    "lines": 177
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/ReenableCheck.kt",
     "kind": "full-sync-fetch",
     "count": 1
@@ -1235,7 +1229,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",
     "kind": "long-file",
-    "count": 458
+    "count": 442
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",
@@ -1247,17 +1241,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
     "kind": "fdroid-literal",
     "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
-    "kind": "long-file",
-    "count": 826
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
-    "kind": "long-function",
-    "name": "SettingsScreen(SettingsViewModel, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit)",
-    "lines": 717
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",

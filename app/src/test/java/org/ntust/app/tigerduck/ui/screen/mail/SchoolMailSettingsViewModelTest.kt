@@ -110,8 +110,8 @@ class SchoolMailSettingsViewModelTest {
 
     /**
      * `signedIn` is what both greyed-out controls bind their `enabled` to:
-     * the School Mail notifications row in Settings → Notifications, and
-     * "Name shown to recipients" on the School Mail settings page. Signed out,
+     * the School Mail notifications on School Mail's page of Settings, and
+     * "Name shown to recipients" on the same page. Signed out,
      * both are visible and dead.
      */
     @Test

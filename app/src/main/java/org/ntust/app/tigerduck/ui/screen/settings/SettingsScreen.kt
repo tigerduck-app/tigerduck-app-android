@@ -1,25 +1,18 @@
-// The Settings screen itself: section order, the state it holds, and the
-// navigation out to sub-screens. The row primitives it is built from
-// live in SettingsRows.kt.
+// The Settings screen itself, in iOS's sections (tigerduck-app#939): Account, Appearance, the
+// app's pages, TigerSync, notification permissions, Language, Other settings and About, with a
+// search pulled down from under its title. Its rows are the catalog's (SettingsCatalog.kt), each
+// page's on a page of its own (SettingsPages.kt); the row primitives live in SettingsRows.kt.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,146 +20,271 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
-import org.ntust.app.tigerduck.AppUrls
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.ui.BrowserPreference
-import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.liveactivity.LiveUpdateSegments
+import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
-import org.ntust.app.tigerduck.ui.component.SectionHeader
-import org.ntust.app.tigerduck.sensor.FlipDetector
+import org.ntust.app.tigerduck.ui.component.PageSettings
+import org.ntust.app.tigerduck.ui.component.SearchDrawer
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
-import org.ntust.app.tigerduck.ui.haptics.HapticScenario
-import org.ntust.app.tigerduck.ui.haptics.Haptics
-import org.ntust.app.tigerduck.ui.openLink
+import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.rememberMoodleAppInstalled
-import org.ntust.app.tigerduck.ui.screen.mail.ForgotMailPasswordLink
 import org.ntust.app.tigerduck.ui.screen.mail.MailAccountViewModel
-import org.ntust.app.tigerduck.ui.screen.mail.messageRes
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
-import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import org.ntust.app.tigerduck.ui.theme.VisualPreset
-import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
 import org.ntust.app.tigerduck.util.replaceIosArg
-import java.util.Locale
+import org.ntust.app.tigerduck.wear.WearCompanion
+
+/** The root's parts, in order: the catalog's sections, the pages after Appearance, and the debug build's own. */
+private enum class RootPart {
+    ACCOUNT, APPEARANCE, PAGES, TIGERSYNC, NOTIFICATION_PERMISSIONS, LANGUAGE, OTHER, ABOUT, DEVELOPER;
+
+    companion object {
+        fun of(section: SettingsSection): RootPart = valueOf(section.name)
+
+        /** The list's items before the first part: the title and the search drawer. */
+        const val FIRST_INDEX = SearchPull.DRAWER_INDEX + 1
+    }
+}
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateToTabEditor: () -> Unit = {},
-    onNavigateToLanguagePicker: () -> Unit = {},
-    onNavigateToAccentColor: () -> Unit = {},
-    onNavigateToLiveActivity: () -> Unit = {},
-    onNavigateToSchoolMailNotificationSettings: () -> Unit = {},
-    onNavigateToNotificationPermissionSettings: () -> Unit = {},
-    onNavigateToClassReminders: () -> Unit = {},
-    onNavigateToAssignmentReminders: () -> Unit = {},
-    onNavigateToCloudSync: () -> Unit = {},
-    onNavigateToLibrarySettings: () -> Unit = {},
-    onNavigateToSchoolMailSettings: () -> Unit = {},
-    onNavigateToOtherSettings: () -> Unit = {},
-    onNavigateToAboutOthers: () -> Unit = {},
-    onNavigateToDebug: () -> Unit = {},
-    onNavigateToNotificationDebug: () -> Unit = {},
-    onNavigateToTriggersDebug: () -> Unit = {},
-    onNavigateToServerFailureDebug: () -> Unit = {},
-    onNavigateToOutsideAppsDebug: () -> Unit = {},
-    onNavigateToMailDevServerDebug: () -> Unit = {},
-    onNavigateToBrowserAllowlistDebug: () -> Unit = {},
-    onNavigateToViewerSamplesDebug: () -> Unit = {},
+    open: (SettingsLink) -> Unit = {},
+    openPage: (PageSettings) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
-    val ntustLoginError by viewModel.ntustLoginError.collectAsStateWithLifecycle()
-    val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsStateWithLifecycle()
-    val libLoginError by viewModel.libLoginError.collectAsStateWithLifecycle()
-    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsStateWithLifecycle()
-    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
     val mailViewModel: MailAccountViewModel = hiltViewModel()
-    val isMailSignedIn by mailViewModel.signedIn.collectAsStateWithLifecycle()
-    val mailAuthFailed by mailViewModel.authFailed.collectAsStateWithLifecycle()
-    val isMailSigningIn by mailViewModel.signingIn.collectAsStateWithLifecycle()
-    val mailError by mailViewModel.error.collectAsStateWithLifecycle()
-    var showMailLoginSheet by remember { mutableStateOf(false) }
-    LaunchedEffect(isMailSignedIn, mailAuthFailed) {
-        if (isMailSignedIn && !mailAuthFailed) showMailLoginSheet = false
-    }
-
-    var showNtustLoginSheet by remember { mutableStateOf(false) }
-    var showLibraryLoginSheet by remember { mutableStateOf(false) }
-    val signOutConfirmation by viewModel.signOutConfirmation.collectAsStateWithLifecycle()
-
-    // Auto-dismiss dialogs when login succeeds
-    LaunchedEffect(isNtustLoggedIn) {
-        if (isNtustLoggedIn) showNtustLoginSheet = false
-    }
-    LaunchedEffect(isLibraryLoggedIn) {
-        if (isLibraryLoggedIn) showLibraryLoginSheet = false
-    }
-
-    val visualPreset = viewModel.appState.visualPreset
-    val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
-    val alwaysShowAllPeriods = viewModel.appState.alwaysShowAllPeriods
-    val showClassroomInClassTable = viewModel.appState.showClassroomInClassTable
-    val pinTodayCoursesOnClassTable = viewModel.appState.pinTodayCoursesOnClassTable
-    val outlineRequiredCourses = viewModel.appState.outlineRequiredCourses
-    val browserPreference = viewModel.appState.browserPreference
-    val moodleAppInstalled = rememberMoodleAppInstalled()
-    val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
-    val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
-    val classroomMandarinDisplay = viewModel.appState.classroomMandarinDisplay
-    val appLanguage = viewModel.appState.appLanguage
-    val flipSensorSupported = remember(context) { FlipDetector.isSupported(context) }
-    val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
-
+    val sheets = remember { AccountSheets() }
     val snackbarHostState = remember { SnackbarHostState() }
-
     val appVersion = remember { appVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE) }
+    val browserPreference = viewModel.appState.browserPreference
 
     // About section dependencies: UpdateChecker for "Check for updates" and
     // WhatsNewRepository for the manual What's New entry point. Pulled via
     // a Hilt entry point so this purely-Compose screen doesn't have to thread
     // them through the existing SettingsViewModel just to render two rows.
     val settingsEntryPoint = remember(context) {
-        EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            SettingsEntryPoint::class.java,
-        )
+        EntryPointAccessors.fromApplication(context.applicationContext, SettingsEntryPoint::class.java)
     }
     val updateChecker = remember(settingsEntryPoint) { settingsEntryPoint.updateChecker() }
-    val whatsNewRepo = remember(settingsEntryPoint) { settingsEntryPoint.whatsNewRepository() }
     val isCheckingForUpdate by updateChecker.isCheckingForUpdate.collectAsStateWithLifecycle()
-    val manualCheckResult by updateChecker.lastManualCheckResult.collectAsStateWithLifecycle()
+    val whatsNew = rememberManualWhatsNew(viewModel, settingsEntryPoint.whatsNewRepository())
+    val state = settingsState(hasWhatsNew = whatsNew.latest != null)
+    NtustLoginErrorSnackbar(viewModel, snackbarHostState)
+
+    PageScaffold(
+        title = stringResource(R.string.feature_settings),
+        headerPosition = PageHeaderPosition.InContent,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { scaffoldPadding ->
+        SettingsList(Modifier.padding(scaffoldPadding), state, openPage, header = { Header() }) { part ->
+            when (part) {
+                RootPart.ACCOUNT -> AccountSection(viewModel, mailViewModel, sheets)
+                RootPart.APPEARANCE -> AppearanceSection(viewModel.appState, open)
+                RootPart.PAGES -> PagesSection(state, openPage)
+                RootPart.TIGERSYNC -> TigerSyncSection(state, open)
+                RootPart.NOTIFICATION_PERMISSIONS -> NotificationPermissionsSection(open)
+                RootPart.LANGUAGE -> LanguageSection(viewModel.appState.appLanguage, open)
+                RootPart.OTHER -> OtherSection(viewModel, open)
+                RootPart.ABOUT -> AboutSection(
+                    state, appVersion, isCheckingForUpdate, updateChecker::checkManually, whatsNew::show, browserPreference, open,
+                )
+                RootPart.DEVELOPER -> DeveloperSection(viewModel, open)
+            }
+        }
+    }
+
+    AccountSheetsHost(viewModel, mailViewModel, sheets, browserPreference)
+    ManualUpdateCheckResult(updateChecker)
+    whatsNew.Sheet()
+}
+
+/**
+ * The root's list: its [header], the search drawer, then each part, or while there is a query,
+ * what it finds. A row found on the root goes back to the parts, scrolled to its section, as
+ * iOS's search reveals it.
+ */
+@Composable
+private fun SettingsList(
+    modifier: Modifier,
+    state: SettingsState,
+    openPage: (PageSettings) -> Unit,
+    header: @Composable () -> Unit,
+    part: @Composable (RootPart) -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var searchFocused by remember { mutableStateOf(false) }
+    var revealed by remember { mutableStateOf<SettingsRow?>(null) }
+    val listState = rememberLazyListState()
+    val searchReveal = rememberSearchRevealState()
+    searchReveal.pinned = searchFocused || query.isNotEmpty()
+    val searchPull = remember(searchReveal, listState) { SearchPull(searchReveal, listState) }
+    val focusManager = LocalFocusManager.current
+    val parts = remember { RootPart.entries.filter { it != RootPart.DEVELOPER || BuildConfig.DEBUG } }
+    LaunchedEffect(revealed) {
+        val section = (revealed?.place as? SettingsPlace.Section)?.section ?: return@LaunchedEffect
+        revealed = null
+        listState.animateScrollToItem(RootPart.FIRST_INDEX + parts.indexOf(RootPart.of(section)))
+    }
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize().nestedScroll(searchPull),
+        contentPadding = PaddingValues(bottom = 32.dp),
+    ) {
+        item(key = "header") { header() }
+        item(key = "search") {
+            SearchDrawer(searchReveal) { SettingsSearchField(query, { query = it }, { searchFocused = it }) }
+        }
+        if (query.isBlank()) {
+            items(parts, key = { it }) { part(it) }
+        } else {
+            item(key = "results") {
+                SettingsSearchResults(query, state, openPage) { row ->
+                    focusManager.clearFocus()
+                    query = ""
+                    revealed = row
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shows a network error from the school sign-in as a snackbar; cleared after display so navigating
+ * away and back doesn't re-surface a stale error.
+ */
+@Composable
+private fun NtustLoginErrorSnackbar(viewModel: SettingsViewModel, snackbarHostState: SnackbarHostState) {
+    val ntustLoginError by viewModel.ntustLoginError.collectAsStateWithLifecycle()
+    LaunchedEffect(ntustLoginError) {
+        val error = ntustLoginError ?: return@LaunchedEffect
+        if (error.contains("連線") || error.contains("網路") ||
+            error.contains("network", ignoreCase = true) || error.contains("connection", ignoreCase = true)
+        ) {
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearNtustLoginError()
+        }
+    }
+}
+
+/**
+ * What Settings' rows are shown and gated by, followed live: who is signed in
+ * ([SettingsGatesViewModel]), TigerSync, and what this phone and build have. [hasWhatsNew] is the
+ * root's to know; no page has its row.
+ */
+@Composable
+internal fun settingsState(hasWhatsNew: Boolean = false, gates: SettingsGatesViewModel = hiltViewModel()): SettingsState {
+    val accounts by gates.accounts.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val hasFlipToLibrary = remember(context) { FlipDetector.isSupported(context) }
+    val hasLiveUpdateGradient = remember { LiveUpdateSegments.canShowGradient() }
+    val hasMoodleApp = rememberMoodleAppInstalled()
+    val appState = gates.appState
+    return SettingsState(
+        schoolSignedIn = accounts.school,
+        mailSignedIn = accounts.mail,
+        librarySignedIn = accounts.library,
+        // Off at its source on fdroid (AppPreferences.kt), and so here.
+        tigerSyncOn = appState.cloudSyncEnabled,
+        coursesInEnglish = AppLanguageManager.isCourseApiEnglish(appState.appLanguage),
+        usesEnglishClassroomNames = appState.useEnglishClassroomAbbreviation,
+        hasFlipToLibrary = hasFlipToLibrary,
+        hasWatch = WearCompanion.SHIPS,
+        hasLiveUpdateGradient = hasLiveUpdateGradient,
+        // fdroid leaves update notifications to the F-Droid client app.
+        hasUpdateCheck = !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true),
+        hasWhatsNew = hasWhatsNew,
+        hasMoodleApp = hasMoodleApp,
+    )
+}
+
+/**
+ * Manual "Check for updates" result alert. Only mounts for UpToDate /
+ * Failed — when Play reports an available update the regular
+ * UpdatePromptHost surfaces the three-button dialog instead, and the
+ * ManualCheckResult stays null in that branch by design.
+ */
+@Composable
+private fun ManualUpdateCheckResult(updateChecker: UpdateChecker) {
+    val result by updateChecker.lastManualCheckResult.collectAsStateWithLifecycle()
+    val shown = result ?: return
+    val appName = stringResource(R.string.app_name)
+    TigerDuckDialog(
+        onDismissRequest = { updateChecker.acknowledgeManualCheckResult() },
+        title = stringResource(
+            when (shown) {
+                ManualCheckResult.UpToDate -> R.string.update_up_to_date_title
+                ManualCheckResult.Failed -> R.string.update_check_failed_title
+            },
+        ),
+        // update_up_to_date_message carries iOS's `%1$@` placeholder;
+        // see IosPlaceholder.kt for the centralized shim.
+        message = when (shown) {
+            ManualCheckResult.UpToDate -> stringResource(R.string.update_up_to_date_message).replaceIosArg(1, appName)
+            ManualCheckResult.Failed -> stringResource(R.string.update_check_failed_message)
+        },
+        confirmText = stringResource(R.string.action_got_it),
+        onConfirm = { updateChecker.acknowledgeManualCheckResult() },
+    )
+}
+
+/** About's What's new: the pages it would show now, and the sheet once its row is tapped. */
+private class ManualWhatsNew(
+    val latest: WhatsNewFlow?,
+    private val now: () -> WhatsNewFlow?,
+    private val shown: () -> WhatsNewFlow?,
+    private val setShown: (ArrayList<String>?) -> Unit,
+) {
+    fun show() {
+        setShown(ArrayList((now() ?: latest ?: return).pageIds))
+    }
+
+    /**
+     * Always opens the latest registered version, even if the auto-launch path already showed it.
+     * Does NOT stamp lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping here
+     * would silently suppress the next auto-prompt after the user browsed release notes from
+     * Settings.
+     */
+    @Composable
+    fun Sheet() {
+        shown()?.let { flow -> WhatsNewSheet(flow = flow, onDismiss = { setShown(null) }) }
+    }
+}
+
+@Composable
+private fun rememberManualWhatsNew(viewModel: SettingsViewModel, whatsNewRepo: WhatsNewRepository): ManualWhatsNew {
     // Resolve the user's locale once per Settings render — the asset isn't
     // huge, but re-parsing it for every recomposition would be wasteful. Key
     // on the resolved tag string (not the live Configuration object) so
     // unrelated config changes — font scale, screen size, dark-mode flip —
     // don't pointlessly re-parse the asset.
     val languageTag = LocalConfiguration.current.locales[0].toLanguageTag()
-    val whatsNewCatalog = remember(viewModel.appState) { WhatsNewCatalog.pages(viewModel.appState) }
-    val whatsNewSummaries = remember(whatsNewRepo, languageTag) { whatsNewRepo.summaries(languageTag) }
-    val whatsNewReplay = remember(whatsNewCatalog, whatsNewSummaries) {
-        WhatsNewGate.replay(whatsNewCatalog.keys, whatsNewSummaries.keys, upTo = BuildConfig.VERSION_CODE)
+    val catalog = remember(viewModel.appState) { WhatsNewCatalog.pages(viewModel.appState) }
+    val summaries = remember(whatsNewRepo, languageTag) { whatsNewRepo.summaries(languageTag) }
+    val replay = remember(catalog, summaries) {
+        WhatsNewGate.replay(catalog.keys, summaries.keys, upTo = BuildConfig.VERSION_CODE)
     }
     // The newest registered version's pages and summary, up to the installed
     // one, minus pages whose "only if this applies" check fails — the same
@@ -175,619 +293,23 @@ fun SettingsScreen(
     // answering a page of this very replay). The checks read more than the bar
     // (the library sign-in, say), so a tap on the row filters the pages again.
     val configuredTabs = viewModel.appState.configuredTabs
-    val latestWhatsNew: WhatsNewFlow? = remember(whatsNewReplay, configuredTabs) {
-        whatsNewReplay?.let { WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries) }
-    }
+    val latest = remember(replay, configuredTabs) { replay?.let { WhatsNewFlow.from(it, catalog, summaries) } }
     // The open sheet's page ids: fixed when the row is tapped and saved across
     // a rotation, so the sheet keeps the same pages even after an answer in
     // it flips a page's check — re-filtering would shift every page after it
     // under the user's thumb. Null while the sheet is closed.
-    var manualWhatsNewPageIds by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
-    val manualWhatsNew: WhatsNewFlow? = remember(whatsNewReplay, manualWhatsNewPageIds) {
-        manualWhatsNewPageIds?.let { ids ->
-            whatsNewReplay?.let {
-                WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries, restoredPageIds = ids)
-            }
-        }
+    var pageIds by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
+    val shown = remember(replay, pageIds) {
+        pageIds?.let { ids -> replay?.let { WhatsNewFlow.from(it, catalog, summaries, restoredPageIds = ids) } }
     }
-
-    // Show network error as snackbar; clear after display so navigating
-    // away and back doesn't re-surface a stale error.
-    LaunchedEffect(ntustLoginError) {
-        val error = ntustLoginError ?: return@LaunchedEffect
-        if (
-            error.contains("連線") ||
-            error.contains("網路") ||
-            error.contains("network", ignoreCase = true) ||
-            error.contains("connection", ignoreCase = true)
-        ) {
-            snackbarHostState.showSnackbar(error)
-            viewModel.clearNtustLoginError()
-        }
-    }
-
-    // Consume the deep-link signal raised by the signed-out empty-state lock
-    // icons. Capture it into local state so we can pulse exactly once and
-    // re-arm on a future entry, even if the user backs out and taps again.
-    var highlightNtustRow by remember { mutableStateOf(false) }
-    LaunchedEffect(viewModel.appState.pendingNtustSignInHighlight) {
-        if (viewModel.appState.pendingNtustSignInHighlight) {
-            highlightNtustRow = true
-            viewModel.appState.pendingNtustSignInHighlight = false
-        }
-    }
-
-    PageScaffold(
-        title = stringResource(R.string.feature_settings),
-        headerPosition = PageHeaderPosition.InContent,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { scaffoldPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(scaffoldPadding),
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
-            item { Header() }
-
-            // --- Account section ---
-            item { SectionHeader(stringResource(R.string.settings_section_account)) }
-            item {
-                val accountButtonMinWidth = rememberAccountButtonMinWidth()
-                ContentCard {
-                    Column {
-                        AccountRow(
-                            title = stringResource(R.string.settings_account_ntust_system),
-                            isLoggedIn = isNtustLoggedIn,
-                            subtitle = if (isNtustLoggedIn) viewModel.ntustStudentId else null,
-                            isLoggingIn = isNtustLoggingIn,
-                            onLogin = { showNtustLoginSheet = true },
-                            // Asks first when the sign-out would delete what only this phone has,
-                            // the imported class tables among it.
-                            onLogout = { viewModel.requestNtustSignOut() },
-                            actionMinWidth = accountButtonMinWidth,
-                            highlight = highlightNtustRow,
-                            onHighlightConsumed = { highlightNtustRow = false },
-                        )
-
-                        HorizontalDivider()
-                        AccountRow(
-                            title = stringResource(R.string.settings_account_library_system),
-                            isLoggedIn = isLibraryLoggedIn,
-                            subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
-                            isLoggingIn = libIsLoggingIn,
-                            onLogin = { showLibraryLoginSheet = true },
-                            onLogout = { viewModel.logoutLibrary() },
-                            actionMinWidth = accountButtonMinWidth,
-                        )
-
-                        HorizontalDivider()
-                        // Its own account (spec §7.1). A rejected password shows as
-                        // signed out so the button offers "Sign in" again.
-                        AccountRow(
-                            title = stringResource(R.string.school_mail_account_title),
-                            isLoggedIn = isMailSignedIn && !mailAuthFailed,
-                            subtitle = if (isMailSignedIn) mailViewModel.studentId else null,
-                            isLoggingIn = isMailSigningIn,
-                            onLogin = {
-                                mailViewModel.clearError()
-                                showMailLoginSheet = true
-                            },
-                            onLogout = { mailViewModel.signOut() },
-                            actionMinWidth = accountButtonMinWidth,
-                        )
-                    
-
-                    }
-                }
-            }
-
-            // --- Custom ---
-            item { SectionHeader(stringResource(R.string.settings_section_custom)) }
-            item {
-                ContentCard {
-                    Column {
-                        SettingsLinkRow(stringResource(R.string.tab_editor_title)) { onNavigateToTabEditor() }
-                        HorizontalDivider()
-                        AccentSettingsRows(viewModel.appState, onOpenAccentColor = onNavigateToAccentColor)
-                    }
-                }
-            }
-
-            // --- Display ---
-            item { SectionHeader(stringResource(R.string.settings_section_display)) }
-            item {
-                ContentCard {
-                    Column {
-                        // The style names are not localized: they read the same in every language.
-                        SettingsPickerRow(
-                            label = stringResource(R.string.settings_visual_preset_label),
-                            value = visualPreset.displayName,
-                            options = VisualPreset.entries.map { it.rawValue to it.displayName },
-                            selectedKey = visualPreset.rawValue,
-                            onSelect = { viewModel.appState.visualPreset = VisualPreset.fromRawValue(it) },
-                        )
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_show_absolute_assignment_time),
-                            showAbsoluteTime
-                        ) {
-                            viewModel.appState.showAbsoluteAssignmentTime = it
-                        }
-                        HorizontalDivider()
-                        // The class table's switches in the iPhone's order: today's
-                        // courses above the grid, then what each cell shows.
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_pin_today_courses_on_class_table),
-                            pinTodayCoursesOnClassTable
-                        ) {
-                            viewModel.appState.pinTodayCoursesOnClassTable = it
-                        }
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_show_classroom_on_class_table),
-                            showClassroomInClassTable
-                        ) {
-                            viewModel.appState.showClassroomInClassTable = it
-                        }
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_outline_required_courses),
-                            outlineRequiredCourses
-                        ) {
-                            viewModel.appState.outlineRequiredCourses = it
-                        }
-                        HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_always_show_periods_abc),
-                            alwaysShowAllPeriods
-                        ) {
-                            viewModel.appState.alwaysShowAllPeriods = it
-                        }
-                        HorizontalDivider()
-                        // Link opening method
-                        SettingsPickerRow(
-                            label = stringResource(R.string.settings_link_opening_method),
-                            value = if (browserPreference == BrowserPreference.IN_APP) {
-                                stringResource(R.string.settings_browser_in_app)
-                            } else {
-                                stringResource(R.string.settings_browser_system_default)
-                            },
-                            options = listOf(
-                                BrowserPreference.SYSTEM to stringResource(R.string.settings_browser_system_default),
-                                BrowserPreference.IN_APP to stringResource(R.string.settings_browser_in_app)
-                            ),
-                            selectedKey = browserPreference,
-                            onSelect = { viewModel.appState.browserPreference = it }
-                        )
-                        MoodleOpenInSetting(moodleAppInstalled, viewModel.appState.moodleOpenIn) { viewModel.appState.moodleOpenIn = it }
-                        PinMyselfSetting(viewModel.prefs.pinMyselfInCourseMembers)
-                    }
-                }
-            }
-
-            // --- Abbreviations ---
-            if (shouldShowEnglishAbbreviationToggle) {
-                item { SectionHeader(stringResource(R.string.settings_section_abbreviation)) }
-                item {
-                    ContentCard {
-                        Column {
-                            SettingsToggleRow(
-                                stringResource(R.string.settings_use_english_course_abbreviation),
-                                useEnglishCourseAbbreviation
-                            ) {
-                                viewModel.appState.useEnglishCourseAbbreviation = it
-                            }
-                            HorizontalDivider()
-                            SettingsToggleRow(
-                                stringResource(R.string.settings_use_english_classroom_abbreviation),
-                                useEnglishClassroomAbbreviation
-                            ) {
-                                viewModel.appState.useEnglishClassroomAbbreviation = it
-                            }
-                            if (useEnglishClassroomAbbreviation) {
-                                HorizontalDivider()
-                                SettingsPickerRow(
-                                    label = stringResource(R.string.settings_classroom_mandarin_display),
-                                    value = when (classroomMandarinDisplay) {
-                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN ->
-                                            stringResource(R.string.settings_classroom_mandarin_display_pinyin)
-
-                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED ->
-                                            stringResource(R.string.settings_classroom_mandarin_display_translated)
-
-                                        else ->
-                                            stringResource(R.string.settings_classroom_mandarin_display_original)
-                                    },
-                                    options = listOf(
-                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_ORIGINAL to
-                                                stringResource(R.string.settings_classroom_mandarin_display_original),
-                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN to
-                                                stringResource(R.string.settings_classroom_mandarin_display_pinyin),
-                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED to
-                                                stringResource(R.string.settings_classroom_mandarin_display_translated),
-                                    ),
-                                    selectedKey = classroomMandarinDisplay,
-                                    onSelect = { viewModel.appState.classroomMandarinDisplay = it }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // --- Cloud Sync ---
-            // fdroid gets the same link as Play: TigerSync's essential-info
-            // sync always runs there, so the entry point is never hidden.
-            // The value label reads correctly on its own — cloudSyncEnabled
-            // is false at its source on fdroid (AppPreferences.kt), so this
-            // reads "Off" there, matching course-sync and server-push
-            // actually being off (see CloudSyncSettingsScreen).
-            item { SectionHeader(stringResource(R.string.cloud_sync_title)) }
-            item {
-                ContentCard {
-                    SettingsLinkRowWithValue(
-                        label = stringResource(R.string.cloud_sync_title),
-                        value = if (viewModel.appState.cloudSyncEnabled)
-                            stringResource(R.string.settings_sync_status_on)
-                        else stringResource(R.string.settings_sync_status_off),
-                        onClick = onNavigateToCloudSync,
-                    )
-                }
-            }
-
-            // --- Notifications ---
-            item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
-            item {
-                ContentCard {
-                    Column {
-                        // First, as on iOS. This phone posts its own class
-                        // reminders, so unlike iOS's row this one works with
-                        // cloud sync off too.
-                        SettingsLinkRow(
-                            stringResource(R.string.settings_class_reminder)
-                        ) { onNavigateToClassReminders() }
-                        HorizontalDivider()
-                        SettingsLinkRow(
-                            stringResource(R.string.settings_assignment_due_reminder)
-                        ) { onNavigateToAssignmentReminders() }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
-                        // School Mail's new-mail toggle and its notification
-                        // diagnostics log live behind this row, not on the
-                        // School Mail settings page — notification settings
-                        // belong with the app's other notification settings.
-                        // Greyed out rather than hidden while no mailbox is
-                        // signed in: there is nothing to set yet, but the
-                        // setting is still worth knowing about. Demo mode signs
-                        // in like any other account, so it lands on the enabled
-                        // side.
-                        HorizontalDivider()
-                        SettingsLinkRow(
-                            stringResource(R.string.school_mail_notification_settings_title),
-                            enabled = isMailSignedIn,
-                        ) { onNavigateToSchoolMailNotificationSettings() }
-                        HorizontalDivider()
-                        SettingsLinkRow(
-                            stringResource(R.string.notification_permission_settings_nav_title)
-                        ) { onNavigateToNotificationPermissionSettings() }
-                        // The "Server push" row used to live here, gated to
-                        // non-fdroid flavors (its FCM pipeline isn't compiled
-                        // into fdroid). It's gone: the opt-out toggle it led
-                        // to now lives on the TigerSync settings screen
-                        // itself (see CloudSyncSettingsScreen). fdroid can
-                        // open that screen too — the entry point above is no
-                        // longer hidden — so the toggle is greyed out and off
-                        // there instead of the whole screen being unreachable.
-                    }
-                }
-            }
-
-            // --- Other settings ---
-            item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
-            item {
-                ContentCard {
-                    Column {
-                        // Its page holds only flip-to-library, so a phone
-                        // that cannot sense the flip leaves the row out.
-                        if (flipSensorSupported) {
-                            SettingsLinkRow(stringResource(R.string.settings_library_related_features)) {
-                                onNavigateToLibrarySettings()
-                            }
-                            HorizontalDivider()
-                        }
-                        SettingsLinkRow(stringResource(R.string.school_mail_account_title)) {
-                            onNavigateToSchoolMailSettings()
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
-                    }
-                }
-            }
-
-            // --- Language ---
-            item { SectionHeader(stringResource(R.string.feature_category_language)) }
-            item {
-                ContentCard {
-                    SettingsLinkRowWithValue(
-                        label = stringResource(R.string.settings_language),
-                        value = run {
-                            val normalized = AppLanguageManager.normalize(appLanguage)
-                            if (normalized == AppLanguageManager.SYSTEM) {
-                                stringResource(R.string.settings_language_follow_system)
-                            } else {
-                                val locale = Locale.forLanguageTag(normalized)
-                                locale.getDisplayName(locale).ifBlank { normalized }
-                            }
-                        },
-                        onClick = onNavigateToLanguagePicker,
-                    )
-                }
-            }
-
-            // --- About ---
-            item { SectionHeader(stringResource(R.string.settings_section_about)) }
-            item {
-                ContentCard {
-                    Column {
-                        SettingsRow(stringResource(R.string.settings_version), appVersion)
-                        // Check for updates — Play flavor only. fdroid leaves
-                        // update notifications to the F-Droid client app (the
-                        // UpdateChecker stub is a no-op there), so a row that
-                        // could only ever report "up to date" would just
-                        // confuse users. Mirrors iOS hiding this row on Mac.
-                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                            HorizontalDivider()
-                            CheckForUpdatesRow(
-                                isChecking = isCheckingForUpdate,
-                                onClick = { updateChecker.checkManually() },
-                            )
-                        }
-                        // Sits under Check for updates because the two answer
-                        // the same question from opposite ends: that row asks
-                        // whether *this app* is current, this one whether the
-                        // services behind it are up. Shown on every flavor —
-                        // an F-Droid build talks to the same backend.
-                        //
-                        // The URL currently 302s to another origin. Custom
-                        // Tabs follows that in place, so the in-app choice
-                        // stays in-app; handing the redirect to an
-                        // ACTION_VIEW intent instead would eject the user
-                        // into their browser mid-hop.
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_check_server_status)) {
-                            openLink(context, AppUrls.SERVER_STATUS, browserPreference)
-                        }
-                        // What's New — only when pages or a summary are
-                        // registered for the resolved locale. During early
-                        // bring-up of a release there may be neither; in
-                        // that case we hide the row instead of routing the
-                        // user to an empty sheet.
-                        if (latestWhatsNew != null) {
-                            HorizontalDivider()
-                            SettingsLinkRow(stringResource(R.string.settings_whats_new)) {
-                                val now = whatsNewReplay?.let { WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries) }
-                                manualWhatsNewPageIds = ArrayList((now ?: latestWhatsNew).pageIds)
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_official_website)) {
-                            openLink(context, AppUrls.WEBSITE, browserPreference)
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_about_others)) {
-                            onNavigateToAboutOthers()
-                        }
-                    }
-                }
-            }
-
-            // --- Developer (debug builds only) ---
-            if (BuildConfig.DEBUG) {
-                item { SectionHeader("Developer") }
-                item {
-                    ContentCard {
-                        Column {
-                            SettingsLinkRow("Time override") { onNavigateToDebug() }
-                            HorizontalDivider()
-                            SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
-                            HorizontalDivider()
-                            SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
-                            HorizontalDivider()
-                            // Acts as a phone without the Moodle app, a browser, a mail app and so on.
-                            SettingsLinkRow("Missing apps") { onNavigateToOutsideAppsDebug() }
-                            HorizontalDivider()
-                            // Which sites the TigerDuck browser loads inside.
-                            SettingsLinkRow("Browser allowlist") { onNavigateToBrowserAllowlistDebug() }
-                            HorizontalDivider()
-                            // Points School Mail at a non-school mail server, so the
-                            // feature can be exercised without a real school mailbox.
-                            SettingsLinkRow("Email") { onNavigateToMailDevServerDebug() }
-                            HorizontalDivider()
-                            // Video, audio, images, documents and archives of every kind the
-                            // viewer takes, and a file picked on the phone, opened as Moodle's are.
-                            SettingsLinkRow("File viewer samples") { onNavigateToViewerSamplesDebug() }
-                            HorizontalDivider()
-                            // One-shot UI surfaces (What's new, update prompt,
-                            // flip-to-library first trigger) live behind here so
-                            // they can be re-fired after a single dismissal.
-                            SettingsLinkRow("Triggers") { onNavigateToTriggersDebug() }
-                            HorizontalDivider()
-                            // Makes the next request to a school host meet the TLS pin-mismatch
-                            // prompt, as a certificate the pins don't know would.
-                            var simulatingPinMismatch by remember {
-                                mutableStateOf(viewModel.pinManager.state.policy.simulatedMismatch != null)
-                            }
-                            SettingsToggleRow(
-                                label = "Simulate a TLS pin mismatch",
-                                checked = simulatingPinMismatch,
-                                subtitle = "Replaces ntust.edu.tw's pins with one no chain has, until the app restarts. The prompt needs a document offering the chain's root: adb shell am broadcast -a org.ntust.app.tigerduck.debug.INJECT_PIN_DOCUMENT",
-                                onCheckedChange = {
-                                    simulatingPinMismatch = it
-                                    viewModel.pinManager.simulateMismatch(if (it) "ntust" else null)
-                                },
-                            )
-                            HorizontalDivider()
-                            SettingsToggleRow(
-                                label = "Disable screen-capture protection",
-                                checked = viewModel.appState.disableScreenCaptureProtection,
-                                subtitle = "Allows screenshots/recordings of normally-protected surfaces (login sheet, library, onboarding password).",
-                                onCheckedChange = {
-                                    viewModel.appState.disableScreenCaptureProtection = it
-                                },
-                            )
-                            HorizontalDivider()
-                            @OptIn(ExperimentalFoundationApi::class)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = { },
-                                        // The app vibrates for this long press itself, through the Vibration setting;
-                                        // Compose's own buzz would land on top of it and ignore that setting.
-                                        hapticFeedbackEnabled = false,
-                                        onLongClick = {
-                                            Haptics.perform(
-                                                context,
-                                                HapticScenario.ClassTableLongPress,
-                                            )
-                                            viewModel.appState.performFullReset()
-                                        },
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Long press to erase everything and restart",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                    Text(
-                                        text = "Wipes all data, accounts, and preferences",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error.copy(alpha = ContentAlpha.SECONDARY),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    } // Scaffold
-
-    if (showNtustLoginSheet) {
-        LoginSheet(
-            title = stringResource(R.string.settings_account_ntust_system),
-            usernamePlaceholder = stringResource(R.string.sign_in_student_id),
-            passwordPlaceholder = stringResource(R.string.sign_in_password),
-            uppercaseInput = true,
-            isLoggingIn = isNtustLoggingIn,
-            loginError = ntustLoginError,
-            onLogin = { u, p -> viewModel.loginNtust(u, p) },
-            onDismiss = { showNtustLoginSheet = false },
-        )
-    }
-
-    if (showLibraryLoginSheet) {
-        LoginSheet(
-            title = stringResource(R.string.settings_account_library_system),
-            subtitle = stringResource(R.string.settings_library_account_subtitle),
-            usernamePlaceholder = stringResource(R.string.library_sign_in_username),
-            passwordPlaceholder = stringResource(R.string.library_sign_in_password),
-            initialUsername = viewModel.ntustStudentId.orEmpty(),
-            isLoggingIn = libIsLoggingIn,
-            loginError = libLoginError,
-            onLogin = { u, p -> viewModel.loginLibrary(u, p) },
-            onDismiss = { showLibraryLoginSheet = false },
-        )
-    }
-
-    if (showMailLoginSheet) {
-        // Under the debug mail-server override the server wants a whole address, not the
-        // bare ID the school takes, so the field says so and starts at the domain. The
-        // same two lines are in SchoolMailScreen's card and re-auth sheet; this is the
-        // third way into the same sign-in.
-        val mailAddressSuffix = mailViewModel.signInAddressSuffix
-        val mailPrefill = mailViewModel.signInPrefill
-        LoginSheet(
-            title = stringResource(R.string.school_mail_account_title),
-            subtitle = stringResource(R.string.school_mail_sign_in_note),
-            usernamePlaceholder = mailAddressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
-            passwordPlaceholder = stringResource(R.string.sign_in_password),
-            // The mail account's own ID where there is one, otherwise the stored NTUST ID
-            // and password — never the library account, and never under the debug mail
-            // server override. MailAccountViewModel.signInPrefill holds the whole rule,
-            // including the condition it exists under: nothing is ever submitted for the
-            // user. This row is the busiest of the three ways into this sign-in.
-            initialUsername = mailPrefill.username,
-            initialPassword = mailPrefill.password,
-            uppercaseInput = mailViewModel.devServer == null,
-            isLoggingIn = isMailSigningIn,
-            loginError = mailError?.let { stringResource(it.messageRes()) },
-            onLogin = { u, p -> mailViewModel.signIn(u, p) },
-            onDismiss = { showMailLoginSheet = false },
-            footer = { ForgotMailPasswordLink(browserPreference) },
-        )
-    }
-
-    // Every loss the sign-out would cause, one line each: the iPhone app asks about the imported
-    // class tables, and this phone may also hold edits TigerSync does not keep.
-    signOutConfirmation?.let { losses ->
-        TigerDuckDialog(
-            onDismissRequest = viewModel::dismissNtustSignOut,
-            title = stringResource(R.string.action_sign_out),
-            message = losses.sortedBy { it.ordinal }.map { stringResource(it.message) }.joinToString("\n"),
-            confirmText = stringResource(R.string.action_sign_out),
-            confirmColors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError,
-            ),
-            onConfirm = viewModel::confirmNtustSignOut,
-            dismissText = stringResource(R.string.action_cancel),
-        )
-    }
-
-    // Manual "Check for updates" result alert. Only mounts for UpToDate /
-    // Failed — when Play reports an available update the regular
-    // UpdatePromptHost surfaces the three-button dialog instead, and the
-    // ManualCheckResult stays null in that branch by design.
-    manualCheckResult?.let { result ->
-        val appName = stringResource(R.string.app_name)
-        TigerDuckDialog(
-            onDismissRequest = { updateChecker.acknowledgeManualCheckResult() },
-            title = stringResource(
-                when (result) {
-                    ManualCheckResult.UpToDate -> R.string.update_up_to_date_title
-                    ManualCheckResult.Failed -> R.string.update_check_failed_title
-                },
-            ),
-            // update_up_to_date_message carries iOS's `%1$@` placeholder;
-            // see IosPlaceholder.kt for the centralized shim.
-            message = when (result) {
-                ManualCheckResult.UpToDate ->
-                    stringResource(R.string.update_up_to_date_message).replaceIosArg(1, appName)
-                ManualCheckResult.Failed ->
-                    stringResource(R.string.update_check_failed_message)
-            },
-            confirmText = stringResource(R.string.action_got_it),
-            onConfirm = { updateChecker.acknowledgeManualCheckResult() },
-        )
-    }
-
-    // Manual "What's New" — always opens the latest registered version,
-    // even if the auto-launch path already showed it. Does NOT stamp
-    // lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping
-    // here would silently suppress the next auto-prompt after the user
-    // browsed release notes from Settings.
-    manualWhatsNew?.let { flow ->
-        WhatsNewSheet(
-            flow = flow,
-            onDismiss = { manualWhatsNewPageIds = null },
-        )
-    }
+    return ManualWhatsNew(
+        latest = latest,
+        now = { replay?.let { WhatsNewFlow.from(it, catalog, summaries) } },
+        shown = { shown },
+        setShown = { pageIds = it },
+    )
 }
+
 /**
  * The About section's version row: the version and, in brackets, the build
  * number, which tells test builds of one version apart in a bug report. The

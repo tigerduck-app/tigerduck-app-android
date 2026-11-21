@@ -6,38 +6,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageScaffold
+import org.ntust.app.tigerduck.ui.component.PageSettings
 import org.ntust.app.tigerduck.ui.navigation.FlipToLibraryGate
 
 /**
- * 圖書館及相關功能: flip-to-library. Settings' 其他設定 section links here,
- * on a phone that can sense the flip, and to [OtherSettingsScreen].
+ * The library's page of Settings: flip-to-library, on a phone that can sense the flip, which
+ * reads off and says to sign in while no library account is; and the library's sign-out, while
+ * one is. With neither, the page is hidden, and closes ([PageSettingsScreen]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibrarySettingsScreen(
+internal fun LibrarySettingsScreen(
+    state: SettingsState,
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val flipSensorSupported = remember(context) { FlipDetector.isSupported(context) }
-    val signedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
-
     PageScaffold(
-        title = stringResource(R.string.settings_library_related_features),
+        title = stringResource(PageSettings.LIBRARY.title),
         onBack = onBack,
     ) { scaffoldPadding ->
         LazyColumn(
@@ -46,27 +39,30 @@ fun LibrarySettingsScreen(
                 .padding(scaffoldPadding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
-            item {
-                ContentCard {
-                    SettingsToggleRow(
-                        label = stringResource(R.string.settings_flip_to_library_title),
-                        checked = flipSensorSupported && FlipToLibraryGate.switchReadsOn(
-                            enabled = viewModel.appState.flipToLibraryEnabled,
-                            signedInToLibrary = signedIn,
-                        ),
-                        enabled = flipSensorSupported && FlipToLibraryGate.switchTakesInput(signedIn),
-                        subtitle = if (flipSensorSupported) {
-                            stringResource(R.string.settings_flip_to_library_summary)
-                        } else {
-                            stringResource(R.string.settings_flip_to_library_unsupported)
-                        },
-                        disabledStateDescription = if (flipSensorSupported) {
-                            stringResource(R.string.library_status_not_signed_in)
-                        } else {
-                            null
-                        },
-                        onCheckedChange = { viewModel.appState.setFlipToLibraryFromSettings(it) },
-                    )
+            if (SettingsRow.FLIP_TO_LIBRARY.isShown(state)) {
+                item {
+                    ContentCard {
+                        SettingsToggleRow(
+                            label = SettingsRow.FLIP_TO_LIBRARY.label(),
+                            checked = FlipToLibraryGate.switchReadsOn(
+                                enabled = viewModel.appState.flipToLibraryEnabled,
+                                signedInToLibrary = state.librarySignedIn,
+                            ),
+                            closedReason = SettingsRow.FLIP_TO_LIBRARY.closedText(state),
+                            onCheckedChange = { viewModel.appState.setFlipToLibraryFromSettings(it) },
+                        )
+                    }
+                }
+                item { PageFootnote(stringResource(R.string.settings_flip_to_library_summary)) }
+            }
+            if (SettingsRow.LIBRARY_SIGN_OUT.isShown(state)) {
+                if (SettingsRow.FLIP_TO_LIBRARY.isShown(state)) item { PageGap() }
+                item {
+                    ContentCard {
+                        SettingsActionRow(SettingsRow.LIBRARY_SIGN_OUT.label(), MaterialTheme.colorScheme.error) {
+                            viewModel.logoutLibrary()
+                        }
+                    }
                 }
             }
         }

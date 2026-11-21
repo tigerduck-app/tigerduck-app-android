@@ -19,11 +19,10 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
 
 /**
- * The pages whose ⋮ carries their settings, as iOS's `PageSettings` names them. Which settings page
- * each opens is the navigation's to say: Android's own page for it where there is one, else
- * Settings, where that page's rows sit among the others.
+ * The app's pages that have settings of their own, as iOS's `PageSettings` names them: each has a
+ * page in Settings, which its ⋮ opens too. The browser's has no ⋮ to open it.
  */
-enum class PageSettings { HOME, CLASS_TABLE, BULLETINS, MAIL, LIBRARY, MOODLE }
+enum class PageSettings { HOME, CLASS_TABLE, BULLETINS, MAIL, LIBRARY, BROWSER, MOODLE }
 
 /** Opens a page's settings. The app's navigation provides it; outside it, nothing opens. */
 val LocalOpenPageSettings = staticCompositionLocalOf<(PageSettings) -> Unit> { {} }

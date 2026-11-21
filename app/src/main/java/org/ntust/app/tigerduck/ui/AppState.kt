@@ -270,7 +270,7 @@ class AppState @Inject constructor(
         VisualPresetSetting(prefs, onChange = { widgetUpdater.requestUpdate() })
 
     /**
-     * The interface style picked in Settings > Display. The app root provides
+     * The interface style picked in Settings > Appearance. The app root provides
      * it to every screen through [org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy].
      */
     var visualPreset: VisualPreset

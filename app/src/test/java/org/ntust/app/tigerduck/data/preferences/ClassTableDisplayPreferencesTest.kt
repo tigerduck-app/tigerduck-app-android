@@ -13,7 +13,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
- * The class table's display switches in Settings > Display, as the iPhone app
+ * The class table's display switches on its page of Settings, as the iPhone app
  * has them (tigerduck-app-android#216, #161): classrooms shown by default,
  * today's courses pinned above the grid and required courses outlined only
  * once the user asks. Each is device-local and read through a flow by the
