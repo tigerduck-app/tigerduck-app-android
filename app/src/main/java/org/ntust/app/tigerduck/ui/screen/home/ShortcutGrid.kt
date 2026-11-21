@@ -73,9 +73,10 @@ private val CardHeight = 88.dp
 /**
  * @param onOpen a card tapped outside edit mode; the caller decides between
  *   the feature's page and "Coming soon", as the More page does.
- * @param onMove one step of a drag, or an accessibility action: the card
- *   [WidgetItem.id] now belongs at the given slot. Called only when the slot
- *   changed.
+ * @param onMove one step of a drag: the card [WidgetItem.id] now belongs at
+ *   the given slot. Called only when the slot changed.
+ * @param onStep TalkBack's Move up (-1) or Move down (1) for the card, made
+ *   where the card is when the action runs (see [rememberMoveActions]).
  * @param onAdd the empty state's button: opens the Add dialog, so a section
  *   created with nothing in it shows how to fill it instead of a bare title.
  */
@@ -87,6 +88,7 @@ internal fun ShortcutGrid(
     onRemove: (WidgetItem) -> Unit,
     onMove: (widgetId: String, toIndex: Int) -> Unit,
     onAdd: () -> Unit,
+    onStep: (widgetId: String, by: Int) -> HomeSectionLayout.Step? = { _, _ -> null },
 ) {
     if (widgets.isEmpty()) {
         // 4dp outside plus the button's own 12dp lines its label up with the
@@ -106,9 +108,8 @@ internal fun ShortcutGrid(
     // into a slot; until a card reports, a drag moves nothing.
     var cellSize by remember { mutableStateOf(IntSize.Zero) }
     val gapPx = with(LocalDensity.current) { CardGap.toPx() }
-    // The drag runs inside pointerInput, which is keyed per card and does
-    // not restart when the list reorders under it, so it reads the list
-    // and the callback through these rather than the captures it began with.
+    // The drag runs inside pointerInput, which is keyed per card and does not restart when the
+    // list reorders under it, so it reads the list and the callback through these.
     val currentWidgets by rememberUpdatedState(widgets)
     val currentOnMove by rememberUpdatedState(onMove)
 
@@ -159,7 +160,7 @@ internal fun ShortcutGrid(
                     isDragging = isDragging,
                     onOpen = { onOpen(widget.feature) },
                     onRemove = { onRemove(widget) },
-                    onMoveTo = { onMove(widget.id, it) },
+                    onStep = { onStep(widget.id, it) },
                     modifier = Modifier
                         // Over its neighbours while lifted; the layout
                         // honours zIndex like any other.
@@ -232,7 +233,7 @@ private fun ShortcutCard(
     isDragging: Boolean,
     onOpen: () -> Unit,
     onRemove: () -> Unit,
-    onMoveTo: (Int) -> Unit,
+    onStep: (by: Int) -> HomeSectionLayout.Step?,
     modifier: Modifier = Modifier,
 ) {
     // The same ramp as a dragged section: elevation says "lifted", no wiggle.
@@ -248,18 +249,11 @@ private fun ShortcutCard(
     val featureName = stringResource(widget.feature.displayNameRes)
     val removeLabel = stringResource(R.string.action_remove)
     // The drag and the cross, as actions TalkBack can perform since it
-    // cannot drag: before and after in reading order, which is what the Mac
-    // sidebar's move labels say too, and removal, named for the card.
-    val moveUpLabel = stringResource(R.string.desktop_settings_sidebar_move_up)
-    val moveDownLabel = stringResource(R.string.desktop_settings_sidebar_move_down)
-    val latestOnMoveTo by rememberUpdatedState(onMoveTo)
+    // cannot drag: the moves, and removal, named for the card.
+    val moves = rememberMoveActions(index, count, onStep)
     val latestOnRemove by rememberUpdatedState(onRemove)
-    val editActions = remember(index, count, moveUpLabel, moveDownLabel, removeLabel) {
-        buildList {
-            if (index > 0) add(CustomAccessibilityAction(moveUpLabel) { latestOnMoveTo(index - 1); true })
-            if (index < count - 1) add(CustomAccessibilityAction(moveDownLabel) { latestOnMoveTo(index + 1); true })
-            add(CustomAccessibilityAction(removeLabel) { latestOnRemove(); true })
-        }
+    val editActions = remember(moves, removeLabel) {
+        moves + CustomAccessibilityAction(removeLabel) { latestOnRemove(); true }
     }
 
     Box(modifier = modifier.height(CardHeight)) {
