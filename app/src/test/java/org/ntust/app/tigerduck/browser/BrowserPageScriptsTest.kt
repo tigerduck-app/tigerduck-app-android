@@ -97,6 +97,12 @@ class BrowserPageScriptsTest {
     }
 
     @Test
+    fun `every page the browser shows gets the empty window's rule, before its own scripts`() {
+        assertEquals(setOf("*"), BrowserPageScripts.EMPTY_WINDOW_ORIGINS)
+        assertTrue(BrowserPageScripts.DOCUMENT_START.contains(BrowserPageScripts.EMPTY_WINDOW to BrowserPageScripts.EMPTY_WINDOW_ORIGINS))
+    }
+
+    @Test
     fun `every school page loses its logout`() {
         assertEquals(setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw", "http://ntust.edu.tw", "http://*.ntust.edu.tw"), BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS)
     }

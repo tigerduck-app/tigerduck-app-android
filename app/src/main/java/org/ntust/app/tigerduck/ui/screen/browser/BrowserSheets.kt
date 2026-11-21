@@ -877,14 +877,14 @@ internal fun BrowserOutsideDialog(url: String, actions: BrowserActions) {
     }
 }
 
-/** A page's alert, confirm or prompt, as the app's dialog, naming the site that shows it. */
+/** A page's alert, confirm or prompt, as the app's dialog, naming the site that shows it, when it has a host. */
 @Composable
 internal fun BrowserPageDialog(dialog: PageDialog, actions: BrowserActions) {
     var value by remember(dialog) { mutableStateOf(dialog.defaultValue.orEmpty()) }
     val cancellable = dialog.kind != PageDialog.Kind.ALERT
     AlertDialog(
-        onDismissRequest = { actions.answerDialog(confirmed = false, value = null) },
-        title = { Text(stringResource(R.string.browser_dialog_title).replaceIosArg(1, dialog.host.orEmpty())) },
+        onDismissRequest = { actions.answerDialog(dialog, confirmed = false, value = null) },
+        title = dialog.host?.let { host -> @Composable { Text(stringResource(R.string.browser_dialog_title).replaceIosArg(1, host)) } },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (dialog.message.isNotEmpty()) Text(dialog.message)
@@ -894,12 +894,12 @@ internal fun BrowserPageDialog(dialog: PageDialog, actions: BrowserActions) {
             }
         },
         confirmButton = {
-            TextButton(onClick = { actions.answerDialog(confirmed = true, value = value.takeIf { dialog.kind == PageDialog.Kind.PROMPT }) }) {
+            TextButton(onClick = { actions.answerDialog(dialog, confirmed = true, value = value.takeIf { dialog.kind == PageDialog.Kind.PROMPT }) }) {
                 Text(stringResource(R.string.browser_dialog_ok))
             }
         },
         dismissButton = if (cancellable) {
-            { TextButton(onClick = { actions.answerDialog(confirmed = false, value = null) }) { Text(stringResource(R.string.action_cancel)) } }
+            { TextButton(onClick = { actions.answerDialog(dialog, confirmed = false, value = null) }) { Text(stringResource(R.string.action_cancel)) } }
         } else {
             null
         },

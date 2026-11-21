@@ -120,11 +120,35 @@ object BrowserPageScripts {
     /** Where [HIDE_SCHOOL_LOGOUT] goes: every school page, as WebViewCompat.addDocumentStartJavaScript's origin rules. */
     val HIDE_SCHOOL_LOGOUT_ORIGINS: Set<String> = setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw", "http://ntust.edu.tw", "http://*.ntust.edu.tw")
 
+    /**
+     * An empty window loads nothing, as on the iPhone: `window.open()` with no address or with
+     * about:blank, in any case as the routing reads it, answers null and opens nothing. The browser has one window (multiple windows off),
+     * so the WebView would open it in this one, emptying the page, and a script then writing into the
+     * window it got would write over the page. Any other address goes on to the WebView's own `open`,
+     * which loads it here by the browser's rules. A page's own navigation to about:blank is left as it is.
+     */
+    const val EMPTY_WINDOW = """(function() {
+  var open = window.open;
+  window.open = function(url) {
+    var address = url === undefined ? '' : String(url);
+    var empty = address === '';
+    if (!empty) {
+      try { empty = new URL(address, location.href).href.toLowerCase() === 'about:blank'; } catch (e) {}
+    }
+    // The address checked is the one opened: an object's toString may answer differently the next time.
+    return empty ? null : open.apply(this, [address].concat(Array.prototype.slice.call(arguments, 1)));
+  };
+})();"""
+
+    /** Where [EMPTY_WINDOW] goes: every page, as WebViewCompat.addDocumentStartJavaScript's origin rules. */
+    val EMPTY_WINDOW_ORIGINS: Set<String> = setOf("*")
+
     /** What every WebView the browser opens in runs before a page's own scripts, each with its origins. */
     val DOCUMENT_START: List<Pair<String, Set<String>>> = listOf(
         TOUCH_PAN to TOUCH_PAN_ORIGINS,
         HIDE_LOGOUT to HIDE_LOGOUT_ORIGINS,
         HIDE_SCHOOL_LOGOUT to HIDE_SCHOOL_LOGOUT_ORIGINS,
         TOUCH_FOCUS to TOUCH_FOCUS_ORIGINS,
+        EMPTY_WINDOW to EMPTY_WINDOW_ORIGINS,
     ) + BrowserSchoolSites.logoutScripts
 }
