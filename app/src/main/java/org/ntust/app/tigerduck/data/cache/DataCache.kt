@@ -1434,9 +1434,8 @@ class DataCache @Inject constructor(
     }
 
     // --- Moodle course ids ---
-    // The idnumber → numeric id map behind the course detail's "Open in Moodle" (Moodle's web endpoint won't take
-    // the idnumber), and every course the account is enrolled in, which a member's courses in common are found among.
-    // From `fetchEnrolledCourses` across ALL terms, cached so a transient failure hides neither; wiped on logout.
+    // The idnumber → numeric id map behind "Open in Moodle" (whose web endpoint won't take the idnumber), and every enrolled course,
+    // where a member's courses in common are found: from `fetchEnrolledCourses` across ALL terms, cached so a failure hides neither; wiped on logout.
 
     suspend fun saveMoodleCourseIds(map: Map<String, Int>, signIn: SignIn) =
         save(map, "moodle_course_ids.json", signIn)
