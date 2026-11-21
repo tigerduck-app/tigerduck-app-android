@@ -82,6 +82,8 @@ class ClassTableWeekHeaderTest {
         val layouts = mutableListOf<TextLayoutResult>()
         label.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts)
         assertFalse("not cut off", layouts.single().hasVisualOverflow)
+        val monday = composeRule.onNodeWithText(composeRule.activity.getString(R.string.weekday_mon_short)).getBoundsInRoot()
+        assertEquals("level with the weekday names", ((monday.top + monday.bottom) / 2).value, ((bounds.top + bounds.bottom) / 2).value, 0.5f)
     }
 
     /** Every text on screen that reads as a week, such as W8. */
