@@ -270,14 +270,14 @@ class CalendarViewModel @Inject constructor(
 
     /**
      * The Moodle deadlines whose rows open their assignment's page, read again as the
-     * assignments, the courses, their hides or the account change; see [openableAssignmentIds].
-     * A hide can land alone, as Use Server writes the server's. Conflated: a change landing
-     * during a read needs one more read, not one each.
+     * assignments, the courses, their hides, the term or the account change; see
+     * [openableAssignmentIds]. A hide can land alone, as Use Server writes the server's.
+     * Conflated: a change landing during a read needs one more read, not one each.
      */
     val openableAssignmentIds: StateFlow<Set<String>> = merge(
-        dataCache.assignmentsVersion, dataCache.coursesVersion, dataCache.courseHidesVersion, sessions.school.changes,
-    ).conflate()
-        .map { openableAssignmentIds(dataCache) }
+        dataCache.assignmentsVersion, dataCache.coursesVersion, dataCache.courseHidesVersion,
+        dataCache.currentTerms(academicCalendar.calendar), sessions.school.changes,
+    ).conflate().map { openableAssignmentIds(dataCache) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     fun eventsOnDate(date: Date): List<CalendarEvent> =

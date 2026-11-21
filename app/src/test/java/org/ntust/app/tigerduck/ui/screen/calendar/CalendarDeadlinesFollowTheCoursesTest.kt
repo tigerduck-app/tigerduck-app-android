@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +26,8 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.ui.screen.announcements.testSessions
 import org.ntust.app.tigerduck.util.bare
 import org.ntust.app.tigerduck.util.set
@@ -32,6 +35,8 @@ import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 
 /**
@@ -53,6 +58,14 @@ class CalendarDeadlinesFollowTheCoursesTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         val context = RuntimeEnvironment.getApplication()
+        // Two published terms, on a frozen day of the first.
+        context.getSharedPreferences("academic_calendar", Context.MODE_PRIVATE).edit().putString(
+            "payload",
+            """{"revision":1,"holidays":[],"semesters":[
+              {"code":"1151","start":"2026-09-14","end":"2027-01-15"},
+              {"code":"1152","start":"2027-02-22","end":"2027-06-30"}]}""",
+        ).commit()
+        freezeOn(LocalDate.of(2026, 11, 21))
         val prefs = AppPreferences(context)
         val academic = AcademicCalendarStore(context, OkHttpClient(), prefs)
         cache = DataCache(context, academic)
@@ -73,9 +86,14 @@ class CalendarDeadlinesFollowTheCoursesTest {
 
     @After
     fun tearDown() {
+        AppClock.setOverride(null)
         calendar.viewModelScope.cancel()
         Dispatchers.resetMain()
     }
+
+    private fun freezeOn(day: LocalDate) = AppClock.setOverride(
+        ClockOverride(day.atStartOfDay(ZoneId.of("Asia/Taipei")).toInstant().toEpochMilli(), frozen = true, savedAtRealMillis = 0L),
+    )
 
     private fun course(courseNo: String) = Course(courseNo = courseNo, courseName = courseNo)
 
@@ -134,6 +152,19 @@ class CalendarDeadlinesFollowTheCoursesTest {
 
         // As a sync, or Use Server on a courses conflict, writes the server's hides, and nothing else.
         write { cache.saveDeletedCourseNos(setOf(CourseTombstoneKeys.key(semester, "MA201")), testSignIn()) }
+
+        assertEquals(setOf("1"), openableWhen(setOf("1")))
+    }
+
+    @Test
+    fun `the next term's class table decides once the term turns`() {
+        assertEquals("1151", semester)
+        // The next term's class table holds only CS101.
+        write { cache.saveCourses(listOf(course("CS101")), "1152", testSignIn()) }
+        assertEquals(setOf("1", "2"), openableWhen(setOf("1", "2")))
+
+        // The calendar stays open as the term turns.
+        freezeOn(LocalDate.of(2027, 3, 1))
 
         assertEquals(setOf("1"), openableWhen(setOf("1")))
     }
