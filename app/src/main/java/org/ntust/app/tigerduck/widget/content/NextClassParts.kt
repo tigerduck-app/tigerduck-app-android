@@ -130,17 +130,18 @@ internal fun futureDayLabel(context: Context, todayWeekday: Int, futureWeekday: 
     }
 }
 
+/** [time], a later day's class's range or start, after that day as [futureDayLabel] names it. */
 internal fun futureCourseTimeLabel(
     context: Context,
     todayWeekday: Int,
     futureWeekday: Int?,
-    startTime: String,
+    time: String,
 ): String {
     val literalTomorrow = (todayWeekday % 7) + 1
     return if (futureWeekday == null || futureWeekday == literalTomorrow) {
-        context.getString(R.string.widget_tomorrow_time, startTime)
+        context.getString(R.string.widget_tomorrow_time, time)
     } else {
-        "${context.getString(weekdayCaptionRes(futureWeekday))} $startTime"
+        "${context.getString(weekdayCaptionRes(futureWeekday))} $time"
     }
 }
 

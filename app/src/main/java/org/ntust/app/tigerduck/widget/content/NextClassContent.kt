@@ -204,8 +204,8 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 }
                 val tomorrowPeriodId = state.tomorrowFirstCoursePeriodId
                 val tomorrowBlock = tomorrowFirstBlock(state)
-                // The class's own start, which the school may have moved.
-                val tomorrowStartTime = tomorrowBlock?.startTime
+                // The class's own range, which the school may have moved; else its period's start.
+                val tomorrowTime = tomorrowBlock?.let(::timeRange)
                     ?: tomorrowPeriodId?.let { AppConstants.PeriodTimes.mapping[it]?.first }
                 val tomorrowWeekday = state.tomorrowFirstCourseWeekday
                 Spacer(GlanceModifier.defaultWeight())
@@ -227,17 +227,17 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         ),
                         maxLines = 1,
                     )
-                    if (tomorrowCourse != null && !tomorrowStartTime.isNullOrEmpty()) {
+                    if (tomorrowCourse != null && !tomorrowTime.isNullOrEmpty()) {
                         Text(
                             text = futureCourseTimeLabel(
                                 context = context,
                                 todayWeekday = state.currentWeekday,
                                 futureWeekday = tomorrowWeekday,
-                                startTime = tomorrowStartTime,
+                                time = tomorrowTime,
                             ),
                             style = TextStyle(
                                 color = ColorProvider(
-                                    if (tomorrowBlock?.startChanged == true) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant,
+                                    if (tomorrowBlock?.timeChanged == true) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant,
                                 ),
                                 fontSize = 12.sp.scaled
                             ),

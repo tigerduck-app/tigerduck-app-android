@@ -206,6 +206,15 @@ class WidgetRedesignDrawTest {
     }
 
     @Test
+    fun `the compact Next Class widget gives a later day's class its range too`() {
+        // After Thursday's last class, the next is the Thursday after's first.
+        val views = drawn(WidgetLayout.NextClass, state("15:00"), DpSize(320.dp, 80.dp))
+
+        views.named("Early")
+        views.named("Thu 09:10–10:00")
+    }
+
+    @Test
     fun `the class hours redraw every five minutes while class widgets are placed, never waking the phone`() {
         val now = thursday.atTime(11, 2).atZone(AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
         AppClock.setOverride(ClockOverride(now, frozen = true, savedAtRealMillis = 0L))
