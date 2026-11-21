@@ -129,6 +129,29 @@ class CalendarMonthSwipeTest {
     }
 
     @Test
+    fun `an arrow's turn a drag takes back leaves the next swipe said`() {
+        show(month(2026, 7))
+        composeRule.mainClock.autoAdvance = false
+
+        // Next, then a slow drag back before the turn is half way: the grid rests on July again.
+        arrow(R.string.calendar_next_month).performClick()
+        frames(2)
+        pager.performTouchInput {
+            down(center)
+            repeat(10) { moveBy(Offset(5f, 0f)) }
+            up()
+        }
+        composeRule.mainClock.autoAdvance = true
+        settle()
+        assertEquals(emptyList<Date>(), changed)
+
+        pager.performTouchInput { swipeLeft(startX = centerX, endX = left) }
+        settle()
+        assertEquals(listOf(month(2026, 8)), changed)
+        assertEquals(listOf("August 2026"), announced)
+    }
+
+    @Test
     fun `Today jumps from a far month and slides from the one next door, saying nothing`() {
         show(month(2026, 7))
         composeRule.mainClock.autoAdvance = false

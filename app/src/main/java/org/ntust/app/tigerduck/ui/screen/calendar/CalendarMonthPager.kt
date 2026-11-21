@@ -32,10 +32,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
@@ -103,14 +104,27 @@ private class MonthTurns(
         announcement?.cancel()
         turningTo = target
         val nextDoor = abs(target - pager.targetPage) == 1
-        scope.launch { if (nextDoor) pager.animateScrollToPage(target) else pager.scrollToPage(target) }
+        scope.launch {
+            try {
+                if (nextDoor) pager.animateScrollToPage(target) else pager.scrollToPage(target)
+            } catch (e: CancellationException) {
+                // A drag or TalkBack's page scroll took the grid over, and where it rests is
+                // theirs; another turn has a page of its own.
+                if (turningTo == target) turningTo = null
+                throw e
+            }
+        }
     }
 
-    /** The grid came to rest on [page]: [say] the month unless an arrow or Today brought it there. */
-    fun rested(page: Int, month: () -> String, say: (String) -> Unit) {
+    /**
+     * The grid came to rest on [page], another month when [moved]: [say] the month unless an arrow
+     * or Today brought it there. Each rest ends the turn there was, so one a drag took back to the
+     * month it left does not keep its page to silence a later swipe there.
+     */
+    fun rested(page: Int, moved: Boolean, month: () -> String, say: (String) -> Unit) {
         val byButton = page == turningTo
         turningTo = null
-        if (byButton) return
+        if (!moved || byButton) return
         announcement?.cancel()
         announcement = scope.launch {
             delay(MONTH_ANNOUNCEMENT_DELAY_MS)
@@ -145,16 +159,20 @@ internal fun MonthCalendar(
     LaunchedEffect(displayedMonth) { turns.turn(MonthPages.pageOf(displayedMonth)) }
 
     // The grid's rest to the view model, once it rests: the page under the middle mid-swipe
-    // would hand the effect above a month to turn back to.
+    // would hand the effect above a month to turn back to. Null while the grid moves, so a rest
+    // back on the month it left counts too.
     val currentDisplayedMonth by rememberUpdatedState(displayedMonth)
     val currentOnMonthChanged by rememberUpdatedState(onMonthChanged)
     val currentAnnounce by rememberUpdatedState(announce)
     val currentLocale by rememberUpdatedState(locale)
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.drop(1).collect { settled ->
+        var last = pagerState.settledPage
+        snapshotFlow { if (pagerState.isScrollInProgress) null else pagerState.settledPage }.filterNotNull().collect { settled ->
+            val moved = settled != last
+            last = settled
             val month = MonthPages.monthAt(settled)
-            if (MonthPages.pageOf(currentDisplayedMonth) != settled) currentOnMonthChanged(month)
-            turns.rested(settled, month = { monthAnnouncement(month, currentLocale) }, say = { currentAnnounce(it) })
+            if (moved && MonthPages.pageOf(currentDisplayedMonth) != settled) currentOnMonthChanged(month)
+            turns.rested(settled, moved, month = { monthAnnouncement(month, currentLocale) }, say = { currentAnnounce(it) })
         }
     }
 
