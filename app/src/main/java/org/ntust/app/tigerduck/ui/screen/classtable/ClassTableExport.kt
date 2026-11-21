@@ -224,8 +224,9 @@ private class RecordingCount {
  * as a trailing underscore, when there is none.
  */
 internal fun classTableExportFileName(title: String, semesterLabel: String, studentId: String?, extension: String = "png"): String =
-    // A nickname has no length limit, and a file name past 255 bytes cannot be written.
-    listOf(title, semesterLabel, studentId.orEmpty().take(40))
+    // A nickname has no length limit, and a file name past 255 bytes cannot be written. Cut
+    // whole characters only, never half of one written as two UTF-16 units.
+    listOf(title, semesterLabel, studentId.orEmpty().take(40).let { if (it.lastOrNull()?.isHighSurrogate() == true) it.dropLast(1) else it })
         // Path separators, the characters FAT-formatted storage refuses, and
         // control characters — a translation could carry any of them.
         .map { part ->

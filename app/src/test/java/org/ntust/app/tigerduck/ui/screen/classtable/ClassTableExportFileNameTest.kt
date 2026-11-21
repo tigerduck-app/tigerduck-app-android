@@ -48,4 +48,11 @@ class ClassTableExportFileNameTest {
         assertEquals("課表_114-2_Ming.ics", classTableExportFileName("課表", "114-2", "Ming", "ics"))
         assertEquals("課表_114-2_" + "a".repeat(40) + ".png", classTableExportFileName("課表", "114-2", "a".repeat(300)))
     }
+
+    @Test
+    fun `the cut never splits a character in two`() {
+        // An emoji is two UTF-16 units; one starting at the 40th would leave half of it.
+        val name = "a".repeat(39) + "\uD83D\uDE00" + "b"
+        assertEquals("課表_114-2_" + "a".repeat(39) + ".ics", classTableExportFileName("課表", "114-2", name, "ics"))
+    }
 }
