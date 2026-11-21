@@ -4,7 +4,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.data.moodle.MoodleMaterials
+import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentSubmission
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
@@ -96,6 +98,12 @@ interface MoodleCourseApi {
      */
     suspend fun changePicture(jpeg: ByteArray): Unit = throw MoodleWebserviceError.AccessDenied()
 
+    /**
+     * The courses Moodle lists user [userId] in, of every term. For another user, only those the
+     * account can see them in, which may be more than the two share; see `MoodleMemberCourses`.
+     */
+    suspend fun sharedCourses(userId: Int): List<MoodleEnrolledCourse> = emptyList()
+
     companion object {
         const val FORUMS_FUNCTION = "mod_forum_get_forums_by_courses"
         const val DISCUSSIONS_FUNCTION = "mod_forum_get_forum_discussions"
@@ -109,6 +117,7 @@ interface MoodleCourseApi {
         const val GROUPS_FUNCTION = "core_group_get_course_user_groups"
         const val CONTENTS_FUNCTION = "core_course_get_contents"
         const val UPDATE_PICTURE_FUNCTION = "core_user_update_picture"
+        const val USERS_COURSES_FUNCTION = "core_enrol_get_users_courses"
 
         /** Asked for explicitly: Moodle's default `perpage` of 0 returns every discussion at once. */
         const val DISCUSSIONS_PER_PAGE = 20
@@ -222,6 +231,22 @@ class LiveMoodleCourseApi internal constructor(
             listOf("draftitemid" to draft.toString(), "delete" to "0"),
         )
         MoodleJson.pictureChanged(answer)
+    }
+
+    /** Moodle would otherwise count every course's participants, which nothing here reads. */
+    override suspend fun sharedCourses(userId: Int): List<MoodleEnrolledCourse> = webservice.withToken { token ->
+        val answer = webservice.call(
+            MoodleCourseApi.USERS_COURSES_FUNCTION,
+            token,
+            listOf("userid" to userId.toString(), "returnusercount" to "0"),
+        )
+        withContext(parse) {
+            try {
+                MoodleService.decodeEnrolledCourses(answer.toString())
+            } catch (e: Exception) {
+                throw MoodleWebserviceError.MalformedResponse("users' courses not decodable: ${e.javaClass.simpleName}")
+            }
+        }
     }
 
     override suspend fun members(courseId: Int): MoodleMemberList = webservice.withToken { token ->
