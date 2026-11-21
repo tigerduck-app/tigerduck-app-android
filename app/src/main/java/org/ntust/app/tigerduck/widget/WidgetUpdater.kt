@@ -202,16 +202,21 @@ class WidgetUpdater internal constructor(
     suspend fun armBoundaries() {
         val manager = GlanceAppWidgetManager(context)
         val awm = AppWidgetManager.getInstance(context)
-        val chosen = WIDGETS
-            .filter { (it.factory() as? BaseClassTableWidget)?.showsChosenTable == true }
-            .flatMap { kind -> runCatching { awm.getAppWidgetIds(ComponentName(context, kind.receiver)) }.getOrNull()?.toList().orEmpty() }
+        val placed = WIDGETS.mapNotNull { kind ->
+            val widget = kind.factory() as? BaseClassTableWidget ?: return@mapNotNull null
+            widget to (runCatching { awm.getAppWidgetIds(ComponentName(context, kind.receiver)) }.getOrNull()?.toList().orEmpty())
+        }
+        val chosen = placed.filter { it.first.showsChosenTable }.flatMap { it.second }
             .mapNotNull { id ->
                 runCatching {
                     getAppWidgetState(context, PreferencesGlanceStateDefinition, manager.getGlanceIdBy(id))[WidgetClassTable.PersonKey]
                 }.getOrNull()
             }
             .toSet()
-        boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen))
+        boundaryScheduler.scheduleForToday(
+            dataCache.loadCourses() + coursesOf(chosen),
+            ticking = placed.any { it.second.isNotEmpty() },
+        )
     }
 
     /** The current term's courses of the imported people [ids] names; none while no widget shows one. */
