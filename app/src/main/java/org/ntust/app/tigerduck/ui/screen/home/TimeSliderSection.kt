@@ -84,6 +84,7 @@ import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.component.CourseName
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
@@ -303,20 +304,11 @@ internal fun SlotCard(
                             }
                         },
                         onDragCancel = {
-                            coroutineScope.launch {
-                                swipeOffset.animateTo(
-                                    0f,
-                                    animationSpec = spring()
-                                )
-                            }
+                            coroutineScope.launch { swipeOffset.animateTo(0f, animationSpec = spring()) }
                         },
                         onHorizontalDrag = { _, delta ->
                             coroutineScope.launch {
-                                swipeOffset.snapTo(
-                                    (swipeOffset.value + delta * 0.6f).coerceAtMost(
-                                        0f
-                                    )
-                                )
+                                swipeOffset.snapTo((swipeOffset.value + delta * 0.6f).coerceAtMost(0f))
                             }
                         }
                     )
@@ -348,8 +340,8 @@ internal fun SlotCard(
             },
         ) { ink ->
             val metaStyle = MaterialTheme.typography.labelSmall
-            Text(
-                courseNameForDisplay(slot.course.displayName, maxChars = 30),
+            CourseName(
+                courseNameForDisplay(slot.course.displayName, maxChars = 30), isAssessment = slot.isAssessment,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = if (isSkipped) Color(0xFFFF2D55) else ink.name,
                 textDecoration = strike,
@@ -366,7 +358,8 @@ internal fun SlotCard(
                 )
             } else {
                 InlineOrStackText(
-                    primary = if (slot.hasChangedRoom) movedRoomText(slot.classroom, courseChangeInk()) else AnnotatedString(slot.classroom),
+                    primary = slot.classroom(stringResource(R.string.course_change_online))
+                        .let { if (slot.hasChangedRoom) movedRoomText(it, courseChangeInk()) else AnnotatedString(it) },
                     secondary = slot.course.instructor,
                     style = metaStyle,
                     color = ink.meta,

@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.ONLINE
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course
@@ -46,7 +47,7 @@ class CourseMeetingsTest {
         val slots = slots(changes)
         assertEquals(listOf(morning, listOf("7", "8")), slots.map { it.periods })
         assertEquals(listOf(false, true), slots.map { it.isCancelled })
-        assertEquals(listOf("TR-313", "T4-501"), slots.map { it.room })
+        assertEquals(listOf("TR-313", "T4-501"), slots.map { it.room(ONLINE) })
     }
 
     @Test
@@ -71,7 +72,7 @@ class CourseMeetingsTest {
         assertEquals(listOf(listOf("2", "3"), listOf("4"), listOf("7", "8")), slots.map { it.periods })
         assertEquals(listOf(time("10:00"), time("11:20"), time("14:20")), slots.map { it.start })
         assertEquals(listOf(time("11:10"), time("13:00"), time("16:20")), slots.map { it.end })
-        assertEquals(listOf("T4-501", "TR-313", "T4-501"), slots.map { it.room })
+        assertEquals(listOf("T4-501", "TR-313", "T4-501"), slots.map { it.room(ONLINE) })
     }
 
     private enum class MatrixTime { NONE, START, END, BOTH, INVALID_START }
@@ -108,7 +109,7 @@ class CourseMeetingsTest {
             val fragments = CourseMeetings.buildSlots(listOf(course), thursday, changes)
             assertEquals(case, pieces.map { it.periods }, fragments.map { it.periods })
             assertEquals(case, pieces.map { it.cancelled }, fragments.map { it.isCancelled })
-            assertEquals(case, pieces.map { it.room }, fragments.map { it.room })
+            assertEquals(case, pieces.map { it.room }, fragments.map { it.room(ONLINE) })
             assertEquals(case, start, fragments.first().start)
             assertEquals(case, end, fragments.last().end)
             for ((left, right) in fragments.zipWithNext()) {
@@ -123,7 +124,7 @@ class CourseMeetingsTest {
             assertEquals(case, if (start == time("09:10")) null else time("09:10"), meeting.originalStart)
             assertEquals(case, if (end == time("12:10")) null else time("12:10"), meeting.originalEnd)
             assertFalse(case, meeting.isCancelled)
-            assertEquals(case, if (partial == MatrixPartial.ROOM || partial == MatrixPartial.BOTH) "TR-313" else "T4-501", meeting.room)
+            assertEquals(case, if (partial == MatrixPartial.ROOM || partial == MatrixPartial.BOTH) "TR-313" else "T4-501", meeting.room(ONLINE))
 
             val meets = CourseMeetings.meetingSlots(listOf(course), thursday, changes, isClassDay = { true })
             assertEquals(case, pieces.filter { !it.cancelled }.map { it.periods }, meets.map { it.periods })
@@ -181,7 +182,7 @@ class CourseMeetingsTest {
         assertEquals(listOf(time("09:10"), time("14:20")), slots.map { it.start })
         assertEquals(listOf(time("12:10"), time("16:20")), slots.map { it.end })
         assertEquals(listOf(false, false), slots.map { it.hasChangedTime })
-        assertEquals(listOf("TR-313", "T4-501"), slots.map { it.room })
+        assertEquals(listOf("TR-313", "T4-501"), slots.map { it.room(ONLINE) })
         assertEquals(listOf(false, true), slots.map { it.isCancelled })
     }
 
@@ -243,7 +244,7 @@ class CourseMeetingsTest {
         assertEquals(morning, kept.periods)
         assertEquals(time("09:10") to time("12:10"), kept.start to kept.end)
         assertTrue(kept.hasChangedRoom)
-        assertEquals("TR-313", kept.room)
+        assertEquals("TR-313", kept.room(ONLINE))
         val gone = CourseMeetings.meeting(course(), morning, thursday, whole)!!
         assertTrue(gone.isCancelled)
         assertFalse(gone.hasChangedRoom)
@@ -386,7 +387,7 @@ class CourseMeetingsTest {
         )
 
         val now = ClassTimeline.ongoing(listOf(course()), at("10:30"), changes).first()
-        assertEquals(morning to "TR-313", now.periods to now.room)
+        assertEquals(morning to "TR-313", now.periods to now.room(ONLINE))
         val partly = changes(row(1, "room", periods = listOf("4"), values = mapOf("room" to "TR-313")))
         val piece = ClassTimeline.ongoing(listOf(course()), at("10:30"), partly).first()
         assertEquals(listOf("2", "3"), piece.periods)
@@ -497,8 +498,8 @@ class CourseMeetingsTest {
             CourseChangeFixture.row(2, "room", periods = listOf("2"), values = mapOf("room" to "TR-214")),
         )
         val merged = CourseMeetings.meeting(CourseChangeFixture.course(), listOf("2", "3", "4"), CourseChangeFixture.thursday, changes)!!
-        assertEquals("TR-214, TR-315", merged.room)
+        assertEquals("TR-214, TR-315", merged.room(ONLINE))
         val fragments = CourseChangeFixture.slots(changes).filter { "7" !in it.periods }
-        assertEquals(listOf("TR-214", "T4-501", "TR-315"), fragments.map { it.room })
+        assertEquals(listOf("TR-214", "T4-501", "TR-315"), fragments.map { it.room(ONLINE) })
     }
 }

@@ -40,4 +40,6 @@ data class LiveActivitySnapshot(
      * only, as the rest of this is.
      */
     val accentGradient: AccentGradient? = null,
+    /** The class has an assessment, which marks its title; see [liveUpdateTitle]. As iOS's `assessment`. */
+    val assessment: Boolean = false,
 )

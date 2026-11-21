@@ -142,6 +142,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
     )
     val isWeekend = today == 6 || today == 7
     val todayBlocks = todayListBlocks(state)
+    val online = context.getString(R.string.course_change_online)
 
     Column(
         modifier = GlanceModifier
@@ -151,11 +152,8 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
             .clickable(tapAction),
     ) {
         Text(
-            text = if (today in 1..7) {
-                context.getString(R.string.widget_today_weekday_title, dayNames[today - 1])
-            } else {
-                context.getString(R.string.widget_today_schedule_title)
-            },
+            text = if (today in 1..7) context.getString(R.string.widget_today_weekday_title, dayNames[today - 1])
+            else context.getString(R.string.widget_today_schedule_title),
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 15.sp.scaled,
@@ -240,8 +238,8 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
                         Column(
                             modifier = GlanceModifier.defaultWeight().padding(start = 6.dp.scaled),
                         ) {
-                            Text(
-                                text = course.displayName,
+                            WidgetCourseName(
+                                text = course.displayName, isAssessment = block.isAssessment, isDark = colors.isDark,
                                 style = TextStyle(
                                     color = ColorProvider(primaryText),
                                     fontSize = 14.sp.scaled * state.courseNameScale,
@@ -250,7 +248,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
                                 ),
                                 maxLines = 1,
                             )
-                            val room = block.classroom
+                            val room = block.classroom(online)
                             when {
                                 cancelled -> Text(
                                     text = context.getString(R.string.course_card_cancelled),
@@ -263,7 +261,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
                                 )
 
                                 block.roomChanged -> Text(
-                                    text = block.roomLabel,
+                                    text = block.roomLabel(online),
                                     style = TextStyle(
                                         color = ColorProvider(ink),
                                         fontSize = 11.sp.scaled,
