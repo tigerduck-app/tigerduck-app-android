@@ -8,8 +8,10 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.io.File
@@ -23,17 +25,16 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ClassTableCalendarExportViewModel @Inject constructor(
-    private val calendar: AcademicCalendarStore,
+    private val store: AcademicCalendarStore,
 ) : ViewModel() {
 
     /** The term of the table [shown] draws, with its holidays; null when the academic calendar lacks it. */
     fun term(shown: ShownClassTable): ClassTableCalendarFile.Term? = ClassTableCalendarFile.term(
-        shown.semester, ownTable = shown.person == null, calendar.current(), calendar.optedInHolidayIds,
+        shown.semester, ownTable = shown.person == null, store.current(), store.optedInHolidayIds,
     )
 
-    /** Whether the item acts: the table has a class at a period time and the term has dates. */
-    fun canExport(shown: ShownClassTable): Boolean =
-        ClassTableCalendarFile.hasTimedMeeting(shown.courses) && term(shown) != null
+    /** The academic calendar, observed, so the menu item acts as soon as a refresh brings the term's dates. */
+    val calendar: StateFlow<AcademicCalendar> get() = store.calendar
 
     /** Whether a file is being written, which holds both exports off. */
     var isExporting by mutableStateOf(false)

@@ -80,6 +80,13 @@ object ClassTableCalendarFile {
         }
     }
 
+    /**
+     * Whether Export ICS acts on the table [shown] draws: [calendar] has the term's dates and the
+     * table a class at a period time. The events themselves are built only when it is picked.
+     */
+    fun canExport(shown: ShownClassTable, calendar: AcademicCalendar): Boolean =
+        hasTimedMeeting(shown.courses) && calendar.terms.any { it.code == shown.semester }
+
     /** Whether any of [courses] meets in a timed period on a weekday column, without building the events. */
     fun hasTimedMeeting(courses: List<Course>): Boolean = courses.any { course ->
         course.schedule.any { (weekday, periods) -> weekday in WEEKDAYS && periods.any { it in PeriodTimes.mapping } }

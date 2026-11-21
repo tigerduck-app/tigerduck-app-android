@@ -188,4 +188,15 @@ class ClassTableCalendarFileTest {
         assertTrue(day(10, 7) in ming!!.quietDays)
         assertFalse(day(10, 6) in ming.quietDays)
     }
+
+    @Test
+    fun `the menu item acts once the academic calendar has the shown term and the table a timed class`() {
+        val shown = ShownClassTable(null, "1151", listOf("1151"), listOf(structures), 0)
+        val thesis = Course.fromSchedule(courseNo = "GE1100001", courseName = "Thesis")
+
+        assertFalse("no dates yet", File.canExport(shown, AcademicCalendar.EMPTY))
+        assertTrue("the refresh brought them", File.canExport(shown, calendar()))
+        assertFalse("no timed class", File.canExport(shown.copy(courses = listOf(thesis)), calendar()))
+        assertFalse("another term", File.canExport(shown.copy(semester = "1142"), calendar()))
+    }
 }

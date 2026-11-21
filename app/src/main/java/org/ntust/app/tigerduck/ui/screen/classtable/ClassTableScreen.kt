@@ -240,6 +240,7 @@ fun ClassTableScreen(
     val exportTitle = stringResource(R.string.class_table_export_screenshot)
     val exportFailedMessage = stringResource(R.string.class_table_export_failed)
     val calendarExport: ClassTableCalendarExportViewModel = hiltViewModel()
+    val academicCalendar by calendarExport.calendar.collectAsStateWithLifecycle()
     // Off while an export is in flight. The screenshot only while the grid below is drawn, as
     // anything else would export a header over nothing; the ICS file only with a class to put in it.
     fun exports(close: () -> Unit) = (exporting || calendarExport.isExporting).let { busy ->
@@ -248,7 +249,7 @@ fun ClassTableScreen(
             onCalendar = {
                 close()
                 calendarExport.shareOn(scope, context, shown, viewModel::displayLabel) { snackbarHostState.showSnackbar(exportFailedMessage) }
-            }.takeIf { !busy && calendarExport.canExport(shown) },
+            }.takeIf { !busy && ClassTableCalendarFile.canExport(shown, academicCalendar) },
         )
     }
     val errorNetworkUnavailable = stringResource(R.string.error_network_unavailable)
