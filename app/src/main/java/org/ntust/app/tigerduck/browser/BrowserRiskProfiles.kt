@@ -33,9 +33,9 @@ interface WebViewProfiles {
  * A WebView profile lives on disk, and the process that loaded one cannot delete it. So what a
  * profile keeps is deleted as its browser closes and at every clearing of the browser
  * ([AndroidWebViewStorage]), and the profile itself in a later process, before anything loads one:
- * at the start ([sweepAtStart]), as a browser opens, and at a clearing ([sweep]).
- * [BrowserCleanup.riskProfilesLeft] says whether one may be left, so a start with none never loads
- * the WebView for it.
+ * at the start ([sweepAtStart]), as a browser opens, and at a clearing ([sweep]). Each name is kept
+ * ([BrowserCleanup.riskProfiles]) before its profile can be made, so it goes whether or not the
+ * WebView lists it, and a start with none never loads the WebView for it.
  */
 class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
     /** The ones made in this process, which it cannot delete. */
@@ -44,17 +44,19 @@ class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
     fun supported(): Boolean = runCatching { profiles.supported() }.getOrDefault(false)
 
     /**
-     * A new profile's name, for a browser opened at risk to load in; null where the WebView has no
-     * profiles. Marked, before it can be made, as one a later process deletes.
+     * A new profile's name, for one browser opened at risk to load in; null where the WebView has no
+     * profiles. Kept, before it can be made, as one a later process deletes.
      */
     @Synchronized
     fun create(cleanup: BrowserCleanup): String? {
         if (!supported()) return null
-        cleanup.markRiskProfilesLeft()
-        return (PREFIX + UUID.randomUUID()).also { made += it }
+        val name = PREFIX + UUID.randomUUID()
+        cleanup.addRiskProfile(name)
+        made += name
+        return name
     }
 
-    /** Whether [name] was made in this process: a browser saved by one before it opens nothing in it. */
+    /** Whether [name] was made in this process: a browser an earlier one opened at risk opens nothing in it. */
     @Synchronized
     fun isMadeHere(name: String): Boolean = name in made
 
@@ -73,25 +75,26 @@ class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
     }
 
     /**
-     * Deletes each profile an earlier process made, where one may be left; the mark comes off once
-     * none is, and none was made here either. A profile that would not go stays marked for the next try.
+     * Deletes each profile an earlier process made: those kept by name, and any other of theirs the
+     * WebView lists. One that would not go stays kept for the next try, as do those made here.
      */
     @Synchronized
     fun sweep(cleanup: BrowserCleanup) {
-        if (!cleanup.riskProfilesLeft() || !supported()) return
-        val left = runCatching { profiles.names() }.getOrNull()?.filter { it.startsWith(PREFIX) } ?: return
-        val stayed = left.filter { name ->
-            name in made || runCatching { profiles.delete(name) }
+        val kept = cleanup.riskProfiles()
+        if (kept.isEmpty() || !supported()) return
+        val listed = runCatching { profiles.names() }.getOrNull().orEmpty().filter { it.startsWith(PREFIX) }
+        val deleted = (kept + listed).filter { name ->
+            name !in made && runCatching { profiles.delete(name) }
                 .onFailure { Log.w(TAG, "a profile opened at risk was not deleted: ${it.javaClass.simpleName}") }
-                .isFailure
+                .isSuccess
         }
-        if (stayed.isEmpty() && made.isEmpty()) cleanup.riskProfilesSwept()
+        cleanup.riskProfilesDeleted(deleted.toSet())
     }
 
     /** At the app's start: [sweep] once the main thread is idle, where a profile may be left. */
     fun sweepAtStart(context: Context) {
         val cleanup = BrowserCleanup.of(context)
-        if (!cleanup.riskProfilesLeft()) return
+        if (cleanup.riskProfiles().isEmpty()) return
         Looper.myQueue().addIdleHandler {
             sweep(cleanup)
             false

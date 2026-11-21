@@ -122,23 +122,25 @@ class BrowserCleanup(context: Context) {
         if (prefs.getLong(KEY_REQUEST, 0) == request) prefs.edit().remove(KEY_PENDING).commit()
     }
 
-    /** Whether a profile a page opened at risk loaded in may be left on disk, for a later process to delete ([BrowserRiskProfiles]). */
-    fun riskProfilesLeft(): Boolean = prefs.getBoolean(KEY_RISK_PROFILES_LEFT, false)
+    /** The profiles browsers opened at risk were given, which a later process deletes ([BrowserRiskProfiles]). */
+    fun riskProfiles(): Set<String> = prefs.getStringSet(KEY_RISK_PROFILES, null).orEmpty().toSet()
 
-    /** Written to disk before it returns, ahead of the profile it marks. */
-    fun markRiskProfilesLeft() {
-        prefs.edit().putBoolean(KEY_RISK_PROFILES_LEFT, true).commit()
+    /** Written to disk before it returns, ahead of the profile it names. */
+    fun addRiskProfile(name: String): Unit = synchronized(LOCK) {
+        prefs.edit().putStringSet(KEY_RISK_PROFILES, riskProfiles() + name).commit()
     }
 
-    fun riskProfilesSwept() {
-        prefs.edit().remove(KEY_RISK_PROFILES_LEFT).apply()
+    /** [names] are deleted: no later process need try them again. */
+    fun riskProfilesDeleted(names: Set<String>): Unit = synchronized(LOCK) {
+        val left = riskProfiles() - names
+        prefs.edit().apply { if (left.isEmpty()) remove(KEY_RISK_PROFILES) else putStringSet(KEY_RISK_PROFILES, left) }.apply()
     }
 
     companion object {
         const val PREFS_FILE = "tigerduck_browser_cleanup"
         private const val KEY_PENDING = "pending"
         private const val KEY_REQUEST = "request"
-        private const val KEY_RISK_PROFILES_LEFT = "risk_profiles_left"
+        private const val KEY_RISK_PROFILES = "risk_profiles"
 
         // Every instance's: they share the file.
         private val LOCK = Any()

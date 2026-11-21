@@ -82,7 +82,6 @@ import org.ntust.app.tigerduck.browser.BrowserDownloadPlans
 import org.ntust.app.tigerduck.browser.BrowserDownloads
 import org.ntust.app.tigerduck.browser.BrowserPageScripts
 import org.ntust.app.tigerduck.browser.BrowserRiskAcceptance
-import org.ntust.app.tigerduck.browser.BrowserRiskProfiles
 import org.ntust.app.tigerduck.browser.BrowserRouting
 import org.ntust.app.tigerduck.browser.BrowserSession
 import org.ntust.app.tigerduck.browser.BrowserSettings
@@ -236,7 +235,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         anyPage = BuildConfig.DEBUG && intent.getBooleanExtra(InAppBrowser.EXTRA_ANY_PAGE, false)
         val target = InAppBrowser.startPage(intent.getStringExtra(InAppBrowser.EXTRA_URL), anyPage)
-        if (target == null || !takeOpening(savedInstanceState)) {
+        if (target == null || !takeOpening()) {
             finish()
             return
         }
@@ -345,17 +344,16 @@ class InAppBrowserActivity : AppCompatActivity() {
     }
 
     /**
-     * A browser opened at risk takes what was accepted and a profile of its own made in this process,
-     * never an earlier one's; any other lets a pin prompt closed unanswered ask again. False to close.
+     * A browser opened at risk takes what was accepted and the profile its opener made in this process:
+     * one from an earlier process opens nothing. Any other lets a pin prompt closed unanswered ask again.
      */
-    private fun takeOpening(saved: Bundle?): Boolean {
+    private fun takeOpening(): Boolean {
         val accepted = InAppBrowser.riskAcceptance(intent) ?: return true.also { pinManager.prompts.offerDismissedAgain() }
-        val profiles = BrowserRiskProfiles.shared
-        val profile = saved?.getString(KEY_RISK_PROFILE) ?: profiles.create(BrowserCleanup.of(this)) ?: return false
+        val profile = InAppBrowser.riskProfile(intent)
         risk = accepted
         riskProfile = profile
         state.atRisk = true
-        return profiles.isMadeHere(profile)
+        return profile != null && InAppBrowser.riskProfiles.isMadeHere(profile)
     }
 
     /** The system bars' icons and the window behind Compose, light or [dark] as the bars are. */
@@ -382,7 +380,6 @@ class InAppBrowserActivity : AppCompatActivity() {
             pendingPage
         }
         page?.writeTo(outState)
-        riskProfile?.let { outState.putString(KEY_RISK_PROFILE, it) }
     }
 
     override fun onDestroy() {
@@ -395,7 +392,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             if (risk != null && isFinishing) webView.clearSslPreferences()
             webView.destroy()
         }
-        riskProfile?.takeIf { isFinishing }?.let { BrowserRiskProfiles.shared.clear(it) } // a later process deletes it
+        riskProfile?.takeIf { isFinishing }?.let { InAppBrowser.riskProfiles.clear(it) } // a later process deletes it
         super.onDestroy()
     }
 
@@ -442,7 +439,7 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     /** Opened at risk, [web] goes in its own profile first, or is destroyed: never the app's. Those left before go first. */
     private fun inOwnProfile(web: WebView): Boolean {
-        BrowserRiskProfiles.shared.sweep(BrowserCleanup.of(this))
+        InAppBrowser.riskProfiles.sweep(BrowserCleanup.of(this))
         val profile = riskProfile ?: return true
         if (runCatching { WebViewCompat.setProfile(web, profile) }.isSuccess) return true
         web.destroy()
@@ -944,7 +941,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             if (risk?.allows(url, leaf) == true) return handler.proceed()
             handler.cancel()
             val refused = runCatching { error.certificate?.let(CertificateInfo::of) }.getOrNull()
-            val refusal = if (url != null && leaf != null && InAppBrowser.hasRiskProfiles()) CertificateRefusal(url, leaf) else null
+            val refusal = if (url != null && leaf != null && InAppBrowser.riskProfiles.supported()) CertificateRefusal(url, leaf) else null
             if (loads.certificateFailed(url, url?.toHttpUrlOrNull()?.host ?: state.host, refused, refusal)) state.loading = false
         }
 
@@ -1060,7 +1057,5 @@ class InAppBrowserActivity : AppCompatActivity() {
 
         /** Camera shots for uploads, under the cache; cleared with the browser's data. */
         const val UPLOADS_DIR = "browser_uploads"
-        /** The profile a browser opened at risk loads in, across a recreation. */
-        private const val KEY_RISK_PROFILE = "org.ntust.app.tigerduck.browser.RISK_PROFILE"
     }
 }
