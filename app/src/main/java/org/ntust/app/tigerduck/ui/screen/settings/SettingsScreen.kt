@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.EntryPoint
+import kotlinx.coroutines.flow.first
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
@@ -57,7 +59,7 @@ import org.ntust.app.tigerduck.util.replaceIosArg
 import org.ntust.app.tigerduck.wear.WearCompanion
 
 /** The root's parts, in order: the catalog's sections, the pages after Appearance, and the debug build's own. */
-private enum class RootPart {
+internal enum class RootPart {
     ACCOUNT, APPEARANCE, PAGES, TIGERSYNC, NOTIFICATION_PERMISSIONS, LANGUAGE, OTHER, ABOUT, DEVELOPER;
 
     companion object {
@@ -127,14 +129,15 @@ fun SettingsScreen(
  * iOS's search reveals it.
  */
 @Composable
-private fun SettingsList(
+internal fun SettingsList(
     modifier: Modifier,
     state: SettingsState,
     openPage: (PageSettings) -> Unit,
     header: @Composable () -> Unit,
+    initialQuery: String = "",
     part: @Composable (RootPart) -> Unit,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf(initialQuery) }
     var searchFocused by remember { mutableStateOf(false) }
     var revealed by remember { mutableStateOf<SettingsRow?>(null) }
     val listState = rememberLazyListState()
@@ -145,8 +148,12 @@ private fun SettingsList(
     val parts = remember { RootPart.entries.filter { it != RootPart.DEVELOPER || BuildConfig.DEBUG } }
     LaunchedEffect(revealed) {
         val section = (revealed?.place as? SettingsPlace.Section)?.section ?: return@LaunchedEffect
+        val index = RootPart.FIRST_INDEX + parts.indexOf(RootPart.of(section))
+        // The parts are back in the list from the layout after the query cleared, not this one.
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > index }
+        listState.animateScrollToItem(index)
+        // Only now: a new key would cancel the scroll under way.
         revealed = null
-        listState.animateScrollToItem(RootPart.FIRST_INDEX + parts.indexOf(RootPart.of(section)))
     }
     LazyColumn(
         state = listState,

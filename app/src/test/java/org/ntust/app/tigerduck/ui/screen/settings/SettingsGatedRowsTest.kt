@@ -2,19 +2,24 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -116,6 +121,23 @@ class SettingsGatedRowsTest {
 
         assertEquals(listOf(PageSettings.CLASS_TABLE), opened)
         assertEquals(listOf(SettingsRow.APP_ICON), revealed)
+    }
+
+    @Test
+    fun `a result on the root clears the search and scrolls the list to its section`() {
+        val appIcon = context.getString(R.string.settings_app_icon)
+        composeRule.setContent {
+            SettingsList(Modifier, SettingsState(), openPage = {}, header = { Text("Settings") }, initialQuery = appIcon) { part ->
+                // Each part taller than the screen, so only a scroll shows the one asked for.
+                Text(part.name, Modifier.height(800.dp))
+            }
+        }
+
+        composeRule.onNodeWithText("${context.getString(R.string.settings_section_other_settings)} › $appIcon").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(RootPart.OTHER.name).assertIsDisplayed()
+        composeRule.onNodeWithText(RootPart.ACCOUNT.name).assertDoesNotExist()
     }
 
     @Test
