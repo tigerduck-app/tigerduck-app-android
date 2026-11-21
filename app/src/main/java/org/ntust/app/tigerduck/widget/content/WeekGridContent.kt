@@ -404,13 +404,13 @@ private fun SoloCell(
     val cancelled = change?.isCancelled == true
     // In session, the fill is laid over the widget, so the outline behind it does not show through.
     val session = progress?.let { TileSession(weekCourseAccent(course, courseColors, style), it, blockWidth - 2.dp.scaled) }
-    val cellBg = weekCourseFill(course, false, colors, style, courseColors, cancelled)
-        .let { if (session != null) it.compositeOver(colors.background) else it }
+    val cellBg = weekCourseFill(course, false, colors, style, courseColors, cancelled).let { if (session != null) it.compositeOver(colors.background) else it }
     // A cancelled class steps back, as on the iPhone; it is never in session.
     val textColor = if (cancelled) colors.onSurfaceVariant else weekCourseTextColor(false, colors, style)
     val fontScale = WidgetScale.cappedFontScale(LocalContext.current.resources.configuration.fontScale)
     val widgetScale = LocalWidgetScale.current
-    val nameLinesBeside = { lineCount: Int -> blockNameLines(blockHeight, lineCount, courseNameScale, fontScale, widgetScale) }
+    val textHeight = if (session != null) blockHeight - 6.dp.scaled else blockHeight // Less the outline and the bar.
+    val nameLinesBeside = { lineCount: Int -> blockNameLines(textHeight, lineCount, courseNameScale, fontScale, widgetScale) }
     val lines = weekBlockLinesFor(
         change = change,
         room = room,
@@ -437,7 +437,7 @@ private fun SoloCell(
         // The change goes on the first tile and the last, where they fit it.
         ClassTableGridStyle.PeriodTiles -> {
             val tileHeight = blockHeight / length
-            val nameLines = tileNameLines(tileHeight, courseNameScale, fontScale, widgetScale)
+            val nameLines = tileNameLines(textHeight / length, courseNameScale, fontScale, widgetScale)
             val fits = nameLines >= 2
             GlanceStack(
                 items = List(length) { it },
