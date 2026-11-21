@@ -4,6 +4,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
@@ -54,6 +55,9 @@ class MoodleMemberCourses(
 ) {
     private val feeds = mutableMapOf<Int, MoodleFeed<List<MoodleEnrolledCourse>>>()
 
+    /** Whether the site last said it does not allow the call, which hides a kept copy too; not when it could not be asked. */
+    private val refused = MutableStateFlow(false)
+
     /** Member [memberId]'s courses as last asked, those the account is in too. */
     @Synchronized
     fun feed(memberId: Int): MoodleFeed<List<MoodleEnrolledCourse>> = feeds.getOrPut(memberId) {
@@ -70,8 +74,8 @@ class MoodleMemberCourses(
      * Asks Moodle for member [memberId]'s courses and keeps those the account is enrolled in too:
      * for another user Moodle also lists the courses the account can merely see, such as open
      * ones. Nothing is asked, or kept, on the account's own page, before the members list names
-     * the account, without the account's own courses, or where the site does not allow the call,
-     * so the next open asks again.
+     * the account, without the account's own courses, or where the site does not allow the call
+     * or its functions cannot be read, so the next open asks again.
      */
     suspend fun refresh(memberId: Int) {
         if (!isSomeoneElse(memberId, members.value)) return
@@ -81,7 +85,7 @@ class MoodleMemberCourses(
     }
 
     private suspend fun allowsCall(): Boolean = try {
-        MoodleCourseApi.USERS_COURSES_FUNCTION in api.functions()
+        (MoodleCourseApi.USERS_COURSES_FUNCTION in api.functions()).also { refused.value = !it }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -90,12 +94,12 @@ class MoodleMemberCourses(
 
     /**
      * Member [memberId]'s courses in common, as [MoodleCommonTerm.terms] lists them, again each
-     * time the answer or the class table changes. None on the account's own page, and none
-     * before the members list names the account, not even a kept copy.
+     * time the answer or the class table changes. None on the account's own page, before the
+     * members list names the account, or once the site refuses the call, not even a kept copy.
      */
     fun terms(memberId: Int): Flow<List<MoodleCommonTerm>> =
-        combine(members.state, feed(memberId).state, own.classTableChanges) { list, shared, change ->
-            shared.value?.takeIf { isSomeoneElse(memberId, list.value) } to change
+        combine(members.state, feed(memberId).state, own.classTableChanges, refused) { list, shared, change, refusing ->
+            shared.value?.takeIf { !refusing && isSomeoneElse(memberId, list.value) } to change
         }
             .distinctUntilChanged()
             .map { (shared, _) -> shared?.let { listing(it) }.orEmpty() }

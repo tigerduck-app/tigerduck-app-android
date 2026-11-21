@@ -327,6 +327,24 @@ class MoodleMemberCoursesTest {
     }
 
     @Test
+    fun `a kept copy goes from the page once the site no longer allows the call, and comes back with it`() = runTest(UnconfinedTestDispatcher()) {
+        enrolled = setOf(COURSE_ID, algorithms.id)
+        cache.files["members/${classmate.id}/courses"] = listOf(algorithms) to 1L
+        site.allowed = setOf(MoodleCourseApi.MEMBERS_FUNCTION)
+        val store = store()
+        store.refreshMembers()
+        assertEquals(listOf(30001), store.shown().flatMap { it.courses }.map { it.id })
+
+        store.memberCourses.refresh(classmate.id)
+        assertEquals(emptyList<MoodleCommonTerm>(), store.shown())
+
+        site.allowed = setOf(MoodleCourseApi.MEMBERS_FUNCTION, MoodleCourseApi.USERS_COURSES_FUNCTION)
+        site.shared = listOf(algorithms)
+        store.memberCourses.refresh(classmate.id)
+        assertEquals(listOf(30001), store.shown().flatMap { it.courses }.map { it.id })
+    }
+
+    @Test
     fun `a site whose functions cannot be read is asked nothing, and the page lists nothing`() = runTest(UnconfinedTestDispatcher()) {
         enrolled = setOf(COURSE_ID, algorithms.id)
         site.shared = listOf(algorithms)
@@ -341,6 +359,12 @@ class MoodleMemberCoursesTest {
 
         assertNull(kept())
         assertEquals(emptyList<MoodleCommonTerm>(), failing.terms(classmate.id).first())
+
+        // Offline, a kept copy stays: the site did not say it refuses the call.
+        cache.files["members/${classmate.id}/courses"] = listOf(algorithms) to 1L
+        val offlineAgain = MoodleMemberCourses(COURSE_ID, store.members, offline, MoodleCacheContext("B11399001", cache, { true }), backgroundScope, MoodleOwnCourses({ enrolled }, { emptyList() }))
+        offlineAgain.refresh(classmate.id)
+        assertEquals(listOf(30001), offlineAgain.terms(classmate.id).first().flatMap { it.courses }.map { it.id })
     }
 
     @Test
