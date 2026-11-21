@@ -14,7 +14,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 /**
- * What a `tigerduck://` link opens. [MainActivity] is exported, so any app can
+ * What a `tigerduck://` link opens. [MainActivityHost] is exported, so any app can
  * send one: everything that is not exactly one of the four shapes must come
  * back null.
  */
@@ -120,18 +120,18 @@ class AppLinkTest {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
                 .addCategory(Intent.CATEGORY_BROWSABLE)
             val resolved = packageManager.resolveActivity(intent, 0)
-            assertEquals(link, MainActivity::class.java.name, resolved?.activityInfo?.name)
+            assertEquals(link, MainActivityHost::class.java.name, resolved?.activityInfo?.name)
         }
     }
 
     @Test
-    fun `the app's own tap opens the link in MainActivity`() {
+    fun `the app's own tap opens the link in MainActivityHost`() {
         val context = RuntimeEnvironment.getApplication()
 
         val intent = AppLink.Assignment("31").activityIntent(context)
 
         assertEquals(Intent.ACTION_VIEW, intent.action)
-        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, intent.component?.className)
         assertEquals("tigerduck://assignment/31", intent.dataString)
     }
 }

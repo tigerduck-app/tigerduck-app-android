@@ -148,7 +148,7 @@ class AccountSessionEffectsTest {
 
     @Test
     fun `the state the app starts in is not a sign-in`() {
-        // MainActivity schedules for an account signed in at launch; a launch is not a change.
+        // MainActivityHost schedules for an account signed in at launch; a launch is not a change.
         effects(startSignedIn = true)
 
         assertEquals(emptyList<WorkInfo.State>(), backgroundSync())

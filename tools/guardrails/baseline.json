@@ -5,12 +5,6 @@
     "count": 866
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/MainActivity.kt",
-    "kind": "long-function",
-    "name": "MainActivity.onCreate(Bundle?)",
-    "lines": 193
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt",
     "kind": "long-function",
     "name": "TigerDuckApp.onCreate()",

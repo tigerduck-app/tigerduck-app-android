@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * product page so the user upgrades through Play's normal install UI —
  * matching the iOS coordinator's three-button sheet pattern.
  *
- * The fdroid flavor ships a no-op stub at the same FQN so `MainActivity` in
+ * The fdroid flavor ships a no-op stub at the same FQN so `MainActivityHost` in
  * `main/` can inject and call this regardless of flavor — same pattern as
  * `FcmBootstrap`.
  *

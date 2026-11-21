@@ -130,7 +130,7 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         // The due-soon assignment opens its page and a class opens the class
-        // table, through MainActivity; see LiveActivitySnapshot.link.
+        // table, through MainActivityHost; see LiveActivitySnapshot.link.
         val contentIntent = snapshot.link?.pendingIntent(context) ?: openAppPendingIntent(context)
 
         val visibility = if (preferences.showOnLockScreen) {

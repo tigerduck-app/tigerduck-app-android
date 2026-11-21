@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -43,7 +43,7 @@ class ClassReminderTapTest {
         assertTrue(tap.isActivity)
         assertTrue("a tap target others cannot fill in", tap.isImmutable)
         assertEquals(Intent.ACTION_VIEW, tap.savedIntent.action)
-        assertEquals(MainActivity::class.java.name, tap.savedIntent.component?.className)
+        assertEquals(MainActivityHost::class.java.name, tap.savedIntent.component?.className)
         assertEquals("tigerduck://classtable", tap.savedIntent.dataString)
     }
 

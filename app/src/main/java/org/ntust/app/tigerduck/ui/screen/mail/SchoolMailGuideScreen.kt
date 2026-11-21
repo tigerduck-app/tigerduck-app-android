@@ -39,9 +39,9 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val cs = MaterialTheme.colorScheme
     // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.background/cs.onBackground
-    // below follow the app's own resolved theme (MainActivity's themeMode override -- "dark" or
+    // below follow the app's own resolved theme (MainActivityHost's themeMode override -- "dark" or
     // "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
-    // Compose-observable value MainActivity mirrors that resolved theme into, so the embedded
+    // Compose-observable value MainActivityHost mirrors that resolved theme into, so the embedded
     // page's theme stays in lockstep with the colours passed alongside it instead of just the OS
     // half of the time.
     val isDark = TigerDuckTheme.isDarkMode

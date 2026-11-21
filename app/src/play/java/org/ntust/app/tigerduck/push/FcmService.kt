@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -13,7 +14,7 @@ import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
@@ -140,7 +141,7 @@ class FcmService : FirebaseMessagingService() {
             Intent.ACTION_VIEW,
             "tigerduck://announcement/$id".toUri(),
             this,
-            MainActivity::class.java,
+            MainActivityHost::class.java,
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -188,7 +189,7 @@ class FcmService : FirebaseMessagingService() {
     ) {
         // Encode the id as a single path segment so any URI-reserved char
         // (`?`, `/`, `#`, `&`) in a backend-issued id can't shift query
-        // boundaries and corrupt MainActivity.handleServerPushIntent's parse.
+        // boundaries and corrupt MainActivityHost.handleServerPushIntent's parse.
         // Title / body are carried in full: a prior cap of 256 chars left the
         // notification shade showing more than the in-app AlertDialog, which
         // truncated mid-instruction.
@@ -199,11 +200,11 @@ class FcmService : FirebaseMessagingService() {
             Intent.ACTION_VIEW,
             "tigerduck://server-push/$encoded".toUri(),
             this,
-            MainActivity::class.java,
+            MainActivityHost::class.java,
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            // Stamp the PendingIntent so MainActivity can tell it apart from
-            // an explicit intent crafted by another installed app — MainActivity
+            // Stamp the PendingIntent so MainActivityHost can tell it apart from
+            // an explicit intent crafted by another installed app — MainActivityHost
             // is the exported launcher, so the deep-link path would otherwise
             // accept attacker-chosen title / body.
             putExtra(ServerPushIntentToken.EXTRA_NAME, intentToken.value)
@@ -253,16 +254,10 @@ class FcmService : FirebaseMessagingService() {
     // Checked: areNotificationsEnabled() returns early, which lint does not count.
     @SuppressLint("MissingPermission")
     private fun showReauthNotification(title: String, body: String) {
-        // `tigerduck://home` is not a link the app opens — AppLink.parse takes
-        // only `announcement`, `assignment`, `classtable` and `library` — so
-        // open the launcher entry point rather than mint a URI no one consumes.
-        val intent = packageManager.getLaunchIntentForPackage(packageName)
-            ?: Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         val pendingIntent = PendingIntent.getActivity(
             this,
             REAUTH_NOTIFICATION_ID,
-            intent,
+            reauthIntent(),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val manager = NotificationManagerCompat.from(this)
@@ -296,3 +291,13 @@ class FcmService : FirebaseMessagingService() {
         private const val REAUTH_NOTIFICATION_ID = -1001
     }
 }
+
+/**
+ * The reauth notice's tap. `tigerduck://home` is not a link the app opens (AppLink.parse takes
+ * only `announcement`, `assignment`, `classtable` and `library`), so it opens the app as the
+ * launcher does, at MainActivityHost by name: the launcher's own entry is an app icon's alias
+ * ([org.ntust.app.tigerduck.appicon.LauncherIcons]), which a later pick of another icon turns off.
+ */
+internal fun Context.reauthIntent(): Intent =
+    Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setClass(this, MainActivityHost::class.java)
+        .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)

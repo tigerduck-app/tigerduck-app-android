@@ -164,6 +164,7 @@ the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps th
 | tigerduck_prefs | `alwaysShowPeriodsABC` | device | |
 | tigerduck_prefs | `analyticsEnabled` | device | |
 | tigerduck_prefs | `announcementApiBaseUrlOverride` | device | |
+| tigerduck_prefs | `appIcon` | device | |
 | tigerduck_prefs | `appLanguage` | device | |
 | tigerduck_prefs | `appTextScale` | device | |
 | tigerduck_prefs | `appUiScale` | device | |

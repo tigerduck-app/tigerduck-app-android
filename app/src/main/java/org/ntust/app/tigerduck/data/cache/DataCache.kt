@@ -242,7 +242,7 @@ class DataCache @Inject constructor(
         // objects with null-typed-as-non-null Strings — the first caller that reads `courseNo` /
         // `displayName` NPEs. DataMigration sweeps these files on first injection of AppState, but
         // Application.onCreate launches wearBridge.publish() on Dispatchers.IO and can race ahead of
-        // MainActivity-triggered migration. Guard at every read.
+        // MainActivityHost-triggered migration. Guard at every read.
         val remote = load<List<Course>>(
             type,
             coursesFilename(semester),

@@ -12,7 +12,7 @@ import android.net.Uri
  * anywhere, and `tigerduck://announcement/<id>` is what a bulletin push
  * opens.
  *
- * [MainActivity] is exported, so a link can come from any app. [parse] is the
+ * [MainActivityHost] is exported, so a link can come from any app. [parse] is the
  * one gate: it accepts these four shapes exactly and nothing else. An id is
  * digits only, a link carries no other path, and no link names a URL or a
  * route of its own, so none can send the app anywhere but these screens.
@@ -87,11 +87,11 @@ sealed interface AppLink {
 }
 
 /**
- * The [MainActivity] intent that opens [link], for a notification or a widget
+ * The [MainActivityHost] intent that opens [link], for a notification or a widget
  * of this app's own. Explicit, so nothing else can answer it.
  */
 fun AppLink.activityIntent(context: Context): Intent =
-    Intent(Intent.ACTION_VIEW, uri, context, MainActivity::class.java)
+    Intent(Intent.ACTION_VIEW, uri, context, MainActivityHost::class.java)
         .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
 /**
@@ -112,7 +112,7 @@ fun openAppPendingIntent(context: Context): PendingIntent =
     PendingIntent.getActivity(
         context,
         0,
-        Intent(context, MainActivity::class.java)
+        Intent(context, MainActivityHost::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
