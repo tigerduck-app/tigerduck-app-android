@@ -73,3 +73,32 @@ internal object ClassTableListRows {
         return placement to next?.person?.id
     }
 }
+
+/**
+ * Which way a dragging finger is heading, which the list's edge scroll follows: 1 down, -1 up, 0
+ * until it has gone [slop] either way. It turns once the finger has gone [slop] back, so a finger
+ * resting with a tremble keeps its heading.
+ */
+internal class DragHeading(private val slop: Float) {
+    var heading = 0
+        private set
+    private var pending = 0f
+    private var against = 0f
+
+    fun track(delta: Float) {
+        when {
+            heading == 0 -> {
+                pending += delta
+                if (kotlin.math.abs(pending) > slop) heading = if (pending > 0) 1 else -1
+            }
+            (delta > 0) == (heading > 0) || delta == 0f -> against = 0f
+            else -> {
+                against += kotlin.math.abs(delta)
+                if (against > slop) {
+                    heading = -heading
+                    against = 0f
+                }
+            }
+        }
+    }
+}

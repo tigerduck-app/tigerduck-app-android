@@ -174,6 +174,31 @@ class ClassTableListScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "w400dp-h640dp")
+    fun `a row dragged away from the bottom edge and back to it scrolls the list again`() {
+        val many = (0 until 12).map { person("P$it") } + hua
+        showList(many)
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+        val edge = with(composeRule.density) { 48.dp.toPx() }
+        val low = many.first {
+            val bounds = composeRule.onNodeWithText(it.nickname).fetchSemanticsNode().boundsInRoot
+            bounds.bottom > root.bottom - edge && bounds.center.y < root.bottom - 4f
+        }
+        val handle = composeRule.onNodeWithTag(classTableListHandleTag(low.id), useUnmergedTree = true)
+        val away = with(composeRule.density) { 20.dp.toPx() }
+        handle.performTouchInput {
+            down(center)
+            moveBy(Offset(0f, -away))
+            moveBy(Offset(0f, away))
+        }
+        composeRule.mainClock.advanceTimeBy(6_000)
+        handle.performTouchInput { up() }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf("move ${low.id} to other before null"), done)
+    }
+
+    @Test
     fun `a drag that changes no order saves nothing, and shows the store's latest rows`() {
         var people by mutableStateOf(listOf(ming, wen, hua))
         val actions = ClassTableListActions({}, {}, { id, _, _ -> done += "move $id" })

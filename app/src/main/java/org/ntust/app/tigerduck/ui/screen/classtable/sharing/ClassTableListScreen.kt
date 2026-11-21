@@ -125,8 +125,8 @@ internal fun ClassTableList(
     modifier: Modifier = Modifier,
 ) {
     val scroll = rememberScrollState()
-    val padding = with(LocalDensity.current) { LIST_PADDING.toPx() }
-    val drag = remember { ListDrag(people, actions, scroll, padding) }
+    val density = LocalDensity.current
+    val drag = remember { ListDrag(people, actions, scroll, with(density) { LIST_PADDING.toPx() }, with(density) { 8.dp.toPx() }) }
     SideEffect {
         drag.people = people
         drag.actions = actions
@@ -165,13 +165,15 @@ private interface RowDrag {
 /**
  * The list's rows and the drag of one of them by [offset] from its place, which reorders them on
  * screen and saves the move as it ends. [people] and [actions] are kept the latest the list was
- * given; [padding] is the list's top padding, in pixels.
+ * given; [padding] is the list's top padding and [slop] how far a finger goes before it heads
+ * anywhere, in pixels.
  */
 private class ListDrag(
     var people: List<ImportedPerson>,
     var actions: ClassTableListActions,
     private val scroll: ScrollState,
     private val padding: Float,
+    private val slop: Float,
 ) : RowDrag {
     var rows by mutableStateOf(ClassTableListRows.of(people))
     var dragging by mutableStateOf<String?>(null)
@@ -179,17 +181,17 @@ private class ListDrag(
     var viewportHeight by mutableIntStateOf(0)
     val heights = mutableMapOf<String, Int>()
 
-    /** How far the finger has gone since the drag began, down positive, the edge scroll's cue. */
-    private var travel = 0f
+    /** Which way the finger is heading, the edge scroll's cue. */
+    private var heading = DragHeading(slop)
 
     override fun start(key: String) {
         dragging = key
         offset = 0f
-        travel = 0f
+        heading = DragHeading(slop)
     }
 
     override fun by(delta: Float) {
-        travel += delta
+        heading.track(delta)
         shift(delta)
     }
 
@@ -218,16 +220,16 @@ private class ListDrag(
 
     /**
      * How far to scroll the list this frame: [speed] down while the dragged row's middle is within
-     * [edge] of the list's bottom, up within [edge] of its top, else 0. Only once the finger has
-     * gone [slop] toward that edge, so a row grabbed near an edge stays until dragged to it.
+     * [edge] of the list's bottom, up within [edge] of its top, else 0. Only while the finger heads
+     * toward that edge, so a row grabbed near an edge stays until dragged to it.
      */
-    fun edgeStep(edge: Float, speed: Float, slop: Float): Float {
+    fun edgeStep(edge: Float, speed: Float): Float {
         val index = rows.indexOfFirst { it.key == dragging }.takeIf { it >= 0 } ?: return 0f
         val top = padding + rows.take(index).sumOf { heights[it.key] ?: 0 } - scroll.value + offset
         val middle = top + (heights[rows[index].key] ?: 0) / 2f
         return when {
-            middle > viewportHeight - edge && travel > slop -> speed
-            middle < edge && travel < -slop -> -speed
+            middle > viewportHeight - edge && heading.heading > 0 -> speed
+            middle < edge && heading.heading < 0 -> -speed
             else -> 0f
         }
     }
@@ -256,9 +258,8 @@ private fun DragEdgeScroll(drag: ListDrag) {
         if (drag.dragging == null) return@LaunchedEffect
         val edge = with(density) { 48.dp.toPx() }
         val speed = with(density) { 8.dp.toPx() }
-        val slop = with(density) { 8.dp.toPx() }
         while (true) {
-            val step = drag.edgeStep(edge, speed, slop)
+            val step = drag.edgeStep(edge, speed)
             if (step != 0f) {
                 withFrameNanos { }
                 if (drag.scroll(step)) continue

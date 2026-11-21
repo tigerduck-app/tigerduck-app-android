@@ -94,4 +94,23 @@ class ClassTableListRowsTest {
         assertEquals(names(rows), names(last))
         assertEquals(0f, past, 0f)
     }
+
+    @Test
+    fun `a finger heads the way it went past the slop, keeps it through a tremble, and turns once it goes back`() {
+        val heading = DragHeading(slop = 8f)
+        heading.track(5f)
+        assertEquals(0, heading.heading)
+        heading.track(4f)
+        assertEquals(1, heading.heading)
+
+        heading.track(-3f)
+        heading.track(1f)
+        heading.track(-3f)
+        assertEquals("a tremble", 1, heading.heading)
+
+        heading.track(-40f)
+        assertEquals(-1, heading.heading)
+        heading.track(30f)
+        assertEquals("back toward the bottom, though still above where it began", 1, heading.heading)
+    }
 }
