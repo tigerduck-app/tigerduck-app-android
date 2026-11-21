@@ -12,7 +12,6 @@ object MailRoutes {
     const val MESSAGE = "schoolMail/message/{folder}/{uid}"
     const val COMPOSE = "schoolMail/compose?mode={mode}&folder={folder}&uid={uid}&mailto={mailto}&to={to}&held={held}"
     const val GUIDE = "schoolMail/guide"
-    const val SETTINGS = "schoolMail/settings"
 
     private fun encode(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 

@@ -56,6 +56,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
@@ -66,42 +68,6 @@ import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
 
 internal val SettingRowHeight = 56.dp
 
-/**
- * About section row that swaps a chevron for a spinner while a manual
- * "Check for updates" call is in flight. Disabled while checking so a
- * stuck-finger user can't fire a second concurrent query.
- */
-@Composable
-internal fun CheckForUpdatesRow(isChecking: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable(enabled = !isChecking) { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.settings_check_for_updates),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        if (isChecking) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-            )
-        } else {
-            Icon(
-                Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
 /**
  * Width that fits whichever of "Sign in" / "Sign out" is wider, so the
  * two buttons line up when both are visible (one row logged-in, one not).
@@ -246,7 +212,7 @@ private fun LabelAndValue(
 }
 
 @Composable
-internal fun SettingsRow(label: String, value: String) {
+internal fun SettingsValueRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -270,19 +236,23 @@ internal fun SettingsToggleRow(
     subtitle: String? = null,
     /** Said in place of on/off while the row is disabled, such as why it is. */
     disabledStateDescription: String? = null,
+    /** What the row needs, its gate closed: dimmed with its value, a tap says this ([explainsClosed]). */
+    closedReason: String? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val open = enabled && closedReason == null
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = SettingRowHeight)
             // The whole row is the switch, so TalkBack reads the label and
             // summary with its state and a tap anywhere on it toggles.
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Switch,
-                onValueChange = onCheckedChange,
+            .then(
+                if (closedReason != null) {
+                    Modifier.explainsClosed(closedReason, Role.Switch).semantics { toggleableState = ToggleableState(checked) }
+                } else {
+                    Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+                },
             )
             .then(
                 if (!enabled && disabledStateDescription != null) {
@@ -298,16 +268,14 @@ internal fun SettingsToggleRow(
             Text(
                 label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(
-                    alpha = if (enabled) 1f else ContentAlpha.DISABLED,
-                ),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (open) 1f else ContentAlpha.DISABLED),
             )
             if (subtitle != null) {
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = if (enabled) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
+                        alpha = if (open) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
                     ),
                 )
             }
@@ -316,7 +284,7 @@ internal fun SettingsToggleRow(
             checked = checked,
             // The row handles it; a second target would be read on its own.
             onCheckedChange = null,
-            enabled = enabled,
+            enabled = open,
             colors = tigerDuckSwitchColors(),
         )
     }
@@ -393,16 +361,17 @@ internal fun SettingsPickerRow(
  * user cannot reach yet still reads as something the app has, which is why a
  * row whose destination needs an account (School Mail's notification page)
  * stays on the list signed out. Dimming matches [SettingsToggleRow]'s
- * disabled label, and the row stops being clickable.
+ * disabled label, and the row stops being clickable. [closedReason] dims it too, its tap saying why
+ * ([explainsClosed]).
  */
 @Composable
-internal fun SettingsLinkRow(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun SettingsLinkRow(label: String, enabled: Boolean = true, closedReason: String? = null, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(SettingRowHeight)
             .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable(enabled = enabled) { onClick() }
+            .then(if (closedReason == null) Modifier.clickable(enabled = enabled) { onClick() } else Modifier.explainsClosed(closedReason))
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -411,7 +380,7 @@ internal fun SettingsLinkRow(label: String, enabled: Boolean = true, onClick: ()
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(
-                alpha = if (enabled) 1f else ContentAlpha.DISABLED,
+                alpha = if (enabled && closedReason == null) 1f else ContentAlpha.DISABLED,
             ),
         )
         Icon(
@@ -454,5 +423,20 @@ internal fun SettingsLinkRowWithValue(label: String, value: String, enabled: Boo
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
             modifier = Modifier.size(18.dp)
         )
+    }
+}
+
+/** A row that does something rather than opening a page, such as signing out, in [color] when it is destructive. */
+@Composable
+internal fun SettingsActionRow(label: String, color: Color = Color.Unspecified, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = SettingRowHeight)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = color)
     }
 }

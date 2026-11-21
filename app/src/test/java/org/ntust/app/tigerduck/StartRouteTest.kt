@@ -8,7 +8,9 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.mail.MailRoutes
+import org.ntust.app.tigerduck.ui.component.PageSettings
 import org.ntust.app.tigerduck.ui.navigation.Screen
+import org.ntust.app.tigerduck.ui.navigation.route
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -51,7 +53,7 @@ class StartRouteTest {
             Screen.CloudSync.route,
             Screen.AnnouncementDetail.route(1),
             MailRoutes.compose(org.ntust.app.tigerduck.mail.ComposeMode.NEW),
-            MailRoutes.SETTINGS,
+            PageSettings.MAIL.route,
             "no-such-route",
             "classTable/x",
             "schoolMail/message/INBOX/abc",

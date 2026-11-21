@@ -1,5 +1,5 @@
-// The "School Mail notifications" page, reached from Settings → Notifications
-// rather than from the School Mail settings page. The new-mail toggle, its
+// The "School Mail notifications" page, reached from the first row of School
+// Mail's page of Settings, a page of its own. The new-mail toggle, its
 // hint, the exact-alarm gap warning and the notification diagnostics log were
 // MOVED here out of SchoolMailSettingsScreen, not copied: this is the one
 // place in the app the toggle lives, so there is no second copy to disagree

@@ -548,7 +548,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }
 
     /**
-     * The interface style picked in Settings > Display. TigerDuck until the
+     * The interface style picked in Settings > Appearance. TigerDuck until the
      * user picks another; a stored style this build does not know reads as
      * TigerDuck too. Device-local, as on the iPhone: the settings the backend
      * syncs do not carry it.
