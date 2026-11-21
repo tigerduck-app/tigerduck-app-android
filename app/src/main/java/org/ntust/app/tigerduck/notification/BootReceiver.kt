@@ -14,7 +14,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.util.logSummary
-import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
+import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -30,7 +30,7 @@ class BootReceiver : BroadcastReceiver() {
     lateinit var appPreferences: AppPreferences
 
     @Inject
-    lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
+    lateinit var widgetUpdater: WidgetUpdater
 
     @Inject
     lateinit var liveActivityManager: LiveActivityManager
@@ -52,11 +52,11 @@ class BootReceiver : BroadcastReceiver() {
                             )
                         }
                     }
-                    val courses = dataCache.loadCourses()
                     // AlarmManager alarms don't survive reboot; without this
                     // the widget's class-boundary refresh stays dead until the
-                    // user opens the app or BackgroundSyncWorker fires.
-                    widgetBoundaryScheduler.scheduleForToday(courses)
+                    // user opens the app or BackgroundSyncWorker fires. The
+                    // imported class tables placed widgets show count too.
+                    widgetUpdater.armBoundaries()
 
                     // Same story for the class reminders and the Live
                     // Activity ongoing notification: the refresh re-arms the

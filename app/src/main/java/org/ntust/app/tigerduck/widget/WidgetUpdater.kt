@@ -9,7 +9,9 @@ import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -190,6 +192,26 @@ class WidgetUpdater internal constructor(
         // ACTION_APPWIDGET_UPDATE broadcast too.
         broadcastAppWidgetUpdate()
         boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen), ticking = classWidgetPlaced.get())
+    }
+
+    /**
+     * Arms the next class boundary without redrawing anything, as after a reboot, whose alarms are
+     * gone: from the user's courses and those of the imported tables the placed Today and Week
+     * widgets show.
+     */
+    suspend fun armBoundaries() {
+        val manager = GlanceAppWidgetManager(context)
+        val awm = AppWidgetManager.getInstance(context)
+        val chosen = WIDGETS
+            .filter { (it.factory() as? BaseClassTableWidget)?.showsChosenTable == true }
+            .flatMap { kind -> runCatching { awm.getAppWidgetIds(ComponentName(context, kind.receiver)) }.getOrNull()?.toList().orEmpty() }
+            .mapNotNull { id ->
+                runCatching {
+                    getAppWidgetState(context, PreferencesGlanceStateDefinition, manager.getGlanceIdBy(id))[WidgetClassTable.PersonKey]
+                }.getOrNull()
+            }
+            .toSet()
+        boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen))
     }
 
     /** The current term's courses of the imported people [ids] names; none while no widget shows one. */
