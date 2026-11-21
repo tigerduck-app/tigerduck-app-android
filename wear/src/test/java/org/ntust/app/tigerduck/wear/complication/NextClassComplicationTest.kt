@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.WatchClassChange
 import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
@@ -164,6 +165,21 @@ class NextClassComplicationTest {
         assertEquals(0f, data.value)
         assertEquals(7200f, data.max)
         assertEquals(monday.atTime(14, 20).atZone(TaipeiClock.zone).toInstant(), ai.validity.start)
+    }
+
+    @Test
+    fun `with the debug clock held still the complication holds still too`() {
+        val now = monday.atTime(11, 15)
+        AppClock.setOverride(ClockOverride(now.atZone(TaipeiClock.zone).toInstant().toEpochMilli(), frozen = true, savedAtRealMillis = 0L))
+        try {
+            val timeline = complicationTimeline(context, snapshot(), ComplicationType.RANGED_VALUE, now, tap = null)
+            assertTrue(timeline.timelineEntries.isEmpty())
+            val ring = timeline.defaultComplicationData as RangedValueComplicationData
+            assertNull(ring.dynamicValue)
+            assertEquals(3300f, ring.value)
+        } finally {
+            AppClock.setOverride(null)
+        }
     }
 
     @Test

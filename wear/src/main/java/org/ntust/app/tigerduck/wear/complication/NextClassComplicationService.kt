@@ -79,7 +79,8 @@ class NextClassComplicationService : SuspendingTimelineComplicationDataSourceSer
  * and midnight, when a later day's class becomes tomorrow's or today's. The watch face moves to
  * each entry on its own, so neither the next class nor the one going on waits for an update; the
  * ranged value's progress moves between them ([ClassComplication]). The entries are dated on the
- * real clock the watch face runs on, as the debug clock can move the app's.
+ * real clock the watch face runs on, as the debug clock can move the app's; while it holds the
+ * app's clock still, so does the complication, with no entries.
  */
 internal fun complicationTimeline(
     context: Context,
@@ -89,14 +90,16 @@ internal fun complicationTimeline(
     tap: PendingIntent?,
 ): ComplicationDataTimeline {
     val current = complicationAt(context, snapshot, type, now, tap)
-    // An entry must be of the type the timeline is; with nothing to show now, the next update fills it.
-    if (current is NoDataComplicationData) return ComplicationDataTimeline(current, emptyList())
+    // An entry must be of the type the timeline is; with nothing to show now, the next update fills
+    // it. A debug clock held still holds the app's "now" still, which the real clock wouldn't.
+    if (current is NoDataComplicationData || AppClock.isFrozen()) return ComplicationDataTimeline(current, emptyList())
     val today = now.toLocalDate()
     val midnights = (1L..2L).map { today.plusDays(it).atStartOfDay(TaipeiClock.zone).toInstant() }
     val changes = (snapshot.boundaries(today, now.hour * 60 + now.minute, days = 2) + midnights).distinct().sorted()
     val entries = changes.mapIndexedNotNull { i, at ->
+        val until = changes.getOrElse(i + 1) { at.plus(Duration.ofDays(1)) }
         val start = Instant.ofEpochMilli(AppClock.realTimeFor(at.toEpochMilli()))
-        val end = Instant.ofEpochMilli(AppClock.realTimeFor(changes.getOrElse(i + 1) { at.plus(Duration.ofDays(1)) }.toEpochMilli()))
+        val end = Instant.ofEpochMilli(AppClock.realTimeFor(until.toEpochMilli()))
         if (start >= end) return@mapIndexedNotNull null
         val data = complicationAt(context, snapshot, type, LocalDateTime.ofInstant(at, TaipeiClock.zone), tap)
         TimelineEntry(TimeInterval(start, end), data)
@@ -118,7 +121,8 @@ internal fun complicationAt(
             val start = at.toLocalDate().atStartOfDay(TaipeiClock.zone).plusMinutes(r.startMinute.toLong())
             val seconds = (r.endMinute - r.startMinute) * 60
             val elapsed = Duration.between(start, at.atZone(TaipeiClock.zone)).seconds.toInt().coerceIn(0, seconds)
-            val span = ClassSpan(Instant.ofEpochMilli(AppClock.realTimeFor(start.toInstant().toEpochMilli())), seconds, elapsed)
+            val realStart = Instant.ofEpochMilli(AppClock.realTimeFor(start.toInstant().toEpochMilli()))
+            val span = ClassSpan(realStart.takeUnless { AppClock.isFrozen() }, seconds, elapsed)
             classComplication(
                 context, r.course, r.classroom, r.change?.room != null, r.startMinute, r.endMinute, daysAhead = 0,
                 weekday = r.weekday, shortTitle = "NOW", longTitle = "NOW · ${truncate(r.course.displayName, 7)}", span = span,

@@ -23,8 +23,9 @@ import java.time.Instant
 /**
  * The class going on, for the ranged value's progress: its start on the real clock, which the
  * platform's time runs on, its length, and how much of it had gone at the moment the data is for.
+ * [realStart] is null while the debug clock holds the app's still, when the ring stands too.
  */
-internal class ClassSpan(val realStart: Instant, val seconds: Int, val elapsedSeconds: Int)
+internal class ClassSpan(val realStart: Instant?, val seconds: Int, val elapsedSeconds: Int)
 
 /**
  * What the complication shows of one class at one moment, before it is built for a type, as the
@@ -57,7 +58,8 @@ internal class ClassComplication(
     /**
      * The class going on's progress, from 0 to its length in seconds, as iOS's ring and arc. The
      * platform moves it on its own clock where it can (Wear OS 4 and later), so it doesn't wait
-     * for the next update; elsewhere it stands at [ClassSpan.elapsedSeconds]. A class shown next
+     * for the next update; elsewhere, and while the debug clock is held, it stands at
+     * [ClassSpan.elapsedSeconds]. A class shown next
      * has an empty ring and its start as the title.
      */
     private fun rangedValue(tap: PendingIntent?): RangedValueComplicationData {
@@ -66,20 +68,22 @@ internal class ClassComplication(
         val max = span.seconds.toFloat()
         val standing = RangedValueComplicationData.Builder(span.elapsedSeconds.toFloat(), 0f, max, plain(description))
             .setText(plain(shortText)).setTapAction(tap)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return standing.build()
-        return RangedValueComplicationData.Builder(elapsed(span), span.elapsedSeconds.toFloat(), 0f, max, plain(description))
+        val realStart = span.realStart
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || realStart == null) return standing.build()
+        val moving = elapsed(realStart, span.seconds)
+        return RangedValueComplicationData.Builder(moving, span.elapsedSeconds.toFloat(), 0f, max, plain(description))
             .setText(plain(shortText)).setTapAction(tap)
             .setDynamicValueInvalidationFallback(standing.build())
             .build()
     }
 
-    /** Seconds of [span] gone by the platform's clock, held at its length once it is over. */
+    /** Seconds gone since [realStart] by the platform's clock, held at [seconds] once the class is over. */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private fun elapsed(span: ClassSpan): DynamicFloat {
-        val gone = DynamicInstant.withSecondsPrecision(span.realStart)
+    private fun elapsed(realStart: Instant, seconds: Int): DynamicFloat {
+        val gone = DynamicInstant.withSecondsPrecision(realStart)
             .durationUntil(DynamicInstant.platformTimeWithSecondsPrecision())
             .toIntSeconds()
-        return DynamicInt32.onCondition(gone.gt(span.seconds)).use(span.seconds).elseUse(gone).asFloat()
+        return DynamicInt32.onCondition(gone.gt(seconds)).use(seconds).elseUse(gone).asFloat()
     }
 
     private fun plain(text: String) = PlainComplicationText.Builder(text).build()
@@ -109,8 +113,10 @@ internal fun classComplication(
         shortText = room ?: truncate(name, 7),
         shortTitle = shortTitle,
         longTitle = longTitle,
-        longText = listOfNotNull(room?.let { roomText(it, moved) }, dayCaption(context, daysAhead, weekday, rangeText(startMinute, endMinute)))
-            .joinToString(" · "),
+        longText = listOfNotNull(
+            room?.let { roomText(it, moved) },
+            dayCaption(context, daysAhead, weekday, rangeText(startMinute, endMinute)),
+        ).joinToString(" · "),
         description = "${room ?: name}, $spoken",
         longDescription = listOfNotNull(name, room, spoken).joinToString(", "),
         span = span,
