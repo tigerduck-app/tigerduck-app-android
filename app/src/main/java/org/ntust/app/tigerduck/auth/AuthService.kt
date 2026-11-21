@@ -351,7 +351,7 @@ class AuthService @Inject constructor(
         _loginError.value = null
     }
 
-    private companion object {
+    internal companion object {
         // The service the school sign-in signs in to.
         const val SSO_SERVICE_URL = "https://courseselection.ntust.edu.tw/"
     }

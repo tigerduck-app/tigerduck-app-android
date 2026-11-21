@@ -126,6 +126,7 @@ fun PinMismatchHost(prompts: PinMismatchPrompts) {
         certificates = rows,
         onCancel = prompts::cancel,
         onContinue = prompts::continueToSite,
+        onDismiss = { prompts.dismiss(shown) },
     )
 }
 
@@ -133,7 +134,7 @@ fun PinMismatchHost(prompts: PinMismatchPrompts) {
  * The prompt (A6): a lock-and-warning icon, the title and the message; the host and the leaf's
  * issuer; a details disclosure with the explanation and View certificate, which shows one section
  * per certificate of the validated chain; Cancel and Continue side by side, Continue in the
- * accent colour. Dismissing the sheet is a Cancel.
+ * accent colour. Closing the sheet any other way, by a swipe or Back, answers nothing ([onDismiss]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,10 +144,11 @@ fun PinMismatchSheet(
     certificates: List<PinCertificateRow>,
     onCancel: () -> Unit,
     onContinue: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     var detailsOpen by rememberSaveable(host) { mutableStateOf(false) }
     var certificatesOpen by rememberSaveable(host) { mutableStateOf(false) }
-    DetentSheet(onDismissed = onCancel) {
+    DetentSheet(onDismissed = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()

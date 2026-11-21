@@ -81,6 +81,8 @@ import org.ntust.app.tigerduck.browser.BrowserDownload
 import org.ntust.app.tigerduck.browser.BrowserDownloadPlans
 import org.ntust.app.tigerduck.browser.BrowserDownloads
 import org.ntust.app.tigerduck.browser.BrowserPageScripts
+import org.ntust.app.tigerduck.browser.BrowserRiskAcceptance
+import org.ntust.app.tigerduck.browser.BrowserRiskProfiles
 import org.ntust.app.tigerduck.browser.BrowserRouting
 import org.ntust.app.tigerduck.browser.BrowserSession
 import org.ntust.app.tigerduck.browser.BrowserSettings
@@ -91,11 +93,13 @@ import org.ntust.app.tigerduck.browser.BrowserUpload
 import org.ntust.app.tigerduck.browser.BrowserUserAgent
 import org.ntust.app.tigerduck.browser.BrowserZoom
 import org.ntust.app.tigerduck.browser.CertificateInfo
+import org.ntust.app.tigerduck.browser.CertificateRefusal
 import org.ntust.app.tigerduck.browser.DownloadPlan
 import org.ntust.app.tigerduck.browser.NavigationDecision
 import org.ntust.app.tigerduck.browser.PageSchemeFollow
 import org.ntust.app.tigerduck.browser.UploadSource
 import org.ntust.app.tigerduck.files.FileViewer
+import org.ntust.app.tigerduck.network.tls.PinManager
 import org.ntust.app.tigerduck.ui.AppProcessing
 import org.ntust.app.tigerduck.ui.AppScale
 import org.ntust.app.tigerduck.ui.AppState
@@ -139,8 +143,13 @@ class InAppBrowserActivity : AppCompatActivity() {
     @Inject lateinit var downloads: BrowserDownloads
     @Inject lateinit var signIns: BrowserSignIns
     @Inject lateinit var siteSignIn: BrowserSiteSignIn
+    @Inject lateinit var pinManager: PinManager
 
     private val state = BrowserPageState()
+
+    /** What the student accepted, in a browser opened at risk ([InAppBrowser.openAtRisk]); null in any other. */
+    private var risk: BrowserRiskAcceptance? = null
+    private var riskProfile: String? = null
 
     /** The spinner over the browser while the app signs it in itself; the app's own does not reach this screen. */
     private val processing = AppProcessing()
@@ -227,7 +236,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         anyPage = BuildConfig.DEBUG && intent.getBooleanExtra(InAppBrowser.EXTRA_ANY_PAGE, false)
         val target = InAppBrowser.startPage(intent.getStringExtra(InAppBrowser.EXTRA_URL), anyPage)
-        if (target == null) {
+        if (target == null || !takeOpening(savedInstanceState)) {
             finish()
             return
         }
@@ -259,7 +268,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         // frame, the bars are on screen from the start, over a light page area.
         afterFirstFrame(window.decorView) {
             if (isFinishing || isDestroyed) return@afterFirstFrame
-            webView = createWebView()
+            webView = createWebView() ?: return@afterFirstFrame finish()
             webReady = true
             startPage(target)
         }
@@ -335,6 +344,20 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * A browser opened at risk takes what was accepted and a profile of its own made in this process,
+     * never an earlier one's; any other lets a pin prompt closed unanswered ask again. False to close.
+     */
+    private fun takeOpening(saved: Bundle?): Boolean {
+        val accepted = InAppBrowser.riskAcceptance(intent) ?: return true.also { pinManager.prompts.offerDismissedAgain() }
+        val profiles = BrowserRiskProfiles.shared
+        val profile = saved?.getString(KEY_RISK_PROFILE) ?: profiles.create(BrowserCleanup.of(this)) ?: return false
+        risk = accepted
+        riskProfile = profile
+        state.atRisk = true
+        return profiles.isMadeHere(profile)
+    }
+
     /** The system bars' icons and the window behind Compose, light or [dark] as the bars are. */
     private fun paintWindow(dark: Boolean) {
         val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
@@ -359,6 +382,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             pendingPage
         }
         page?.writeTo(outState)
+        riskProfile?.let { outState.putString(KEY_RISK_PROFILE, it) }
     }
 
     override fun onDestroy() {
@@ -368,8 +392,10 @@ class InAppBrowserActivity : AppCompatActivity() {
         dialogs.cancelAll()
         if (::webView.isInitialized) {
             (webView.parent as? ViewGroup)?.removeView(webView)
+            if (risk != null && isFinishing) webView.clearSslPreferences()
             webView.destroy()
         }
+        riskProfile?.takeIf { isFinishing }?.let { BrowserRiskProfiles.shared.clear(it) } // a later process deletes it
         super.onDestroy()
     }
 
@@ -414,8 +440,17 @@ class InAppBrowserActivity : AppCompatActivity() {
         webView.settings.textZoom = zoom
     }
 
+    /** Opened at risk, [web] goes in its own profile first, or is destroyed: never the app's. Those left before go first. */
+    private fun inOwnProfile(web: WebView): Boolean {
+        BrowserRiskProfiles.shared.sweep(BrowserCleanup.of(this))
+        val profile = riskProfile ?: return true
+        if (runCatching { WebViewCompat.setProfile(web, profile) }.isSuccess) return true
+        web.destroy()
+        return false
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
-    private fun createWebView(): WebView = BrowserWebView(pageTheme).apply {
+    private fun createWebView(): WebView? = BrowserWebView(pageTheme).takeIf(::inOwnProfile)?.apply {
         layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         setBackgroundColor(BrowserColors.webBackground(appearance, pageDark = null))
         settings.apply {
@@ -435,7 +470,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         darkensPages = runCatching { BrowserColors.allowDarkening(settings) }.getOrDefault(false)
         mobileUserAgent = settings.userAgentString
         val web = this
-        CookieManager.getInstance().apply {
+        (if (riskProfile != null) WebViewCompat.getProfile(web).cookieManager else CookieManager.getInstance()).apply {
             setAcceptCookie(true)
             setAcceptThirdPartyCookies(web, false)
         }
@@ -459,8 +494,8 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
     }
 
-    /** Opens [target]: signed in first where its site signs the browser in and no session is kept. */
-    private fun open(target: String) = SchoolSiteCookies.prepare(target, sessionCleared = {
+    /** Opens [target]: signed in first where its site signs the browser in and no session is kept; at risk, as it is. */
+    private fun open(target: String) = if (risk != null) load(target) else SchoolSiteCookies.prepare(target, sessionCleared = {
         signIns.forUrl(target)?.sessionCleared(target)
     }) {
         if (isFinishing || isDestroyed || !BrowserSession.usable ||
@@ -497,7 +532,7 @@ class InAppBrowserActivity : AppCompatActivity() {
      * browser takes it over and the page does not go.
      */
     private fun handleNavigation(url: String, tapped: Boolean): Boolean {
-        val provider = signIns.forUrl(url)
+        val provider = signIns.forUrl(url)?.takeIf { risk == null }
         if (provider != null && provider.isSignInPage(url)) {
             signInFlow.signInPageReached(provider, url, from = state.url)
             return true
@@ -521,7 +556,7 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     private fun onPageStart(url: String) {
         // A navigation shouldOverrideUrlLoading was not asked about (a form's POST): checked here, and stopped.
-        val provider = signIns.forUrl(url)
+        val provider = signIns.forUrl(url)?.takeIf { risk == null }
         if (provider != null && provider.isSignInPage(url)) {
             signInFlow.signInPageReached(provider, url, from = state.url)
             return
@@ -556,8 +591,9 @@ class InAppBrowserActivity : AppCompatActivity() {
         state.url = loads.address(url)
         state.title = webView.title
         state.certificate = webView.certificate?.let(CertificateInfo::of)
-        state.signedIn = signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
-        siteSignIn.pageFinished(webView, url, loadedSession, lifecycleScope)
+        state.signedIn = risk == null && signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
+        // At risk, nothing is filled: the student signs in by hand.
+        if (risk == null) siteSignIn.pageFinished(webView, url, loadedSession, lifecycleScope)
         updateHistory()
         probeTone()
     }
@@ -580,8 +616,8 @@ class InAppBrowserActivity : AppCompatActivity() {
         val host = url.toHttpUrlOrNull()?.host ?: return
         if (host == appliedHost) return
         appliedHost = host
-        val zoom = settings.zoom(host)
-        val desktop = settings.desktopSite(host)
+        val zoom = if (risk == null) settings.zoom(host) else BrowserZoom.DEFAULT
+        val desktop = risk == null && settings.desktopSite(host)
         state.zoom = zoom
         webView.settings.textZoom = zoom
         if (desktop != state.desktopSite) {
@@ -626,7 +662,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         )
         when (plan) {
             // The page's own session: a page from before a clearing, not yet gone, starts nothing.
-            is DownloadPlan.Save -> if (downloads.start(plan, session = loadedSession ?: return) == null) return
+            is DownloadPlan.Save -> if (downloads.start(plan.copy(withCookies = risk == null), session = loadedSession ?: return) == null) return
             DownloadPlan.Refused -> Toast.makeText(this, R.string.browser_download_refused, Toast.LENGTH_SHORT).show()
         }
     }
@@ -786,11 +822,13 @@ class InAppBrowserActivity : AppCompatActivity() {
         override fun zoomOut() = setZoom(BrowserZoom.zoomOut(state.zoom))
         override fun zoomReset() = setZoom(BrowserZoom.DEFAULT)
         private fun setZoom(percent: Int) {
+            if (risk != null) return
             state.zoom = percent
             web?.settings?.textZoom = percent
             state.host?.let { settings.setZoom(it, percent) }
         }
         override fun setDesktopSite(desktop: Boolean) {
+            if (risk != null) return
             state.desktopSite = desktop
             state.host?.let { settings.setDesktopSite(it, desktop) }
             if (web == null) return
@@ -839,6 +877,10 @@ class InAppBrowserActivity : AppCompatActivity() {
         override fun pickUpload(source: UploadSource) = this@InAppBrowserActivity.pickUpload(source)
         override fun cancelUpload() = deliverUpload(null)
         override fun retrySignIn() = signInFlow.retry()
+        override fun acceptRisk() {
+            val refusal = state.riskRefusal ?: return
+            if (InAppBrowser.openAtRisk(this@InAppBrowserActivity, intent, refusal, risk)) finish()
+        }
     }
 
     // ── WebView callbacks ─────────────────────────────────────────────────
@@ -892,14 +934,18 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
 
         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
-            // Never past a bad certificate. This is asked about an image or a script too, and does not say
-            // which; the page's own is told by its address (BrowserLoads.certificateFailed). The one it
-            // cannot tell is a POST's 307/308 redirect, which no callback names before it starts (see
-            // shouldInterceptRequest): refused all the same, it is cancelled without the certificate page.
-            handler.cancel()
+            // Never past a bad certificate, but at risk, for the host and the leaf accepted. This is asked
+            // about an image or a script too, and does not say which; the page's own is told by its address
+            // (BrowserLoads.certificateFailed). The one it cannot tell is a POST's 307/308 redirect, which no
+            // callback names before it starts (see shouldInterceptRequest): refused all the same, it is
+            // cancelled without the certificate page.
             val url = error.url
+            val leaf = runCatching { error.certificate?.x509Certificate?.encoded }.getOrNull()?.let(CertificateRefusal::leafOf)
+            if (risk?.allows(url, leaf) == true) return handler.proceed()
+            handler.cancel()
             val refused = runCatching { error.certificate?.let(CertificateInfo::of) }.getOrNull()
-            if (loads.certificateFailed(url, url?.toHttpUrlOrNull()?.host ?: state.host, refused)) state.loading = false
+            val refusal = if (url != null && leaf != null && InAppBrowser.hasRiskProfiles()) CertificateRefusal(url, leaf) else null
+            if (loads.certificateFailed(url, url?.toHttpUrlOrNull()?.host ?: state.host, refused, refusal)) state.loading = false
         }
 
         override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
@@ -1014,5 +1060,7 @@ class InAppBrowserActivity : AppCompatActivity() {
 
         /** Camera shots for uploads, under the cache; cleared with the browser's data. */
         const val UPLOADS_DIR = "browser_uploads"
+        /** The profile a browser opened at risk loads in, across a recreation. */
+        private const val KEY_RISK_PROFILE = "org.ntust.app.tigerduck.browser.RISK_PROFILE"
     }
 }

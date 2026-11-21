@@ -56,6 +56,7 @@ class PinMismatchSheetTest {
                 certificates = certificateRows(chain.mismatch(), texts, Locale.US),
                 onCancel = { answers += "cancel" },
                 onContinue = { answers += "continue" },
+                onDismiss = { answers += "dismiss" },
             )
         }
     }

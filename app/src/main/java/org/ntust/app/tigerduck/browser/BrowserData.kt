@@ -122,10 +122,23 @@ class BrowserCleanup(context: Context) {
         if (prefs.getLong(KEY_REQUEST, 0) == request) prefs.edit().remove(KEY_PENDING).commit()
     }
 
+    /** Whether a profile a page opened at risk loaded in may be left on disk, for a later process to delete ([BrowserRiskProfiles]). */
+    fun riskProfilesLeft(): Boolean = prefs.getBoolean(KEY_RISK_PROFILES_LEFT, false)
+
+    /** Written to disk before it returns, ahead of the profile it marks. */
+    fun markRiskProfilesLeft() {
+        prefs.edit().putBoolean(KEY_RISK_PROFILES_LEFT, true).commit()
+    }
+
+    fun riskProfilesSwept() {
+        prefs.edit().remove(KEY_RISK_PROFILES_LEFT).apply()
+    }
+
     companion object {
         const val PREFS_FILE = "tigerduck_browser_cleanup"
         private const val KEY_PENDING = "pending"
         private const val KEY_REQUEST = "request"
+        private const val KEY_RISK_PROFILES_LEFT = "risk_profiles_left"
 
         // Every instance's: they share the file.
         private val LOCK = Any()
@@ -208,6 +221,8 @@ class BrowserDataCleaner(
  * cookie (waited for, as the removal is asynchronous), web storage, saved
  * HTTP auth, and the disk cache, which a WebView clears for all of them. On
  * the main thread, as the WebView wants. The mail WebViews keep none of these.
+ * A page opened at risk loads in a profile of its own ([BrowserRiskProfiles]):
+ * all each one made here keeps goes too, and each one left from before.
  */
 class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
     override suspend fun clear(): StorageClearing = withContext(Dispatchers.Main) {
@@ -232,6 +247,14 @@ class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
             Log.w(TAG, "browsing data deletion did not report back yet")
             inTime = false
         }
+        // Each profile a page opened at risk loaded in, and those an earlier process left.
+        val risk = BrowserRiskProfiles.shared
+        val riskData = risk.madeHere().map { name -> startDeletion { done -> risk.clear(name, done) } }
+        risk.sweep(BrowserCleanup.of(context))
+        if (riskData.any { !reportsInTime(it, CLEAR_TIMEOUT_MS) }) {
+            Log.w(TAG, "a profile opened at risk did not report back yet")
+            inTime = false
+        }
         WebStorage.getInstance().deleteAllData()
         WebViewDatabase.getInstance(context).clearHttpAuthUsernamePassword()
         WebView(context.applicationContext).apply {
@@ -245,6 +268,7 @@ class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
             browsingData != null && run {
                 cookieRemoval.await()
                 browsingData.await()
+                riskData.forEach { it.await() }
                 // The flush above may have come before a cookie removal that reported late.
                 withContext(Dispatchers.Main) { cookies.flush() }
                 true

@@ -39,7 +39,9 @@ sealed interface DownloadPlan {
     /**
      * Saves it to the phone's Downloads as [fileName]. [anyPage]: asked for in a browser the
      * caller left unrestricted, whose every hop may go anywhere. [restriction] follows the launch
-     * through redirects, including its first host and any SSO hosts added at opening.
+     * through redirects, including its first host and any SSO hosts added at opening. Without
+     * [withCookies], asked for in a browser opened at risk, it carries none of the browser's cookies
+     * and keeps none.
      */
     data class Save(
         val url: String,
@@ -47,6 +49,7 @@ sealed interface DownloadPlan {
         val mimeType: String,
         val anyPage: Boolean = false,
         val restriction: BrowserAllowlist? = null,
+        val withCookies: Boolean = true,
     ) : DownloadPlan
 
     /** Not saved: off the allowlist, or not an https file the browser can fetch again (`blob:`, `data:`). */
@@ -176,7 +179,8 @@ class BrowserDownloads(
  * and done, inside the download, which the clearing stops and waits for
  * before it removes the browser's cookies. Nor one that leaves the download
  * running (Settings' website data): a cookie is kept only while the session
- * the download began in goes on, and then no more.
+ * the download began in goes on, and then no more. A plan without the
+ * browser's cookies ([DownloadPlan.Save.withCookies]) sends and keeps none.
  * Redirects are followed here, one at a time, so a cookie never goes to a
  * host it is not for and a redirect off the allowlist stops the download.
  * The file is written to MediaStore's Downloads, pending until complete and
@@ -206,12 +210,12 @@ class MediaStoreDownloadTransfer(
             // It carries the browser's cookies, SSO's session among them, which a logout would end.
             if (BrowserRouting.isLogout(url)) throw IOException("download reached a logout")
             val request = Request.Builder().url(url).apply {
-                cookieFor(url)?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }
+                if (plan.withCookies) cookieFor(url)?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }
                 userAgent()?.let { header("User-Agent", it) }
             }.build()
             when (val hop = hop(client.newCall(request), plan, progress)) {
                 is Hop.Redirect -> {
-                    for (cookie in hop.cookies) {
+                    for (cookie in hop.cookies.takeIf { plan.withCookies }.orEmpty()) {
                         // Stopped by a clearing meanwhile: nothing more goes into the browser's cookies.
                         currentCoroutineContext().ensureActive()
                         // Nor after one that let it run: the cookies it cleared stay gone.

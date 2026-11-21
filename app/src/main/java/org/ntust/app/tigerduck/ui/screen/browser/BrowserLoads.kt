@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.browser
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.browser.CertificateInfo
+import org.ntust.app.tigerduck.browser.CertificateRefusal
 
 /**
  * What the browser keeps about its main-frame loads: the page Retry and "Open in browser" name
@@ -89,12 +90,12 @@ internal class BrowserLoads(private val state: BrowserPageState, private val sig
 
     /**
      * The WebView refused [url]'s certificate; true when that was the page's own, which then shows
-     * the certificate error. The WebView asks about an image or a script on the page too: refused
-     * all the same, it leaves the page as it is.
+     * the certificate error, with [refusal] when it may open at risk. The WebView asks about an image
+     * or a script on the page too: refused all the same, it leaves the page as it is.
      */
-    fun certificateFailed(url: String?, host: String?, certificate: CertificateInfo? = null): Boolean {
+    fun certificateFailed(url: String?, host: String?, certificate: CertificateInfo? = null, refusal: CertificateRefusal? = null): Boolean {
         if (url == null || (url != current && url != state.url && url != mainFrameRequest)) return false
-        failed(url, BrowserError.BadCertificate(host, certificate))
+        failed(url, BrowserError.BadCertificate(host, certificate, refusal?.takeIf { it.url == url }))
         return true
     }
 
