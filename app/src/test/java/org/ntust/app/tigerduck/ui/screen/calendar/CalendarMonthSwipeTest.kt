@@ -176,6 +176,23 @@ class CalendarMonthSwipeTest {
     }
 
     @Test
+    fun `Today pressed during a swipe headed for its month keeps the rest quiet`() {
+        show(month(2026, 7))
+        composeRule.mainClock.autoAdvance = false
+
+        pager.performTouchInput { swipeLeft(startX = centerX, endX = left) }
+        frames(1)
+        // Today, when today is in August, while the grid still slides there.
+        displayed = Date.from(LocalDate.of(2026, 8, 15).atStartOfDay(taipei).toInstant())
+        frames(2)
+        composeRule.mainClock.advanceTimeBy(2_000)
+
+        title(2026, 8).assertExists()
+        assertEquals(emptyList<Date>(), changed)
+        assertEquals(emptyList<String>(), announced)
+    }
+
+    @Test
     fun `an arrow's turn a drag takes back leaves the next swipe said`() {
         show(month(2026, 7))
         composeRule.mainClock.autoAdvance = false

@@ -113,7 +113,12 @@ private class MonthTurns(
     fun turn(target: Int) {
         // A button pressed calls off a month still to be said, even when it turns nothing.
         announcement?.cancel()
-        if (target !in 0 until MonthPages.COUNT || target == pager.targetPage) return
+        if (target !in 0 until MonthPages.COUNT) return
+        if (target == pager.targetPage) {
+            // A swipe already headed there: its rest is the button's too, and says nothing.
+            if (pager.isScrollInProgress) turningTo = target
+            return
+        }
         turningTo = target
         val nextDoor = abs(target - pager.targetPage) == 1
         scope.launch {
