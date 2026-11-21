@@ -60,18 +60,18 @@ object WidgetDataLoader {
         // widget say "Please sign in" even though we have cached courses.
         val isLoggedIn = entry.authService().authState.value
         val person = personId?.let { WidgetClassTable.personOf(it, entry.importedClassTables().load().people) }
-        val table = widgetTable(
-            person, entry.dataCache().currentSemesterCode(), courses, isLoggedIn, entry.academicCalendar().quietDays(),
-        )
+        val semester = entry.dataCache().currentSemesterCode()
+        val table = widgetTable(person, semester, courses, isLoggedIn, entry.academicCalendar().quietDays())
+        val now = AppClock.localDateTime()
         val state = state(
             courses = table.courses,
-            now = AppClock.localDateTime(),
+            now = now,
             isLoggedIn = table.isLoggedIn,
             quietDays = table.quietDays,
             changes = entry.courseChangeStore().current(),
             courseNameScale = entry.appPreferences().courseNameScale,
             courseColors = table.courseColors,
-        )
+        ).copy(termWeek = entry.academicCalendar().current().week(of = semester, on = now.toLocalDate()))
         val customCount = courses.count { it.customColorHex != null }
         Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${state.courseColors.size} color assignments")
         courses.filter { it.customColorHex != null }.forEach { c ->
@@ -116,6 +116,7 @@ object WidgetDataLoader {
             courses, minute, ongoing.map { it.course.courseNo }, changes,
         )
         val tomorrowFirst = computeTomorrowFirst(courses, today, quietDays, changes)
+        val upNext = if (quietToday) null else computeUpNext(courses, minute, ongoing.firstOrNull() ?: nextToday, changes)
 
         return WidgetState(
             courses = courses,
@@ -134,8 +135,26 @@ object WidgetDataLoader {
             courseNameScale = courseNameScale,
             today = today,
             courseChanges = changes,
+            upNextBlock = upNext,
         )
     }
+
+    /**
+     * The class after [shown], the one going on at [now] or else the next today: the first other
+     * class today, not cancelled, not over at [shown]'s start, or at [now] while it is on. As iOS
+     * `WidgetTimelineDerivation.upNext`, whose `nowAndNext` this is at that time.
+     */
+    internal fun computeUpNext(courses: List<Course>, now: Instant, shown: CourseBlock?, changes: CourseChanges): CourseBlock? {
+        shown ?: return null
+        val day = now.atZone(TaipeiClock.zone).toLocalDate()
+        val from = parseHm(shown.startTime)?.let { day.atStartOfDay(TaipeiClock.zone).plusMinutes(it.toLong()).toInstant() }
+            ?.takeIf { it.isAfter(now) } ?: now
+        return ClassTimeline.meetings(courses, day, changes)
+            .filter { !it.isCancelled && it.endsAt.isAfter(from) }
+            .map(CourseBlock::of)
+            .firstOrNull { !it.isSameBlock(shown) }
+    }
+
 
     internal data class TomorrowFirst(
         val courseNo: String,

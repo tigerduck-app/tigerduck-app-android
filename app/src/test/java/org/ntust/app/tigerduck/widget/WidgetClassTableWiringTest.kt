@@ -216,8 +216,12 @@ class WidgetClassTableWiringTest {
 
         updater.armBoundaries()
 
-        val alarm = shadowOf(app.getSystemService(AlarmManager::class.java)).scheduledAlarms.single()
-        assertEquals(70.0, (alarm.triggerAtTime - realNow) / 60_000.0, 1.0)
+        val alarms = shadowOf(app.getSystemService(AlarmManager::class.java)).scheduledAlarms
+        val boundary = alarms.single { it.type == AlarmManager.RTC_WAKEUP }
+        assertEquals(70.0, (boundary.triggerAtTime - realNow) / 60_000.0, 1.0)
+        // And the class hours' redraws, a class widget being placed: from 08:00, the hour Ming's class starts in.
+        val tick = alarms.single { it.type == AlarmManager.RTC }
+        assertEquals(60.0, (tick.triggerAtTime - realNow) / 60_000.0, 1.0)
     }
 
     private fun emptyState() = WidgetState(

@@ -52,6 +52,7 @@ import org.ntust.app.tigerduck.widget.receivers.WeekLightWidgetReceiver
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.di.ApplicationScope
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -128,6 +129,8 @@ class WidgetUpdater internal constructor(
         // The imported people the placed Today and Week widgets show, whose
         // classes start and end at boundaries of their own.
         val chosen: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        // Whether any class widget is placed, which the class hours' ticks redraw.
+        val classWidgetPlaced = AtomicBoolean(false)
         val manager = GlanceAppWidgetManager(context)
         val awm = AppWidgetManager.getInstance(context)
         coroutineScope {
@@ -156,6 +159,7 @@ class WidgetUpdater internal constructor(
                         runCatching { manager.getGlanceIdBy(it) }.getOrNull()
                     }
                     if (ids.isEmpty()) return@launch
+                    if (widget is BaseClassTableWidget) classWidgetPlaced.set(true)
                     ids.forEach { id ->
                         runCatching {
                             updateAppWidgetState(context, id) { prefs ->
@@ -187,27 +191,33 @@ class WidgetUpdater internal constructor(
         // Belt-and-suspenders: poke each provider via the system's
         // ACTION_APPWIDGET_UPDATE broadcast too.
         broadcastAppWidgetUpdate()
-        boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen))
+        boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen), ticking = classWidgetPlaced.get())
     }
 
     /**
-     * Arms the next class boundary without redrawing anything, as after a reboot, whose alarms are
-     * gone: from the user's courses and those of the imported tables the placed Today and Week
-     * widgets show.
+     * Arms the next class boundary, and the class hours' redraws while a class widget is placed,
+     * without redrawing or sending anything, as after a reboot, whose alarms are gone, or a class
+     * widget's update ([ClassWidgetReceiver]): from the user's courses and those of the imported
+     * tables the placed Today and Week widgets show.
      */
     suspend fun armBoundaries() {
         val manager = GlanceAppWidgetManager(context)
         val awm = AppWidgetManager.getInstance(context)
-        val chosen = WIDGETS
-            .filter { (it.factory() as? BaseClassTableWidget)?.showsChosenTable == true }
-            .flatMap { kind -> runCatching { awm.getAppWidgetIds(ComponentName(context, kind.receiver)) }.getOrNull()?.toList().orEmpty() }
+        val placed = WIDGETS.mapNotNull { kind ->
+            val widget = kind.factory() as? BaseClassTableWidget ?: return@mapNotNull null
+            widget to (runCatching { awm.getAppWidgetIds(ComponentName(context, kind.receiver)) }.getOrNull()?.toList().orEmpty())
+        }
+        val chosen = placed.filter { it.first.showsChosenTable }.flatMap { it.second }
             .mapNotNull { id ->
                 runCatching {
                     getAppWidgetState(context, PreferencesGlanceStateDefinition, manager.getGlanceIdBy(id))[WidgetClassTable.PersonKey]
                 }.getOrNull()
             }
             .toSet()
-        boundaryScheduler.scheduleForToday(dataCache.loadCourses() + coursesOf(chosen))
+        boundaryScheduler.scheduleForToday(
+            dataCache.loadCourses() + coursesOf(chosen),
+            ticking = placed.any { it.second.isNotEmpty() },
+        )
     }
 
     /** The current term's courses of the imported people [ids] names; none while no widget shows one. */
@@ -225,6 +235,11 @@ class WidgetUpdater internal constructor(
      */
     fun requestUpdate() {
         scope.launch { updateAll() }
+    }
+
+    /** [armBoundaries] on the app's scope, for a class widget's update ([ClassWidgetReceiver]). */
+    fun requestArm() {
+        scope.launch { armBoundaries() }
     }
 
     /**

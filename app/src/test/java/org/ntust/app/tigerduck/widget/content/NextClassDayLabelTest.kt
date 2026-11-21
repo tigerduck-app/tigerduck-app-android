@@ -26,7 +26,7 @@ class NextClassDayLabelTest {
         assertEquals("週一", futureDayLabel(context, todayWeekday = 5, futureWeekday = 1))
         assertEquals(
             "週二 08:10",
-            futureCourseTimeLabel(context, todayWeekday = 7, futureWeekday = 2, startTime = "08:10"),
+            futureCourseTimeLabel(context, todayWeekday = 7, futureWeekday = 2, time = "08:10"),
         )
     }
 
@@ -36,7 +36,7 @@ class NextClassDayLabelTest {
         assertEquals("Mon", futureDayLabel(context, todayWeekday = 5, futureWeekday = 1))
         assertEquals(
             "Tue 08:10",
-            futureCourseTimeLabel(context, todayWeekday = 7, futureWeekday = 2, startTime = "08:10"),
+            futureCourseTimeLabel(context, todayWeekday = 7, futureWeekday = 2, time = "08:10"),
         )
     }
 
@@ -48,11 +48,11 @@ class NextClassDayLabelTest {
         assertEquals("明天", futureDayLabel(context, todayWeekday = 7, futureWeekday = 1))
         assertEquals(
             "明天 08:10",
-            futureCourseTimeLabel(context, todayWeekday = 1, futureWeekday = 2, startTime = "08:10"),
+            futureCourseTimeLabel(context, todayWeekday = 1, futureWeekday = 2, time = "08:10"),
         )
         assertEquals(
             "明天 08:10",
-            futureCourseTimeLabel(context, todayWeekday = 1, futureWeekday = null, startTime = "08:10"),
+            futureCourseTimeLabel(context, todayWeekday = 1, futureWeekday = null, time = "08:10"),
         )
     }
 

@@ -146,7 +146,7 @@ class WidgetCourseChangesDrawTest {
         texts.named("Cancelled")
         assertFalse(texts.named("Moved").isStruckThrough())
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
-        assertEquals(ink, texts.named("13:40–14:10").currentTextColor)
+        assertEquals(ink, texts.named("13:40").currentTextColor)
         assertTrue(texts.none { it.text.toString() == "T1-101" })
     }
 
@@ -155,7 +155,7 @@ class WidgetCourseChangesDrawTest {
         val texts = texts(widget(WidgetLayout.NextClass, state("12:00")))
 
         texts.named("Moved")
-        assertEquals(ink, texts.named("13:40").currentTextColor)
+        assertEquals(ink, texts.named("13:40–14:10").currentTextColor)
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
     }
 
@@ -163,7 +163,7 @@ class WidgetCourseChangesDrawTest {
     fun `the Next class widget marks the changed time of a class in session in ink`() {
         val texts = texts(widget(WidgetLayout.NextClass, state("13:45")))
 
-        assertEquals(ink, texts.named("13:40–14:10  6").currentTextColor)
+        assertEquals(ink, texts.named("13:40–14:10").currentTextColor)
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
     }
 

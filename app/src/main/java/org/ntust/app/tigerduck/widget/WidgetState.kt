@@ -75,6 +75,18 @@ data class WidgetState(
      * [CourseChanges.EMPTY] draws every widget as before the feed.
      */
     val courseChanges: CourseChanges = CourseChanges.EMPTY,
+    /**
+     * The current term's week on [today] ([org.ntust.app.tigerduck.academic.AcademicCalendar.week]),
+     * which the Week grid writes in its corner, as the class table does; null outside the term.
+     */
+    val termWeek: Int? = null,
+    /**
+     * The class after the one the Next Class widget is about today, which it shows below that one
+     * where there is room: the first other class not over at the start of the next one, or now
+     * while one is on. Null with none, and when the widget is about a later day. As iOS
+     * `WidgetTimelineDerivation.upNext`.
+     */
+    val upNextBlock: CourseBlock? = null,
 ) {
     companion object {
         /**
@@ -103,8 +115,12 @@ fun WidgetState.isOngoing(block: CourseBlock): Boolean =
  * on 4 and 6 is one tile in the grid but two blocks in the schedule.
  */
 fun WidgetState.isOngoingTile(course: Course, weekday: Int, tilePeriods: List<String>): Boolean =
-    weekday == currentWeekday && ongoingBlocks.any { block ->
+    ongoingTileProgress(course, weekday, tilePeriods) != null
+
+/** How far through the block in session [isOngoingTile] finds is, 0 to 1; null for a tile not in session. */
+fun WidgetState.ongoingTileProgress(course: Course, weekday: Int, tilePeriods: List<String>): Float? =
+    ongoingBlocks.takeIf { weekday == currentWeekday }?.firstOrNull { block ->
         block.course.courseNo == course.courseNo &&
                 block.weekday == weekday &&
                 block.periods.any { it in tilePeriods }
-    }
+    }?.progress(currentMinuteOfDay)

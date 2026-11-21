@@ -16,6 +16,9 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.semantics.semantics
+import androidx.glance.semantics.contentDescription
+import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxHeight
@@ -85,7 +88,7 @@ fun NextClassContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
     val drawn = nextClassColors(nextClassShownCourse(state), colors, style, state.courseColors)
 
     if (compact) CompactLayout(state, drawn, tapAction)
-    else FullLayout(state, drawn, tapAction)
+    else FullLayout(state, drawn, style, tapAction)
 }
 
 @Composable
@@ -113,7 +116,6 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
 
             ongoing.isNotEmpty() -> {
                 val first = ongoing.first()
-                val endTime = first.endTime
                 Box(
                     modifier = GlanceModifier
                         .accentBackground(colors, WidgetAccentMark.Badge)
@@ -153,17 +155,10 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                             maxLines = 1,
                         )
                     } else {
-                        // "until …  room" is metadata, so it stays at the fixed
-                        // 12.sp regardless of the slider.
+                        // The class's range and room, as the iPhone's small widget shows it, are
+                        // metadata, so they stay at the fixed 12.sp regardless of the slider.
                         MetaLine(
-                            parts = listOf(
-                                MetaPart(
-                                    endTime.takeIf { it.isNotEmpty() }
-                                        ?.let { context.getString(R.string.widget_until_time, it) }.orEmpty(),
-                                    changed = first.endChanged,
-                                ),
-                                roomPart(first),
-                            ),
+                            parts = listOf(MetaPart(timeRange(first), changed = first.timeChanged), roomPart(first)),
                             colors = colors,
                             fontSize = 12.sp.scaled,
                         )
@@ -195,7 +190,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         maxLines = 1,
                     )
                     MetaLine(
-                        parts = listOf(MetaPart(startTime, changed = block.startChanged), roomPart(block)),
+                        parts = listOf(MetaPart(timeRange(block), changed = block.timeChanged), roomPart(block)),
                         colors = colors,
                         fontSize = 12.sp.scaled,
                     )
@@ -209,8 +204,8 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 }
                 val tomorrowPeriodId = state.tomorrowFirstCoursePeriodId
                 val tomorrowBlock = tomorrowFirstBlock(state)
-                // The class's own start, which the school may have moved.
-                val tomorrowStartTime = tomorrowBlock?.startTime
+                // The class's own range, which the school may have moved; else its period's start.
+                val tomorrowTime = tomorrowBlock?.let(::timeRange)
                     ?: tomorrowPeriodId?.let { AppConstants.PeriodTimes.mapping[it]?.first }
                 val tomorrowWeekday = state.tomorrowFirstCourseWeekday
                 Spacer(GlanceModifier.defaultWeight())
@@ -232,17 +227,17 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         ),
                         maxLines = 1,
                     )
-                    if (tomorrowCourse != null && !tomorrowStartTime.isNullOrEmpty()) {
+                    if (tomorrowCourse != null && !tomorrowTime.isNullOrEmpty()) {
                         Text(
                             text = futureCourseTimeLabel(
                                 context = context,
                                 todayWeekday = state.currentWeekday,
                                 futureWeekday = tomorrowWeekday,
-                                startTime = tomorrowStartTime,
+                                time = tomorrowTime,
                             ),
                             style = TextStyle(
                                 color = ColorProvider(
-                                    if (tomorrowBlock?.startChanged == true) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant,
+                                    if (tomorrowBlock?.timeChanged == true) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant,
                                 ),
                                 fontSize = 12.sp.scaled
                             ),
@@ -256,87 +251,94 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
     }
 }
 
+/**
+ * The Next Class widget at its full height, as the iPhone's medium one: the class in session, or
+ * the next with a countdown while it is later today, and below it, where the widget has room, the
+ * class after it ([WidgetState.upNextBlock]).
+ */
 @Composable
-private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Action) {
+private fun FullLayout(state: WidgetState, colors: WidgetColors, style: VisualStylePolicy, tapAction: Action) {
     val context = LocalContext.current
     val ongoing = state.ongoingBlocks
     val heightDp = LocalSize.current.height.value
+    val box = LocalWidgetScale.current.textBox
     // Widget is resizable between 2-cell (~110dp) and 4-cell (~250dp) heights.
     // A midpoint threshold picks the right variant regardless of whether the
     // widget is at its narrow (2-cell wide) or wide (3-cell wide) size.
-    val tall = heightDp >= 180f * LocalWidgetScale.current.textBox
-
+    val tall = heightDp >= 180f * box
+    // The class after it where it fits under the card, as iOS's `ViewThatFits` gives it room.
+    val upNext = state.upNextBlock?.takeIf { heightDp >= 150f * box }
     Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .background(ColorProvider(colors.background))
-            .padding(12.dp.scaled)
-            .clickable(tapAction),
+        modifier = GlanceModifier.fillMaxSize().background(ColorProvider(colors.background)).padding(12.dp.scaled).clickable(tapAction),
     ) {
         when {
-            !state.isLoggedIn -> {
-                Text(
-                    text = context.getString(R.string.widget_sign_in),
-                    style = TextStyle(
-                        color = ColorProvider(colors.onSurfaceVariant),
-                        fontSize = 15.sp.scaled
-                    ),
+            !state.isLoggedIn -> Text(
+                text = context.getString(R.string.widget_sign_in),
+                style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 15.sp.scaled),
+            )
+            ongoing.size >= 2 -> TwoOngoing(ongoing, tall, state, colors)
+            ongoing.size == 1 -> WithUpNext(upNext, state, colors, style) { OngoingCard(ongoing[0], state, colors) }
+            state.nextTodayBlock != null -> WithUpNext(upNext, state, colors, style) {
+                NextCard(
+                    block = state.nextTodayBlock,
+                    label = context.getString(R.string.widget_next_class),
+                    colors = colors,
+                    courseNameScale = state.courseNameScale,
+                    countdown = minutesUntil(state.nextTodayBlock, state.currentMinuteOfDay)
+                        ?.let { countdownLabel(it, context.resources.configuration.locales[0]) },
                 )
             }
-
-            ongoing.size >= 2 && tall -> {
-                // Two stacked full-size ongoing cards, each owning half the
-                // widget height via defaultWeight so the progress bars
-                // naturally fall to the bottom of their halves.
-                Column(modifier = GlanceModifier.defaultWeight()) {
-                    OngoingCard(ongoing[0], state, colors)
-                }
-                Spacer(GlanceModifier.height(12.dp.scaled))
-                Column(modifier = GlanceModifier.defaultWeight()) {
-                    OngoingCard(ongoing[1], state, colors)
-                }
+            // Mirrors iOS `WidgetTimelineDerivation` `.tomorrowFirst` — the next
+            // card under the day's caption (e.g., "Mon") when the picked day isn't
+            // literally tomorrow. The room is that day's first block's.
+            state.tomorrowFirstCourseNo != null -> tomorrowFirstBlock(state)?.let { block ->
+                NextCard(
+                    block = block,
+                    label = futureDayLabel(context, state.currentWeekday, block.weekday),
+                    colors = colors,
+                    courseNameScale = state.courseNameScale,
+                )
             }
-
-            ongoing.size >= 2 -> {
-                // Default 2-cell height: compact mini cards, evenly
-                // distributed so the gap above, between, and below matches.
-                Spacer(GlanceModifier.defaultWeight())
-                OngoingMiniCard(ongoing[0], state, colors)
-                Spacer(GlanceModifier.defaultWeight())
-                OngoingMiniCard(ongoing[1], state, colors)
-                Spacer(GlanceModifier.defaultWeight())
-            }
-
-            ongoing.size == 1 -> OngoingCard(ongoing[0], state, colors)
-
-            state.nextTodayBlock != null -> NextCard(
-                block = state.nextTodayBlock,
-                label = context.getString(R.string.widget_next_class),
-                colors = colors,
-                courseNameScale = state.courseNameScale,
-            )
-
-            state.tomorrowFirstCourseNo != null -> {
-                // Mirrors iOS `WidgetTimelineDerivation` `.tomorrowFirst` —
-                // same card layout as next-today. `computeTomorrowFirst` scans
-                // up to 7 weekdays ahead, so the label switches to the
-                // weekday caption (e.g., "Mon") when the picked day isn't
-                // literally tomorrow (Fri → Mon after a weekend with no
-                // classes). The room is that day's first block's.
-                val block = tomorrowFirstBlock(state)
-                if (block != null) {
-                    NextCard(
-                        block = block,
-                        label = futureDayLabel(context, state.currentWeekday, block.weekday),
-                        colors = colors,
-                        courseNameScale = state.courseNameScale,
-                    )
-                }
-            }
-
             else -> NoMoreClassesCard(colors)
         }
     }
+}
+
+/**
+ * Two classes in session: on a tall widget a full card each, owning half its height so the
+ * progress bars fall to the bottom of their halves; else a mini card each, evenly spaced.
+ */
+@Composable
+private fun ColumnScope.TwoOngoing(ongoing: List<CourseBlock>, tall: Boolean, state: WidgetState, colors: WidgetColors) {
+    if (tall) {
+        Column(modifier = GlanceModifier.defaultWeight()) { OngoingCard(ongoing[0], state, colors) }
+        Spacer(GlanceModifier.height(12.dp.scaled))
+        Column(modifier = GlanceModifier.defaultWeight()) { OngoingCard(ongoing[1], state, colors) }
+    } else {
+        Spacer(GlanceModifier.defaultWeight())
+        OngoingMiniCard(ongoing[0], state, colors)
+        Spacer(GlanceModifier.defaultWeight())
+        OngoingMiniCard(ongoing[1], state, colors)
+        Spacer(GlanceModifier.defaultWeight())
+    }
+}
+
+/** [card], and under it [upNext] where there is one. */
+@Composable
+private fun ColumnScope.WithUpNext(
+    upNext: CourseBlock?,
+    state: WidgetState,
+    colors: WidgetColors,
+    style: VisualStylePolicy,
+    card: @Composable () -> Unit,
+) {
+    if (upNext == null) {
+        card()
+        return
+    }
+    Column(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) { card() }
+    Spacer(GlanceModifier.height(6.dp.scaled))
+    UpNextRow(upNext, state, colors, style)
 }
 
 @Composable
@@ -372,11 +374,12 @@ private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetCo
         )
         Spacer(GlanceModifier.height(3.dp.scaled))
         Text(
-            text = "${block.startTime}–${block.endTime}  ${block.periodRange}",
+            text = timeRange(block),
             style = TextStyle(
                 color = ColorProvider(if (block.timeChanged) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant),
                 fontSize = 13.sp.scaled,
             ),
+            modifier = GlanceModifier.semantics { contentDescription = spokenRange(context, block) },
         )
         RoomLine(block, colors, 13.sp.scaled)
         // Weighted spacer pushes the progress bar to the bottom of whatever
@@ -464,8 +467,8 @@ private fun OngoingMiniCard(block: CourseBlock, state: WidgetState, colors: Widg
  * Renders the next-class card for both "next today" and "tomorrow" cases —
  * iOS pulls these through the same `nextBody`, so the layout is identical and
  * only the label string differs. [block] is the block the card is about, so
- * the start time and room are that block's, not the day's first period's or
- * every room of the day.
+ * its time range and room are that block's, not the day's. Today's carries a
+ * [countdown] to its start beside the label, as the iPhone's medium widget.
  */
 @Composable
 private fun NextCard(
@@ -473,17 +476,24 @@ private fun NextCard(
     label: String,
     colors: WidgetColors,
     courseNameScale: Float,
+    countdown: String? = null,
 ) {
-    val startTime = block.startTime
-
-    Text(
-        text = label,
-        style = TextStyle(
-            color = ColorProvider(colors.onSurfaceVariant),
-            fontSize = 13.sp.scaled,
-            fontWeight = FontWeight.Bold
-        ),
-    )
+    val context = LocalContext.current
+    Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
+        Text(
+            text = label,
+            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp.scaled, fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            modifier = GlanceModifier.defaultWeight(),
+        )
+        if (countdown != null) {
+            Text(
+                text = countdown,
+                style = TextStyle(color = ColorProvider(colors.onSurface), fontSize = 13.sp.scaled, fontWeight = FontWeight.Bold),
+                maxLines = 1,
+            )
+        }
+    }
     Spacer(GlanceModifier.height(5.dp.scaled))
     WidgetCourseName(
         text = block.course.displayName, isAssessment = block.isAssessment, isDark = colors.isDark,
@@ -494,155 +504,15 @@ private fun NextCard(
         ),
         maxLines = 2,
     )
-    if (startTime.isNotEmpty()) {
+    if (block.startTime.isNotEmpty()) {
         Text(
-            text = startTime,
+            text = timeRange(block),
             style = TextStyle(
-                color = ColorProvider(if (block.startChanged) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant),
+                color = ColorProvider(if (block.timeChanged) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant),
                 fontSize = 14.sp.scaled,
             ),
+            modifier = GlanceModifier.semantics { contentDescription = spokenRange(context, block) },
         )
     }
     RoomLine(block, colors, 13.sp.scaled)
-}
-
-/**
- * [block]'s room on a line of its own: after `⇄` in ink where the school moved
- * it, or held it online, as iOS `NextClassView.room`; nothing for no room.
- */
-@Composable
-private fun RoomLine(block: CourseBlock, colors: WidgetColors, fontSize: TextUnit) {
-    if (block.classroom(onlineRoomWord()).isEmpty()) return
-    Text(
-        text = block.roomLabel(onlineRoomWord()),
-        style = TextStyle(
-            color = ColorProvider(if (block.roomChanged) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant),
-            fontSize = fontSize,
-            fontWeight = if (block.roomChanged) FontWeight.Medium else FontWeight.Normal,
-        ),
-        maxLines = 1,
-    )
-}
-
-/** A piece of a one-line detail, such as a time or a room; [changed] when the school changed it. */
-private data class MetaPart(val text: String, val changed: Boolean)
-
-/** [block]'s room as a [MetaPart]. */
-@Composable
-private fun roomPart(block: CourseBlock): MetaPart = MetaPart(block.roomLabel(onlineRoomWord()), changed = block.roomChanged)
-
-/**
- * One line of details. Where nothing changed, one text with its parts two
- * spaces apart, as it has always been drawn; else a row of them, each changed
- * part in the change ink, as Glance draws no spans of color.
- */
-@Composable
-private fun MetaLine(parts: List<MetaPart>, colors: WidgetColors, fontSize: TextUnit) {
-    val shown = parts.filter { it.text.isNotEmpty() }
-    if (shown.none { it.changed }) {
-        Text(
-            text = shown.joinToString("  ") { it.text },
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = fontSize),
-            maxLines = 1,
-        )
-        return
-    }
-    val ink = widgetChangeInk(colors.isDark)
-    Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-        shown.forEachIndexed { index, part ->
-            Text(
-                text = part.text,
-                style = TextStyle(
-                    color = ColorProvider(if (part.changed) ink else colors.onSurfaceVariant),
-                    fontSize = fontSize,
-                    fontWeight = if (part.changed) FontWeight.Medium else FontWeight.Normal,
-                ),
-                maxLines = 1,
-                // The last part takes what is left of the line, and is cut there.
-                modifier = if (index == shown.lastIndex) {
-                    GlanceModifier.defaultWeight().padding(start = if (index > 0) 6.dp.scaled else 0.dp)
-                } else {
-                    GlanceModifier.padding(start = if (index > 0) 6.dp.scaled else 0.dp)
-                },
-            )
-        }
-    }
-}
-
-/**
- * The first block of the next day with a class ([WidgetState.tomorrowFirstCourseNo]
- * on [WidgetState.tomorrowFirstCourseWeekday]), or null when there is none. With
- * [WidgetState.today] known, the class as the school's changes left it on that
- * weekday's date in the next seven days, which starts at the given period.
- */
-internal fun tomorrowFirstBlock(state: WidgetState): CourseBlock? {
-    val course = state.courses.find { it.courseNo == state.tomorrowFirstCourseNo } ?: return null
-    val weekday = state.tomorrowFirstCourseWeekday ?: return null
-    val periodId = state.tomorrowFirstCoursePeriodId ?: return null
-    val today = state.today ?: return CourseBlock.containing(course, weekday, periodId)
-    val day = ClassTableThisWeek.columnDate(weekday, today.plusDays(1))
-    return CourseBlock.on(course, day, state.courseChanges).firstOrNull { it.firstPeriodId == periodId }
-        ?: CourseBlock.containing(course, weekday, periodId)
-}
-
-/**
- * "Tomorrow" only when [futureWeekday] is literally the calendar day after
- * [todayWeekday]; otherwise the weekday's caption. `computeTomorrowFirst`
- * scans up to 7 weekdays ahead, so a Friday-afternoon viewer with no Sat/Sun
- * classes sees Monday's first class — labeling it "Tomorrow" would mislead.
- */
-internal fun futureDayLabel(context: Context, todayWeekday: Int, futureWeekday: Int): String {
-    val literalTomorrow = (todayWeekday % 7) + 1
-    return if (futureWeekday == literalTomorrow) {
-        context.getString(R.string.widget_tomorrow)
-    } else {
-        context.getString(weekdayCaptionRes(futureWeekday))
-    }
-}
-
-internal fun futureCourseTimeLabel(
-    context: Context,
-    todayWeekday: Int,
-    futureWeekday: Int?,
-    startTime: String,
-): String {
-    val literalTomorrow = (todayWeekday % 7) + 1
-    return if (futureWeekday == null || futureWeekday == literalTomorrow) {
-        context.getString(R.string.widget_tomorrow_time, startTime)
-    } else {
-        "${context.getString(weekdayCaptionRes(futureWeekday))} $startTime"
-    }
-}
-
-/**
- * Caption keys, not `weekday_*_short`: in zh-Hant a short name is the bare
- * numeral the Week grid heads its columns with, which alone does not read as
- * a day.
- */
-private fun weekdayCaptionRes(weekday: Int): Int = when (weekday) {
-    1 -> R.string.weekday_mon_caption
-    2 -> R.string.weekday_tue_caption
-    3 -> R.string.weekday_wed_caption
-    4 -> R.string.weekday_thu_caption
-    5 -> R.string.weekday_fri_caption
-    6 -> R.string.weekday_sat_caption
-    else -> R.string.weekday_sun_caption
-}
-
-@Composable
-private fun NoMoreClassesCard(colors: WidgetColors) {
-    val context = LocalContext.current
-    Box(
-        modifier = GlanceModifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = context.getString(R.string.widget_no_more_classes),
-            style = TextStyle(
-                color = ColorProvider(colors.onSurface),
-                fontSize = 16.sp.scaled,
-                fontWeight = FontWeight.Bold,
-            ),
-        )
-    }
 }
