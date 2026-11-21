@@ -154,6 +154,19 @@ class CourseChangeKindsTest {
     }
 
     @Test
+    fun `the changes list keeps the room of a period beside the cards' online class`() {
+        val changes = changes(
+            row(1, "room", periods = listOf("2", "3"), values = mapOf("room" to "TR-313")),
+            row(2, "online", periods = listOf("3")),
+        )
+        val online = slots(changes).single { it.periods == listOf("3") }
+
+        assertEquals("Online", online.room("Online"))
+        assertEquals(listOf("TR-313 · Online"), rows(changes, shown = online))
+        assertEquals("the cards show the room", listOf("Online"), rows(changes, shown = slots(changes).first()))
+    }
+
+    @Test
     fun `the changes list names each online class of a meeting`() {
         val changes = changes(
             row(1, "online", periods = listOf("2"), values = mapOf("note_zh" to "第一節線上", "note_en" to "First period online")),
