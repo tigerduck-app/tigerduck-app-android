@@ -454,7 +454,7 @@ class AppState @Inject constructor(
         displayScaleSetting[scale] = value
     }
 
-    /** The app's display and text sizes as picked, which MainActivity makes itself again at. */
+    /** The app's display and text sizes as picked, which MainActivityHost makes itself again at. */
     val appScale: AppScale get() = displayScaleSetting.app
 
     private var rotationModeState by mutableStateOf(prefs.rotationMode)

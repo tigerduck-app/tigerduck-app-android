@@ -29,7 +29,7 @@ import javax.inject.Singleton
  *
  * The Home and class table view models report their fetches
  * ([classTableLoaded], [loadFailed]), their page's resumes ([calmMoment])
- * and its pauses ([withdraw]); `MainActivity` watches [pending], asks Play
+ * and its pauses ([withdraw]); `MainActivityHost` watches [pending], asks Play
  * for the flow through `InAppReview` and comes back with
  * [launchIfStillCalm] or [refused]. Right before the launch the gate is
  * generic rather than a list of dialogs: the page that offered the moment

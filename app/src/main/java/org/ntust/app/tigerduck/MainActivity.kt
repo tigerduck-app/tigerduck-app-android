@@ -88,8 +88,14 @@ import org.ntust.app.tigerduck.update.WhatsNewRepository
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 import org.ntust.app.tigerduck.debug.PretendMissingApps
 
+/**
+ * The app's one page activity, which hosts every screen. The launcher opens it through the app
+ * icon aliases ([org.ntust.app.tigerduck.appicon.LauncherIcons]), the default one under this
+ * activity's name before the icons, `org.ntust.app.tigerduck.MainActivity`, which this file keeps
+ * too; the app's own intents name this class, never an alias.
+ */
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity() {
+class MainActivityHost : AppCompatActivity() {
 
     @Inject
     lateinit var analyticsLogger: AnalyticsLogger
@@ -253,148 +259,141 @@ class MainActivity : AppCompatActivity() {
         // pages that were on screen.
         resolveWhatsNew(savedInstanceState)
 
-        setContent {
-            // Re-apply orientation whenever the user changes the setting
-            // from within the app — Settings lives inside this Activity, so
-            // onResume never fires on return.
-            LaunchedEffect(appState.rotationMode) { applyRotationPreference() }
-            // A new display or text size, or a reset to the phone's own, takes
-            // a new Activity: the sizes are its configuration.
-            val pickedScale = appState.appScale
-            LaunchedEffect(pickedScale) { if (pickedScale != appScale) recreate() }
+        setContent { AppRoot() }
+    }
 
-            val systemDark = isSystemInDarkTheme()
-            val dark = when (appState.themeMode) {
-                "dark" -> true
-                "light" -> false
-                else -> systemDark
-            }
-            TigerDuckTheme.setDarkMode(dark)
+    /** Every screen, in the theme the settings pick, with the sheets and prompts that open over any of them. */
+    @Composable
+    private fun AppRoot() {
+        // Re-apply orientation whenever the user changes the setting from within the app: Settings
+        // lives inside this Activity, so onResume never fires on return.
+        LaunchedEffect(appState.rotationMode) { applyRotationPreference() }
+        // A new display or text size, or a reset to the phone's own, takes a new Activity: the
+        // sizes are its configuration.
+        val pickedScale = appState.appScale
+        LaunchedEffect(pickedScale) { if (pickedScale != appScale) recreate() }
 
-            TigerDuckAppTheme(
-                darkTheme = dark,
-                accentColor = appState.accentColor(dark),
-                onAccentColor = appState.accentOnColor(dark),
-                accentGradient = appState.accentGradient(dark),
-                useDynamicColor = appState.usesWallpaperColors,
-                visualPreset = appState.visualPreset,
-            ) {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AppNavigation(
-                            appState = appState,
-                            analyticsLogger = analyticsLogger,
-                            widgetStartRoute = widgetStartRoute.value,
-                            onStartRouteConsumed = {
-                                widgetStartRoute.value = null
-                                // Clear the deep-link payload so a later onCreate
-                                // (e.g. after rotation) doesn't re-navigate to the
-                                // route the user already consumed.
-                                intent?.let {
-                                    it.data = null
-                                    it.removeExtra(StartRoute.EXTRA)
-                                    intent = it
-                                }
-                            },
-                        )
+        val systemDark = isSystemInDarkTheme()
+        val dark = when (appState.themeMode) {
+            "dark" -> true
+            "light" -> false
+            else -> systemDark
+        }
+        TigerDuckTheme.setDarkMode(dark)
 
-                        // "An update is available" prompt — three actions:
-                        // Update now (Play Store deep link), Later (7-day
-                        // same-version cooldown), Skip this version
-                        // (indefinite per-version suppression). Mounted at
-                        // app root so a tab swap can't strand it.
-                        UpdatePromptHost(updateChecker)
+        TigerDuckAppTheme(
+            darkTheme = dark,
+            accentColor = appState.accentColor(dark),
+            onAccentColor = appState.accentOnColor(dark),
+            accentGradient = appState.accentGradient(dark),
+            useDynamicColor = appState.usesWallpaperColors,
+            visualPreset = appState.visualPreset,
+        ) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AppNavigation(
+                        appState = appState,
+                        analyticsLogger = analyticsLogger,
+                        widgetStartRoute = widgetStartRoute.value,
+                        onStartRouteConsumed = {
+                            widgetStartRoute.value = null
+                            // Clear the deep-link payload so a later onCreate (e.g. after
+                            // rotation) doesn't re-navigate to the route the user already consumed.
+                            intent?.let {
+                                it.data = null
+                                it.removeExtra(StartRoute.EXTRA)
+                                intent = it
+                            }
+                        },
+                    )
 
-                        // "Your build is too old" — fires on a 410 from our
-                        // backend, which is how the server retires an API
-                        // version. Separate from UpdatePromptHost above:
-                        // that one is an optional nudge while the app still
-                        // works, this one means every backend call is now
-                        // failing and only a new build fixes it.
-                        UpdateRequiredHost()
+                    // "An update is available" prompt — three actions: Update now (Play Store deep
+                    // link), Later (7-day same-version cooldown), Skip this version (indefinite
+                    // per-version suppression). Mounted at app root so a tab swap can't strand it.
+                    UpdatePromptHost(updateChecker)
 
-                        // Held back while the wizard owns the screen — an
-                        // upgrade re-runs it, and a dialog stacked on top of
-                        // page 1 would be the first thing that user sees. The
-                        // state stays set, so it opens the moment the wizard
-                        // is done, which is also the better place for it.
-                        whatsNewFlow.value?.takeIf { !appState.showOnboarding }?.let { flow ->
-                            WhatsNewSheet(
-                                flow = flow,
-                                onDismiss = {
-                                    whatsNewFlow.value = null
-                                    // Record the seen versionCode only now: a
-                                    // sheet dropped by a config-change
-                                    // recreation before this runs is re-shown
-                                    // on the next onCreate (issue #89). Any
-                                    // dismissal counts, from any page.
-                                    recordWhatsNewSeen(
-                                        appPreferences.lastSeenWhatsNewVersionCode,
-                                        BuildConfig.VERSION_CODE,
-                                    )
-                                },
-                            )
-                        }
+                    // "Your build is too old" — fires on a 410 from our backend, which is how the
+                    // server retires an API version. Separate from UpdatePromptHost above: that one
+                    // is an optional nudge while the app still works, this one means every backend
+                    // call is now failing and only a new build fixes it.
+                    UpdateRequiredHost()
 
-                        // First-trigger opt-in prompts (e.g. flip-to-library):
-                        // root-level so the prompt can surface over any tab,
-                        // independent of the nav back stack. A pending one
-                        // waits for What's New and the update prompt to close,
-                        // as on the iPhone, rather than stacking on them, and
-                        // the flip one for the Library page to be left.
-                        val updatePending by updateChecker.pendingUpdate.collectAsStateWithLifecycle()
-                        val pendingPrompt by firstTriggerPromptController.pending.collectAsStateWithLifecycle()
-                        val libraryPageShown by libraryPagePresence.shown.collectAsStateWithLifecycle()
-                        if (firstTriggerPromptMayShow(
-                                whatsNewShowing = whatsNewFlow.value != null,
-                                updatePromptShowing = updatePending != null,
-                                pending = pendingPrompt?.key,
-                                libraryPageShown = libraryPageShown,
-                            )
-                        ) {
-                            FirstTriggerPromptHost(firstTriggerPromptController)
-                        }
-
-                        // The one Play Store rating ask (issue #332), at a
-                        // moment ReviewPrompt picks and, like the prompt
-                        // above, not over another prompt: the root-level
-                        // ones here, AppNavigation's permission warning,
-                        // reset dialog and sign-in sheet, the retired-API
-                        // dialog, and the processing spinner. A dialog a page
-                        // owns is the page's to hold the moment back for.
-                        val popupPending by serverPushPopupCoordinator.pending.collectAsStateWithLifecycle()
-                        val permissionWarning by appState.systemPermissions.warningShowing.collectAsStateWithLifecycle()
-                        val needsReset by appState.needsUserReset.collectAsStateWithLifecycle()
-                        val apiRetired by ApiVersionGate.isRetired.collectAsStateWithLifecycle()
-                        val processingHolds by appProcessing.holds.collectAsStateWithLifecycle()
-                        val pinPrompt by pinManager.prompts.pending.collectAsStateWithLifecycle()
-                        ReviewPromptHost(
-                            reviewPrompt = reviewPrompt,
-                            inAppReview = inAppReview,
-                            otherPromptShowing = whatsNewFlow.value != null || updatePending != null ||
-                                pendingPrompt != null || popupPending != null || permissionWarning ||
-                                needsReset || apiRetired || appState.ntustSignInSheetRequested ||
-                                processingHolds > 0 || pinPrompt != null,
-                        )
-
-                        // Operator-issued popup: rendered over whatever screen
-                        // the user lands on after tapping the notification.
-                        // Coordinator's dedupe set short-circuits replays.
-                        ServerPushPopupHost(serverPushPopupCoordinator)
-
-                        // A school site's certificate stopped matching its pins (TLS pins
-                        // spec, A6): asked here, in the foreground, whichever request met it.
-                        PinMismatchHost(pinManager.prompts)
-
-                        // "Processing… Please don't close the app.": work the
-                        // user waits on, such as the sign-in a Moodle page
-                        // opened in the browser waits for. Last, so it comes
-                        // up over anything above.
-                        AppProcessingHost(appProcessing, questionShowing = pinPrompt != null)
-                    }
+                    WhatsNewHost()
+                    RootPrompts()
                 }
             }
         }
+    }
+
+    /**
+     * What's new. Held back while the wizard owns the screen — an upgrade re-runs it, and a dialog
+     * stacked on top of page 1 would be the first thing that user sees. The state stays set, so it
+     * opens the moment the wizard is done, which is also the better place for it.
+     */
+    @Composable
+    private fun WhatsNewHost() {
+        whatsNewFlow.value?.takeIf { !appState.showOnboarding }?.let { flow ->
+            WhatsNewSheet(
+                flow = flow,
+                onDismiss = {
+                    whatsNewFlow.value = null
+                    // Recorded only now: a sheet a config-change recreation dropped before this is
+                    // shown again by the next onCreate (issue #89). Any dismissal, from any page.
+                    recordWhatsNewSeen(appPreferences.lastSeenWhatsNewVersionCode, BuildConfig.VERSION_CODE)
+                },
+            )
+        }
+    }
+
+    /** The prompts that open over any screen, each when nothing else is asking. */
+    @Composable
+    private fun RootPrompts() {
+        // First-trigger opt-in prompts (e.g. flip-to-library): root-level so the prompt can surface over
+        // any tab, independent of the nav back stack. A pending one waits for What's New and the update
+        // prompt to close, as on the iPhone, and the flip one for the Library page to be left.
+        val updatePending by updateChecker.pendingUpdate.collectAsStateWithLifecycle()
+        val pendingPrompt by firstTriggerPromptController.pending.collectAsStateWithLifecycle()
+        val libraryPageShown by libraryPagePresence.shown.collectAsStateWithLifecycle()
+        if (firstTriggerPromptMayShow(
+                whatsNewShowing = whatsNewFlow.value != null,
+                updatePromptShowing = updatePending != null,
+                pending = pendingPrompt?.key,
+                libraryPageShown = libraryPageShown,
+            )
+        ) {
+            FirstTriggerPromptHost(firstTriggerPromptController)
+        }
+
+        // The one Play Store rating ask (issue #332), at a moment ReviewPrompt picks and, like the
+        // prompt above, not over another prompt: the root-level ones here, AppNavigation's
+        // permission warning, reset dialog and sign-in sheet, the retired-API dialog, and the
+        // processing spinner. A dialog a page owns is the page's to hold the moment back for.
+        val popupPending by serverPushPopupCoordinator.pending.collectAsStateWithLifecycle()
+        val permissionWarning by appState.systemPermissions.warningShowing.collectAsStateWithLifecycle()
+        val needsReset by appState.needsUserReset.collectAsStateWithLifecycle()
+        val apiRetired by ApiVersionGate.isRetired.collectAsStateWithLifecycle()
+        val processingHolds by appProcessing.holds.collectAsStateWithLifecycle()
+        val pinPrompt by pinManager.prompts.pending.collectAsStateWithLifecycle()
+        ReviewPromptHost(
+            reviewPrompt = reviewPrompt,
+            inAppReview = inAppReview,
+            otherPromptShowing = whatsNewFlow.value != null || updatePending != null ||
+                pendingPrompt != null || popupPending != null || permissionWarning ||
+                needsReset || apiRetired || appState.ntustSignInSheetRequested ||
+                processingHolds > 0 || pinPrompt != null,
+        )
+
+        // Operator-issued popup: rendered over whatever screen the user lands on after tapping the
+        // notification. Coordinator's dedupe set short-circuits replays.
+        ServerPushPopupHost(serverPushPopupCoordinator)
+
+        // A school site's certificate stopped matching its pins (TLS pins spec, A6): asked here, in
+        // the foreground, whichever request met it.
+        PinMismatchHost(pinManager.prompts)
+
+        // "Processing… Please don't close the app.": work the user waits on, such as the sign-in a
+        // Moodle page opened in the browser waits for. Last, so it comes up over anything above.
+        AppProcessingHost(appProcessing, questionShowing = pinPrompt != null)
     }
 
     override fun onResume() {
@@ -507,7 +506,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleServerPushIntent(intent: Intent?) {
         val data = intent?.data ?: return
         if (data.scheme != "tigerduck" || data.authority != "server-push") return
-        // MainActivity is exported (it's the launcher), so any installed app
+        // MainActivityHost is exported (links and the launcher's icons open it), so any installed app
         // can fire an explicit intent at this deep-link path. The token is a
         // per-install secret embedded by FcmService into the PendingIntent's
         // extras; an external intent will lack it and is dropped silently.

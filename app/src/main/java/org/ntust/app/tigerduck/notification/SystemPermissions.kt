@@ -173,7 +173,7 @@ class SystemPermissions @Inject constructor(
     }
 
     /**
-     * MainActivity's launch prompt answered. A refusal is [recordDeclined],
+     * MainActivityHost's launch prompt answered. A refusal is [recordDeclined],
      * and the warning popup shows notifications until it is closed — see
      * [dismissRefusalWarnings] — even if they were never on, so the user can
      * reach its 以後不再提醒. The result is delivered before onResume, whose

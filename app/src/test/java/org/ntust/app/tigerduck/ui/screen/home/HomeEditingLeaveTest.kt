@@ -63,6 +63,7 @@ class HomeEditingLeaveTest {
                             onRemoveSection = {},
                             onRemoveWidget = { _, _ -> },
                             onMoveWidget = { _, _, _ -> },
+                            onStep = { null },
                             onAddQuickFeature = {},
                             listState = listState,
                             header = { Text("Good morning") },

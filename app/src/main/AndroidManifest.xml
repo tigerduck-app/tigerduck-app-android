@@ -61,17 +61,15 @@
         android:theme="@style/Theme.TigerDuck"
         android:usesCleartextTraffic="false">
 
+        <!-- The app's one page activity. Its launcher entry is the app icon aliases below, the
+             default of them under the name this activity had before the icons. -->
         <activity
-            android:name="org.ntust.app.tigerduck.MainActivity"
+            android:name="org.ntust.app.tigerduck.MainActivityHost"
             android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.TigerDuck"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
 
@@ -120,6 +118,60 @@
                 <data android:host="share.tigerduck.app" />
             </intent-filter>
         </activity>
+
+        <!-- The launcher's entry for the app, one per app icon Settings offers (AppIcon.kt), of
+             which LauncherIcons keeps exactly one enabled: the default, the build's own icon,
+             unless another is picked. A launcher keeps a home screen icon by its entry's name, so a
+             released name never changes. The default's is MainActivity, the launcher's entry in
+             every build before the icons, so an update leaves the home screen as it was. -->
+        <activity-alias
+            android:name="org.ntust.app.tigerduck.MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity="org.ntust.app.tigerduck.MainActivityHost">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="org.ntust.app.tigerduck.icon.TigerDuck"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tigerduck"
+            android:roundIcon="@mipmap/ic_launcher_tigerduck"
+            android:targetActivity="org.ntust.app.tigerduck.MainActivityHost">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="org.ntust.app.tigerduck.icon.Naihu"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_naihu"
+            android:roundIcon="@mipmap/ic_launcher_naihu"
+            android:targetActivity="org.ntust.app.tigerduck.MainActivityHost">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="org.ntust.app.tigerduck.icon.TigerDuckChristmas"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tigerduck_christmas"
+            android:roundIcon="@mipmap/ic_launcher_tigerduck_christmas"
+            android:targetActivity="org.ntust.app.tigerduck.MainActivityHost">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- The TigerDuck browser (InAppBrowser.open). Not exported: only the app opens it. It keeps
              its WebView through a rotation, a resize and a dark-mode switch, which the page follows

@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config
 
 /**
  * The app's display and text sizes laid over the phone's configuration, as
- * MainActivity applies them, and an AppCompat Activity keeping them.
+ * MainActivityHost applies them, and an AppCompat Activity keeping them.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = "w411dp-h891dp-port-420dpi")
@@ -162,7 +162,7 @@ class AppScaleTest {
     }
 }
 
-/** An AppCompat Activity sized as MainActivity sizes itself. */
+/** An AppCompat Activity sized as MainActivityHost sizes itself. */
 class ScaledActivity : AppCompatActivity() {
 
     var composeDensity: Density? = null

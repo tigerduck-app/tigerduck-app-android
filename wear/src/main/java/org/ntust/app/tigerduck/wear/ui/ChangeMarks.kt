@@ -19,12 +19,16 @@ private const val MOVED_MARK = "⇄"
 /** [room] after the moved mark when the school moved the class there; as it is otherwise. */
 internal fun roomText(room: String, moved: Boolean): String = if (moved) "$MOVED_MARK $room" else room
 
-/** A card's "room · instructor" line, a moved room marked and in [ChangeInk], as the iPhone's `ClassCard`. */
-internal fun classroomLine(room: String, instructor: String, moved: Boolean): AnnotatedString = buildAnnotatedString {
-    if (moved) {
-        withStyle(SpanStyle(color = ChangeInk, fontWeight = FontWeight.SemiBold)) { append(roomText(room, moved = true)) }
-    } else {
-        append(room)
+/**
+ * A Now & Next card's room line, as the iPhone's `ClassCard`: the room alone, bold, in
+ * [courseInk], or marked and in [ChangeInk] when the school moved the class there (an online
+ * class among them, its room "Online"). None for a class with no room.
+ */
+internal fun roomLine(room: String, moved: Boolean, courseInk: Color): AnnotatedString? {
+    if (room.isBlank() && !moved) return null
+    return buildAnnotatedString {
+        withStyle(SpanStyle(color = if (moved) ChangeInk else courseInk, fontWeight = FontWeight.Bold)) {
+            append(roomText(room, moved))
+        }
     }
-    append(" · $instructor")
 }

@@ -4,6 +4,7 @@ import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import java.time.Instant
 import java.time.LocalDate
 
 sealed class NextClassResult {
@@ -26,6 +27,7 @@ sealed class NextClassResult {
     data class NextToday(
         val course: Course,
         val startMinute: Int,
+        val endMinute: Int,
         val weekday: Int,
         /** The periods of the block that starts next. */
         val periods: List<String>,
@@ -40,6 +42,7 @@ sealed class NextClassResult {
         val course: Course,
         val daysAhead: Int,        // 1 = tomorrow
         val startMinute: Int,
+        val endMinute: Int,
         val weekday: Int,
         /** The periods of that day's first block. */
         val periods: List<String>,
@@ -121,7 +124,7 @@ object NextClassResolver {
                 startMinute = ongoing.startMinute,
                 endMinute = ongoing.endMinute,
                 nextToday = nextToday?.let {
-                    NextClassResult.NextToday(it.slot.course, it.startMinute, weekday, it.periods, it.change)
+                    NextClassResult.NextToday(it.slot.course, it.startMinute, it.endMinute, weekday, it.periods, it.change)
                 },
                 weekday = weekday,
                 periods = ongoing.periods,
@@ -130,7 +133,8 @@ object NextClassResolver {
         }
         if (nextToday != null) {
             return NextClassResult.NextToday(
-                nextToday.slot.course, nextToday.startMinute, weekday, nextToday.periods, nextToday.change,
+                nextToday.slot.course, nextToday.startMinute, nextToday.endMinute, weekday, nextToday.periods,
+                nextToday.change,
             )
         }
         // Walk forward up to 7 days.
@@ -139,10 +143,31 @@ object NextClassResolver {
             val day = today.plusDays(offset.toLong())
             val first = classesOn(courses, day, changes, timeline).firstOrNull() ?: continue
             return NextClassResult.NextFuture(
-                first.slot.course, offset, first.startMinute, day.dayOfWeek.value, first.periods, first.change,
+                first.slot.course, offset, first.startMinute, first.endMinute, day.dayOfWeek.value, first.periods,
+                first.change,
             )
         }
         return NextClassResult.Empty
+    }
+
+    /**
+     * The moments after [minuteOfDay] on [today] at which what [resolve] answers changes: the start
+     * and the end of each class on today and the [days] - 1 days after it, as [resolve] has them,
+     * quiet days left out. As iOS `NextClassResolver.boundaries`, for the complication's timeline.
+     */
+    fun boundaries(
+        courses: List<Course>,
+        today: LocalDate,
+        minuteOfDay: Int,
+        days: Int,
+        changes: WatchCourseChanges = WatchCourseChanges.EMPTY,
+        isQuietDay: (daysAhead: Int) -> Boolean = { false },
+    ): List<Instant> {
+        val timeline = changes.toCourseChanges(courses)
+        val now = today.atTime(minuteOfDay / 60, minuteOfDay % 60).atZone(TaipeiClock.zone).toInstant()
+        return (0 until days).filterNot(isQuietDay)
+            .flatMap { ClassTimeline.boundaries(courses, today.plusDays(it.toLong()), timeline) }
+            .filter { it > now }
     }
 
     /**

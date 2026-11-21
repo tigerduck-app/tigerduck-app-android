@@ -1,18 +1,16 @@
 // Home's section machinery: a section browsed, a section arranged (its
-// outline, drag handle and remove button), and the dispatch from a
-// section's type to the composable that renders it.
+// outline, drag handle and remove button; the handle is in HomeEditMoves),
+// and the dispatch from a section's type to the composable that renders it.
 
 package org.ntust.app.tigerduck.ui.screen.home
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -22,13 +20,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -36,7 +32,6 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -90,11 +86,13 @@ internal fun BrowsedSection(
  * and the shape of its rows, so the order reads at a glance and nothing in it loads, updates or
  * takes a tap. The drag handle sits above the header, which never covers it, with the remove
  * button at its end, named for the section. A section of shortcuts keeps its cards, which move
- * and remove on their own.
+ * and remove on their own. TalkBack moves a section among the [shown] ones, and a card in it,
+ * through [onStep].
  */
 @Composable
 internal fun EditableSection(
     section: HomeSection,
+    shown: List<String>,
     isDragging: Boolean,
     dragOffsetY: Float,
     onDragStart: () -> Unit,
@@ -104,6 +102,7 @@ internal fun EditableSection(
     onRemove: () -> Unit,
     onRemoveWidget: (widgetId: String) -> Unit,
     onMoveWidget: (widgetId: String, toIndex: Int) -> Unit,
+    onStep: (LayoutStep) -> HomeSectionLayout.Step?,
     onAddQuickFeature: () -> Unit,
 ) {
     // Material-style elevation ramp for the dragging section — no wiggle.
@@ -114,12 +113,9 @@ internal fun EditableSection(
     val shape = RoundedCornerShape(18.dp)
     val title = homeSectionTitle(section)
     val removeLabel = stringResource(R.string.action_remove)
-    // The drag runs inside pointerInput, which is keyed by the section and
-    // not restarted by the swaps it makes, so it reaches the callbacks
-    // through these: the ones it began with hold the order from before.
-    val currentOnDragStart by rememberUpdatedState(onDragStart)
-    val currentOnDrag by rememberUpdatedState(onDrag)
-    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+    val moves = rememberMoveActions(shown.indexOf(section.id), shown.size) { by ->
+        onStep { HomeSectionLayout.stepSection(it, section.id, by, shown) }
+    }
     // A swap can put a lifted section's place above or below the screen while
     // the drag still draws it under the finger; pinned, the list keeps it
     // composed there, and the drag with it.
@@ -154,22 +150,14 @@ internal fun EditableSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
         ) {
-            // Starts the reorder on first touch-and-move, no long press needed;
-            // the rest of the outline is left to scroll the page.
             SectionDragHandle(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .pointerInput(section.id) {
-                        detectDragGestures(
-                            onDragStart = { currentOnDragStart() },
-                            onDragEnd = { currentOnDragEnd() },
-                            onDragCancel = { currentOnDragEnd() },
-                            onDrag = { change, drag ->
-                                change.consume()
-                                currentOnDrag(drag.y)
-                            },
-                        )
-                    },
+                sectionId = section.id,
+                title = title,
+                moves = moves,
+                onDragStart = onDragStart,
+                onDrag = onDrag,
+                onDragEnd = onDragEnd,
+                modifier = Modifier.align(Alignment.Center),
             )
             Box(
                 modifier = Modifier
@@ -192,7 +180,8 @@ internal fun EditableSection(
                 )
             }
         }
-        SectionHeader(title = title)
+        // The handle above already says the name.
+        SectionHeader(title = title, modifier = Modifier.semantics { hideFromAccessibility() })
         when (section.type) {
             HomeSection.HomeSectionType.TODAY_COURSES -> TimeSliderOutline()
             HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS -> AssignmentsOutline()
@@ -203,6 +192,7 @@ internal fun EditableSection(
                 onOpen = {},
                 onRemove = { onRemoveWidget(it.id) },
                 onMove = onMoveWidget,
+                onStep = { widgetId, by -> onStep { HomeSectionLayout.stepWidget(it, section.id, widgetId, by) } },
                 onAdd = onAddQuickFeature,
             )
         }
@@ -217,33 +207,6 @@ internal fun homeSectionTitle(section: HomeSection): String = when (section.type
     HomeSection.HomeSectionType.TODAY_COURSES -> stringResource(R.string.home_time_slider_title)
     HomeSection.HomeSectionType.CUSTOM -> section.title
     else -> stringResource(section.type.defaultTitleRes)
-}
-
-@Composable
-private fun SectionDragHandle(modifier: Modifier = Modifier) {
-    // The pill is what shows; the 48dp around it is what takes the drag.
-    Box(modifier = modifier.minimumInteractiveComponentSize(), contentAlignment = Alignment.Center) {
-        Row(
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(
-                Icons.Filled.DragHandle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
-            Text(
-                stringResource(R.string.home_section_drag_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
 }
 
 /** The time slider's shape: its course card and its track. Decoration, so TalkBack skips it. */

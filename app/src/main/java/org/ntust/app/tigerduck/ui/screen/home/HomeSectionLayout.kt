@@ -17,7 +17,8 @@
 // a duplicate.
 //
 // Every operation returns the very list it was given when it changes nothing,
-// so HomeViewModel can skip the preferences write on `!==`.
+// so HomeViewModel can skip the preferences write on `===`; a TalkBack step
+// returns null instead.
 //
 // Extracted from HomeViewModel, which only needs to persist what these
 // return.
@@ -28,7 +29,13 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.model.WidgetItem
 
+/** One of [HomeSectionLayout]'s TalkBack steps, made on the layout as it is when the action runs. */
+typealias LayoutStep = (List<HomeSection>) -> HomeSectionLayout.Step?
+
 object HomeSectionLayout {
+
+    /** A TalkBack move's layout, and where the item landed: [position], counted from 1, of [count]. */
+    data class Step(val sections: List<HomeSection>, val position: Int, val count: Int)
 
     fun remove(sections: List<HomeSection>, sectionId: String): List<HomeSection> =
         sections.filter { it.id != sectionId }.renumbered()
@@ -53,6 +60,23 @@ object HomeSectionLayout {
         if (from < 0 || to < 0 || from == to) return sections
         list.add(to, list.removeAt(from))
         return list.renumbered()
+    }
+
+    /**
+     * TalkBack's Move up ([by] -1) or Move down (1) for the section [id], as iOS's
+     * `ReorderDropSupport.step` makes it (tigerduck-app/tigerduck-app#990). Only the sections in
+     * [shown] count, so the neighbor it passes is the one Home draws next to it, read from
+     * [sections] as they are now; the move is a drag's own [move] onto that neighbor, so a hidden
+     * section between the two stays where a drag would leave it.
+     *
+     * Null when nothing moved: [id] is unknown or not shown, or the step would pass either end.
+     */
+    fun stepSection(sections: List<HomeSection>, id: String, by: Int, shown: Collection<String>): Step? {
+        val order = sections.filter { it.id in shown }
+        val from = order.indexOfFirst { it.id == id }
+        val to = from + by
+        if (from < 0 || to == from || to !in order.indices) return null
+        return Step(move(sections, id, order[to].id), position = to + 1, count = order.size)
     }
 
     /**
@@ -145,6 +169,18 @@ object HomeSectionLayout {
         val widgets = section.widgets.toMutableList()
         widgets.add(toIndex, widgets.removeAt(from))
         return sections.map { s -> if (s.id != sectionId) s else s.copy(widgets = widgets) }
+    }
+
+    /**
+     * [stepSection] for the shortcut [widgetId] within section [sectionId], where every card is
+     * shown: the drag's own [moveWidget] to the slot next to it. Null when nothing moved.
+     */
+    fun stepWidget(sections: List<HomeSection>, sectionId: String, widgetId: String, by: Int): Step? {
+        val widgets = sections.firstOrNull { it.id == sectionId }?.widgets ?: return null
+        val from = widgets.indexOfFirst { it.id == widgetId }
+        val to = from + by
+        if (from < 0 || to == from || to !in widgets.indices) return null
+        return Step(moveWidget(sections, sectionId, widgetId, to), position = to + 1, count = widgets.size)
     }
 
     private fun List<HomeSection>.renumbered(): List<HomeSection> =

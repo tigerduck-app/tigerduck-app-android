@@ -15,7 +15,7 @@ import javax.inject.Singleton
  * of updates out-of-band anyway, making an in-app prompt redundant
  * (issue #89).
  *
- * Same FQN as the play-flavor implementation so `MainActivity` in `main/`
+ * Same FQN as the play-flavor implementation so `MainActivityHost` in `main/`
  * can inject and call it regardless of which flavor is being built — same
  * pattern as `FcmBootstrap`. No GMS dependencies, so this compiles on
  * fdroid.

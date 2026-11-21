@@ -43,7 +43,7 @@ import org.ntust.app.tigerduck.widget.content.accentBackground
 
 /**
  * 1x1 home-screen widget that deep-links straight to the library QR page.
- * The tap opens `tigerduck://library`, which MainActivity turns into the
+ * The tap opens `tigerduck://library`, which MainActivityHost turns into the
  * [ROUTE_SENTINEL] route; MainNavigation resolves that to the Library page
  * at launch time.
  */
