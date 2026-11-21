@@ -75,7 +75,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleLogic.kt",
     "kind": "long-file",
-    "count": 635
+    "count": 589
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt",
@@ -210,12 +210,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleService.kt",
     "kind": "long-file",
     "count": 673
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleService.kt",
-    "kind": "long-function",
-    "name": "MoodleService.fetchAssignments(List<MoodleEnrolledCourse>, Set<String>?)",
-    "lines": 87
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleTokenService.kt",
@@ -359,7 +353,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/AppState.kt",
     "kind": "long-file",
-    "count": 751
+    "count": 745
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/AppState.kt",
@@ -371,12 +365,6 @@
     "kind": "long-function",
     "name": "AssignmentItem(Assignment, Modifier, Course?, Boolean, Boolean, Boolean, (()->Unit)?)",
     "lines": 83
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/AssignmentItem.kt",
-    "kind": "long-function",
-    "name": "AssignmentTrailing(Assignment, AssignmentStatus, Boolean, Boolean, Boolean, Long, Alignment.Horizontal)",
-    "lines": 81
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ColorPickerSheet.kt",
@@ -715,7 +703,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/CourseDetailSheetPage.kt",
     "kind": "long-file",
-    "count": 651
+    "count": 616
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/CourseDetailSheetPage.kt",
@@ -799,7 +787,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMembersScreen.kt",
     "kind": "long-file",
-    "count": 495
+    "count": 460
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMembersScreen.kt",

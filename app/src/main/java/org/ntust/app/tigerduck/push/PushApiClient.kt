@@ -262,18 +262,19 @@ class PushApiClient @Inject constructor(
             timeZone = TimeZone.getTimeZone("UTC")
         }
         val items = assignments.sortedBy { it.assignmentId.toIntOrNull() ?: 0 }.map { a ->
-            mapOf(
+            listOfNotNull(
                 "moodle_assignment_id" to (a.assignmentId.toIntOrNull() ?: 0),
                 "course_no" to a.courseNo,
                 "course_name" to a.courseName,
                 "title" to a.title,
                 // The date the student's work is due, a teacher's extension included: what iOS
                 // uploads, and what the backend's own Moodle fetch writes (tigerduck-backend#82).
-                "due_at" to iso8601.format(a.studentDueDate),
+                // Left out with none, which the backend stores as null and its reminders skip.
+                a.studentDueDate?.let { "due_at" to iso8601.format(it) },
                 "moodle_url" to a.moodleUrl,
                 "is_submitted" to a.isCompleted,
                 "grade" to null,
-            )
+            ).toMap()
         }
         val json = gson.toJson(mapOf("assignments" to items))
         // Resolved once, for the fingerprint and the request alike, so the

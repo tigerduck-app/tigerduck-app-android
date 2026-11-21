@@ -64,6 +64,19 @@ class AssignmentUploadDueDateTest {
         )
     }
 
+    @Test
+    fun `an assignment with no due date goes up without one`() = runTest {
+        api.uploadAssignments(
+            listOf(Assignment("7", "CS1", "CS1", "HW1", null), Assignment("8", "CS1", "CS1", "HW2", Date(1_800_000_000_000L))),
+            testSignIn(),
+        )
+
+        val sent = JsonParser.parseString(backend.received("POST /sync/assignments/upload").single().body)
+            .asJsonObject.getAsJsonArray("assignments").map { it.asJsonObject }
+        // Left out, which the backend stores as null and its reminders skip.
+        assertEquals(listOf(false, true), sent.map { it.has("due_at") })
+    }
+
     private companion object {
         const val DAY_MS = 24 * 60 * 60 * 1000L
     }
