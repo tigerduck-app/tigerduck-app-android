@@ -5,23 +5,20 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.ntust.app.tigerduck.R
 
-/** The line under the search field that says a search may have missed mail, and why. */
+/**
+ * The line under the search field that says a search may have missed mail. One run before every
+ * mail was downloaded says so at the end of its results instead (MailListFooterTest).
+ */
 class SearchNoteTest {
 
     @Test
-    fun `a search run before every mail was downloaded may miss older mail`() {
-        assertEquals(R.string.school_mail_search_index_partial, searchNote(searched = true, loadedOnly = false, partial = true))
-    }
-
-    @Test
-    fun `a search that could read only the loaded mail says so, partial or not`() {
-        assertEquals(R.string.school_mail_search_local_only, searchNote(searched = true, loadedOnly = true, partial = true))
-        assertEquals(R.string.school_mail_search_local_only, searchNote(searched = true, loadedOnly = true, partial = false))
+    fun `a search that could read only the loaded mail says so`() {
+        assertEquals(R.string.school_mail_search_local_only, searchNote(searched = true, loadedOnly = true))
     }
 
     @Test
     fun `no search, or one over all the mail, needs no note`() {
-        assertNull(searchNote(searched = false, loadedOnly = false, partial = true))
-        assertNull(searchNote(searched = true, loadedOnly = false, partial = false))
+        assertNull(searchNote(searched = false, loadedOnly = true))
+        assertNull(searchNote(searched = true, loadedOnly = false))
     }
 }

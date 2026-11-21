@@ -122,10 +122,7 @@ class SchoolMailListViewModel @Inject constructor(
         val searchText: String = "",
         val searchResults: List<MailRow>? = null,
         val searchLocalOnly: Boolean = false,
-        /**
-         * The latest search ran before every mail of a folder it searched was downloaded, and may
-         * have missed older mail ([SearchOutcome.Server.complete]): so until the search runs again.
-         */
+        /** The search may have missed mail a folder it searched lacked ([SearchOutcome.Server.complete]), until they are whole. */
         val searchIndexPartial: Boolean = false,
         /** A search under way: one [runSearch] that has not ended, and is still the latest. */
         val isSearching: Boolean = false,
@@ -391,6 +388,8 @@ class SchoolMailListViewModel @Inject constructor(
                     delay(SEARCH_REGROW_MS)
                 }
         }
+        // Kept as the download brings the folders searched whole, though another still downloads (#752).
+        viewModelScope.launch { repository.searchIndexWhole.collect { whole -> _state.update { it.wholeAsOf(whole) } } }
         // A sign-out must not leave the mail on screen for whoever signs in next (spec §7.5), nor
         // may another student signing in over a rejected account act on their mailbox with its UIDs.
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -1354,7 +1353,7 @@ class SchoolMailListViewModel @Inject constructor(
                 searchResults = ordered(selection, rows),
                 searchLocalOnly = outcomes.any { (_, outcome) -> outcome is SearchOutcome.LoadedOnly },
                 searchIndexPartial = outcomes.any { (_, outcome) -> (outcome as? SearchOutcome.Server)?.complete == false },
-            )
+            ).wholeAsOf(repository.searchIndexWhole.value)
             // Run again silently, it fetches no pages of its own: one whose first pages show
             // nothing here, as under unread only, leaves the results on screen as they were, and
             // the rest of them still to fetch.
