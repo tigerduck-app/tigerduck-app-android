@@ -434,6 +434,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = readMoodleOpenIn(prefs)
         set(value) = prefs.edit().putString(MOODLE_OPEN_IN_KEY, value).apply()
 
+    val pinMyselfInCourseMembers = PinMyselfPreference(prefs)
+
     /** One of "system", "dark", "light". */
     var themeMode: String
         get() = prefs.getString("themeMode", "system") ?: "system"
@@ -461,8 +463,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     // Stored name predates the rename from "always show A/B/C" to "always
     // show every period" — keeping it carries the setting over.
-    private val _alwaysShowAllPeriods =
-        MutableStateFlow(prefs.getBoolean("alwaysShowPeriodsABC", false))
+    private val _alwaysShowAllPeriods = MutableStateFlow(prefs.getBoolean("alwaysShowPeriodsABC", false))
 
     /**
      * Observable form of [alwaysShowAllPeriods], for the class table.
@@ -487,8 +488,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             _alwaysShowAllPeriods.value = value
         }
 
-    private val _showClassroomInClassTable =
-        MutableStateFlow(prefs.getBoolean("showClassroomInClassTable", true))
+    private val _showClassroomInClassTable = MutableStateFlow(prefs.getBoolean("showClassroomInClassTable", true))
 
     /**
      * Observable form of [showClassroomInClassTable], for the class table,
@@ -515,8 +515,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         MutableStateFlow(prefs.getBoolean(PIN_TODAY_COURSES_ON_CLASS_TABLE, false))
 
     /** Observable form of [pinTodayCoursesOnClassTable], for the class table. */
-    val pinTodayCoursesOnClassTableFlow: StateFlow<Boolean> =
-        _pinTodayCoursesOnClassTable.asStateFlow()
+    val pinTodayCoursesOnClassTableFlow: StateFlow<Boolean> = _pinTodayCoursesOnClassTable.asStateFlow()
 
     /**
      * Show today's courses above the class table's grid. Off by default, as
@@ -1102,6 +1101,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         _showClassroomInClassTable.value = true
         _pinTodayCoursesOnClassTable.value = false
         _outlineRequiredCourses.value = false
+        pinMyselfInCourseMembers.reload()
         _schoolDataSyncedAtMs.value = 0L
         _librarySyncedAtMs.value = 0L
     }

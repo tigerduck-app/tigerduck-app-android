@@ -87,16 +87,14 @@ fun MoodleMembersScreen(
     MoodleSignedOutEffect(viewModel, onBack)
     var query by rememberSaveable { mutableStateOf("") }
     val current = store
+    val pinsMyself by viewModel.pinMyself.flow.collectAsStateWithLifecycle()
     MoodleListScaffold(
         title = stringResource(R.string.course_detail_members_label),
         onBack = onBack,
         moodlePath = current?.let { MoodlePage.participants(it.courseId) },
+        menuItems = { close -> PinMyselfMenuSwitch(viewModel.pinMyself, close) },
     ) { padding ->
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
+        Box(Modifier.fillMaxSize().padding(padding)) {
             if (current == null) {
                 MoodleFirstLoad(null, {})
             } else {
@@ -105,6 +103,7 @@ fun MoodleMembersScreen(
                     query = query,
                     onQueryChange = { query = it },
                     onOpen = { onOpenRoute(MoodleRoutes.member(current.courseId, it.id)) },
+                    pinsMyself = pinsMyself,
                 )
             }
         }
@@ -118,19 +117,19 @@ internal fun MembersList(
     query: String,
     onQueryChange: (String) -> Unit,
     onOpen: (MoodleMember) -> Unit,
+    pinsMyself: Boolean = false,
 ) {
     val state by store.members.state.collectAsStateWithLifecycle()
     val pictures by store.pictures.collectAsStateWithLifecycle()
     val departmentNames = departmentShortNames()
-    MoodleAutoRefresh(store, store.members.ttlMs, store::awaitCache, { store.members.state.value.fetchedAtMs }) {
-        store.refreshMembers()
-    }
+    MoodleAutoRefresh(store, store.members.ttlMs, store::awaitCache, { store.members.state.value.fetchedAtMs }) { store.refreshMembers() }
     var pulling by remember { mutableStateOf(false) }
     val refresher = rememberRefresher { store.refreshMembers() }
     val scope = rememberCoroutineScope()
     val list = state.value
-    val sections = remember(list, query, departmentNames) {
-        list?.let { MoodleMembers.sections(it.members, query, departmentNames = departmentNames) }.orEmpty()
+    val sections = remember(list, query, departmentNames, pinsMyself) {
+        val pinned = list?.ownId?.takeIf { pinsMyself }
+        list?.let { MoodleMembers.sections(it.members, query, departmentNames = departmentNames, pinned = pinned) }.orEmpty()
     }
 
     // The search row is the list's first item and the list opens on its second, so the row waits

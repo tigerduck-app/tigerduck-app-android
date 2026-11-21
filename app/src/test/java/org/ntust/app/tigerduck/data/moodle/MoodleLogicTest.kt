@@ -136,6 +136,44 @@ class MoodleLogicTest {
         assertEquals("students by ID, one without after", listOf(2, 1, 7), sections[3].members.map { it.id })
     }
 
+    // The pin-myself list of tigerduck-app#1032: two teachers, and the account (42) among three students.
+    private val pinList = listOf(
+        member(5, "Zed Teacher", "editingteacher"),
+        member(6, "Amy Teacher", "editingteacher"),
+        member(43, "B11399001 @ Duck One", "student", idNumber = "B11399001"),
+        member(42, "B11399005 @ Tiger Duck", "student", idNumber = "B11399005"),
+        member(44, "B11399009 @ Duck Nine", "student", idNumber = "B11399009"),
+    )
+
+    private fun pinnedIds(query: String = "", pinned: Int?, members: List<MoodleMember> = pinList) =
+        MoodleMembers.sections(members, query, Locale.ENGLISH, pinned = pinned).map { section -> section.members.map { it.id } }
+
+    @Test
+    fun `pinned, the account's own row comes first in its section and only there`() {
+        assertEquals(listOf(listOf(6, 5), listOf(42, 43, 44)), pinnedIds(pinned = 42))
+        assertEquals(listOf(listOf(6, 5), listOf(43, 42, 44)), pinnedIds(pinned = null))
+    }
+
+    @Test
+    fun `a search keeps the account's row first while it matches`() {
+        assertEquals(listOf(listOf(42, 43, 44)), pinnedIds("duck", pinned = 42))
+        assertEquals(listOf(listOf(43, 42, 44)), pinnedIds("duck", pinned = null))
+        assertEquals(listOf(listOf(44)), pinnedIds("nine", pinned = 42))
+    }
+
+    @Test
+    fun `an own id not on the list moves nothing`() {
+        assertEquals(listOf(listOf(6, 5), listOf(43, 42, 44)), pinnedIds(pinned = 99))
+    }
+
+    @Test
+    fun `an account listed with the assistants comes first among them`() {
+        val members = pinList.map { if (it.id == 42) member(42, "Tiger Duck", "teacher") else it } + member(7, "Amy Assistant", "teacher")
+
+        assertEquals(listOf(listOf(6, 5), listOf(42, 7), listOf(43, 44)), pinnedIds(pinned = 42, members = members))
+        assertEquals(listOf(listOf(6, 5), listOf(7, 42), listOf(43, 44)), pinnedIds(pinned = null, members = members))
+    }
+
     @Test
     fun `the search matches name, student ID or the department name the row shows`() {
         val members = listOf(
