@@ -24,8 +24,8 @@ object MoodleFileLine {
         TAR_LABELS.firstOrNull { (ending, _) -> lowered.endsWith(ending) }?.let { return it.second }
         val name = fileName.substringAfterLast('/')
         val dot = name.lastIndexOf('.')
-        // A leading dot starts a hidden file's name, not an extension.
-        if (dot <= 0) return null
+        // Leading dots start a hidden file's name, not an extension, as `pathExtension` reads them.
+        if (name.take(dot.coerceAtLeast(0)).all { it == '.' }) return null
         val extension = name.substring(dot + 1)
         if (!TYPE.matches(extension) || extension.none { it.isLetter() }) return null
         return extension.uppercase(Locale.ROOT)

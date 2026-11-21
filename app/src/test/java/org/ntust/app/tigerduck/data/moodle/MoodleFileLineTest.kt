@@ -35,7 +35,7 @@ class MoodleFileLineTest {
     fun `a name without an extension of one to five ASCII letters or digits, one of them a letter, has no type`() {
         for (name in listOf(
             "Makefile", "file.", "notes.markdown", ".bashrc", "slides.pdf?forcedownload=1", "report.ｐｄｆ", "",
-            "Chapter 1.2", "lab4.001",
+            "Chapter 1.2", "lab4.001", "..pdf", "...pdf",
         )) {
             assertEquals(name, null, MoodleFileLine.typeLabel(name))
         }
