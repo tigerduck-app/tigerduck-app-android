@@ -111,6 +111,17 @@ class CourseChangeKindsTest {
         assertEquals("TR-313", morningClass.room("Online"))
         assertNull(morningClass.online)
         assertTrue(morningClass.hasChangedRoom)
+        assertEquals("the list says the room alone", listOf("TR-313"), rows(changes))
+    }
+
+    @Test
+    fun `the changes list names each online class of a meeting`() {
+        val changes = changes(
+            row(1, "online", periods = listOf("2"), values = mapOf("note_zh" to "第一節線上", "note_en" to "First period online")),
+            row(2, "online", periods = listOf("4"), values = mapOf("note_zh" to "第三節線上", "note_en" to "Third period online")),
+        )
+
+        assertEquals("in period order", listOf("Online · First period online · Online · Third period online"), rows(changes))
     }
 
     @Test

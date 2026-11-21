@@ -63,8 +63,12 @@ data class ClassSlot(
     /** The class's assessment, which marks its course name; none for a cancelled class, as on iOS. */
     val assessment: CourseChange? get() = if (isCancelled) null else changes.firstOrNull { it.kind == Kind.ASSESSMENT }
 
-    /** The change that holds the class online, which shows in place of its room; none where a newer room change wins. */
-    val online: CourseChange? get() = periods.firstNotNullOfOrNull { period -> placeChange(changes, period)?.takeIf { it.kind == Kind.ONLINE } }
+    /** The changes that hold the class online, in period order: not one a newer room change overrides. */
+    val onlineChanges: List<CourseChange>
+        get() = periods.mapNotNull { period -> placeChange(changes, period)?.takeIf { it.kind == Kind.ONLINE } }.distinct()
+
+    /** The change that holds the class online, which shows in place of its room. */
+    val online: CourseChange? get() = onlineChanges.firstOrNull()
 
     /** Whether the school moved the class to another room or online. */
     val hasChangedRoom: Boolean get() = changes.any { it.kind == Kind.ROOM || it.kind == Kind.ONLINE }

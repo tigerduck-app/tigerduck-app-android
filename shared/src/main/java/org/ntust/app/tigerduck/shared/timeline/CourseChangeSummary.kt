@@ -82,8 +82,8 @@ object CourseChangeSummary {
             meeting.movedRooms(online = null).takeIf { it.isNotEmpty() }?.let { parts += it.joinToString(", ") }
             if (meeting.hasChangedTime) parts += "${hm(meeting.start)} - ${hm(meeting.end)}"
         }
-        val held = meetings.filter { !it.isCancelled }.flatMap { it.changes }
-        parts += (held.filter { it.kind == CourseChange.Kind.ASSESSMENT } + held.filter { it.kind == CourseChange.Kind.ONLINE } +
+        val held = meetings.filter { !it.isCancelled }
+        parts += (held.flatMap { it.changes }.filter { it.kind == CourseChange.Kind.ASSESSMENT } + held.flatMap { it.onlineChanges } +
             meetings.flatMap { it.notes })
             .distinctBy { it.id }
             .mapNotNull { listed(it, words, locale) }
