@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
@@ -145,6 +146,50 @@ class ClassTableListScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(listOf("move p0 to other before null"), done)
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h640dp")
+    fun `a row grabbed near the bottom edge does not scroll the list until it is dragged toward it`() {
+        val many = (0 until 12).map { person("P$it") } + hua
+        showList(many)
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+        // The first row in the edge's reach whose handle is on screen to grab.
+        val edge = with(composeRule.density) { 48.dp.toPx() }
+        val low = many.first {
+            val bounds = composeRule.onNodeWithText(it.nickname).fetchSemanticsNode().boundsInRoot
+            bounds.bottom > root.bottom - edge && bounds.center.y < root.bottom - 4f
+        }
+        val handle = composeRule.onNodeWithTag(classTableListHandleTag(low.id), useUnmergedTree = true)
+        handle.performTouchInput {
+            down(center)
+            // Past the touch slop, away from the edge, short of the row above's half.
+            moveBy(Offset(0f, -with(composeRule.density) { 20.dp.toPx() }))
+        }
+        composeRule.mainClock.advanceTimeBy(3_000)
+        handle.performTouchInput { up() }
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<String>(), done)
+    }
+
+    @Test
+    fun `a drag that changes no order saves nothing, and shows the store's latest rows`() {
+        var people by mutableStateOf(listOf(ming, wen, hua))
+        val actions = ClassTableListActions({}, {}, { id, _, _ -> done += "move $id" })
+        composeRule.setContent { MaterialTheme { ClassTableList(people, "B11300000", actions) } }
+        val handle = composeRule.onNodeWithTag(classTableListHandleTag("wen"), useUnmergedTree = true)
+        handle.performTouchInput {
+            down(center)
+            moveBy(Offset(0f, 20f))
+        }
+        people = listOf(ming.copy(nickname = "Xiao Ming"), wen, hua)
+        composeRule.waitForIdle()
+        handle.performTouchInput { up() }
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<String>(), done)
+        composeRule.onNodeWithText("Xiao Ming").assertExists()
     }
 
     @Test

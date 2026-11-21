@@ -81,6 +81,17 @@ class ClassTableListRowsTest {
 
         val (up, back) = ClassTableListRows.dragged(rows, "Wen", -200f, ::height)
         assertEquals(names(rows.toMutableList().apply { add(2, removeAt(3)) }), names(up))
-        assertEquals(-144f, back, 0f)
+        assertEquals("held at the user, at most half over it", -28f, back, 0f)
+    }
+
+    @Test
+    fun `a row that can't go further stays within half a row of its place, and at the end at its place`() {
+        val (blocked, over) = ClassTableListRows.dragged(rows, "Ming", -200f, ::height)
+        assertEquals(names(rows), names(blocked))
+        assertEquals(-28f, over, 0f)
+
+        val (last, past) = ClassTableListRows.dragged(rows, "Hua", 300f, ::height)
+        assertEquals(names(rows), names(last))
+        assertEquals(0f, past, 0f)
     }
 }

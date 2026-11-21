@@ -48,7 +48,8 @@ internal object ClassTableListRows {
      * [rows] after the person [key] was dragged [offset] from its place, with what is left of the
      * offset: it passes each row it has gone more than half of, [heightOf] giving that row's, in
      * the offset's direction only. A row passed at exactly half would leave the other half, which
-     * passed back the other way would swap the two rows for ever.
+     * passed back the other way would swap the two rows for ever. A row that can go no further
+     * stays within half of the row in its way, and at the list's end at its place.
      */
     fun dragged(rows: List<Row>, key: String, offset: Float, heightOf: (Row) -> Float?): Pair<List<Row>, Float> {
         var moved = rows
@@ -56,10 +57,10 @@ internal object ClassTableListRows {
         val down = offset > 0
         while (left != 0f && (left > 0) == down) {
             val index = moved.indexOfFirst { it.key == key }.takeIf { it >= 0 } ?: break
-            val past = moved.getOrNull(if (down) index + 1 else index - 1) ?: break
-            val height = heightOf(past) ?: break
+            val past = moved.getOrNull(if (down) index + 1 else index - 1)
+            val height = past?.let(heightOf) ?: return moved to (if (past == null) 0f else left)
             if (kotlin.math.abs(left) <= height / 2) break
-            moved = step(moved, index, down) ?: break
+            moved = step(moved, index, down) ?: return moved to left.coerceIn(-height / 2, height / 2)
             left += if (down) -height else height
         }
         return moved to left
