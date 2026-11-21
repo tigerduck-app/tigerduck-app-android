@@ -121,11 +121,8 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         .padding(horizontal = 8.dp.scaled, vertical = 2.dp.scaled),
                 ) {
                     Text(
-                        text = if (ongoing.size > 1) {
-                            context.getString(R.string.widget_ongoing_count, ongoing.size)
-                        } else {
-                            context.getString(R.string.widget_ongoing)
-                        },
+                        text = if (ongoing.size > 1) context.getString(R.string.widget_ongoing_count, ongoing.size)
+                        else context.getString(R.string.widget_ongoing),
                         style = TextStyle(
                             color = ColorProvider(colors.onAccentFill),
                             fontSize = 11.sp.scaled,
@@ -135,8 +132,8 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 }
                 Spacer(GlanceModifier.width(8.dp.scaled))
                 Column(modifier = GlanceModifier.defaultWeight()) {
-                    Text(
-                        text = first.course.displayName,
+                    WidgetCourseName(
+                        text = first.course.displayName, isAssessment = first.isAssessment, isDark = colors.isDark,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
                             fontSize = 15.sp.scaled * state.courseNameScale,
@@ -144,10 +141,10 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         ),
                         maxLines = 1,
                     )
-                    val second = ongoing.getOrNull(1)?.course
+                    val second = ongoing.getOrNull(1)
                     if (second != null) {
-                        Text(
-                            text = second.displayName,
+                        WidgetCourseName(
+                            text = second.course.displayName, isAssessment = second.isAssessment, isDark = colors.isDark,
                             style = TextStyle(
                                 color = ColorProvider(colors.onSurface),
                                 fontSize = 14.sp.scaled * state.courseNameScale,
@@ -188,8 +185,8 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 )
                 Spacer(GlanceModifier.width(8.dp.scaled))
                 Column(modifier = GlanceModifier.defaultWeight()) {
-                    Text(
-                        text = course.displayName,
+                    WidgetCourseName(
+                        text = course.displayName, isAssessment = block.isAssessment, isDark = colors.isDark,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
                             fontSize = 15.sp.scaled * state.courseNameScale,
@@ -218,9 +215,9 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 val tomorrowWeekday = state.tomorrowFirstCourseWeekday
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
-                    Text(
-                        text = tomorrowCourse?.displayName
-                            ?: context.getString(R.string.widget_no_more_classes),
+                    WidgetCourseName(
+                        text = tomorrowCourse?.displayName ?: context.getString(R.string.widget_no_more_classes),
+                        isAssessment = tomorrowCourse != null && tomorrowBlock?.isAssessment == true, isDark = colors.isDark,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
                             // The fallback "no more classes" string is empty-state
@@ -364,8 +361,8 @@ private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetCo
             )
         }
         Spacer(GlanceModifier.height(6.dp.scaled))
-        Text(
-            text = block.course.displayName,
+        WidgetCourseName(
+            text = block.course.displayName, isAssessment = block.isAssessment, isDark = colors.isDark,
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 19.sp.scaled * state.courseNameScale,
@@ -426,8 +423,8 @@ private fun OngoingMiniCard(block: CourseBlock, state: WidgetState, colors: Widg
             )
         }
         Spacer(GlanceModifier.width(5.dp.scaled))
-        Text(
-            text = block.course.displayName,
+        WidgetCourseName(
+            text = block.course.displayName, isAssessment = block.isAssessment, isDark = colors.isDark,
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 13.sp.scaled * state.courseNameScale,
@@ -488,8 +485,8 @@ private fun NextCard(
         ),
     )
     Spacer(GlanceModifier.height(5.dp.scaled))
-    Text(
-        text = block.course.displayName,
+    WidgetCourseName(
+        text = block.course.displayName, isAssessment = block.isAssessment, isDark = colors.isDark,
         style = TextStyle(
             color = ColorProvider(colors.onSurface),
             fontSize = 19.sp.scaled * courseNameScale,
@@ -511,13 +508,13 @@ private fun NextCard(
 
 /**
  * [block]'s room on a line of its own: after `⇄` in ink where the school moved
- * it, as iOS `NextClassView.room`; nothing for no room.
+ * it, or held it online, as iOS `NextClassView.room`; nothing for no room.
  */
 @Composable
 private fun RoomLine(block: CourseBlock, colors: WidgetColors, fontSize: TextUnit) {
-    if (block.classroom.isEmpty()) return
+    if (block.classroom(onlineRoomWord()).isEmpty()) return
     Text(
-        text = block.roomLabel,
+        text = block.roomLabel(onlineRoomWord()),
         style = TextStyle(
             color = ColorProvider(if (block.roomChanged) widgetChangeInk(colors.isDark) else colors.onSurfaceVariant),
             fontSize = fontSize,
@@ -531,7 +528,8 @@ private fun RoomLine(block: CourseBlock, colors: WidgetColors, fontSize: TextUni
 private data class MetaPart(val text: String, val changed: Boolean)
 
 /** [block]'s room as a [MetaPart]. */
-private fun roomPart(block: CourseBlock): MetaPart = MetaPart(block.roomLabel, changed = block.roomChanged)
+@Composable
+private fun roomPart(block: CourseBlock): MetaPart = MetaPart(block.roomLabel(onlineRoomWord()), changed = block.roomChanged)
 
 /**
  * One line of details. Where nothing changed, one text with its parts two

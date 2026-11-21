@@ -43,6 +43,7 @@ class LiveActivityClassesTodayTest {
             accentHex = 0,
             now = thursdayAt(time),
             changes = changes,
+            online = "Online",
         ) ?: return "none"
         return listOf(
             snapshot.scenario, snapshot.sourceId, snapshot.subtitle, snapshot.locationText,
@@ -58,7 +59,7 @@ class LiveActivityClassesTodayTest {
         skippedDates: Map<String, List<String>> = emptyMap(),
     ): List<String> =
         LiveActivityResolver().todaySlotsAfter(courses, thursdayAt(time), skippedDates, changes)
-            .map { "${it.periods.joinToString("")} ${it.start.toInstant()}..${it.end.toInstant()} ${it.classroom}" }
+            .map { "${it.periods.joinToString("")} ${it.start.toInstant()}..${it.end.toInstant()} ${it.classroom("Online")}" }
 
     private val endedEarly = changes(row(1, "end", periods = listOf("2", "3", "4"), values = mapOf("end" to "11:45")))
 

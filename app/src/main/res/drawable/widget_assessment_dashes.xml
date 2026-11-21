@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dashes along the bottom of a widget's course name for a class with an assessment, 4dp on
+     and 2dp off as the app's (AssessmentInk); white, tinted with the assessment ink where it is
+     drawn as the name's background. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="bottom" android:height="2dp">
+        <shape android:shape="line">
+            <stroke
+                android:width="2dp"
+                android:color="#FFFFFFFF"
+                android:dashWidth="4dp"
+                android:dashGap="2dp" />
+        </shape>
+    </item>
+</layer-list>

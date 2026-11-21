@@ -75,6 +75,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.SheetContentScroll
 import org.ntust.app.tigerduck.ui.component.WholeWordsText
 import org.ntust.app.tigerduck.ui.component.courseChangeInk
+import org.ntust.app.tigerduck.ui.component.courseChangeWords
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleCourseSection
@@ -138,11 +139,9 @@ internal fun CourseDetailSheetPage(
     val timeRange = viewModel.selectedCourseTimeRange
     // The school's changes are read once, as the detail opens, as on iOS.
     val meeting = remember(course) { viewModel.selectedMeeting }
-    val cancelledLabel = stringResource(R.string.course_card_cancelled)
+    val words = courseChangeWords()
     val locale = LocalConfiguration.current.locales[0]
-    val changeRows = remember(course, meeting, cancelledLabel, locale) {
-        viewModel.selectedChangeRows(meeting, cancelledLabel, locale)
-    }
+    val changeRows = remember(course, meeting, words, locale) { viewModel.selectedChangeRows(meeting, words, locale) }
     val assignments = remember(outstanding, course.courseNo, readOnly) {
         if (readOnly) emptyList() else outstanding.filter { it.courseNo == course.courseNo }.sortedByDueDate()
     }
@@ -237,7 +236,7 @@ internal fun CourseDetailContent(
     val ink = courseChangeInk()
     val cancelledLabel = stringResource(R.string.course_card_cancelled)
     // The shown day's change takes the card's value, in the change ink, as on iOS.
-    val movedRoom = meeting?.takeIf { it.hasChangedRoom }?.room
+    val movedRoom = meeting?.takeIf { it.hasChangedRoom }?.room(stringResource(R.string.course_change_online))
     val changedTime = when {
         meeting == null -> null
         meeting.isCancelled -> cancelledLabel

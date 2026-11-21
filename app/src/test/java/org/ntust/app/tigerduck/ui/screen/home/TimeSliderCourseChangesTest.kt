@@ -74,10 +74,29 @@ class TimeSliderCourseChangesTest {
         assertEquals(date("09:40") to date("12:10"), moved.start to moved.end)
         assertTrue(moved.hasChangedTime)
         assertTrue(moved.hasChangedRoom)
-        assertEquals("TR-313", moved.classroom)
+        assertEquals("TR-313", moved.classroom("Online"))
         val afternoon = slider.on(thursday).last()
         assertFalse(afternoon.hasChangedTime || afternoon.hasChangedRoom)
-        assertEquals("T4-501", afternoon.classroom)
+        assertEquals("T4-501", afternoon.classroom("Online"))
+    }
+
+    /** tigerduck-app `TimeSliderViewModelTests.timeMachineCarriesAssessmentsAndOnlineClasses`. */
+    @Test
+    fun `the time machine marks only the assessment's day and shows an online class in place of its room`() {
+        val slider = slider(
+            changes(
+                row(1, "assessment", periods = morning, values = mapOf("note_zh" to "期中考", "note_en" to "Midterm exam")),
+                row(2, "online", periods = listOf("7", "8")),
+            ),
+        )
+
+        val today = slider.on(thursday)
+        assertEquals(listOf(true, false), today.map { it.isAssessment })
+        assertEquals(listOf(false, true), today.map { it.hasChangedRoom })
+        assertEquals(listOf("T4-501", "Online"), today.map { it.classroom("Online") })
+        val nextWeek = slider.on(thursday.plusWeeks(1))
+        assertEquals(listOf(false, false), nextWeek.map { it.isAssessment })
+        assertEquals(listOf("T4-501", "T4-501"), nextWeek.map { it.classroom("Online") })
     }
 
     @Test

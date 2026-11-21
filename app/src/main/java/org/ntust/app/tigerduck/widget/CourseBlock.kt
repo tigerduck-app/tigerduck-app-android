@@ -21,8 +21,9 @@ import java.util.Locale
  * `WidgetTimelineDerivation`, which derives the same from its contiguous runs.
  *
  * On a dated day the school's course changes can split a block into the
- * classes it runs as, cancel one, move its time or its room; the block then
- * carries what changed, as iOS `TodayRow.change` does. Never persisted.
+ * classes it runs as, cancel one, move its time or its room, hold it online or
+ * assess it; the block then carries what changed, as iOS `TodayRow.change`
+ * does. Never persisted.
  */
 data class CourseBlock(
     val course: Course,
@@ -37,6 +38,10 @@ data class CourseBlock(
     val changedEnd: String? = null,
     /** The room the school moved this class to; null keeps the timetable's. */
     val movedRoom: String? = null,
+    /** Whether the school moved this class online, which shows `course_change_online` as a moved room. */
+    val isOnline: Boolean = false,
+    /** Whether the class has an assessment, which marks its name; never for a cancelled one. */
+    val isAssessment: Boolean = false,
 ) {
     val firstPeriodId: String get() = periods.first()
     val lastPeriodId: String get() = periods.last()
@@ -52,17 +57,18 @@ data class CourseBlock(
     val startChanged: Boolean get() = changedStart != null
     val endChanged: Boolean get() = changedEnd != null
     val timeChanged: Boolean get() = startChanged || endChanged
-    val roomChanged: Boolean get() = movedRoom != null
+    val roomChanged: Boolean get() = movedRoom != null || isOnline
 
     /** "3" for a single period, "3–4" for a longer block. */
     val periodRange: String
         get() = if (periods.size == 1) firstPeriodId else "$firstPeriodId–$lastPeriodId"
 
-    /** This block's room, not every room the course meets in that day. */
-    val classroom: String get() = movedRoom ?: course.blockClassroom(weekday, periods)
+    /** This block's room, not every room the course meets in that day; [online] for a class held online. */
+    fun classroom(online: String): String =
+        if (isOnline) listOfNotNull(movedRoom, online).joinToString(", ") else movedRoom ?: course.blockClassroom(weekday, periods)
 
     /** [classroom] as a widget writes it: after `⇄` where the school moved the class. */
-    val roomLabel: String get() = if (roomChanged) "$MOVED_MARK $classroom" else classroom
+    fun roomLabel(online: String): String = classroom(online).let { if (roomChanged) "$MOVED_MARK $it" else it }
 
     /**
      * The new time as a block writes it: both ends, the start alone or the end
@@ -105,7 +111,7 @@ data class CourseBlock(
 
         /**
          * [course]'s classes on [day] under the school's [changes], cancelled
-         * ones included: a meeting with a change as the classes it splits into,
+         * ones included: a meeting with more than a note as the classes it splits into,
          * by their changed starts, else the timetable's block. A day the feed
          * leaves alone is [allOf] as it was. As iOS
          * `WidgetTimelineDerivation.meetings(of:on:in:)`.
@@ -129,7 +135,9 @@ data class CourseBlock(
             isCancelled = slot.isCancelled,
             changedStart = slot.originalStart?.let { hm(slot.start) },
             changedEnd = slot.originalEnd?.let { hm(slot.end) },
-            movedRoom = slot.room.takeIf { slot.hasChangedRoom },
+            movedRoom = slot.movedRooms(online = null).joinToString(", ").ifEmpty { null },
+            isOnline = slot.online != null,
+            isAssessment = slot.assessment != null,
         )
 
         // Latin digits in every locale, as the timetable's own times are written.

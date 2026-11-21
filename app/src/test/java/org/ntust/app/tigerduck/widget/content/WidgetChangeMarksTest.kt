@@ -70,8 +70,8 @@ class WidgetChangeMarksTest {
     @Test
     fun `a moved room follows the arrow and an unchanged one stands alone`() {
         val block = CourseBlock(compilers, 4, listOf("2", "3"))
-        assertEquals("T4-501", block.roomLabel)
-        assertEquals("⇄ TR-411", block.copy(movedRoom = "TR-411").roomLabel)
+        assertEquals("T4-501", block.roomLabel("Online"))
+        assertEquals("⇄ TR-411", block.copy(movedRoom = "TR-411").roomLabel("Online"))
     }
 
     @Test
@@ -179,14 +179,14 @@ class WidgetChangeMarksTest {
     }
 
     private fun linesOf(change: CourseBlock?, length: Int, fits: (Int) -> Boolean = { true }) =
-        weekBlockLinesFor(change, "T4-501", length, "Cancelled", ink, stepBack, textColor, fits)
+        weekBlockLinesFor(change, "T4-501", length, "Cancelled", "Online", ink, stepBack, textColor, fits)
 
     private val ink = CourseChangeInkLight
     private val stepBack = WidgetTheme.Light.onSurfaceVariant
     private val textColor = Color.White
 
     private fun lines(change: CourseBlock?, room: String = "T4-501") =
-        weekBlockLines(change, room, "Cancelled", ink, stepBack, textColor)
+        weekBlockLines(change, room, "Cancelled", "Online", ink, stepBack, textColor)
 
     @Test
     fun `a changed time reads as both ends, the start alone or the end after a dash`() {

@@ -249,6 +249,7 @@ class LiveActivityManager internal constructor(
             accentHex = appPrefs.accentColorHex,
             now = now,
             changes = changes,
+            online = notifier.localizedContext().getString(org.ntust.app.tigerduck.R.string.course_change_online),
         )?.copy(accentGradient = LiveUpdateSegments.accentOf(appPrefs))
         // "The resolver looked and found nothing", not the bail-outs above: a wrong timetable,
         // not a wrong clock, when a simulated class fails to show.
@@ -258,9 +259,7 @@ class LiveActivityManager internal constructor(
         // In one step with the sign-in's end: nothing goes up after it, or the sign-out's stop follows.
         val spelledOut = signIn.ifCurrent { notifier.apply(snapshot, quiet) } ?: return
 
-        scheduleBoundaryRefresh(
-            snapshot, courses, assignments, skipped, changes, now, spelledOut, calendar.termFlipMillis(),
-        )
+        scheduleBoundaryRefresh(snapshot, courses, assignments, skipped, changes, now, spelledOut, calendar.termFlipMillis())
     }
 
     /**

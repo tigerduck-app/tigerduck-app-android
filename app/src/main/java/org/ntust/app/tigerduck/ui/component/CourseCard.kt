@@ -106,8 +106,8 @@ fun CourseCard(
             ) {
                 val nameStyle = MaterialTheme.typography.bodyMedium
                     .copy(fontWeight = FontWeight.SemiBold)
-                Text(
-                    text = courseNameForDisplay(course.displayName, maxChars = 28),
+                CourseName(
+                    text = courseNameForDisplay(course.displayName, maxChars = 28), isAssessment = change?.assessment != null,
                     style = nameStyle.copy(
                         fontSize = nameStyle.fontSize * TigerDuckTheme.courseNameScale
                     ),
@@ -204,8 +204,8 @@ fun CurrentClassCard(
                     )
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    text = courseNameForDisplay(course.displayName, maxChars = 28),
+                CourseName(
+                    text = courseNameForDisplay(course.displayName, maxChars = 28), isAssessment = change?.assessment != null,
                     style = MaterialTheme.typography.bodyMedium
                         .copy(fontWeight = FontWeight.SemiBold),
                     color = textColor,
@@ -248,8 +248,8 @@ fun CurrentClassCard(
 }
 
 /**
- * A course card's room line: 停課 for a cancelled class, the room the school moved it to in the
- * change ink, else [cardRoom]. Nothing for a class without a room.
+ * A course card's room line: 停課 for a cancelled class, the room the school moved it to, or 線上
+ * for a class held online, in the change ink, else [cardRoom]. Nothing for a class without a room.
  */
 @Composable
 private fun CardRoomLine(
@@ -275,7 +275,7 @@ private fun CardRoomLine(
             Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = ink, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(2.dp))
             Text(
-                text = change.room,
+                text = change.room(stringResource(R.string.course_change_online)),
                 style = style,
                 color = ink,
                 fontWeight = FontWeight.SemiBold,
