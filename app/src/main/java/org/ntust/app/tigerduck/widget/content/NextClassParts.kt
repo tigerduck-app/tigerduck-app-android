@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableThisWeek
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy
 import org.ntust.app.tigerduck.widget.CourseBlock
 import org.ntust.app.tigerduck.widget.WidgetColors
+import org.ntust.app.tigerduck.widget.WidgetScale
 import org.ntust.app.tigerduck.widget.WidgetState
 import org.ntust.app.tigerduck.widget.scaled
 import org.ntust.app.tigerduck.widget.widgetChangeInk
@@ -205,6 +206,24 @@ internal fun countdownLabel(minutes: Int, locale: Locale): String {
         formatter.format((minutes / 30.0).roundToInt() / 2.0, RelativeDateTimeFormatter.Direction.NEXT, RelativeDateTimeFormatter.RelativeUnit.HOURS)
     }
 }
+
+/**
+ * The least height, in dp, a full Next Class widget shows the class after its card at, as iOS's
+ * `ViewThatFits` keeps that row only where the card fits over it: the widget's padding, the row
+ * and the gap over it, and the taller card, a class in session's, its name held to one line. Type
+ * is drawn at [scale]'s text size and the phone's [fontScale], capped, and course names grow by
+ * [courseNameScale] too.
+ */
+internal fun upNextMinHeight(scale: WidgetScale, fontScale: Float, courseNameScale: Float): Float {
+    val text = scale.text * WidgetScale.cappedFontScale(fontScale)
+    // Padding 12 + 12, the gap 6, the badge's padding 6, spacers 6 + 3, the progress 5, the row's padding 12.
+    val fixed = 62f * scale.ui
+    // The badge 12sp, the time and the room 13sp each, the card's name 19sp, and the row's name and room 13sp.
+    return fixed + LINE_HEIGHT * text * (12f + 13f + 13f + 19f * courseNameScale + 13f * maxOf(courseNameScale, 1f))
+}
+
+/** A line of type's height for its size: the font's padding, and room for a Chinese name's taller lines. */
+private const val LINE_HEIGHT = 1.45f
 
 /**
  * The class after the one the widget shows, as the iPhone's medium widget lists it: a tile of its

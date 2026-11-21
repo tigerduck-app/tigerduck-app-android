@@ -218,11 +218,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                             // The fallback "no more classes" string is empty-state
                             // copy, not a course name — keep it at the baseline
                             // 15.sp so the slider doesn't blow it up.
-                            fontSize = if (tomorrowCourse != null) {
-                                15.sp.scaled * state.courseNameScale
-                            } else {
-                                15.sp.scaled
-                            },
+                            fontSize = if (tomorrowCourse != null) 15.sp.scaled * state.courseNameScale else 15.sp.scaled,
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1,
@@ -261,13 +257,15 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, style: VisualSt
     val context = LocalContext.current
     val ongoing = state.ongoingBlocks
     val heightDp = LocalSize.current.height.value
-    val box = LocalWidgetScale.current.textBox
+    val scale = LocalWidgetScale.current
     // Widget is resizable between 2-cell (~110dp) and 4-cell (~250dp) heights.
     // A midpoint threshold picks the right variant regardless of whether the
     // widget is at its narrow (2-cell wide) or wide (3-cell wide) size.
-    val tall = heightDp >= 180f * box
-    // The class after it where it fits under the card, as iOS's `ViewThatFits` gives it room.
-    val upNext = state.upNextBlock?.takeIf { heightDp >= 150f * box }
+    val tall = heightDp >= 180f * scale.textBox
+    // The class after it where it fits under the card, whose name then takes one line, as iOS's
+    // `ViewThatFits` gives it room.
+    val upNext = state.upNextBlock
+        ?.takeIf { heightDp >= upNextMinHeight(scale, context.resources.configuration.fontScale, state.courseNameScale) }
     Column(
         modifier = GlanceModifier.fillMaxSize().background(ColorProvider(colors.background)).padding(12.dp.scaled).clickable(tapAction),
     ) {
@@ -277,13 +275,14 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, style: VisualSt
                 style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 15.sp.scaled),
             )
             ongoing.size >= 2 -> TwoOngoing(ongoing, tall, state, colors)
-            ongoing.size == 1 -> WithUpNext(upNext, state, colors, style) { OngoingCard(ongoing[0], state, colors) }
+            ongoing.size == 1 -> WithUpNext(upNext, state, colors, style) { OngoingCard(ongoing[0], state, colors, nameLines = it) }
             state.nextTodayBlock != null -> WithUpNext(upNext, state, colors, style) {
                 NextCard(
                     block = state.nextTodayBlock,
                     label = context.getString(R.string.widget_next_class),
                     colors = colors,
                     courseNameScale = state.courseNameScale,
+                    nameLines = it,
                     countdown = minutesUntil(state.nextTodayBlock, state.currentMinuteOfDay)
                         ?.let { countdownLabel(it, context.resources.configuration.locales[0]) },
                 )
@@ -323,26 +322,26 @@ private fun ColumnScope.TwoOngoing(ongoing: List<CourseBlock>, tall: Boolean, st
     }
 }
 
-/** [card], and under it [upNext] where there is one. */
+/** [card], and under it [upNext] where there is one, the card's name held to one line then, as on the iPhone. */
 @Composable
 private fun ColumnScope.WithUpNext(
     upNext: CourseBlock?,
     state: WidgetState,
     colors: WidgetColors,
     style: VisualStylePolicy,
-    card: @Composable () -> Unit,
+    card: @Composable (nameLines: Int) -> Unit,
 ) {
     if (upNext == null) {
-        card()
+        card(2)
         return
     }
-    Column(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) { card() }
+    Column(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) { card(1) }
     Spacer(GlanceModifier.height(6.dp.scaled))
     UpNextRow(upNext, state, colors, style)
 }
 
 @Composable
-private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetColors) {
+private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetColors, nameLines: Int = 2) {
     val context = LocalContext.current
     val progress = block.progress(state.currentMinuteOfDay)
 
@@ -370,7 +369,7 @@ private fun OngoingCard(block: CourseBlock, state: WidgetState, colors: WidgetCo
                 fontSize = 19.sp.scaled * state.courseNameScale,
                 fontWeight = FontWeight.Bold,
             ),
-            maxLines = 2,
+            maxLines = nameLines,
         )
         Spacer(GlanceModifier.height(3.dp.scaled))
         Text(
@@ -476,6 +475,7 @@ private fun NextCard(
     label: String,
     colors: WidgetColors,
     courseNameScale: Float,
+    nameLines: Int = 2,
     countdown: String? = null,
 ) {
     val context = LocalContext.current
@@ -502,7 +502,7 @@ private fun NextCard(
             fontSize = 19.sp.scaled * courseNameScale,
             fontWeight = FontWeight.Bold,
         ),
-        maxLines = 2,
+        maxLines = nameLines,
     )
     if (block.startTime.isNotEmpty()) {
         Text(

@@ -74,13 +74,13 @@ class WidgetRedesignDrawTest {
         AppClock.setOverride(null)
     }
 
-    private fun state(time: String): WidgetState = WidgetDataLoader.state(
+    private fun state(time: String, courseNameScale: Float = 1f): WidgetState = WidgetDataLoader.state(
         courses = listOf(early, morning, afternoon),
         now = thursday.atTime(LocalTime.parse(time)),
         isLoggedIn = true,
         quietDays = QuietDays(AcademicCalendar.EMPTY, emptySet()),
         changes = CourseChanges.EMPTY,
-        courseNameScale = 1f,
+        courseNameScale = courseNameScale,
     )
 
     private fun widget(layout: WidgetLayout, state: WidgetState) =
@@ -203,6 +203,18 @@ class WidgetRedesignDrawTest {
         views.named("Morning")
         views.named("10:20–12:10")
         views.named("Afternoon")
+    }
+
+    @Test
+    fun `Next Class shows the class after it only where the card fits over it, the card's name on one line then`() {
+        val roomy = drawn(WidgetLayout.NextClass, state("11:00"), DpSize(320.dp, 170.dp))
+        roomy.named("Afternoon")
+        assertEquals(1, roomy.named("Morning").maxLines)
+        assertEquals(2, drawn(WidgetLayout.NextClass, state("11:00"), DpSize(320.dp, 150.dp)).named("Morning").maxLines)
+
+        // Too short for the class in session's card and the row under it, or for both at the largest course names.
+        assertFalse(drawn(WidgetLayout.NextClass, state("11:00"), DpSize(320.dp, 150.dp)).texts().contains("Afternoon"))
+        assertFalse(drawn(WidgetLayout.NextClass, state("11:00", courseNameScale = 1.6f), DpSize(320.dp, 170.dp)).texts().contains("Afternoon"))
     }
 
     @Test
