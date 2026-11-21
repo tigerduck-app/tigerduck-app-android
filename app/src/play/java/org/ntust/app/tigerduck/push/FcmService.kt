@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -253,16 +254,10 @@ class FcmService : FirebaseMessagingService() {
     // Checked: areNotificationsEnabled() returns early, which lint does not count.
     @SuppressLint("MissingPermission")
     private fun showReauthNotification(title: String, body: String) {
-        // `tigerduck://home` is not a link the app opens — AppLink.parse takes
-        // only `announcement`, `assignment`, `classtable` and `library` — so
-        // open the launcher entry point rather than mint a URI no one consumes.
-        val intent = packageManager.getLaunchIntentForPackage(packageName)
-            ?: Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         val pendingIntent = PendingIntent.getActivity(
             this,
             REAUTH_NOTIFICATION_ID,
-            intent,
+            reauthIntent(),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val manager = NotificationManagerCompat.from(this)
@@ -296,3 +291,13 @@ class FcmService : FirebaseMessagingService() {
         private const val REAUTH_NOTIFICATION_ID = -1001
     }
 }
+
+/**
+ * The reauth notice's tap. `tigerduck://home` is not a link the app opens (AppLink.parse takes
+ * only `announcement`, `assignment`, `classtable` and `library`), so it opens the app as the
+ * launcher does, at MainActivity by name: the launcher's own entry is an app icon's alias
+ * ([org.ntust.app.tigerduck.appicon.LauncherIcons]), which a later pick of another icon turns off.
+ */
+internal fun Context.reauthIntent(): Intent =
+    Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setClass(this, MainActivity::class.java)
+        .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
