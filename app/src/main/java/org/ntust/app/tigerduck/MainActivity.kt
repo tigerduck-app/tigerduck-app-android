@@ -507,7 +507,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleServerPushIntent(intent: Intent?) {
         val data = intent?.data ?: return
         if (data.scheme != "tigerduck" || data.authority != "server-push") return
-        // MainActivity is exported (it's the launcher), so any installed app
+        // MainActivity is exported (links and the launcher's icons open it), so any installed app
         // can fire an explicit intent at this deep-link path. The token is a
         // per-install secret embedded by FcmService into the PendingIntent's
         // extras; an external intent will lack it and is dropped silently.
