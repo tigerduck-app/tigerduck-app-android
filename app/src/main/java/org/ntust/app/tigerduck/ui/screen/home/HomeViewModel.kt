@@ -960,7 +960,7 @@ class HomeViewModel @Inject constructor(
         rearmReminders: Boolean = true,
     ) {
         _allCourses.value = courses
-        _allAssignments.value = assignments.sortedBy { it.studentDueDate }
+        _allAssignments.value = assignments
 
         if (rearmReminders && prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(assignments)

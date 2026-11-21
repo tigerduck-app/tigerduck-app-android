@@ -12,7 +12,7 @@ class HomeAssignmentFiltersTest {
     private val now = Date(1_700_000_000_000)
     private fun at(offsetHours: Long) = Date(now.time + offsetHours * 3_600_000)
 
-    private fun assignment(id: String, due: Date, completed: Boolean = false) =
+    private fun assignment(id: String, due: Date?, completed: Boolean = false) =
         Assignment(
             assignmentId = id,
             courseNo = "C1",
@@ -176,5 +176,28 @@ class HomeAssignmentFiltersTest {
         assertEquals(listOf("past", "soon", "extended"), ids(incomplete))
         val everything = HomeAssignmentFilters.visible(all, emptySet(), emptySet(), AssignmentFilter.ALL, now)
         assertEquals(listOf("soon", "extended", "past"), ids(everything))
+    }
+
+    @Test
+    fun `work with no due date comes after every dated one in each tab, by title`() {
+        val all = listOf(
+            assignment("undated-b", null),
+            assignment("past", at(-1)),
+            assignment("undated-a", null),
+            assignment("soon", at(1)),
+        )
+        val ignoredAll = all.map { it.assignmentId }.toSet()
+
+        fun visible(filter: AssignmentFilter, ignored: Set<String> = emptySet()) =
+            ids(HomeAssignmentFilters.visible(all, ignored, emptySet(), filter, now))
+
+        assertEquals(listOf("past", "soon", "undated-a", "undated-b"), visible(AssignmentFilter.INCOMPLETE))
+        assertEquals(listOf("soon", "past", "undated-a", "undated-b"), visible(AssignmentFilter.ALL))
+        assertEquals(listOf("past", "soon", "undated-a", "undated-b"), visible(AssignmentFilter.IGNORED, ignoredAll))
+    }
+
+    @Test
+    fun `work with no due date counts for its course's dot`() {
+        assertEquals(true, HomeAssignmentFilters.anyUnfinishedFor(listOf(assignment("undated", null)), "C1", emptySet(), emptySet()))
     }
 }

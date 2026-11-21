@@ -6,6 +6,7 @@
 package org.ntust.app.tigerduck.data.moodle
 
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.AssignmentOrder
 import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.data.model.status
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
@@ -36,21 +37,21 @@ data class MoodleSectionRow(val kind: Kind, val count: Int, val hasUnread: Boole
 
 /**
  * An assignment as the course's list and its page take it: the record a round kept, with Home's
- * row for it, which keeps what Moodle said of the submission. Home lists none without a due date
- * or an online submission, so [listed] is null for those.
+ * row for it, which keeps what Moodle said of the submission. Home lists none taking no online
+ * submission, so [listed] is null for those.
  */
 data class MoodleAssignmentEntry(val record: MoodleAssignmentRecord, val listed: Assignment?) {
     val assignmentId: String get() = record.assignId.toString()
 
     /**
-     * The due time the student is held to, Unix seconds, 0 for an undated one: the record's, else
-     * Home's row's, or the extension the row knows the student was granted, which runs later.
+     * The due time the student is held to, Unix seconds: the record's, else Home's row's, or the
+     * extension the row knows the student was granted, which runs later or dates an undated one
+     * (tigerduck-app#1029). 0 with neither.
      */
     val studentDueSeconds: Long
         get() {
-            val own = record.dueDate.takeIf { it > 0 } ?: listed?.dueDate?.let { it.time / 1000 } ?: return 0
-            val extension = listed?.extensionDueDate?.let { it.time / 1000 } ?: return own
-            return maxOf(own, extension)
+            val own = record.dueDate.takeIf { it > 0 } ?: listed?.dueDate?.let { it.time / 1000 } ?: 0
+            return maxOf(own, listed?.extensionDueDate?.let { it.time / 1000 } ?: 0)
         }
 }
 
@@ -74,7 +75,7 @@ object MoodleAssignmentEntries {
         cmid = cmidOf(row.moodleUrl) ?: 0,
         courseId = 0,
         name = row.title,
-        dueDate = row.dueDate.time / 1000,
+        dueDate = row.dueDate?.let { it.time / 1000 } ?: 0,
         cutoffDate = row.cutoffDate?.let { it.time / 1000 } ?: 0,
         allowSubmissionsFrom = 0,
         intro = "",
@@ -97,24 +98,17 @@ object MoodleAssignmentLists {
     data class Row(val entry: MoodleAssignmentEntry, val status: AssignmentStatus?)
 
     /**
-     * Those still to come by due time, then the ones with no due date, then the past ones, the
-     * latest first. Ties keep Moodle's order, which [entries] is in.
+     * Those still to come by due time, then the past ones, the latest first, then the ones with no
+     * due date by title, as every assignment list ([AssignmentOrder]). Ties keep Moodle's order,
+     * which [entries] is in.
      */
-    fun rows(entries: List<MoodleAssignmentEntry>, nowMs: Long): List<Row> {
-        val nowSeconds = nowMs / 1000
-        val ordered = entries.withIndex()
-        fun isPast(entry: MoodleAssignmentEntry) = entry.studentDueSeconds > 0 && entry.studentDueSeconds < nowSeconds
-        val toCome = ordered.filter { !isPast(it.value) }.sortedWith(
-            compareBy<IndexedValue<MoodleAssignmentEntry>> { it.value.studentDueSeconds.takeIf { d -> d > 0 } ?: Long.MAX_VALUE }
-                .thenBy { it.index },
-        )
-        val past = ordered.filter { isPast(it.value) }.sortedWith(
-            compareByDescending<IndexedValue<MoodleAssignmentEntry>> { it.value.studentDueSeconds }.thenBy { it.index },
-        )
-        return (toCome + past).map { (_, entry) ->
-            Row(entry, entry.listed?.let { shownStatus(it, nowMs) })
-        }
-    }
+    fun rows(entries: List<MoodleAssignmentEntry>, nowMs: Long): List<Row> =
+        AssignmentOrder.partitioned(
+            entries,
+            dueDate = { entry -> entry.studentDueSeconds.takeIf { it > 0 }?.let { java.util.Date(it * 1000) } },
+            title = { it.record.name },
+            now = java.util.Date(nowMs),
+        ).map { entry -> Row(entry, entry.listed?.let { shownStatus(it, nowMs) }) }
 
     /**
      * What Moodle says of the assignment, without the marks the user puts on Home's rows: handed

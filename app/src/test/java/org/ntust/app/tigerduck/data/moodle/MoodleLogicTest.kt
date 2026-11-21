@@ -362,6 +362,19 @@ class MoodleLogicTest {
     }
 
     @Test
+    fun `an undated assignment is due on the extension Home's row knows of, else never`() {
+        val undated = listed(7, dueMs = 0).copy(dueDate = null)
+        assertEquals(0L, MoodleAssignmentEntry(record(7), undated).studentDueSeconds)
+        val extended = undated.copy(extensionDueDate = Date(1_790_600_000_000L))
+        assertEquals(1_790_600_000L, MoodleAssignmentEntry(record(7), extended).studentDueSeconds)
+        assertEquals(
+            "a row no round recorded gets a record with no due date",
+            0L,
+            MoodleAssignmentEntries.of("7", emptyList(), listOf(undated))?.record?.dueDate,
+        )
+    }
+
+    @Test
     fun `the course module is read from an assignment's Moodle link only`() {
         assertEquals(9101, MoodleAssignmentEntries.cmidOf("https://moodle2.ntust.edu.tw/mod/assign/view.php?id=9101"))
         assertNull(MoodleAssignmentEntries.cmidOf("https://moodle2.ntust.edu.tw/mod/forum/view.php?id=9101"))
@@ -370,21 +383,22 @@ class MoodleLogicTest {
     }
 
     @Test
-    fun `the list shows what is to come by due time, then the undated in Moodle's order, then the past, latest first`() {
+    fun `the list shows what is to come by due time, then the past, latest first, then the undated by title`() {
         val now = 1_790_000_000_000L
         val entries = listOf(
             MoodleAssignmentEntry(record(1, due = 1_789_000_000L), listed(1, 1_789_000_000_000L, completed = true, submittedAtMs = 1_788_000_000_000L)),
-            MoodleAssignmentEntry(record(2), null),
+            MoodleAssignmentEntry(record(10), null),
             MoodleAssignmentEntry(record(3, due = 1_791_000_000L), listed(3, 1_791_000_000_000L)),
-            MoodleAssignmentEntry(record(4), null),
+            MoodleAssignmentEntry(record(8), null),
             MoodleAssignmentEntry(record(5, due = 1_789_500_000L), listed(5, 1_789_500_000_000L)),
             MoodleAssignmentEntry(record(6, due = 1_790_500_000L), listed(6, 1_790_500_000_000L)),
         )
 
         val rows = MoodleAssignmentLists.rows(entries, now)
 
-        assertEquals(listOf(6, 3, 2, 4, 5, 1), rows.map { it.entry.record.assignId })
-        assertEquals(listOf(null, null, null, null, AssignmentStatus.OVERDUE_ACCEPTABLE, AssignmentStatus.SUBMITTED), rows.map { it.status })
+        // A8 before A10, by the number in the title, as iOS's localizedStandardCompare has them.
+        assertEquals(listOf(6, 3, 5, 1, 8, 10), rows.map { it.entry.record.assignId })
+        assertEquals(listOf(null, null, AssignmentStatus.OVERDUE_ACCEPTABLE, AssignmentStatus.SUBMITTED, null, null), rows.map { it.status })
     }
 
     @Test
