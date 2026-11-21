@@ -73,7 +73,9 @@ class InAppBrowserScreenTest {
         override fun retrySignIn() { calls += "signIn" }
         override fun pickUpload(source: UploadSource) { calls += "upload $source" }
         override fun cancelUpload() { calls += "uploadCancel" }
-        override fun answerDialog(confirmed: Boolean, value: String?) { calls += "dialog $confirmed" }
+        override fun answerDialog(dialog: PageDialog, confirmed: Boolean, value: String?) {
+            calls += listOfNotNull("dialog", dialog.message, "$confirmed", value).joinToString(" ")
+        }
         override fun openDownload(download: BrowserDownload) { calls += "open ${download.fileName}" }
     }
 
@@ -570,7 +572,7 @@ class InAppBrowserScreenTest {
         composeRule.onNodeWithText(string(R.string.browser_dialog_title).replaceIosArg(1, "moodle2.ntust.edu.tw")).assertExists()
         composeRule.onNodeWithText(string(R.string.action_cancel)).assertExists()
         composeRule.onNodeWithText(string(R.string.browser_dialog_ok)).performClick()
-        assertEquals(listOf("dialog true"), calls)
+        assertEquals(listOf("dialog Delete this? true"), calls)
     }
 
     @Test
@@ -578,6 +580,26 @@ class InAppBrowserScreenTest {
         show(loaded().apply { dialog = PageDialog(PageDialog.Kind.ALERT, "moodle2.ntust.edu.tw", "Saved") { _, _ -> } })
         composeRule.onNodeWithText("Saved").assertExists()
         composeRule.onNodeWithText(string(R.string.action_cancel)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a prompt starts with the page's text, and each button answers the dialog on screen`() {
+        val state = loaded().apply { dialog = PageDialog(PageDialog.Kind.PROMPT, "moodle2.ntust.edu.tw", "Which week?", "Week 1") { _, _ -> } }
+        show(state)
+        composeRule.onNodeWithText("Week 1").assertExists()
+        composeRule.onNodeWithText(string(R.string.browser_dialog_ok)).performClick()
+        state.dialog = PageDialog(PageDialog.Kind.CONFIRM, "moodle2.ntust.edu.tw", "Submit?") { _, _ -> }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(string(R.string.action_cancel)).performClick()
+
+        assertEquals(listOf("dialog Which week? true Week 1", "dialog Submit? false"), calls)
+    }
+
+    @Test
+    fun `a dialog from no host at all has no title`() {
+        show(loaded().apply { dialog = PageDialog(PageDialog.Kind.ALERT, null, "Saved") { _, _ -> } })
+        composeRule.onNodeWithText("Saved").assertExists()
+        composeRule.onNodeWithText(string(R.string.browser_dialog_title).replaceIosArg(1, ""), substring = true).assertDoesNotExist()
     }
 
     @Test
