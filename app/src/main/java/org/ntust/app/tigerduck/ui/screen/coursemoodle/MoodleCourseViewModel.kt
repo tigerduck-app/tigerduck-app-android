@@ -13,6 +13,8 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.moodle.MoodleAccountAssignments
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseRepository
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.PinMyselfPreference
 import org.ntust.app.tigerduck.mail.MailAccount
 import javax.inject.Inject
 
@@ -26,7 +28,11 @@ class MoodleCourseViewModel @Inject constructor(
     private val repository: MoodleCourseRepository,
     authService: AuthService,
     mailAccount: MailAccount,
+    preferences: AppPreferences,
 ) : ViewModel() {
+    /** Whether the members list puts the account's own row first; see [PinMyselfPreference]. */
+    val pinMyself: PinMyselfPreference = preferences.pinMyselfInCourseMembers
+
     private val _store = MutableStateFlow<MoodleCourseStore?>(null)
     val store: StateFlow<MoodleCourseStore?> = _store.asStateFlow()
 

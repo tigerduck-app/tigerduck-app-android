@@ -410,14 +410,15 @@ object MoodleMembers {
     fun showsOthers(list: MoodleMemberList): Boolean = list.members.any { it.id != list.ownId }
 
     /**
-     * The search runs here, never on Moodle, over what a row shows: the name, the student ID and
-     * the department as the list names it, [departmentNames] by [MoodleMember.departmentKey].
+     * The search runs here, never on Moodle, over what a row shows: the name, the student ID and the
+     * department as the list names it, [departmentNames] by [MoodleMember.departmentKey]. [pinned] leads its section.
      */
     fun sections(
         members: List<MoodleMember>,
         query: String = "",
         locale: Locale = Locale.getDefault(),
         departmentNames: Map<String, String> = emptyMap(),
+        pinned: Int? = null,
     ): List<MoodleMemberSection> {
         val needle = query.trim()
         val shown = if (needle.isEmpty()) members else members.filter { matches(it, needle, departmentNames) }
@@ -436,11 +437,10 @@ object MoodleMembers {
                 else -> byName.compare(a, b)
             }
         }
-        return shown.groupBy(MoodleMemberPlacement::of)
-            .toSortedMap()
-            .map { (placement, people) ->
-                MoodleMemberSection(placement, people.sortedWith(if (placement.listsByStudentId) byStudentId else byName))
-            }
+        val pinnedFirst = compareByDescending<MoodleMember> { it.id == pinned }
+        return shown.groupBy(MoodleMemberPlacement::of).toSortedMap().map { (placement, people) ->
+            MoodleMemberSection(placement, people.sortedWith(pinnedFirst.then(if (placement.listsByStudentId) byStudentId else byName)))
+        }
     }
 
     /** A member's [groups] in one line: Chinese and Japanese list with 、, other languages with a comma. */
