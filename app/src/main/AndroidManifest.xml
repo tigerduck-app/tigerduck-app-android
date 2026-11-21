@@ -183,6 +183,20 @@
             android:theme="@style/Theme.TigerDuck"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- A Today or Week widget's configuration: whose class table it shows. Exported for the
+             launcher; it takes only this app's Today and Week widgets. Its own task, so closing
+             it goes back to the home screen rather than to the app. -->
+        <activity
+            android:name="org.ntust.app.tigerduck.widget.WidgetClassTableActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.TigerDuck">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- The viewer for downloaded files; kept through rotation, so a video plays on. -->
         <activity
             android:name="org.ntust.app.tigerduck.ui.screen.files.FileViewerActivity"
