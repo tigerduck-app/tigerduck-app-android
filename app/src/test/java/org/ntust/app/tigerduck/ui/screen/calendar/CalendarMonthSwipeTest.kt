@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -48,19 +49,28 @@ class CalendarMonthSwipeTest {
     private val changed = mutableListOf<Date>()
     private val announced = mutableListOf<String>()
 
-    /** The grid on [start], with the view model's month in [displayed], as the screen holds it. */
+    /** Whether the grid is in composition, as the day list's lazy column keeps it while on screen. */
+    private var onScreen by mutableStateOf(true)
+
+    /**
+     * The grid on [start], with the view model's month in [displayed], as the screen holds it, and
+     * its saved state kept while it is off screen, as the lazy column keeps it.
+     */
     private fun show(start: Date) {
         displayed = start
         composeRule.setContent {
             TigerDuckAppTheme(darkTheme = false) {
-                MonthCalendar(
-                    displayedMonth = displayed,
-                    selectedDate = start,
-                    eventsByDay = emptyMap(),
-                    onDateSelected = { picked += it },
-                    onMonthChanged = { changed += it; displayed = it },
-                    announce = { announced += it },
-                )
+                val saved = rememberSaveableStateHolder()
+                if (onScreen) saved.SaveableStateProvider("grid") {
+                    MonthCalendar(
+                        displayedMonth = displayed,
+                        selectedDate = start,
+                        eventsByDay = emptyMap(),
+                        onDateSelected = { picked += it },
+                        onMonthChanged = { changed += it; displayed = it },
+                        announce = { announced += it },
+                    )
+                }
             }
         }
         composeRule.waitForIdle()
@@ -189,6 +199,41 @@ class CalendarMonthSwipeTest {
 
         title(2026, 8).assertExists()
         assertEquals(emptyList<Date>(), changed)
+        assertEquals(emptyList<String>(), announced)
+    }
+
+    @Test
+    fun `back on screen after Today, the grid follows the view model and says nothing`() {
+        show(month(2026, 7))
+        arrow(R.string.calendar_next_month).performClick()
+        settle()
+
+        // Scrolled off, then Today, in November, then back: the grid kept August.
+        onScreen = false
+        settle()
+        displayed = month(2026, 11)
+        onScreen = true
+        settle()
+
+        title(2026, 11).assertExists()
+        assertEquals(listOf(month(2026, 8)), changed)
+        assertEquals(month(2026, 11), displayed)
+        assertEquals(emptyList<String>(), announced)
+    }
+
+    @Test
+    fun `two quick taps of an arrow turn two months and say nothing`() {
+        show(month(2026, 7))
+        composeRule.mainClock.autoAdvance = false
+
+        arrow(R.string.calendar_next_month).performClick()
+        frames(3)
+        arrow(R.string.calendar_next_month).performClick()
+        composeRule.mainClock.autoAdvance = true
+        settle()
+
+        title(2026, 9).assertExists()
+        assertEquals(month(2026, 9), changed.last())
         assertEquals(emptyList<String>(), announced)
     }
 

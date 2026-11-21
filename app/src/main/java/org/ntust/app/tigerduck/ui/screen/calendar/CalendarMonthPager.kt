@@ -36,6 +36,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
@@ -177,14 +178,15 @@ internal fun MonthCalendar(
 
     // The grid's rest to the view model, once it rests: the page under the middle mid-swipe
     // would hand the effect above a month to turn back to. Null while the grid moves, so a rest
-    // back on the month it left counts too.
+    // back on the month it left counts too. Not the page it starts on, no rest: back on screen
+    // with the page it kept, the view model's month since, Today's, is the one to turn to.
     val currentDisplayedMonth by rememberUpdatedState(displayedMonth)
     val currentOnMonthChanged by rememberUpdatedState(onMonthChanged)
     val currentAnnounce by rememberUpdatedState(announce)
     val currentLocale by rememberUpdatedState(locale)
     LaunchedEffect(pagerState) {
         var last = pagerState.settledPage
-        snapshotFlow { if (pagerState.isScrollInProgress) null else pagerState.settledPage }.filterNotNull().collect { settled ->
+        snapshotFlow { if (pagerState.isScrollInProgress) null else pagerState.settledPage }.drop(1).filterNotNull().collect { settled ->
             val moved = settled != last
             last = settled
             val month = MonthPages.monthAt(settled)
