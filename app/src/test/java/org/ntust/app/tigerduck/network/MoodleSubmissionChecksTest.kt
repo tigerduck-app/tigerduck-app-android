@@ -39,7 +39,7 @@ class MoodleSubmissionChecksTest {
         )
 
     @Test
-    fun `no due date, no submissions and a confirmed submission are not asked about`() {
+    fun `no submissions and a confirmed submission are not asked about, no due date is`() {
         val asked = MoodleService.assignmentsToAsk(
             listOf(node(1), node(2, due = 0), node(3, noSubmissions = true), node(4)),
             confirmed = mapOf(4 to Date(now)),
@@ -47,7 +47,8 @@ class MoodleSubmissionChecksTest {
             nowMs = now,
         )
 
-        assertEquals(listOf(1), asked.map { it.id })
+        // Listed like any other since tigerduck-app#1029, so its submission is asked about too.
+        assertEquals(listOf(1, 2), asked.map { it.id })
     }
 
     @Test

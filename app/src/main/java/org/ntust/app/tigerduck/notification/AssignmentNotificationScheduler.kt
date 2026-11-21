@@ -105,18 +105,22 @@ class AssignmentNotificationScheduler @Inject constructor(
         val courseName: String,
     )
 
-    /** [assignment]'s reminders for [offsets] still ahead of [now]; none once it is handed in. */
+    /**
+     * [assignment]'s reminders for [offsets] still ahead of [now]; none once it is handed in, and
+     * none for one with no due date to remind of.
+     */
     private fun pendingFor(assignment: Assignment, offsets: Set<AssignmentReminderOffset>, now: Long): List<Pending> {
-        if (assignment.isCompleted) return emptyList()
+        val due = assignment.studentDueDate
+        if (assignment.isCompleted || due == null) return emptyList()
         return offsets
-            .map { it to assignment.studentDueDate.time - it.milliseconds }
+            .map { it to due.time - it.milliseconds }
             .filter { it.second > now }
             .map { (offset, triggerTime) ->
                 Pending(
                     assignmentId = assignment.assignmentId,
                     offset = offset,
                     triggerTime = triggerTime,
-                    dueAt = assignment.studentDueDate.time,
+                    dueAt = due.time,
                     title = assignment.title,
                     courseName = assignment.courseName,
                 )

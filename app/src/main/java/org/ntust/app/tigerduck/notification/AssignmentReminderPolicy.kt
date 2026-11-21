@@ -4,7 +4,8 @@ import org.ntust.app.tigerduck.network.model.MoodleSubmissionLastAttempt
 
 /** What the cache holds about the assignment a reminder fired for. */
 data class CachedReminderAssignment(
-    val dueAtMs: Long,
+    /** The student's own due date; null for one with none, which no reminder is for. */
+    val dueAtMs: Long?,
     val submitted: Boolean,
     val markedDone: Boolean,
     val ignored: Boolean,
@@ -73,7 +74,8 @@ object AssignmentReminderPolicy {
     /**
      * The cache's half of [decide], which needs no request: why the reminder
      * drops, or null while the cache still has it due. [armedDueAtMs] is the
-     * due date the alarm was armed for, null on one armed without it.
+     * due date the alarm was armed for, null on one armed without it. One the
+     * cache now has no due date for was taken away from under its reminder.
      */
     fun cacheDrop(cached: CachedReminderAssignment?, armedDueAtMs: Long?): ReminderDropReason? =
         when {
@@ -82,6 +84,7 @@ object AssignmentReminderPolicy {
             cached.markedDone -> ReminderDropReason.MARKED_DONE
             cached.ignored -> ReminderDropReason.IGNORED
             cached.courseIgnored -> ReminderDropReason.COURSE_IGNORED
+            cached.dueAtMs == null -> ReminderDropReason.DUE_DATE_CHANGED
             armedDueAtMs != null && armedDueAtMs != cached.dueAtMs -> ReminderDropReason.DUE_DATE_CHANGED
             else -> null
         }
@@ -92,8 +95,10 @@ object AssignmentReminderPolicy {
         answer: ReminderStatusAnswer,
     ): ReminderVerdict {
         if (cached == null) return ReminderVerdict.Drop(ReminderDropReason.NOT_IN_CACHE)
-        // Past the cache's half, the due date the alarm was armed for is the cache's.
-        val reason = cacheDrop(cached, armedDueAtMs) ?: answerDrop(answer, cached.dueAtMs)
+        cacheDrop(cached, armedDueAtMs)?.let { return ReminderVerdict.Drop(it) }
+        // Past the cache's half, the cache has a due date, the one the alarm was armed for.
+        val dueAtMs = cached.dueAtMs ?: return ReminderVerdict.Drop(ReminderDropReason.DUE_DATE_CHANGED)
+        val reason = answerDrop(answer, dueAtMs)
         return if (reason == null) ReminderVerdict.Show else ReminderVerdict.Drop(reason)
     }
 

@@ -83,7 +83,7 @@ class AssignmentNotificationSchedulerTest {
         )
 
         assertEquals(
-            listOf(assignment.dueDate.time, assignment.dueDate.time),
+            listOf(assignment.dueDate?.time, assignment.dueDate?.time),
             armed().map { it.getLongExtra(AssignmentNotificationReceiver.EXTRA_DUE_AT, 0L) },
         )
     }
@@ -112,5 +112,15 @@ class AssignmentNotificationSchedulerTest {
             listOf(assignment.extensionDueDate!!.time),
             armed().map { it.getLongExtra(AssignmentNotificationReceiver.EXTRA_DUE_AT, 0L) },
         )
+    }
+
+    @Test
+    fun `homework with no due date gets no reminder`() {
+        scheduler.scheduleAll(
+            listOf(dueInDays("undated", 3).copy(dueDate = null), dueInDays("dated", 3)),
+            setOf(AssignmentReminderOffset.HR24),
+        )
+
+        assertEquals(listOf("dated"), armedIds())
     }
 }

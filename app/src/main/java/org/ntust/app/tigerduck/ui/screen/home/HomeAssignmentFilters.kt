@@ -12,6 +12,8 @@ import java.util.Date
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
+import org.ntust.app.tigerduck.data.model.partitionedByDueDate
+import org.ntust.app.tigerduck.data.model.sortedByDueDate
 
 object HomeAssignmentFilters {
 
@@ -34,18 +36,15 @@ object HomeAssignmentFilters {
     ): List<Assignment> = when (filter) {
         AssignmentFilter.INCOMPLETE ->
             all.filter { !isDone(it, markedCompletedIds) && it.assignmentId !in ignoredIds }
-                .sortedBy { it.studentDueDate }
+                .sortedByDueDate()
 
-        AssignmentFilter.ALL -> {
-            // 全部 deliberately includes ignored and done items, matching iOS
-            // allCandidates(). Future first (soonest on top), then past (most
-            // recently due first).
-            val (future, past) = all.partition { !it.studentDueDate.before(now) }
-            future.sortedBy { it.studentDueDate } + past.sortedByDescending { it.studentDueDate }
-        }
+        // 全部 deliberately includes ignored and done items, matching iOS
+        // allCandidates(). Future first (soonest on top), then past (most
+        // recently due first), then the undated.
+        AssignmentFilter.ALL -> all.partitionedByDueDate(now)
 
         AssignmentFilter.IGNORED ->
-            all.filter { it.assignmentId in ignoredIds }.sortedBy { it.studentDueDate }
+            all.filter { it.assignmentId in ignoredIds }.sortedByDueDate()
     }
 
     /**

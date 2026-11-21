@@ -59,6 +59,14 @@ class AssignmentReminderPolicyTest {
     // --- shown ------------------------------------------------------------
 
     @Test
+    fun `a reminder for an assignment whose due date was taken away drops`() {
+        val undated = due.copy(dueAtMs = null)
+        assertEquals(DUE_DATE_CHANGED, AssignmentReminderPolicy.cacheDrop(undated, dueAtMs))
+        assertEquals(DUE_DATE_CHANGED, AssignmentReminderPolicy.cacheDrop(undated, null))
+        assertEquals(drop(DUE_DATE_CHANGED), decide(cached = undated, armedDueAtMs = null))
+    }
+
+    @Test
     fun `an assignment still due in the cache and on Moodle shows`() {
         assertEquals(ReminderVerdict.Show, decide())
         assertEquals(ReminderVerdict.Show, decide(answer = answered(own = "draft")))
