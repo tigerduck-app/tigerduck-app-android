@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.files
 
 import android.app.Application
 import android.net.Uri
+import android.text.format.Formatter
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -100,12 +101,20 @@ class ArchiveViewerTest {
 
     @Test
     fun `a file's line is its date, size and type, as a Moodle file's`() {
-        show(zip())
-        waitFor("readme.txt")
+        val file = temp.newFile("dated.zip").also { file ->
+            ZipArchiveOutputStream(file).use { out ->
+                // Noon on 2020-10-04 in Taipei, a year before this one, so the date carries it.
+                out.putArchiveEntry(ZipArchiveEntry("notes.txt").apply { time = 1_601_784_000_000L })
+                out.write("fake".toByteArray())
+                out.closeArchiveEntry()
+            }
+        }
+        show(file)
+        waitFor("notes.txt")
 
-        val line = composeRule.onNodeWithText("readme.txt").fetchSemanticsNode()
-            .config.getOrNull(SemanticsProperties.Text)?.map { it.text }?.getOrNull(1).orEmpty()
-        assertTrue(line, line.matches(Regex("""(\d{4}/)?\d{2}/\d{2} · \S.* · TXT""")))
+        val line = composeRule.onNodeWithText("notes.txt").fetchSemanticsNode()
+            .config.getOrNull(SemanticsProperties.Text)?.map { it.text }?.getOrNull(1)
+        assertEquals("2020/10/04 · ${Formatter.formatShortFileSize(composeRule.activity, 4)} · TXT", line)
     }
 
     @Test
