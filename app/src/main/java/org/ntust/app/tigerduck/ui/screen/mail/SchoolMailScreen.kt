@@ -119,7 +119,6 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.MailDevServerSettings
 import org.ntust.app.tigerduck.mail.imap.FolderSelection
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
-import org.ntust.app.tigerduck.mail.index.MailIndexProgress
 import org.ntust.app.tigerduck.mail.model.MailRow
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
@@ -145,8 +144,6 @@ import org.ntust.app.tigerduck.ui.screen.settings.signInFieldValue
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import java.text.NumberFormat
-import java.util.Locale
 
 /** Spec §6.2 — the Announcements list pattern, over the school inbox. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -327,6 +324,9 @@ fun SchoolMailScreen(
                         listTopAnchor()
                         val displayed = state.displayed
                         val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed
+                        val loaded = state.loadState is SchoolMailListViewModel.LoadState.Loaded
+                        // The empty list's own state: not while it searches or loads, which spin elsewhere.
+                        val emptyState = displayed.isEmpty() && !state.isSearching && (failed != null || loaded)
                         when {
                             // A search under way with nothing found yet shows nothing, its field's spinner
                             // aside: not the mail from before it, nor "no mail" before it has looked.
@@ -342,7 +342,7 @@ fun SchoolMailScreen(
                                     )
                                 }
                             }
-                            displayed.isEmpty() && state.loadState is SchoolMailListViewModel.LoadState.Loaded -> item(key = "empty") {
+                            displayed.isEmpty() && loaded -> item(key = "empty") {
                                 Box(Modifier.fillParentMaxHeight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                     EmptyStateView(
                                         icon = Icons.Filled.Mail,
@@ -370,16 +370,16 @@ fun SchoolMailScreen(
                                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
                                     )
                                 }
-                                if (state.isPaginating || state.isSearching) {
-                                    item(key = "spinner") {
-                                        Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator()
-                                        }
-                                    }
-                                }
-                                // Room for the compose button too, so the last row scrolls clear of it.
-                                item(key = "bottom-spacer") { Spacer(Modifier.height(ComposeButtonClearance)) }
                             }
+                        }
+                        // The end of the rows or of the empty list's own state, never under one still
+                        // loading or searching, whose spinner is the one that shows (#752).
+                        if (displayed.isNotEmpty() || emptyState) item(key = "footer") {
+                            MailListFooter(viewModel.searchIndexProgress, state.searchIndexPartial, busy = state.isPaginating || state.isSearching)
+                        }
+                        // Room for the compose button too, so the last row scrolls clear of it.
+                        if (!emptyState && !(displayed.isEmpty() && state.isSearching)) {
+                            item(key = "bottom-spacer") { Spacer(Modifier.height(ComposeButtonClearance)) }
                         }
                     }
 
@@ -420,11 +420,8 @@ fun SchoolMailScreen(
                             )
                         }
                         FolderChips(state = state, onSelect = viewModel::selectFolder)
-                        searchNote(
-                            searched = state.searchResults != null,
-                            loadedOnly = state.searchLocalOnly,
-                            partial = state.searchIndexPartial,
-                        )?.let { note ->
+                        // The partial-index sentence is the footer's, after the results, as on the iPhone.
+                        searchNote(searched = state.searchResults != null, loadedOnly = state.searchLocalOnly)?.let { note ->
                             Text(
                                 stringResource(note),
                                 style = MaterialTheme.typography.labelSmall,
@@ -593,7 +590,7 @@ fun SpecialFolder.labelRes(): Int = when (this) {
 }
 
 /**
- * Mirrors Announcements' BulletinCard: 12dp surfaceVariant card, 7dp unread dot, SemiBold when unread.
+ * Mirrors Announcements' BulletinCard: 12dp surfaceVariant card, unread dot, SemiBold when unread.
  *
  * [onLongClickLabel] is what TalkBack says a long press does, offered with [onLongClick].
  */
@@ -631,7 +628,7 @@ internal fun MailCard(
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (unread) {
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(cs.primary))
+                    MailUnreadDot(MaterialTheme.typography.labelMedium.fontSize)
                     Spacer(Modifier.width(6.dp))
                 }
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
@@ -980,27 +977,10 @@ private fun SchoolMailLoginCard(
 }
 
 /**
- * [progress] as the sync dot's popup shows it: mail downloaded for search, of how many it lacked, as
- * "120/3,456". Null while the download is still counting, which has no number to show yet.
- */
-internal fun indexProgressText(progress: MailIndexProgress, locale: Locale = Locale.getDefault()): String? {
-    val total = progress.total ?: return null
-    val number = NumberFormat.getIntegerInstance(locale)
-    return number.format(progress.done) + "/" + number.format(total)
-}
-
-/**
  * The line under the search field when a search may have missed mail: one that could read only
- * the loaded mail, or one [partial], run before every mail was downloaded. The search's own
- * answer, kept until it runs again: the download getting through since changes nothing on screen.
+ * the loaded mail. One run before every mail was downloaded says so at the end of its results
+ * instead ([MailListFooter]).
  */
 @StringRes
-internal fun searchNote(searched: Boolean, loadedOnly: Boolean, partial: Boolean): Int? = when {
-    !searched -> null
-    loadedOnly -> R.string.school_mail_search_local_only
-    partial -> R.string.school_mail_search_index_partial
-    else -> null
-}
-
-/** Whether [this] progress is mail downloading: under way, past the count. */
-internal fun MailIndexProgress.downloading(): Boolean = running && total != null
+internal fun searchNote(searched: Boolean, loadedOnly: Boolean): Int? =
+    if (searched && loadedOnly) R.string.school_mail_search_local_only else null

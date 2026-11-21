@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.widget.content
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.blockClassroom
 import org.ntust.app.tigerduck.widget.CourseBlock
 import org.ntust.app.tigerduck.widget.WidgetScale
 
@@ -17,20 +18,22 @@ internal data class WeekBlockLines(val top: TileLine?, val bottom: TileLine?) {
 /**
  * The lines a Week block adds besides its name, as iOS `WeekGridView.courseBlock`:
  * a changed time above the name in [ink]; below it the cancellation in
- * [stepBack], a moved room after `⇄` in [ink], else the timetable's [room] in
- * [textColor], the name's own. No line for an empty [room].
+ * [stepBack], a moved room, or [online] for a class held online, after `⇄` in
+ * [ink], else the timetable's [room] in [textColor], the name's own. No line
+ * for an empty [room].
  */
 internal fun weekBlockLines(
     change: CourseBlock?,
     room: String,
     cancelledLabel: String,
+    online: String,
     ink: Color,
     stepBack: Color,
     textColor: Color,
 ): WeekBlockLines {
     if (change?.isCancelled == true) return WeekBlockLines(null, TileLine(cancelledLabel, stepBack))
     val bottom = when {
-        change?.roomChanged == true -> TileLine(change.roomLabel, ink)
+        change?.roomChanged == true -> TileLine(change.roomLabel(online), ink)
         room.isNotEmpty() -> TileLine(room, textColor)
         else -> null
     }
@@ -51,14 +54,15 @@ internal fun weekBlockLinesFor(
     room: String,
     length: Int,
     cancelledLabel: String,
+    online: String,
     ink: Color,
     stepBack: Color,
     textColor: Color,
     fits: (lineCount: Int) -> Boolean,
 ): WeekBlockLines {
     val shown = if (length > 1) change else change?.copy(changedStart = null, changedEnd = null)
-    val withRoom = weekBlockLines(shown, room.takeIf { change?.isCancelled != true }.orEmpty(), cancelledLabel, ink, stepBack, textColor)
-    val changeOnly = if (length > 1) weekBlockLines(shown, "", cancelledLabel, ink, stepBack, textColor) else WeekBlockLines(null, null)
+    val withRoom = weekBlockLines(shown, room.takeIf { change?.isCancelled != true }.orEmpty(), cancelledLabel, online, ink, stepBack, textColor)
+    val changeOnly = if (length > 1) weekBlockLines(shown, "", cancelledLabel, online, ink, stepBack, textColor) else WeekBlockLines(null, null)
     return if (withRoom == changeOnly || fits(withRoom.count)) withRoom else changeOnly
 }
 
@@ -86,4 +90,4 @@ internal fun blockNameMaxLines(length: Int, lineCount: Int, nameLinesBeside: (li
 
 /** The room the timetable has for [course]'s block over [periods] in the [weekday] column. */
 internal fun weekBlockRoom(course: Course, weekday: Int, periods: List<String>): String =
-    if (periods.isEmpty()) "" else CourseBlock(course, weekday, periods).classroom
+    if (periods.isEmpty()) "" else course.blockClassroom(weekday, periods)

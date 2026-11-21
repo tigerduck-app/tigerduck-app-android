@@ -190,6 +190,12 @@ interface SchoolMailRepository {
     /** How far [updateSearchIndex] has come while it downloads; null otherwise. */
     val searchIndexProgress: StateFlow<MailIndexProgress?>
 
+    /**
+     * The folders whose every mail [updateSearchIndex] has downloaded, as it last found them; one
+     * a search since found lacking mail is not. A search of them misses nothing.
+     */
+    val searchIndexWhole: StateFlow<Set<String>>
+
     /** The disk the mail downloaded for search and the list takes on the phone, in bytes. */
     suspend fun searchIndexBytes(): Long
 

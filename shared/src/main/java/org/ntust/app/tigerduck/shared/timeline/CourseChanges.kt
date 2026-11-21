@@ -9,9 +9,9 @@ import java.time.format.DateTimeParseException
 import java.util.Locale
 
 /**
- * One row of the school's course-changes feed: a class cancelled, moved to another room, started
- * or ended at another time, or given a note, on the class days the server resolved for it.
- * Ported from iOS `CourseChange`.
+ * One row of the school's course-changes feed: a class cancelled, moved to another room or online,
+ * started or ended at another time, assessed, or given a note, on the class days the server
+ * resolved for it. Ported from iOS `CourseChange`.
  */
 data class CourseChange(
     /** Unique across terms. */
@@ -24,6 +24,7 @@ data class CourseChange(
     /** The new time as `HH:mm`, Taipei time. */
     val start: String?,
     val end: String?,
+    /** A note's text, an assessment's name (required) or an online class's description (optional). */
     val noteZh: String?,
     /** `note_en`, or [noteZh] when the feed has none. */
     val noteEn: String?,
@@ -33,7 +34,13 @@ data class CourseChange(
         ROOM("room"),
         START("start"),
         END("end"),
-        NOTE("note");
+        NOTE("note"),
+
+        /** Every student is assessed in the class, which the app asks the feed for by `kinds` (ADR 0031). */
+        ASSESSMENT("assessment"),
+
+        /** The class is held online instead of in its room; asked for by `kinds` too. */
+        ONLINE("online");
 
         companion object {
             fun of(wire: String): Kind? = entries.firstOrNull { it.wire == wire }
@@ -47,7 +54,7 @@ data class CourseChange(
 }
 
 /**
- * The current term's course changes from `/v3/calendar/course-changes`, by course and class day.
+ * The current term's course changes from `calendar/course-changes`, by course and class day.
  * [term] only tells whether the feed has answered; rows match by course number and day alone.
  * Ported from iOS `CourseChanges`.
  */
@@ -135,14 +142,15 @@ class CourseChanges private constructor(
             val strings = listOf("room", "start", "end", "note_zh", "note_en").associateWith { key ->
                 if (row.isNull(key)) null else row.opt(key) as? String ?: return null
             }
+            // An online class's description is optional; an assessment's name is not.
             val value = when (kind) {
-                CourseChange.Kind.CANCELLED -> null
+                CourseChange.Kind.CANCELLED, CourseChange.Kind.ONLINE -> null
                 CourseChange.Kind.ROOM -> strings["room"]
                 CourseChange.Kind.START -> strings["start"]
                 CourseChange.Kind.END -> strings["end"]
-                CourseChange.Kind.NOTE -> strings["note_zh"]
+                CourseChange.Kind.NOTE, CourseChange.Kind.ASSESSMENT -> strings["note_zh"]
             }
-            if (kind != CourseChange.Kind.CANCELLED && value.isNullOrEmpty()) return null
+            if (kind != CourseChange.Kind.CANCELLED && kind != CourseChange.Kind.ONLINE && value.isNullOrEmpty()) return null
             return CourseChange(
                 id = id,
                 courseNo = courseNo,

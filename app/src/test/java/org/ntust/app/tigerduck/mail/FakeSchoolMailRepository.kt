@@ -554,6 +554,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
 
     override val searchIndexProgress = MutableStateFlow<MailIndexProgress?>(null)
 
+    override val searchIndexWhole = MutableStateFlow<Set<String>>(emptySet())
+
     /** What the mail downloaded for search takes, as the settings page reads it. */
     var searchIndexBytes = 0L
 

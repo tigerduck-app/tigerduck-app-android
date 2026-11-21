@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -48,6 +50,7 @@ class LiveActivityResolverTest {
         preferences = preferences,
         accentHex = 0,
         now = now,
+        online = "Online",
     )
 
     @Test
@@ -100,6 +103,7 @@ class LiveActivityResolverTest {
         preferences = preferences,
         accentHex = 0,
         now = at,
+        online = "Online",
     )
 
     @Test
@@ -147,6 +151,7 @@ class LiveActivityResolverTest {
         preferences = preferences,
         accentHex = 0,
         now = at,
+        online = "Online",
     )
 
     @Test
@@ -245,6 +250,7 @@ class LiveActivityResolverTest {
         accentHex = 0,
         now = thursdayAt(time),
         changes = changes,
+        online = "Online",
     )
 
     @Test
@@ -312,6 +318,36 @@ class LiveActivityResolverTest {
         assertEquals("T4-501", during.locationText)
         assertEquals(thursdayAt("11:00"), during.countdownTarget)
         assertNull("#904", resolveThursday("11:30", changes))
+    }
+
+    /** openspec `course-change-assessments`, "Online class in pushes" and "Assessment in pushes". */
+    @Test
+    fun `the Live Update says a class is an assessment and shows an online class's room as online`() {
+        val changes = changes(
+            row(1, "assessment", periods = morning, values = mapOf("note_zh" to "期中考", "note_en" to "Midterm exam")),
+            row(2, "online", periods = listOf("7", "8")),
+        )
+
+        val exam = resolveThursday("09:00", changes)!!
+        assertEquals(LiveActivityScenario.CLASS_PREPARING, exam.scenario)
+        assertTrue(exam.assessment)
+        assertEquals("T4-501", exam.locationText)
+        assertTrue(resolveThursday("10:00", changes)!!.assessment)
+        val online = resolveThursday("15:00", changes)!!
+        assertFalse(online.assessment)
+        assertEquals("Online", online.locationText)
+        assertFalse("without the feed", resolveThursday("10:00", CourseChanges.EMPTY)!!.assessment)
+    }
+
+    @Test
+    fun `a cancelled assessment starts no Live Update`() {
+        val changes = changes(
+            row(1, "assessment", periods = morning, values = mapOf("note_zh" to "期中考", "note_en" to "Midterm exam")),
+            row(2, "cancelled", periods = morning),
+        )
+
+        assertNull(resolveThursday("09:00", changes))
+        assertNull(resolveThursday("10:00", changes))
     }
 
     @Test

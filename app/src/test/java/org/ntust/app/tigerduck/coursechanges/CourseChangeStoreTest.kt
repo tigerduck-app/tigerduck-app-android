@@ -59,7 +59,7 @@ class CourseChangeStoreTest {
         val store = store()
         assertTrue(store.refresh())
         assertNull("nothing stored, nothing to match", requests.last().header("If-None-Match"))
-        assertEquals("https://api.example.test/v3/calendar/course-changes", requests.last().url.toString())
+        assertEquals("https://api.example.test/v3/calendar/course-changes?kinds=assessment,online", requests.last().url.toString())
         val first = store.current()
         assertEquals(CourseChanges.decode(FEED), first)
 
@@ -78,6 +78,26 @@ class CourseChangeStoreTest {
         assertEquals("a new store reads the copy kept", CourseChanges.decode(OTHER_FEED), store().current())
         store().refresh()
         assertEquals("W/\"2\"", requests.last().header("If-None-Match"))
+    }
+
+    /** openspec `course-change-assessments`, "First launch after the update" (ADR 0031). */
+    @Test
+    fun `a copy an older build asked for without kinds shows until the new kinds replace it, and its ETag is not sent`() = runTest {
+        prefs.edit().putString("payload", NOTE_FEED).putString("etag", "W/\"old\"").putString("endpoint", base).commit()
+        val store = store()
+        assertEquals("the older build's notes still show", CourseChanges.decode(NOTE_FEED), store.current())
+
+        answer = Triple(304, "", null)
+        assertTrue(store.refresh())
+        assertNull("a copy of other kinds is never revalidated", requests.last().header("If-None-Match"))
+        assertEquals("?kinds=assessment,online", "?" + requests.last().url.encodedQuery)
+
+        answer = Triple(200, KINDS_FEED, "W/\"kinds\"")
+        assertTrue(store.refresh())
+        assertNull(requests.last().header("If-None-Match"))
+        assertEquals(CourseChanges.decode(KINDS_FEED), store.current())
+        store().refresh()
+        assertEquals("the new copy is revalidated", "W/\"kinds\"", requests.last().header("If-None-Match"))
     }
 
     @Test
@@ -121,7 +141,7 @@ class CourseChangeStoreTest {
         answer = Triple(200, OTHER_FEED, "W/\"9\"")
         store.refresh()
         assertNull(requests.last().header("If-None-Match"))
-        assertEquals("https://other.example.test/v3/calendar/course-changes", requests.last().url.toString())
+        assertEquals("https://other.example.test/v3/calendar/course-changes?kinds=assessment,online", requests.last().url.toString())
         assertEquals(CourseChanges.decode(OTHER_FEED), store.current())
     }
 
@@ -214,6 +234,16 @@ class CourseChangeStoreTest {
             {"term":"1151","changes":[
               {"id":1,"course_no":"CC900","kind":"cancelled","periods":null,"class_days":["2026-11-05"],
                "updated_at":"2026-10-30T00:00:00Z"}]}
+        """.trimIndent()
+        val NOTE_FEED = """
+            {"term":"1151","changes":[
+              {"id":14,"course_no":"CC900","kind":"note","note_zh":"期中考","note_en":"Midterm exam","periods":null,
+               "class_days":["2026-11-05"],"updated_at":"2026-10-30T00:00:00Z"}]}
+        """.trimIndent()
+        val KINDS_FEED = """
+            {"term":"1151","changes":[
+              {"id":14,"course_no":"CC900","kind":"assessment","note_zh":"期中考","note_en":"Midterm exam","periods":null,
+               "class_days":["2026-11-05"],"updated_at":"2026-11-21T00:00:00Z"}]}
         """.trimIndent()
         val OTHER_FEED = """
             {"term":"1151","changes":[

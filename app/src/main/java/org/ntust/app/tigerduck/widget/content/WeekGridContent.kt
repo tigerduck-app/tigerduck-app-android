@@ -333,7 +333,7 @@ private fun ScheduleCellBox(
 ) {
     when (cell) {
         is ScheduleCell.Empty -> EmptyCell(blockHeight, colors, style)
-        // Solo blocks only, as on iOS: a 衝堂 cluster keeps the weekly look.
+        // A 衝堂 cluster keeps the weekly look but for its assessments, as on iOS.
         is ScheduleCell.Solo -> SoloCell(
             course = cell.course,
             length = cell.length,
@@ -349,6 +349,7 @@ private fun ScheduleCellBox(
 
         is ScheduleCell.Conflict -> ConflictCell(
             cell = cell,
+            changeOf = changeOf,
             colors = colors,
             style = style,
             courseColors = courseColors,
@@ -360,6 +361,7 @@ private fun ScheduleCellBox(
 
         is ScheduleCell.MultiConflict -> MultiConflictCell(
             cell = cell,
+            changeOf = changeOf,
             colors = colors,
             style = style,
             courseColors = courseColors,
@@ -417,6 +419,7 @@ private fun SoloCell(
         room = room,
         length = length,
         cancelledLabel = LocalContext.current.getString(R.string.course_card_cancelled),
+        online = onlineRoomWord(),
         ink = weekChangeInk(ongoing, colors, style),
         stepBack = colors.onSurfaceVariant,
         textColor = textColor,
@@ -424,7 +427,7 @@ private fun SoloCell(
     )
     when (style.classTableGridStyle) {
         ClassTableGridStyle.Blocks -> CourseTile(
-            name = course.displayName,
+            name = course.displayName, isAssessment = change?.isAssessment == true, isDark = colors.isDark,
             fill = cellBg,
             textColor = textColor,
             height = blockHeight,
@@ -449,7 +452,7 @@ private fun SoloCell(
                 val top = lines.top.takeIf { fits && index == 0 }
                 val bottom = lines.bottom.takeIf { fits && index == length - 1 }
                 CourseTile(
-                    name = course.displayName,
+                    name = course.displayName, isAssessment = change?.isAssessment == true, isDark = colors.isDark,
                     fill = cellBg,
                     textColor = textColor,
                     height = tileHeight,
@@ -483,6 +486,7 @@ private fun CourseTile(
     struckThrough: Boolean = false,
     topLine: TileLine? = null,
     bottomLine: TileLine? = null,
+    isAssessment: Boolean = false, isDark: Boolean = false,
 ) {
     Box(
         modifier = GlanceModifier
@@ -499,8 +503,8 @@ private fun CourseTile(
             contentAlignment = Alignment.Center,
         ) {
             val nameText = @Composable {
-                Text(
-                    text = name,
+                WidgetCourseName(
+                    text = name, isAssessment = isAssessment, isDark = isDark,
                     style = TextStyle(
                         color = ColorProvider(textColor),
                         fontSize = 10.sp.scaled * courseNameScale,
@@ -541,6 +545,8 @@ private fun TileLineText(line: TileLine) {
 @Composable
 private fun ConflictCell(
     cell: ScheduleCell.Conflict,
+    /** Each course's block as the school changed it, of which a cluster shows only the assessment. */
+    changeOf: TileChange,
     colors: WidgetColors,
     style: VisualStylePolicy,
     courseColors: Map<String, Color>,
@@ -573,24 +579,10 @@ private fun ConflictCell(
     val fillA = weekCourseFill(cell.courseA, highlightA, colors, style, courseColors)
     val fillB = weekCourseFill(cell.courseB, highlightB, colors, style, courseColors)
     val bitmapA = remember(cell, widthPx, heightPx, shapeDensity, fillA) {
-        renderConflictLayer(
-            clusterWidthPx = widthPx,
-            clusterHeightPx = heightPx,
-            densityFactor = shapeDensity,
-            cell = cell,
-            course = LayerCourse.A,
-            fillColor = fillA,
-        )
+        renderConflictLayer(widthPx, heightPx, densityFactor = shapeDensity, cell = cell, course = LayerCourse.A, fillColor = fillA)
     }
     val bitmapB = remember(cell, widthPx, heightPx, shapeDensity, fillB) {
-        renderConflictLayer(
-            clusterWidthPx = widthPx,
-            clusterHeightPx = heightPx,
-            densityFactor = shapeDensity,
-            cell = cell,
-            course = LayerCourse.B,
-            fillColor = fillB,
-        )
+        renderConflictLayer(widthPx, heightPx, densityFactor = shapeDensity, cell = cell, course = LayerCourse.B, fillColor = fillB)
     }
 
     val rowHeight = blockHeight / cell.combinedSpan.coerceAtLeast(1)
@@ -616,8 +608,8 @@ private fun ConflictCell(
             )
             // Course A label — pinned inside A's own Box at top-right (Γ's top bar).
             ConflictLabel(
-                courseName = cell.courseA.displayName,
-                textColor = weekCourseTextColor(highlightA, colors, style),
+                courseName = cell.courseA.displayName, isAssessment = changeOf(cell.courseA, cell.offsetA, cell.spanA)?.isAssessment == true,
+                textColor = weekCourseTextColor(highlightA, colors, style), isDark = colors.isDark,
                 alignment = Alignment.TopEnd,
                 boxTopPadding = rowHeight * cell.offsetA,
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetA - cell.spanA),
@@ -626,8 +618,8 @@ private fun ConflictCell(
             )
             // Course B label — pinned inside B's own Box at bottom-left (mirror-L's bottom bar).
             ConflictLabel(
-                courseName = cell.courseB.displayName,
-                textColor = weekCourseTextColor(highlightB, colors, style),
+                courseName = cell.courseB.displayName, isAssessment = changeOf(cell.courseB, cell.offsetB, cell.spanB)?.isAssessment == true,
+                textColor = weekCourseTextColor(highlightB, colors, style), isDark = colors.isDark,
                 alignment = Alignment.BottomStart,
                 boxTopPadding = rowHeight * cell.offsetB,
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetB - cell.spanB),
@@ -647,6 +639,8 @@ private fun ConflictCell(
 @Composable
 private fun MultiConflictCell(
     cell: ScheduleCell.MultiConflict,
+    /** Each course's block as the school changed it, of which a cluster shows only the assessment. */
+    changeOf: TileChange,
     colors: WidgetColors,
     style: VisualStylePolicy,
     courseColors: Map<String, Color>,
@@ -695,8 +689,9 @@ private fun MultiConflictCell(
                                     .padding(1.dp.scaled),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(
-                                    text = member.course.displayName,
+                                WidgetCourseName(
+                                    text = member.course.displayName, isDark = colors.isDark,
+                                    isAssessment = changeOf(member.course, member.offset, member.span)?.isAssessment == true,
                                     style = TextStyle(
                                         color = ColorProvider(tileTextColor),
                                         fontSize = 9.sp.scaled * courseNameScale,
@@ -727,6 +722,7 @@ private fun ConflictLabel(
     boxBottomPadding: Dp,
     barWidth: Dp,
     courseNameScale: Float,
+    isAssessment: Boolean = false, isDark: Boolean = false,
 ) {
     Box(
         modifier = GlanceModifier
@@ -740,8 +736,8 @@ private fun ConflictLabel(
                 .padding(horizontal = 2.dp.scaled, vertical = 2.dp.scaled),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = courseName,
+            WidgetCourseName(
+                text = courseName, isAssessment = isAssessment, isDark = isDark,
                 style = TextStyle(
                     color = ColorProvider(textColor),
                     fontSize = 9.sp.scaled * courseNameScale,
@@ -828,7 +824,10 @@ internal fun weekChangeInk(highlighted: Boolean, colors: WidgetColors, style: Vi
 internal fun weekBlockChange(state: WidgetState, course: Course, weekday: Int, periods: List<String>): CourseBlock? {
     val today = state.today ?: return null
     val date = ClassTableThisWeek.columnDate(weekday, today)
-    val meeting = CourseMeetings.changedMeetings(course, date, state.courseChanges)
-        .firstOrNull { it.periods.firstOrNull() == periods.firstOrNull() } ?: return null
-    return CourseBlock.of(meeting).takeIf { it.isCancelled || it.roomChanged || it.timeChanged }
+    val meetings = CourseMeetings.changedMeetings(course, date, state.courseChanges).filter { m -> m.periods.any { it in periods } }
+    val first = meetings.firstOrNull { it.periods.firstOrNull() == periods.firstOrNull() }?.let(CourseBlock::of)
+    // An assessment of any meeting the tile draws marks it, unless the tile reads as cancelled.
+    val assessed = meetings.any { it.assessment != null } && first?.isCancelled != true
+    val block = first?.copy(isAssessment = assessed) ?: CourseBlock(course, weekday, periods, isAssessment = true).takeIf { assessed }
+    return block?.takeIf { it.isCancelled || it.roomChanged || it.timeChanged || it.isAssessment }
 }

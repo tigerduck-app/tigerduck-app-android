@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.ONLINE
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 
@@ -38,7 +39,7 @@ class WearSchedulePublishOrderTest {
         val puts = mutableListOf<String>()
         val publisher = WatchItemPublisher(
             snapshot = {
-                val sent = wearCourseChanges(listOf(course), held)
+                val sent = wearCourseChanges(listOf(course), held, ONLINE)
                 // The course save's publish stops in its encoding, after it read the feed.
                 if (snapshots++ == 0) encoded.await()
                 sent
@@ -54,7 +55,7 @@ class WearSchedulePublishOrderTest {
         encoded.complete(Unit)
         runCurrent()
 
-        assertEquals(wearCourseChanges(listOf(course), feed()), puts.last())
+        assertEquals(wearCourseChanges(listOf(course), feed(), ONLINE), puts.last())
     }
 
     @Test

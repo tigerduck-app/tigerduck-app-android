@@ -1232,6 +1232,132 @@ class MailRepositoryTest {
     }
 
     /**
+     * The end of the search results leaves once the folders searched are whole, whatever the rest
+     * still lacks (#752): Inbox, downloaded first, is whole while Sent still downloads, and every
+     * folder stays whole once the download is done.
+     */
+    @Test
+    fun `the download tells which folders it got through, and they stay so once it is done`() = runTest {
+        repeat(MailIndexer.BATCH + 2) { server.deliver("收件 $it") }
+        server.deliver("寄出", folder = "寄件備份匣")
+        val repo = TestSetup(backgroundScope).signedIn()
+        val seen = mutableListOf<Set<String>>()
+        server.onFetchBody = { seen += repo.searchIndexWhole.value }
+
+        repo.updateSearchIndex()
+
+        assertTrue(seen.first().none { it == "INBOX" || it == "寄件備份匣" })
+        assertTrue("Inbox whole while Sent downloads: ${seen.last()}", "INBOX" in seen.last())
+        assertFalse("寄件備份匣" in seen.last())
+        assertNull(repo.searchIndexProgress.value)
+        assertTrue(repo.searchIndexWhole.value.containsAll(listOf("INBOX", "寄件備份匣")))
+    }
+
+    /** A search that finds mail missing in its folder takes that folder out of the whole ones, and only that one. */
+    @Test
+    fun `a search that finds its folder lacking mail says the folder is no longer whole`() = runTest {
+        server.deliver("期中考 0")
+        server.deliver("寄出", folder = "寄件備份匣")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.updateSearchIndex()
+        (1..MailRepository.SEARCH_CATCH_UP + 5).forEach { server.deliver("期中考 $it") }
+
+        repo.search("INBOX", "期中")
+
+        assertNotNull(repo.searchIndexProgress.value)
+        assertFalse("INBOX" in repo.searchIndexWhole.value)
+        assertTrue("寄件備份匣" in repo.searchIndexWhole.value)
+    }
+
+    /**
+     * Inbox recreated after the download planned it, while Sent still had mail to fetch: its flags
+     * are cut short, and its empty share of the fetch is no word that it is whole.
+     */
+    @Test
+    fun `a folder recreated before its flags were refreshed is not whole, though others had mail to fetch`() = runTest {
+        server.deliver("期中考")
+        val armed = AtomicBoolean(false)
+        val sessions = MailSessionFactory { credentials ->
+            val session = server.factory().open(credentials)
+            object : MailSession by session {
+                override fun undeletedUids(folder: String): List<Long> {
+                    // Recreated once Inbox is planned: its flags would be asked of other mail.
+                    if (folder != "INBOX" && armed.getAndSet(false)) server.uidValidity++
+                    return session.undeletedUids(folder)
+                }
+            }
+        }
+        val setup = TestSetup(backgroundScope, sessions)
+        val repo = setup.signedIn()
+        var now = 1_000_000L
+        repo.clock = { now }
+        repo.updateSearchIndex()
+        assertTrue("INBOX" in repo.searchIndexWhole.value)
+        now += MailRepository.INDEX_RESYNC_MS
+        server.deliver("寄出", folder = "寄件備份匣")
+        armed.set(true)
+
+        repo.updateSearchIndex()
+
+        assertFalse("INBOX" in repo.searchIndexWhole.value)
+    }
+
+    /**
+     * A search that found its folder recreated after the index answered searched none of the new
+     * folder's mail: the end of its results says so, as a search that found mail missing does.
+     */
+    @Test
+    fun `a search that finds its folder recreated since the index answered says the folder is not whole`() = runTest {
+        server.deliver("期中考")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.updateSearchIndex()
+        setup.searchIndex.onSearch = {
+            setup.searchIndex.onSearch = null
+            server.folders.getValue("INBOX").clear()
+            server.uidValidity++
+            server.nextUid = 1
+            server.deliver("other")
+        }
+
+        repo.search("INBOX", "期中")
+
+        assertFalse("INBOX" in repo.searchIndexWhole.value)
+        assertNotNull("a download is asked to show for", repo.searchIndexProgress.value)
+    }
+
+    /**
+     * The search's catch-up left mail out, a download after it brought Inbox whole, and Inbox was
+     * then recreated before the search fetched its matches: Inbox is not whole, whatever the
+     * catch-up said.
+     */
+    @Test
+    fun `a search that finds its folder recreated after a download made it whole says it is not whole`() = runTest {
+        server.deliver("期中考 0")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.updateSearchIndex()
+        (1..MailRepository.SEARCH_CATCH_UP + 5).forEach { server.deliver("期中考 $it") }
+        // The download the catch-up's gap asks for, run as it is asked: before the search reads the index.
+        setup.indexScheduler.onRequestAgain = {
+            setup.indexScheduler.onRequestAgain = null
+            runBlocking { repo.updateSearchIndex() }
+        }
+        setup.searchIndex.onSearch = {
+            setup.searchIndex.onSearch = null
+            assertTrue("whole after the download", "INBOX" in repo.searchIndexWhole.value)
+            server.folders.getValue("INBOX").clear()
+            server.uidValidity++
+            server.nextUid = 1
+            server.deliver("other")
+        }
+
+        repo.search("INBOX", "期中")
+
+        assertFalse("INBOX" in repo.searchIndexWhole.value)
+    }
+
+    /**
      * A sign-in tells of the student leaving before it moves the sign-in on, and a download can
      * still come through for them in between: what it shows would stay on the next student's row.
      */
