@@ -185,6 +185,9 @@ class InAppBrowserActivity : AppCompatActivity() {
     private var pendingUpload: UploadRequest? = null
     private var cameraFile: Uri? = null
 
+    /** The page's alert, confirm and prompt dialogs, one at a time; see [BrowserDialogs]. */
+    private val dialogs = BrowserDialogs(show = ::showDialog)
+
     private val pickImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         deliverPicks(listOfNotNull(uri))
     }
@@ -362,7 +365,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         if (::signInFlow.isInitialized) signInFlow.cancel()
         pendingUpload?.deliver?.invoke(null)
         pendingUpload = null
-        state.dialog?.answer?.invoke(false, null)
+        dialogs.cancelAll()
         if (::webView.isInitialized) {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.destroy()
@@ -489,14 +492,17 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
     }
 
-    /** What a main-frame navigation to [url] does; true when the browser takes it over and the page does not go. */
-    private fun handleNavigation(url: String): Boolean {
+    /**
+     * What a main-frame navigation to [url] does, one the student [tapped] or a script's; true when the
+     * browser takes it over and the page does not go.
+     */
+    private fun handleNavigation(url: String, tapped: Boolean): Boolean {
         val provider = signIns.forUrl(url)
         if (provider != null && provider.isSignInPage(url)) {
             signInFlow.signInPageReached(provider, url, from = state.url)
             return true
         }
-        return when (val decision = BrowserRouting.navigation(url, allowlist)) {
+        return when (val decision = BrowserRouting.navigation(url, allowlist, tapped)) {
             NavigationDecision.Load -> {
                 loads.requested(url)
                 false
@@ -532,6 +538,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             pokeSettings()
         }
         loads.started(url)
+        dialogs.pageChanged()
         // A new page starts at its top, with the bars shown.
         chrome.reset()
         state.barsCollapsed = false
@@ -622,6 +629,11 @@ class InAppBrowserActivity : AppCompatActivity() {
             is DownloadPlan.Save -> if (downloads.start(plan, session = loadedSession ?: return) == null) return
             DownloadPlan.Refused -> Toast.makeText(this, R.string.browser_download_refused, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** Puts [dialog] up, or the last one down; a screen on its way out shows none, and answers it as cancelled. */
+    private fun showDialog(dialog: PageDialog?) {
+        if (dialog != null && (isFinishing || isDestroyed)) dialogs.answer(dialog, confirmed = false, value = null) else state.dialog = dialog
     }
 
     // ── Uploads ───────────────────────────────────────────────────────────
@@ -768,7 +780,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             (loads.loadingUrl ?: state.url)?.let(::openOutside)
         }
         override fun open(url: String) {
-            if (!handleNavigation(url)) load(url)
+            if (!handleNavigation(url, tapped = true)) load(url)
         }
         override fun zoomIn() = setZoom(BrowserZoom.zoomIn(state.zoom))
         override fun zoomOut() = setZoom(BrowserZoom.zoomOut(state.zoom))
@@ -823,11 +835,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             chrome.expand()
             state.barsCollapsed = false
         }
-        override fun answerDialog(confirmed: Boolean, value: String?) {
-            val dialog = state.dialog ?: return
-            state.dialog = null
-            dialog.answer(confirmed, value)
-        }
+        override fun answerDialog(dialog: PageDialog, confirmed: Boolean, value: String?) = dialogs.answer(dialog, confirmed, value)
         override fun pickUpload(source: UploadSource) = this@InAppBrowserActivity.pickUpload(source)
         override fun cancelUpload() = deliverUpload(null)
         override fun retrySignIn() = signInFlow.retry()
@@ -837,9 +845,13 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     private inner class Client : WebViewClient() {
         // A frame's navigation, its redirects included where the WebView asks about them, goes
-        // unless it is a logout, which would end the SSO session the browser holds.
-        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-            if (request.isForMainFrame) handleNavigation(request.url.toString()) else BrowserRouting.isLogout(request.url.toString())
+        // unless it is a logout, which would end the SSO session the browser holds. The main frame's
+        // gesture tells a mail link the student tapped from a script's, which opens nothing.
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = if (request.isForMainFrame) {
+            handleNavigation(request.url.toString(), tapped = request.hasGesture())
+        } else {
+            BrowserRouting.isLogout(request.url.toString())
+        }
 
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             // Off the main thread. A form's POST off the allowlist is stopped here, before it is
@@ -912,18 +924,17 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
 
         override fun onJsAlert(view: WebView, url: String?, message: String?, result: JsResult): Boolean =
-            pageDialog(PageDialog.Kind.ALERT, url, message, null) { confirmed, _ -> if (confirmed) result.confirm() else result.cancel() }
+            pageDialog(view, PageDialog.Kind.ALERT, url, message, null) { confirmed, _ -> if (confirmed) result.confirm() else result.cancel() }
 
         override fun onJsConfirm(view: WebView, url: String?, message: String?, result: JsResult): Boolean =
-            pageDialog(PageDialog.Kind.CONFIRM, url, message, null) { confirmed, _ -> if (confirmed) result.confirm() else result.cancel() }
+            pageDialog(view, PageDialog.Kind.CONFIRM, url, message, null) { confirmed, _ -> if (confirmed) result.confirm() else result.cancel() }
 
         override fun onJsPrompt(view: WebView, url: String?, message: String?, defaultValue: String?, result: JsPromptResult): Boolean =
-            pageDialog(PageDialog.Kind.PROMPT, url, message, defaultValue) { confirmed, value -> if (confirmed) result.confirm(value.orEmpty()) else result.cancel() }
+            pageDialog(view, PageDialog.Kind.PROMPT, url, message, defaultValue) { confirmed, value -> if (confirmed) result.confirm(value.orEmpty()) else result.cancel() }
 
-        private fun pageDialog(kind: PageDialog.Kind, url: String?, message: String?, defaultValue: String?, answer: (Boolean, String?) -> Unit): Boolean {
-            // One at a time: one already up is answered as cancelled.
-            state.dialog?.answer?.invoke(false, null)
-            state.dialog = PageDialog(kind, url?.toHttpUrlOrNull()?.host, message.orEmpty(), defaultValue, answer)
+        /** [url] is the asking frame's; the title falls back on the page's host for a frame with none. */
+        private fun pageDialog(view: WebView, kind: PageDialog.Kind, url: String?, message: String?, defaultValue: String?, answer: (Boolean, String?) -> Unit): Boolean {
+            dialogs.ask(PageDialog(kind, BrowserDialogs.host(frame = url, page = view.url), message.orEmpty(), defaultValue, answer))
             return true
         }
 

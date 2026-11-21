@@ -13,7 +13,7 @@ sealed interface NavigationDecision {
     /** Off the allowlist: asks, then hands it to the phone's browser. */
     data class OpenOutside(val url: String) : NavigationDecision
 
-    /** A `mailto:` link: the mail app's, as anywhere else in the app. */
+    /** A `mailto:` link the student tapped: the mail app's, as anywhere else in the app. */
     data class HandOff(val url: String) : NavigationDecision
 
     /** A scheme no page should hand anyone (`intent:`, `file:`, `javascript:`…): nothing happens. */
@@ -24,18 +24,19 @@ object BrowserRouting {
     /**
      * What the browser does with a page's main-frame navigation to [url]:
      * load it when the allowlist lets it in, ask before sending any other web
-     * page outside, hand a mail link to the mail app, and refuse the rest.
-     * `about:blank`, which pages open to write into, stays. Moodle's logout is refused
+     * page outside, hand a mail link the student [tapped] to the mail app, and refuse the rest:
+     * a script's never opens Mail, as on the iPhone. A page's own `about:blank` stays; an empty
+     * window it opens loads nothing ([BrowserPageScripts.EMPTY_WINDOW]). Moodle's logout is refused
      * ([isMoodleLogout]), as are the school sites' ([isSchoolLogout]).
      */
-    fun navigation(url: String, allowlist: BrowserAllowlist): NavigationDecision = when (scheme(url)) {
+    fun navigation(url: String, allowlist: BrowserAllowlist, tapped: Boolean = false): NavigationDecision = when (scheme(url)) {
         "https", "http" -> when {
             isLogout(url) -> NavigationDecision.Refuse
             allowlist.allows(url) -> NavigationDecision.Load
             else -> NavigationDecision.OpenOutside(url)
         }
         "about" -> if (url.equals("about:blank", ignoreCase = true)) NavigationDecision.Load else NavigationDecision.Refuse
-        "mailto" -> NavigationDecision.HandOff(url)
+        "mailto" -> if (tapped) NavigationDecision.HandOff(url) else NavigationDecision.Refuse
         else -> NavigationDecision.Refuse
     }
 
