@@ -44,9 +44,15 @@ abstract class BaseClassTableWidget(
     sizeMode: SizeMode = SizeMode.Exact,
     /** Where the settings come from: Hilt's, except in a test, which has no Hilt. */
     private val preferencesOf: (Context) -> AppPreferences = ::widgetPreferences,
-    /** What the widget draws: [WidgetDataLoader.load], except in a test. */
-    private val loadState: suspend (Context) -> WidgetState = WidgetDataLoader::load,
+    /**
+     * What the widget draws, for the imported person it is set to or null for the user's own:
+     * [WidgetDataLoader.load], except in a test.
+     */
+    private val loadState: suspend (Context, String?) -> WidgetState = WidgetDataLoader::load,
 ) : GlanceAppWidget() {
+
+    /** Whether the widget shows the class table chosen for it ([WidgetClassTable]): Next Class shows the user's own. */
+    internal val showsChosenTable: Boolean get() = layout != WidgetLayout.NextClass
 
     // SizeMode.Exact lets layouts read LocalSize.current (used by Week and
     // NextClass for responsive variants). Today doesn't read LocalSize and
@@ -65,6 +71,9 @@ abstract class BaseClassTableWidget(
             // provideGlance itself only runs once per Glance session, so any
             // prefs-derived state has to live inside provideContent.
             val tick = currentState(WidgetState.TickKey) ?: 0L
+            // Whose class table, as the widget's configuration chose it; read the same way, so a
+            // new choice redraws.
+            val personId = if (showsChosenTable) currentState(WidgetClassTable.PersonKey) else null
             val isDark = resolveWidgetIsDark(prefs, context)
             // The accent, its gradient while Settings' widgets switch is on.
             val colors = widgetColorsWithAccent(prefs, isDark)
@@ -75,8 +84,8 @@ abstract class BaseClassTableWidget(
             val scale = WidgetScale.of(prefs)
 
             var state by remember { mutableStateOf<WidgetState?>(null) }
-            LaunchedEffect(tick) {
-                state = loadState(context)
+            LaunchedEffect(tick, personId) {
+                state = loadState(context, personId)
             }
             val s = state
             if (s == null) {

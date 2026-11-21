@@ -107,7 +107,7 @@ class WidgetCourseChangesDrawTest {
         layout,
         if (layout == WidgetLayout.Today) SizeMode.Single else SizeMode.Exact,
         preferencesOf = { prefs },
-        loadState = { state },
+        loadState = { _, _ -> state },
     ) {}
 
     @OptIn(ExperimentalGlanceApi::class)

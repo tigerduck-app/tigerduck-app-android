@@ -62,7 +62,6 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
-import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.mail.ComposeMode
@@ -99,14 +98,11 @@ import org.ntust.app.tigerduck.ui.screen.settings.ClassReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.DisplaySizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.StorageScreen
-import org.ntust.app.tigerduck.ui.screen.settings.LibrarySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OpenSourceLicensesScreen
-import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AppIconScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
-import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SyncContentScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
@@ -123,8 +119,6 @@ sealed class Screen(val route: String) {
     object AnnouncementDetail : Screen("announcements/detail/{id}") {
         fun route(id: Int) = "announcements/detail/$id"
     }
-
-    object AnnouncementSubscriptions : Screen("announcements/subscriptions")
 
     /** An assignment's page, opened from Home, a reminder or the Live Update; see MoodleAssignmentScreen. */
     object Assignment : Screen("assignment/{assignmentId}") {
@@ -150,15 +144,12 @@ sealed class Screen(val route: String) {
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object ClassReminderSettings : Screen("classReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
-    object OtherSettings : Screen("otherSettings")
     object AppIcon : Screen("appIcon")
     object AboutOthers : Screen("aboutOthers")
     object OpenSourceLicenses : Screen("openSourceLicenses")
     object LicenseDetail : Screen("openSourceLicenses/{key}") {
         fun route(key: String) = "openSourceLicenses/$key"
     }
-    object LibrarySettings : Screen("librarySettings")
-    object SchoolMailSettings : Screen(MailRoutes.SETTINGS)
     object SchoolMailGuide : Screen(MailRoutes.GUIDE)
     object SchoolMail : Screen(MailRoutes.LIST)
     object SchoolMailMessage : Screen(MailRoutes.MESSAGE) {
@@ -621,9 +612,6 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
-            page(Screen.AnnouncementSubscriptions.route) { entry ->
-                SubscriptionSettingsScreen(signedIn = signedIn, onBack = { navController.popIfTop(entry) })
-            }
             page(Screen.Library.route) { LibraryScreen() }
             page(Screen.SchoolMail.route) {
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailScreen(
@@ -669,58 +657,7 @@ fun MainNavigation(
             }
             schoolAccountPages(browserPreference = { appState.browserPreference }, onOpenSignInSettings = openSignInSettings)
             page(Screen.More.route) { MoreScreen(navController) }
-            page(Screen.Settings.route) {
-                SettingsScreen(
-                    onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
-                    onNavigateToClassTableList = { navController.navigate(Screen.ClassTableList.route) },
-                    onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
-                    onNavigateToAccentColor = { navController.navigate(Screen.AccentColor.route) },
-                    onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
-                    onNavigateToSchoolMailNotificationSettings = {
-                        navController.navigate(Screen.SchoolMailNotificationSettings.route)
-                    },
-                    onNavigateToNotificationPermissionSettings = {
-                        navController.navigate(Screen.NotificationPermissionSettings.route)
-                    },
-                    onNavigateToClassReminders = { navController.navigate(Screen.ClassReminderSettings.route) },
-                    onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
-                    onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
-                    onNavigateToLibrarySettings = { navController.navigate(Screen.LibrarySettings.route) },
-                    onNavigateToSchoolMailSettings = { navController.navigate(Screen.SchoolMailSettings.route) },
-                    onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
-                    onNavigateToAboutOthers = { navController.navigate(Screen.AboutOthers.route) },
-                    // Debug-route navigation is no-op in release builds:
-                    // the composables themselves are registered only inside
-                    // the `if (BuildConfig.DEBUG)` block below, so an
-                    // unguarded call here would throw IllegalArgumentException
-                    // ('destination cannot be found') if the SettingsScreen
-                    // row gating ever drifts.
-                    onNavigateToDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.Debug.route)
-                    },
-                    onNavigateToNotificationDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.NotificationDebug.route)
-                    },
-                    onNavigateToTriggersDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.TriggersDebug.route)
-                    },
-                    onNavigateToServerFailureDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.ServerFailureDebug.route)
-                    },
-                    onNavigateToOutsideAppsDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.OutsideAppsDebug.route)
-                    },
-                    onNavigateToMailDevServerDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.MailDevServerDebug.route)
-                    },
-                    onNavigateToBrowserAllowlistDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.BrowserAllowlistDebug.route)
-                    },
-                    onNavigateToViewerSamplesDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.ViewerSamplesDebug.route)
-                    },
-                )
-            }
+            settingsPages(navController)
             if (BuildConfig.DEBUG) {
                 page(Screen.Debug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.DebugScreen(
@@ -775,16 +712,6 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
-            page(Screen.OtherSettings.route) {
-                OtherSettingsScreen(
-                    onBack = { navController.popBackStack() },
-                    onNavigateToApiEndpoint = { navController.navigate(Screen.ApiEndpointDebug.route) },
-                    onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
-                    onNavigateToDisplaySize = { navController.navigate(Screen.DisplaySizeSettings.route) },
-                    onNavigateToStorage = { navController.navigate(Screen.Storage.route) },
-                    onNavigateToAppIcon = { navController.navigate(Screen.AppIcon.route) },
-                )
-            }
             page(Screen.AppIcon.route) { AppIconScreen(onBack = { navController.popBackStack() }) }
             page(Screen.Storage.route) {
                 StorageScreen(onBack = { navController.popBackStack() })
@@ -809,16 +736,6 @@ fun MainNavigation(
                 LicenseDetailScreen(
                     key = entry.arguments?.getString("key").orEmpty(),
                     onBack = { navController.popBackStack() },
-                )
-            }
-            page(Screen.LibrarySettings.route) {
-                LibrarySettingsScreen(onBack = { navController.popBackStack() })
-            }
-            page(Screen.SchoolMailSettings.route) {
-                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailSettingsScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
-                    onOpenStorage = { navController.navigate(Screen.Storage.route) },
                 )
             }
             page(Screen.SchoolMailGuide.route) {

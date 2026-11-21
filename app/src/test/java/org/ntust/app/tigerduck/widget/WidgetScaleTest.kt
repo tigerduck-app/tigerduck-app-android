@@ -54,7 +54,7 @@ class WidgetScaleTest {
         WidgetLayout.Today,
         SizeMode.Single,
         preferencesOf = { prefs },
-        loadState = {
+        loadState = { _, _ ->
             WidgetState(
                 courses = emptyList(),
                 activeWeekdays = (1..5).toList(),
@@ -143,7 +143,7 @@ class WidgetScaleTest {
     private fun weekWidget(courses: List<Course>) = object : BaseClassTableWidget(
         WidgetLayout.Week,
         preferencesOf = { prefs },
-        loadState = {
+        loadState = { _, _ ->
             WidgetState(
                 courses = courses,
                 activeWeekdays = listOf(1),

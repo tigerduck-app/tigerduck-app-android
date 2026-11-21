@@ -12,7 +12,7 @@ import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import org.ntust.app.tigerduck.util.JvmContext
 
-/** The interface style picked in Settings > Display, as it is stored and read back. */
+/** The interface style picked in Settings > Appearance, as it is stored and read back. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppPreferencesVisualPresetTest {
 

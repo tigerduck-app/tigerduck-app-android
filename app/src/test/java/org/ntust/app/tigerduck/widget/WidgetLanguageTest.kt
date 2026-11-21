@@ -123,7 +123,7 @@ class WidgetLanguageTest {
             WidgetLayout.Today,
             SizeMode.Single,
             preferencesOf = { prefs },
-            loadState = {
+            loadState = { _, _ ->
                 WidgetState(
                     courses = emptyList(),
                     activeWeekdays = (1..5).toList(),
