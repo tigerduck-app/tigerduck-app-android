@@ -114,7 +114,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
             TodayMessage(context.getString(message), colors)
             return@Column
         }
-        val rowHeight = (if (large) 46.dp else 26.dp) * box
+        val rowHeight = todayRowHeight(large, LocalWidgetScale.current, context.resources.configuration.fontScale, state.courseNameScale)
         val gap = (if (large) 6.dp else 4.dp).scaled
         val headerHeight = (if (large) 26.dp else 22.dp) * box
         val available = size.height - padding * 2 - headerHeight
@@ -133,6 +133,17 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
 /** The widget's own box for a line of text: its sizes, the phone's font size capped, whichever is larger. */
 internal fun textBoxOf(scale: WidgetScale, fontScale: Float): Float =
     maxOf(scale.ui, scale.text * WidgetScale.cappedFontScale(fontScale))
+
+/**
+ * A Today row's height: 46dp large and 26dp medium at the widget's sizes, and taller by what its
+ * course name's line, 15sp or 13sp, grows where [courseNameScale] draws it larger, which the row
+ * would otherwise clip, as [upNextFits] counts it.
+ */
+internal fun todayRowHeight(large: Boolean, scale: WidgetScale, fontScale: Float, courseNameScale: Float): Dp {
+    val growth = (if (large) 15f else 13f) * (courseNameScale - 1f).coerceAtLeast(0f)
+    return (if (large) 46.dp else 26.dp) * textBoxOf(scale, fontScale) +
+        (WidgetScale.LINE_HEIGHT * growth * scale.text * WidgetScale.cappedFontScale(fontScale)).dp
+}
 
 private fun timeColumnWidth(large: Boolean, box: Float): Dp = (if (large) 44.dp else 40.dp) * box
 
@@ -256,6 +267,8 @@ private fun TodayTileContent(row: WidgetClassRow, large: Boolean, tile: WidgetTi
                     nameSize = (if (large) 15.sp else 13.sp).scaled * courseNameScale,
                     roomSize = (if (large) 14.sp else 12.sp).scaled,
                     nameWeight = if (large) FontWeight.Bold else FontWeight.Medium,
+                    // Medium shows a cancellation by its stroke alone; large names it below.
+                    nameNote = if (!large && row.block.isCancelled) context.getString(R.string.course_card_cancelled) else null,
                 )
                 when {
                     !large -> Unit

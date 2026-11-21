@@ -127,6 +127,18 @@ class WidgetRedesignDrawTest {
     }
 
     @Test
+    fun `the Today widget's rows grow with the course name size, so fewer fit`() {
+        val names = setOf("Early", "Morning", "Afternoon")
+        fun listed(size: DpSize, courseNameScale: Float) =
+            drawn(WidgetLayout.Today, state("08:00", courseNameScale), size).texts().filter { it in names }
+
+        assertEquals(listOf("Early", "Morning", "Afternoon"), listed(medium, 1f))
+        assertEquals(listOf("Early", "Morning"), listed(medium, 1.6f))
+        assertEquals(listOf("Early", "Morning", "Afternoon"), listed(DpSize(320.dp, 220.dp), 1f))
+        assertEquals(listOf("Early", "Morning"), listed(DpSize(320.dp, 220.dp), 1.6f))
+    }
+
+    @Test
     fun `the medium Today widget says no more classes once the day's are over`() {
         val views = drawn(WidgetLayout.Today, state("15:00"), medium)
 
@@ -215,6 +227,8 @@ class WidgetRedesignDrawTest {
         // Too short for the class in session's card and the row under it, or for both at the largest course names.
         assertFalse(drawn(WidgetLayout.NextClass, state("11:00"), DpSize(320.dp, 150.dp)).texts().contains("Afternoon"))
         assertFalse(drawn(WidgetLayout.NextClass, state("11:00", courseNameScale = 1.6f), DpSize(320.dp, 170.dp)).texts().contains("Afternoon"))
+        // Too narrow for the row's range and some of its name: at 110dp the range takes the row's whole width.
+        assertFalse(drawn(WidgetLayout.NextClass, state("11:00"), DpSize(110.dp, 200.dp)).texts().contains("Afternoon"))
     }
 
     @Test

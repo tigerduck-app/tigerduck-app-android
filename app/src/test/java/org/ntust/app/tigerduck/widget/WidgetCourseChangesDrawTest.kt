@@ -111,9 +111,9 @@ class WidgetCourseChangesDrawTest {
     ) {}
 
     @OptIn(ExperimentalGlanceApi::class)
-    private fun texts(widget: GlanceAppWidget): List<TextView> = runBlocking {
+    private fun texts(widget: GlanceAppWidget, size: DpSize = DpSize(300.dp, 300.dp)): List<TextView> = runBlocking {
         val views: RemoteViews = withTimeout(10_000) {
-            widget.runComposition(app, sizes = listOf(DpSize(300.dp, 300.dp)))
+            widget.runComposition(app, sizes = listOf(size))
                 .first { textsIn(it).isNotEmpty() }
         }
         textsIn(views)
@@ -148,6 +148,16 @@ class WidgetCourseChangesDrawTest {
         assertEquals(ink, texts.named("⇄ T9-909").currentTextColor)
         assertEquals(ink, texts.named("13:40").currentTextColor)
         assertTrue(texts.none { it.text.toString() == "T1-101" })
+    }
+
+    @Test
+    fun `the medium Today widget reads a cancelled class's cancellation, which it shows only by the stroke`() {
+        val texts = texts(widget(WidgetLayout.Today, state("08:00")), DpSize(320.dp, 150.dp))
+
+        assertTrue(texts.named("Gone").isStruckThrough())
+        assertTrue(texts.none { it.text.toString() == "Cancelled" })
+        assertEquals("Gone, Cancelled", texts.named("Gone").contentDescription?.toString())
+        assertEquals(null, texts.named("Moved").contentDescription)
     }
 
     @Test

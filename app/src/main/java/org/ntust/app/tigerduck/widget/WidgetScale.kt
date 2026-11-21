@@ -40,6 +40,12 @@ data class WidgetScale(
         /** About the iPhone's xxxLarge, and Android's largest font size before Android 14's. */
         const val MAX_FONT_SCALE = 1.3f
 
+        /**
+         * A line of the widgets' type for its size, which a widget's sizes estimate its rows by: the
+         * font's padding, and room for a Chinese name's taller lines.
+         */
+        const val LINE_HEIGHT = 1.45f
+
         /** The sizes as stored in [prefs]. */
         fun of(prefs: AppPreferences) = WidgetScale(
             ui = prefs.displayScale(DisplayScale.WidgetUi),

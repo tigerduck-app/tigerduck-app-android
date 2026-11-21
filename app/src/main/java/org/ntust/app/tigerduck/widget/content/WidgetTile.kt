@@ -150,6 +150,8 @@ internal fun NameRoomLine(
     nameSize: TextUnit,
     roomSize: TextUnit,
     nameWeight: FontWeight = FontWeight.Medium,
+    /** What TalkBack reads after the name, as [WidgetCourseName] takes it. */
+    nameNote: String? = null,
 ) {
     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
         Box(modifier = GlanceModifier.defaultWeight()) {
@@ -162,6 +164,7 @@ internal fun NameRoomLine(
                     textDecoration = if (block.isCancelled) TextDecoration.LineThrough else null,
                 ),
                 maxLines = 1,
+                note = nameNote,
             )
         }
         val room = block.classroom(online)
