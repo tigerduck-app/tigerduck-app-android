@@ -70,7 +70,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseStore.kt",
     "kind": "long-file",
-    "count": 784
+    "count": 777
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleLogic.kt",
@@ -776,13 +776,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMemberScreen.kt",
     "kind": "long-file",
-    "count": 556
+    "count": 555
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMemberScreen.kt",
     "kind": "long-function",
     "name": "MoodleMemberScreen(Int, ()->Unit, (address:String)->Unit, MoodleCourseViewModel)",
-    "lines": 135
+    "lines": 133
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMembersScreen.kt",

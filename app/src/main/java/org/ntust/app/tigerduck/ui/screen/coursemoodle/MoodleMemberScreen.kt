@@ -77,6 +77,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
+import org.ntust.app.tigerduck.data.moodle.MoodleCommonTerm
 import org.ntust.app.tigerduck.data.moodle.MoodleLookup
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberPlacement
 import org.ntust.app.tigerduck.data.moodle.MoodleMembers
@@ -108,6 +109,7 @@ fun MoodleMemberScreen(
     val openingPictures = current?.openingPictures?.collectAsStateWithLifecycle()?.value.orEmpty()
     val scope = rememberCoroutineScope()
     val member = members?.members?.firstOrNull { it.id == memberId }
+    val commonCourses = rememberCommonCourses(current, memberId, members?.ownId)
     LaunchedEffect(member?.pictureUrl) { if (member != null) current.loadPicture(member) }
     // One's own picture can be changed where the site allows it: picked, cropped here, uploaded.
     val ownPage = member != null && isOwnPage(member, members.ownId)
@@ -168,11 +170,7 @@ fun MoodleMemberScreen(
         actions = { OpenInMoodleAction(current?.let { MoodlePage.profile(memberId, it.courseId) }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
+        Box(Modifier.fillMaxSize().padding(padding)) {
             if (member == null) {
                 MoodleFirstLoad(failure = (lookup as? MoodleLookup.Failed)?.error, onRetry = { attempt++ })
             } else {
@@ -206,6 +204,7 @@ fun MoodleMemberScreen(
                         null
                     },
                     changingPicture = changingPicture,
+                    commonCourses = commonCourses,
                 )
             }
         }
@@ -346,11 +345,13 @@ internal fun MemberPage(
     onEditOnMoodle: (() -> Unit)?,
     onChangePicture: (() -> Unit)? = null,
     changingPicture: Boolean = false,
+    /** The member's courses in common with the account, by term; none on the account's own page. */
+    commonCourses: List<MoodleCommonTerm> = emptyList(),
 ) {
     Box(Modifier.fillMaxSize()) {
         // Room below the profile for the pencil, so it covers none of it at the end of the scroll.
         MemberProfile(
-            member, picture, onOpenPicture, openingPicture, onWrite, onChangePicture, changingPicture,
+            member, picture, onOpenPicture, openingPicture, onWrite, onChangePicture, changingPicture, commonCourses,
             bottom = if (onEditOnMoodle != null) 96.dp else 32.dp,
         )
         if (onEditOnMoodle != null) {
@@ -377,15 +378,12 @@ private fun MemberProfile(
     onWrite: (String) -> Unit,
     onChangePicture: (() -> Unit)?,
     changingPicture: Boolean,
+    commonCourses: List<MoodleCommonTerm>,
     bottom: Dp,
 ) {
     val rows = memberRows(member)
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 16.dp, bottom = bottom),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 16.dp, bottom = bottom),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -445,6 +443,7 @@ private fun MemberProfile(
                 }
             }
         }
+        if (commonCourses.isNotEmpty()) MemberCommonCourses(commonCourses)
     }
 }
 
