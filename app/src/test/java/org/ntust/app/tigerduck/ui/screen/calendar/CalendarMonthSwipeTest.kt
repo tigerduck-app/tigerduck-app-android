@@ -129,6 +129,37 @@ class CalendarMonthSwipeTest {
     }
 
     @Test
+    fun `an arrow at the end of the pages still calls a month off`() {
+        show(month(2099, 11))
+        composeRule.mainClock.autoAdvance = false
+
+        pager.performTouchInput { swipeLeft(startX = centerX, endX = left) }
+        composeRule.mainClock.advanceTimeUntil(timeoutMillis = 3_000) { changed.isNotEmpty() }
+        arrow(R.string.calendar_next_month).performClick()
+        composeRule.mainClock.advanceTimeBy(2_000)
+
+        assertEquals(listOf(month(2099, 12)), changed)
+        assertEquals(emptyList<String>(), announced)
+    }
+
+    @Test
+    fun `an arrow that turns Today back tells the view model the month it rests on`() {
+        show(month(2026, 8))
+        composeRule.mainClock.autoAdvance = false
+
+        // Today, in July, then Next before the turn is half way: the grid comes back to August.
+        displayed = month(2026, 7)
+        frames(2)
+        arrow(R.string.calendar_next_month).performClick()
+        composeRule.mainClock.autoAdvance = true
+        settle()
+
+        title(2026, 8).assertExists()
+        assertEquals(listOf(month(2026, 8)), changed)
+        assertEquals(month(2026, 8), displayed)
+    }
+
+    @Test
     fun `Today pressed on the month a swipe just reached calls its month off too`() {
         show(month(2026, 7))
         composeRule.mainClock.autoAdvance = false

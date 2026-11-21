@@ -102,9 +102,7 @@ private class MonthTurns(
      * it is the month shown, as any button does; or the grid's own rest coming back, which does not.
      */
     fun follow(month: Date) {
-        if (month == told) return
-        announcement?.cancel()
-        turn(MonthPages.pageOf(month))
+        if (month != told) turn(MonthPages.pageOf(month))
     }
 
     /**
@@ -113,8 +111,9 @@ private class MonthTurns(
      * where the next month counts from, so a second tap goes on from it.
      */
     fun turn(target: Int) {
-        if (target !in 0 until MonthPages.COUNT || target == pager.targetPage) return
+        // A button pressed calls off a month still to be said, even when it turns nothing.
         announcement?.cancel()
+        if (target !in 0 until MonthPages.COUNT || target == pager.targetPage) return
         turningTo = target
         val nextDoor = abs(target - pager.targetPage) == 1
         scope.launch {
@@ -184,7 +183,9 @@ internal fun MonthCalendar(
             val moved = settled != last
             last = settled
             val month = MonthPages.monthAt(settled)
-            if (moved && MonthPages.pageOf(currentDisplayedMonth) != settled) {
+            // Any rest away from the view model's month, one back where the grid was included:
+            // the view model may have moved meanwhile, as Today does that an arrow turns back.
+            if (MonthPages.pageOf(currentDisplayedMonth) != settled) {
                 turns.told = month
                 currentOnMonthChanged(month)
             }
