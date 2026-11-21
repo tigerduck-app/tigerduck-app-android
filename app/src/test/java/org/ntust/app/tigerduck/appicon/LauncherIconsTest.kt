@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.core.content.pm.ShortcutManagerCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -18,6 +19,7 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.library.LibraryQrShortcut
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -151,6 +153,20 @@ open class LauncherIconsTest {
 
         launcher.show(AppIcon.NAIHU)
         assertEquals(AppIcon.DEFAULT, launcher.shown())
+    }
+
+    /** The system drops a dynamic shortcut whose launcher entry leaves the launcher. */
+    @Test
+    fun `a change of entry puts the library QR shortcut on the new one, and no change leaves it`() {
+        val launcher = LauncherIcons(context)
+        ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+
+        assertTrue(launcher.show(AppIcon.TIGER_DUCK, shortcutLabels = context))
+        assertEquals(listOf(LibraryQrShortcut.ID), ShortcutManagerCompat.getDynamicShortcuts(context).map { it.id })
+
+        ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+        assertFalse(launcher.show(AppIcon.TIGER_DUCK, shortcutLabels = context))
+        assertEquals(emptyList<String>(), ShortcutManagerCompat.getDynamicShortcuts(context).map { it.id })
     }
 
     @Test

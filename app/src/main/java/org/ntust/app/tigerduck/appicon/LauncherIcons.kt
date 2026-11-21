@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.preferences.AppIconPreference
+import org.ntust.app.tigerduck.library.LibraryQrShortcut
 import org.ntust.app.tigerduck.util.logSummary
 
 /**
@@ -45,9 +46,10 @@ class LauncherIcons(private val packageManager: PackageManager, private val pack
      * shows its primary icon for a pick of it: every alias goes back to the manifest's state. Any
      * other icon has its alias enabled, Default's disabled and the rest back to the manifest's
      * state. Only an alias whose state differs is written, the one that turns on first, so the app
-     * never leaves the launcher. Returns whether anything changed.
+     * never leaves the launcher. One show at a time, so Settings' and [showKeptIcon]'s never mix
+     * their changes. Returns whether anything changed.
      */
-    fun show(icon: AppIcon): Boolean {
+    fun show(icon: AppIcon): Boolean = synchronized(SHOWING) {
         val changes = AppIcon.entries
             .map { alias -> alias to wanted(alias, icon) }
             .filter { (alias, state) -> state(alias) != state }
@@ -60,7 +62,7 @@ class LauncherIcons(private val packageManager: PackageManager, private val pack
                 packageManager.setComponentEnabledSetting(component(alias), state, PackageManager.DONT_KILL_APP)
             }
         }
-        return true
+        true
     }
 
     /** [changes] as one change, which the launcher hears of once. */
@@ -78,6 +80,8 @@ class LauncherIcons(private val packageManager: PackageManager, private val pack
     private fun component(alias: AppIcon) = ComponentName(packageName, alias.alias)
 
     companion object {
+        private val SHOWING = Any()
+
         /** The icon the build ships as its own, which [AppIcon.DEFAULT]'s alias draws. */
         val PRIMARY = AppIcon.NAIHU
 
@@ -96,6 +100,14 @@ class LauncherIcons(private val packageManager: PackageManager, private val pack
 }
 
 private const val TAG = "LauncherIcons"
+
+/**
+ * [LauncherIcons.show], and when the launcher's entry changed, the library QR shortcut published
+ * again, labelled in [shortcutLabels]' language, so it rides on the new entry: the system drops a
+ * dynamic shortcut whose entry leaves the launcher.
+ */
+fun LauncherIcons.show(icon: AppIcon, shortcutLabels: Context): Boolean =
+    show(icon).also { changed -> if (changed) LibraryQrShortcut.publish(shortcutLabels) }
 
 /**
  * Settings' pick: [show] puts [icon] on the launcher first ([LauncherIcons.show]), and only then

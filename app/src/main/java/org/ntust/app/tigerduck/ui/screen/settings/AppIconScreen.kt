@@ -56,7 +56,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.appicon.AppIcon
 import org.ntust.app.tigerduck.appicon.LauncherIcons
 import org.ntust.app.tigerduck.appicon.choose
-import org.ntust.app.tigerduck.library.LibraryQrShortcut
+import org.ntust.app.tigerduck.appicon.show
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 
@@ -68,8 +68,7 @@ private val RingGap = 4.dp
 /**
  * App icon, under Other settings: each icon [AppIcon] offers, drawn as the launcher draws it, three
  * to a row, as on the iPhone (tigerduck-app#1026). A tap puts the icon on the launcher at once and
- * keeps the pick ([choose]). The library QR shortcut is published again with it, so
- * it rides on the new entry rather than leaving with the old one.
+ * keeps the pick ([choose]), the library QR shortcut moved onto the new launcher entry with it.
  */
 @Composable
 fun AppIconScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
@@ -78,7 +77,7 @@ fun AppIconScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMod
     val context = LocalContext.current
     PageScaffold(title = stringResource(R.string.settings_app_icon), onBack = onBack) { padding ->
         AppIconChoices(chosen, Modifier.padding(padding)) { icon ->
-            if (choice.choose(icon, LauncherIcons(context)::show)) LibraryQrShortcut.publish(context)
+            choice.choose(icon) { LauncherIcons(context).show(it, shortcutLabels = context) }
         }
     }
 }

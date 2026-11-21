@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.appicon.AppIcon
 import org.ntust.app.tigerduck.appicon.LauncherIcons
+import org.ntust.app.tigerduck.appicon.show
 import org.ntust.app.tigerduck.appicon.showKeptIcon
 import org.ntust.app.tigerduck.auth.AccountSessionEffects
 import org.ntust.app.tigerduck.auth.AuthService
@@ -207,7 +209,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         AppLanguageManager.apply(appPreferences.appLanguage)
         notificationChannels.register()
         // The launcher's icon follows the pick in Settings, and a full reset's forgetting it.
-        appScope.showKeptIcon(appPreferences.appIcon.flow, LauncherIcons(this)::show)
+        appScope.showKeptIcon(appPreferences.appIcon.flow, ::showAppIcon)
         uiLanguage.onLocales(resources.configuration.locales.toLanguageTags())
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
@@ -275,6 +277,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
         appScope.launch { appPreferences.disableScreenCaptureProtectionChanged.collect { wearBridge.publish() } }
         appScope.launch { wearBridge.publish() }  // safety-net publish at launch
         appScope.launch { wearBridge.publishLibraryCredentials() }
+    }
+
+    /** [icon] on the launcher, the library QR shortcut, labelled in the app's language, with it. */
+    private fun showAppIcon(icon: AppIcon) {
+        LauncherIcons(this).show(icon, AppLanguageManager.localizedContext(this, appPreferences.appLanguage))
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
