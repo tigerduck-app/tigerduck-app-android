@@ -101,7 +101,8 @@ jobs:
 
       # The browser's school sign-in scripts give the stored password to a page, and the JVM has
       # no DOM to run them in: the play leg's unit tests write them out (SiteSignInScriptsExport)
-      # and jsdom runs them against small copies of the sites' forms.
+      # and jsdom runs them against small copies of the sites' forms. The empty-window script
+      # (PageScriptsExport) changes what a page's own window.open does, and runs there too.
       - name: Set up Node
         if: matrix.leg == 'play'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
@@ -115,6 +116,7 @@ jobs:
         run: |
           npm ci --prefix tools/page-scripts --no-audit --no-fund
           node tools/page-scripts/site-sign-in.test.cjs app/build/site-sign-in-scripts
+          node tools/page-scripts/empty-window.test.cjs app/build/page-scripts
 
   release-scripts:
     # The scripts the release workflows run, which otherwise first run once

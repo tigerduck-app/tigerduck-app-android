@@ -118,7 +118,7 @@ open class BrowserActions {
 
     /** The bars back after the page scrolled them away. */
     open fun expandBars() {}
-    open fun answerDialog(confirmed: Boolean, value: String?) {}
+    open fun answerDialog(dialog: PageDialog, confirmed: Boolean, value: String?) {}
     open fun pickUpload(source: UploadSource) {}
     open fun cancelUpload() {}
     open fun retrySignIn() {}
