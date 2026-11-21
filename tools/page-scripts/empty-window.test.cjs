@@ -16,12 +16,15 @@ function expect(label, actual, expected) {
   if (a === e) { passes++; console.log('pass', label); } else { failures++; console.log('FAIL', label, 'got', a, 'expected', e); }
 }
 
-/** A page with the WebView's open stood in for: with one window, it opens the address in this one and answers it. */
+/**
+ * A page with the WebView's open stood in for: as the real one, it reads its address as a string,
+ * and with one window it opens the address in this one and answers it.
+ */
 function page(body = '') {
   const dom = new JSDOM(`<!doctype html><body>${body}</body>`, { url: 'https://moodle2.ntust.edu.tw/course/view.php?id=1', runScripts: 'outside-only' });
   const w = dom.window;
   w.opened = [];
-  w.eval('window.open = function () { opened.push(Array.prototype.slice.call(arguments)); return window; };');
+  w.eval('window.open = function (url) { opened.push([String(url)].concat(Array.prototype.slice.call(arguments, 1))); return window; };');
   w.eval(script);
   return w;
 }
@@ -37,7 +40,8 @@ for (const [call, args] of [
   ["window.open('/mod/resource/view.php?id=3', '_blank', 'noopener')", ['/mod/resource/view.php?id=3', '_blank', 'noopener']],
   ["open('mailto:someone@example.com')", ['mailto:someone@example.com']],
   ["open('about:blank#top')", ['about:blank#top']],
-  ['open(null)', [null]],
+  ['open(null)', ['null']],
+  ["(function () { var n = 0; return open({ toString: function () { return ++n === 1 ? '/report' : 'about:blank'; } }); })()", ['/report']],
 ]) {
   const w = page();
   expect(`${call}: goes on to the WebView's open, as asked`, [w.eval(call) === w, w.opened], [true, [args]]);

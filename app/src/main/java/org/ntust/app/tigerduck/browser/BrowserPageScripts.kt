@@ -135,7 +135,8 @@ object BrowserPageScripts {
     if (!empty) {
       try { empty = new URL(address, location.href).href.toLowerCase() === 'about:blank'; } catch (e) {}
     }
-    return empty ? null : open.apply(this, arguments);
+    // The address checked is the one opened: an object's toString may answer differently the next time.
+    return empty ? null : open.apply(this, [address].concat(Array.prototype.slice.call(arguments, 1)));
   };
 })();"""
 
