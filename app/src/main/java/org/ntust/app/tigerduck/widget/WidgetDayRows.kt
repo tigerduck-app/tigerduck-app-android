@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.widget
 
 import org.ntust.app.tigerduck.shared.parseHm
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 
 /**
  * A Today row and where the day is with it: over, going on with how far through it is, or still
@@ -23,19 +24,19 @@ internal object WidgetDayRows {
     const val TICK_MINUTES = 5
 
     /**
-     * [blocks], a day's classes in order, as of [minute] of that day: a class is over from its end
-     * minute and on from its start minute, as the widgets read the clock. A block with a period of
-     * no known time has no place in the day and is left out.
+     * [blocks], a day's classes in order, as of [minute] of that day: on and over by [ClassTimeline]'s
+     * rule, the one every screen follows. A block with a period of no known time has no place in the
+     * day and is left out.
      */
     fun rows(blocks: List<CourseBlock>, minute: Int): List<WidgetClassRow> = blocks.mapNotNull { block ->
         val start = parseHm(block.startTime) ?: return@mapNotNull null
         val end = parseHm(block.endTime) ?: return@mapNotNull null
-        val ongoing = !block.isCancelled && start <= minute && minute < end
+        val ongoing = !block.isCancelled && ClassTimeline.isOn(start, end, minute)
         WidgetClassRow(
             block = block,
             start = start,
             end = end,
-            isPast = end <= minute,
+            isPast = ClassTimeline.isOver(end, minute),
             progress = if (ongoing) (minute - start).toFloat() / maxOf(end - start, 1) else null,
         )
     }
