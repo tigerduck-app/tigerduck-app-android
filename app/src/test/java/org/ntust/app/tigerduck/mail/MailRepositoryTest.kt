@@ -1232,6 +1232,51 @@ class MailRepositoryTest {
     }
 
     /**
+     * The end of the search results leaves once the folders searched are whole, whatever the rest
+     * still lacks (#752): Inbox, downloaded first, is whole while Sent still downloads, and the
+     * next download starts from every folder the last one got through.
+     */
+    @Test
+    fun `the download tells which folders it got through, and the next one starts from them`() = runTest {
+        repeat(MailIndexer.BATCH + 2) { server.deliver("收件 $it") }
+        server.deliver("寄出", folder = "寄件備份匣")
+        val repo = TestSetup(backgroundScope).signedIn()
+        var now = 1_000_000L
+        repo.clock = { now }
+        val seen = mutableListOf<MailIndexProgress?>()
+        server.onFetchBody = { seen += repo.searchIndexProgress.value }
+
+        repo.updateSearchIndex()
+
+        assertTrue(seen.first()!!.whole.none { it == "INBOX" || it == "寄件備份匣" })
+        assertTrue("Inbox whole while Sent downloads: ${seen.last()}", "INBOX" in seen.last()!!.whole)
+        assertFalse("寄件備份匣" in seen.last()!!.whole)
+
+        val next = mutableListOf<MailIndexProgress?>()
+        server.onUndeletedUids = { next += repo.searchIndexProgress.value }
+        now += MailRepository.INDEX_RESYNC_MS
+        repo.updateSearchIndex()
+        assertTrue(next.isNotEmpty())
+        assertTrue(next.all { it!!.holdsAll(listOf("INBOX", "寄件備份匣")) })
+    }
+
+    /** A search that finds mail missing in its folder takes that folder out of the whole ones, and only that one. */
+    @Test
+    fun `a search that finds its folder lacking mail says the folder is no longer whole`() = runTest {
+        server.deliver("期中考 0")
+        server.deliver("寄出", folder = "寄件備份匣")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.updateSearchIndex()
+        (1..MailRepository.SEARCH_CATCH_UP + 5).forEach { server.deliver("期中考 $it") }
+
+        repo.search("INBOX", "期中")
+
+        val left = repo.searchIndexProgress.value!!
+        assertFalse("INBOX" in left.whole)
+        assertTrue("寄件備份匣" in left.whole)
+    }
+
+    /**
      * A sign-in tells of the student leaving before it moves the sign-in on, and a download can
      * still come through for them in between: what it shows would stay on the next student's row.
      */

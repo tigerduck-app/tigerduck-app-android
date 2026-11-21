@@ -786,6 +786,53 @@ class SchoolMailListViewModelTest {
         assertFalse(vm.state.value.searchIndexPartial)
     }
 
+    /**
+     * The search on screen stops saying it may have missed mail once the download has brought the
+     * folders it searched whole, while another folder still downloads, and though a query being
+     * edited keeps it from running again (#752).
+     */
+    @Test
+    fun `a search that may have missed mail stops saying so once the folders it searched are whole`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        repo.searchComplete = false
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.setSearchText("期中考")
+        assertTrue(vm.state.value.searchIndexPartial)
+
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10, whole = setOf("寄件備份匣"))
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue("only another folder is whole", vm.state.value.searchIndexPartial)
+
+        repo.searchIndexProgress.value = MailIndexProgress(2, 10, whole = setOf("INBOX"))
+        main.dispatcher.scheduler.runCurrent()
+        assertFalse(vm.state.value.searchIndexPartial)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** All mail's search waits on every folder it merged, but not on Junk or Trash, which it leaves out. */
+    @Test
+    fun `All mail's search that may have missed mail waits on every folder it searched, and on no other`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        repo.searchComplete = false
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.setSearchText("期中考")
+        val searched = vm.state.value.targets
+        assertTrue(vm.state.value.searchIndexPartial)
+
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10, whole = (searched - "Moodle 課程討論區").toSet())
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(vm.state.value.searchIndexPartial)
+
+        repo.searchIndexProgress.value = MailIndexProgress(2, 10, whole = searched.toSet())
+        main.dispatcher.scheduler.runCurrent()
+        assertFalse(vm.state.value.searchIndexPartial)
+    }
+
     @Test
     fun `clearing the search clears its note that it may have missed mail`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"))
