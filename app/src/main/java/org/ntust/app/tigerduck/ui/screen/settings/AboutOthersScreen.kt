@@ -24,8 +24,8 @@ import org.ntust.app.tigerduck.ui.openLink
 /**
  * 其他, behind the row under 官網 in Settings' 關於 section: the links about
  * the project rather than the app's own settings — 回饋/問題回報, 隱私權政策,
- * 刪除帳號, 開源授權 and 查看原始碼. The settings themselves are on
- * [OtherSettingsScreen]. iOS has the same page.
+ * 刪除帳號, 開源授權 and 查看原始碼. The settings themselves are in Settings'
+ * other sections and pages. iOS has the same page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

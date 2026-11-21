@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.ui.theme
 
 /**
- * The interface style picked in Settings > Display.
+ * The interface style picked in Settings > Appearance.
  *
  * A presentation concern only: it picks how the UI draws, not which features
  * exist or which data flows, and it is separate from the accent colour.

@@ -7,7 +7,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 
 /**
- * AppState's copy of the interface style picked in Settings > Display, held
+ * AppState's copy of the interface style picked in Settings > Appearance, held
  * as Compose state over its preference. The root theme reads it, so a pick
  * restyles every screen at once, and [onChange] hears each pick that changes
  * it: the Week widget draws in the style too, and redraws only when asked.
