@@ -98,7 +98,6 @@ open class BrowserActions {
     open fun share(url: String) {}
     open fun copy(url: String) {}
     open fun openExternal(url: String) {}
-
     /** The page that did not load, in the phone's browser. */
     open fun openCurrentExternal() {}
     open fun open(url: String) {}
@@ -115,13 +114,14 @@ open class BrowserActions {
     open fun leaveFor(url: String) {}
     open fun stayHere() {}
     open fun closeLinkMenu() {}
-
     /** The bars back after the page scrolled them away. */
     open fun expandBars() {}
     open fun answerDialog(dialog: PageDialog, confirmed: Boolean, value: String?) {}
     open fun pickUpload(source: UploadSource) {}
     open fun cancelUpload() {}
     open fun retrySignIn() {}
+    /** The refused page opened at the student's risk, in a browser of its own ([BrowserPageState.riskRefusal]). */
+    open fun acceptRisk() {}
 }
 
 /**

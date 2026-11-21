@@ -7,8 +7,10 @@ object DormSite : SchoolSite {
     override val logoutRules = listOf(SiteLogoutRule("/Dorm/OAuth2/Logout"))
     override val logoutSelectors = logoutRules.flatMap { it.selectors(hosts) }
 
+    override val signInLinkPage = "/dorm/"
+
     override fun signInLink(page: HttpUrl): String? {
-        if (page.encodedPath.lowercase() != "/dorm/") return null
+        if (page.encodedPath.lowercase() != signInLinkPage) return null
         return "https://sa.ntust.edu.tw/Dorm/OAuth2/Login"
     }
 }

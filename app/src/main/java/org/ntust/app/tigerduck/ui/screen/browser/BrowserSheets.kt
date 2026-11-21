@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,7 +47,6 @@ import androidx.compose.material.icons.filled.GppBad
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
@@ -106,7 +104,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
@@ -120,7 +117,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -306,7 +302,7 @@ private fun pageKey(depth: Int, sheet: BrowserSheet) = "$depth:${sheet.name}"
 
 /** A page's title, with the way back to the page before it when there is one; TalkBack goes to it. */
 @Composable
-private fun PageTitle(text: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier) {
+internal fun PageTitle(text: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier) {
     val focus = remember { FocusRequester() }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) {
@@ -334,7 +330,7 @@ private fun PageHeader(state: BrowserPageState, onCertificate: (() -> Unit)? = n
         val lock: @Composable () -> Unit = {
             Icon(
                 when {
-                    state.certificateRefused -> Icons.Filled.GppBad
+                    state.certificateRefused || state.atRisk -> Icons.Filled.GppBad
                     state.isHttps -> Icons.Filled.Lock
                     else -> Icons.Filled.LockOpen
                 },
@@ -378,7 +374,7 @@ private fun QuickAction(icon: ImageVector, label: String, enabled: Boolean = tru
 }
 
 @Composable
-private fun MenuRow(
+internal fun MenuRow(
     icon: ImageVector,
     label: String,
     enabled: Boolean = true,
@@ -458,14 +454,14 @@ internal fun BrowserMenuPage(
                 },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedIconButton(onClick = { zoom(actions::zoomOut) }, enabled = BrowserZoom.canZoomOut(state.zoom)) {
+                OutlinedIconButton(onClick = { zoom(actions::zoomOut) }, enabled = !state.atRisk && BrowserZoom.canZoomOut(state.zoom)) {
                     Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.browser_zoom_out))
                 }
-                TextButton(onClick = { zoom(actions::zoomReset) }, colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current)) {
+                TextButton(onClick = { zoom(actions::zoomReset) }, enabled = !state.atRisk, colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current)) {
                     // As wide as it is, and no narrower than 48dp, so it stays put from 50% to 200%.
                     Text(percent, modifier = Modifier.widthIn(min = 48.dp).width(IntrinsicSize.Max), maxLines = 1, textAlign = TextAlign.Center)
                 }
-                OutlinedIconButton(onClick = { zoom(actions::zoomIn) }, enabled = BrowserZoom.canZoomIn(state.zoom)) {
+                OutlinedIconButton(onClick = { zoom(actions::zoomIn) }, enabled = !state.atRisk && BrowserZoom.canZoomIn(state.zoom)) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.browser_zoom_in))
                 }
             }
@@ -476,14 +472,14 @@ internal fun BrowserMenuPage(
                 .fillMaxWidth()
                 .then(aside)
                 .heightIn(min = 56.dp)
-                .clickable(role = Role.Switch) { actions.setDesktopSite(!state.desktopSite) }
+                .clickable(enabled = !state.atRisk, role = Role.Switch) { actions.setDesktopSite(!state.desktopSite) }
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Filled.DesktopWindows, contentDescription = null)
             Spacer(Modifier.width(16.dp))
             Text(stringResource(R.string.browser_desktop_site), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Switch(checked = state.desktopSite, onCheckedChange = null)
+            Switch(checked = state.desktopSite, onCheckedChange = null, enabled = !state.atRisk)
         }
 
         Column(Modifier.fillMaxWidth().then(aside).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -513,7 +509,7 @@ internal fun BrowserMenuPage(
             MenuRow(Icons.Filled.Print, stringResource(R.string.browser_print), enabled = url != null && state.error == null && state.signIn == null) { act(actions::print) }
             MenuRow(Icons.Filled.Download, stringResource(R.string.browser_downloads), showArrow = true, onClick = onDownloads)
             MenuRow(
-                if (state.certificateRefused) Icons.Filled.GppBad else Icons.Filled.VerifiedUser,
+                if (state.certificateRefused || state.atRisk) Icons.Filled.GppBad else Icons.Filled.VerifiedUser,
                 stringResource(R.string.browser_security),
                 enabled = url != null,
                 showArrow = true,
@@ -523,97 +519,8 @@ internal fun BrowserMenuPage(
     }
 }
 
-/** The whole address of the page, its connection and its sign-in. */
 @Composable
-internal fun BrowserAddressPage(
-    state: BrowserPageState,
-    url: String,
-    actions: BrowserActions,
-    onCertificate: () -> Unit,
-    onBack: (() -> Unit)?,
-    onDismiss: () -> Unit,
-) {
-    Column(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            PageTitle(stringResource(R.string.browser_address_title), onBack)
-            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                SelectionContainer {
-                    Text(url, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().padding(12.dp))
-                }
-            }
-            SideBySideOrStacked(spacing = 8.dp) {
-                // Less padding than a button's own, so the three fit side by side at the usual sizes.
-                val padding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                Button(onClick = { actions.copy(url) }, contentPadding = padding) { Text(stringResource(R.string.browser_copy_short), maxLines = 1) }
-                OutlinedButton(onClick = { actions.share(url) }, contentPadding = padding) { Text(stringResource(R.string.browser_share_short), maxLines = 1) }
-                OutlinedButton(onClick = { onDismiss(); actions.openExternal(url) }, contentPadding = padding) {
-                    Text(stringResource(R.string.browser_open_external_short), maxLines = 1)
-                }
-            }
-            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Column {
-                    when {
-                        // Encrypted, but to a certificate the browser refused: neither secure nor unencrypted.
-                        state.certificateRefused -> InfoRow(Icons.Filled.GppBad, stringResource(R.string.browser_certificate_invalid), detail = null)
-                        state.isHttps -> InfoRow(
-                            Icons.Filled.Lock,
-                            stringResource(R.string.browser_connection_secure),
-                            stringResource(R.string.browser_connection_secure_detail),
-                        )
-                        else -> InfoRow(Icons.Filled.LockOpen, stringResource(R.string.browser_connection_insecure), detail = null)
-                    }
-                    if (state.signedIn) {
-                        HorizontalDivider()
-                        InfoRow(icon = Icons.Filled.Person, title = stringResource(R.string.browser_signed_in), detail = null)
-                    }
-                    HorizontalDivider()
-                    MenuRow(
-                        Icons.Filled.VerifiedUser,
-                        stringResource(R.string.browser_certificate),
-                        enabled = state.shownCertificate != null,
-                        showArrow = true,
-                        // InfoRow's, so its icon and text line up with the rows above.
-                        horizontalPadding = 16.dp,
-                        iconGap = 12.dp,
-                        onClick = onCertificate,
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * [content]'s buttons side by side in equal widths when each one's label fits its share, else one
- * under another at full width: no label is cut, whatever the language or the text size.
- */
-@Composable
-private fun SideBySideOrStacked(spacing: Dp, content: @Composable () -> Unit) {
-    Layout(content) { measurables, constraints ->
-        val gap = spacing.roundToPx()
-        val width = constraints.maxWidth
-        val share = (width - gap * (measurables.size - 1)) / measurables.size
-        if (measurables.all { it.maxIntrinsicWidth(Constraints.Infinity) <= share }) {
-            val placeables = measurables.map { it.measure(Constraints.fixedWidth(share)) }
-            val height = placeables.maxOf { it.height }
-            layout(width, height) {
-                placeables.forEachIndexed { i, placeable -> placeable.placeRelative(i * (share + gap), (height - placeable.height) / 2) }
-            }
-        } else {
-            val placeables = measurables.map { it.measure(Constraints.fixedWidth(width)) }
-            layout(width, placeables.sumOf { it.height } + gap * (placeables.size - 1)) {
-                var y = 0
-                placeables.forEach { placeable ->
-                    placeable.placeRelative(0, y)
-                    y += placeable.height + gap
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(icon: ImageVector, title: String, detail: String?) {
+internal fun InfoRow(icon: ImageVector, title: String, detail: String?) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Icon(icon, contentDescription = null, modifier = Modifier.padding(top = 2.dp))
         Spacer(Modifier.width(12.dp))
@@ -648,7 +555,7 @@ internal fun BrowserCertificatePage(state: BrowserPageState, actions: BrowserAct
             }
             if (state.certificateRefused) {
                 InfoRow(Icons.Filled.GppBad, state.host.orEmpty(), stringResource(R.string.browser_certificate_invalid))
-            } else {
+            } else if (!state.atRisk) {
                 InfoRow(Icons.Filled.VerifiedUser, state.host.orEmpty(), stringResource(R.string.browser_certificate_valid))
             }
             CertificateGroup(issuedTo, listOf(commonName to info.issuedToName, organization to info.issuedToOrganization))

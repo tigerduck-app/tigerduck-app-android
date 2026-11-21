@@ -85,6 +85,7 @@ Scopes:
 | An upload a school or Moodle fetch derived, waiting in memory for this process's first pull | Nothing: `SchoolUploads` waits on `FirstPullGate`, which lets go of it at the sign-out's event, its sign-in ended, and the upload is dropped. The upload ledger never recorded it, so the next sign-in's fetch sends its own |
 | The demo account | `DemoAccount.exit()` in `SignOutPlans`' school `clearAccount`, after everything that must still see the demo |
 | The in-app browser's WebView data, cookies, downloads and photo uploads (`cacheDir/browser_uploads/`) | `BrowserDataCleaner.clear()`, which `AccountSessionEffects` runs after each sign-out and sign-in; `BrowserCleanup` keeps it owed across a process death |
+| The WebView profiles a page opened at the student's risk loads in, one for each browser opened so, which start signed in to nothing but where the student may sign in by hand (`BrowserRiskProfiles`) | What each keeps: as its browser closes, and in `BrowserDataCleaner.clear()` (`AndroidWebViewStorage`) after each sign-out and sign-in. The profile itself, which the process that loaded it cannot delete, in a later process before anything loads it: at the start, as a browser opens, and in that clearing (`BrowserRiskProfiles.sweep`). `tigerduck_browser_cleanup` `risk_profiles` keeps each one's name, written before its profile can be made, until it is deleted |
 | Delivered notifications of the school account | `AccountNotifications.cancelAll()` in `AccountSessionEffects.onSignedOut` |
 | Assignment reminders' alarms | `AssignmentNotificationScheduler.cancelAllTracked()` in `AccountSessionEffects.onSignedOut` |
 | Class-preparing alarms and the Live Update | `LiveActivityManager.stop()` in `AccountSessionEffects.onSignedOut` |
@@ -356,6 +357,7 @@ into `library_password_refusals` when it opens.
 | tigerduck_browser_allowlist | `custom_entries` | device | |
 | tigerduck_browser_cleanup | `pending` | device | |
 | tigerduck_browser_cleanup | `request` | device | |
+| tigerduck_browser_cleanup | `risk_profiles` | device | |
 | tigerduck_browser_settings | `appearance` | device | |
 | tigerduck_browser_settings | `desktop/*` | school | `BrowserSettings.kt` `clearSites` |
 | tigerduck_browser_settings | `zoom/*` | school | `BrowserSettings.kt` `clearSites` |
@@ -376,7 +378,6 @@ into `library_password_refusals` when it opens.
 | tigerduck_permissions | `granted_*` | device | |
 | tigerduck_permissions | `muted_*` | device | |
 | tls_pin_acceptances | `acceptances` | device | |
-| tls_pin_acceptances | `cancelledAt.*` | device | |
 | wear_bridge_state | `libraryCredentialEpoch` | device | |
 | wear_bridge_state | `tlsPinsEpoch` | device | |
 

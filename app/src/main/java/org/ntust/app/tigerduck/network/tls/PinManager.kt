@@ -73,7 +73,7 @@ class PinManager internal constructor(
     /** The pins every connection reads. */
     val state = PinState(PinPolicy(document = documents.load(), acceptances = acceptances.all, appVersion = versionCode))
 
-    val prompts = PinMismatchPrompts(acceptances, clock, ::accept) { mismatch ->
+    val prompts = PinMismatchPrompts(::accept) { mismatch ->
         // Asked again when shown and when answered: the document that made it eligible (D18)
         // may have expired, or been replaced by one without its root, since it was queued.
         state.policy.mayPrompt(mismatch, Instant.ofEpochMilli(clock()))

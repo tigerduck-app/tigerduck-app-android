@@ -5,11 +5,11 @@ import org.ntust.app.tigerduck.shared.tls.PinAcceptance
 import org.ntust.app.tigerduck.shared.tls.PinAcceptances
 
 /**
- * The student's Continues on pin mismatches (TLS pins spec, A6), with the 1-hour quiet period a
- * Cancel starts (D5). An acceptance lasts until the build number changes (D4): on load, any
- * made under another versionCode is dropped. Kept in a preferences file of its own, apart from
- * account data, so a sign-out and a full reset keep it; the app backs nothing up, so an uninstall
- * takes it.
+ * The student's Continues on pin mismatches (TLS pins spec, A6). An acceptance lasts until the
+ * build number changes (D4): on load, any made under another versionCode is dropped. Kept in a
+ * preferences file of its own, apart from account data, so a sign-out and a full reset keep it; the
+ * app backs nothing up, so an uninstall takes it. A Cancel stores nothing here: the next launch asks
+ * again (tigerduck-app#958).
  */
 class PinAcceptanceStore(
     private val prefs: SharedPreferences,
@@ -34,22 +34,8 @@ class PinAcceptanceStore(
         return next
     }
 
-    /** Whether [setId] is within the hour after a Cancel at [now]. */
-    fun isQuiet(setId: String, now: Long): Boolean {
-        val cancelledAt = prefs.getLong(cancelKey(setId), Long.MIN_VALUE)
-        return cancelledAt != Long.MIN_VALUE && now in cancelledAt until cancelledAt + QUIET_MS
-    }
-
-    /** A Cancel on [setId] at [now]: it isn't asked about again for an hour. */
-    fun cancelled(setId: String, now: Long) {
-        prefs.edit().putLong(cancelKey(setId), now).apply()
-    }
-
-    private fun cancelKey(setId: String) = "cancelledAt.$setId"
-
     companion object {
         const val FILE = "tls_pin_acceptances"
-        const val QUIET_MS = 60L * 60 * 1000
         private const val KEY_ACCEPTANCES = "acceptances"
     }
 }

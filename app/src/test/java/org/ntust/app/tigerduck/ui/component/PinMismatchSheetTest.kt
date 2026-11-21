@@ -7,11 +7,16 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.network.tls.PinMismatchPrompts
 import org.ntust.app.tigerduck.network.tls.PinTestChain
+import org.ntust.app.tigerduck.shared.tls.PinDomain
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.security.MessageDigest
@@ -56,8 +61,27 @@ class PinMismatchSheetTest {
                 certificates = certificateRows(chain.mismatch(), texts, Locale.US),
                 onCancel = { answers += "cancel" },
                 onContinue = { answers += "continue" },
+                onDismiss = { answers += "dismiss" },
             )
         }
+    }
+
+    @Test
+    fun `a prompt swiped away answers nothing, and the next one comes up in a sheet of its own`() {
+        val continued = mutableListOf<String>()
+        val prompts = PinMismatchPrompts({ continued += it.setId })
+        val library = PinTestChain(host = "api.lib.ntust.edu.tw").mismatch("library", listOf(PinDomain("api.lib.ntust.edu.tw", true)))
+        prompts.queue(chain.mismatch())
+        prompts.queue(library)
+        compose.setContent { MaterialTheme { PinMismatchHost(prompts) } }
+        compose.onNodeWithText(chain.host).assertIsDisplayed()
+
+        compose.onNodeWithText(chain.host).performTouchInput { swipeDown(startY = centerY, endY = centerY + 3000f, durationMillis = 300) }
+        compose.waitForIdle()
+
+        assertEquals(library, prompts.pending.value)
+        assertTrue(continued.isEmpty())
+        compose.onNodeWithText("api.lib.ntust.edu.tw").assertIsDisplayed()
     }
 
     @Test

@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.network.tls
 
 import android.content.Context
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -48,18 +47,5 @@ class PinAcceptanceStoreTest {
         context.cacheDir.deleteRecursively()
 
         assertEquals(setOf("c"), store().all.single().spkis)
-    }
-
-    @Test
-    fun `a Cancel keeps its set quiet for an hour`() {
-        val at = 1_000_000L
-        store().cancelled("ntust", at)
-
-        assertTrue(store().isQuiet("ntust", at))
-        assertTrue(store().isQuiet("ntust", at + PinAcceptanceStore.QUIET_MS - 1))
-        assertFalse(store().isQuiet("ntust", at + PinAcceptanceStore.QUIET_MS))
-        assertFalse(store().isQuiet("library", at))
-        // A clock set back doesn't stretch it.
-        assertFalse(store().isQuiet("ntust", at - 1))
     }
 }

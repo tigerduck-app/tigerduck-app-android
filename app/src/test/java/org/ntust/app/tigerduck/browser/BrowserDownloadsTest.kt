@@ -286,6 +286,22 @@ class BrowserDownloadsTest {
     }
 
     @Test
+    fun `one asked for in a browser opened at risk sends none of the browser's cookies, and keeps none`() = runTest(StandardTestDispatcher()) {
+        val sent = mutableListOf<Pair<String, String?>>()
+        val store = FakeCookieStore(sent)
+        val hops = mapOf(
+            "https://moodle2.ntust.edu.tw/a.pdf" to Hop(302, "https://moodle2.ntust.edu.tw/b.pdf", setCookies = listOf("MoodleSession=new; Path=/")),
+            "https://moodle2.ntust.edu.tw/b.pdf" to Hop(200, body = "PDF"),
+        )
+
+        transfer(hops, sent, mutableListOf(), store).download(save.copy(withCookies = false)) { _, _ -> }
+
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf" to null, "https://moodle2.ntust.edu.tw/b.pdf" to null), sent)
+        assertTrue(store.kept.isEmpty())
+        assertEquals("MoodleSession=abc", store.cookieFor("https://moodle2.ntust.edu.tw/"))
+    }
+
+    @Test
     fun `a redirect that answers after the sites' data was cleared keeps none of its cookies`() = runTest(StandardTestDispatcher()) {
         val sent = mutableListOf<Pair<String, String?>>()
         val store = FakeCookieStore(sent)

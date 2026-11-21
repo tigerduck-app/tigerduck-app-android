@@ -11,6 +11,9 @@ import org.ntust.app.tigerduck.browser.AllowlistEntry
 import org.ntust.app.tigerduck.browser.BrowserAllowlist
 import org.ntust.app.tigerduck.browser.BrowserLaunchPolicy
 import org.ntust.app.tigerduck.browser.BrowserCleanup
+import org.ntust.app.tigerduck.browser.BrowserRiskAcceptance
+import org.ntust.app.tigerduck.browser.BrowserRiskProfiles
+import org.ntust.app.tigerduck.browser.CertificateRefusal
 import org.ntust.app.tigerduck.browser.BrowserSession
 import org.ntust.app.tigerduck.browser.BrowserSignIns
 
@@ -30,6 +33,12 @@ object InAppBrowser {
 
     /** Set by [openAnyPage]: the browser lets every page in, in a debug build only. */
     const val EXTRA_ANY_PAGE = "org.ntust.app.tigerduck.browser.ANY_PAGE"
+
+    /** Set by [openAtRisk]: the certificates the student accepted, [BrowserRiskAcceptance.encoded]. */
+    private const val EXTRA_RISK_ACCEPTED = "org.ntust.app.tigerduck.browser.RISK_ACCEPTED"
+
+    /** Set by [openAtRisk]: the profile the browser loads in, made in this process. */
+    private const val EXTRA_RISK_PROFILE = "org.ntust.app.tigerduck.browser.RISK_PROFILE"
 
     /**
      * Whether this phone's WebView can delete everything a site keeps,
@@ -76,6 +85,38 @@ object InAppBrowser {
         val intent = Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url).putExtra(EXTRA_ANY_PAGE, true)
         return start(context, intent)
     }
+
+    /**
+     * Opens [refusal]'s page ([CertificateRefusal.pageToOpen]) at the student's risk, in place of the
+     * browser [from] opened, with its restriction: a new browser in a WebView profile of its own made
+     * now, signed in to nothing ([BrowserRiskProfiles]), which goes past the certificate error of that
+     * host and that leaf only, with those [accepted] already. False where the WebView has no profiles,
+     * or as [open] is.
+     */
+    fun openAtRisk(context: Context, from: Intent, refusal: CertificateRefusal, accepted: BrowserRiskAcceptance?): Boolean {
+        val page = refusal.pageToOpen ?: return false
+        if (!canClearEverything() || !riskProfiles.supported()) return false
+        val profile = riskProfiles.create(BrowserCleanup.of(context)) ?: return false
+        val acceptance = (accepted ?: BrowserRiskAcceptance()).accepting(refusal)
+        val intent = Intent(from).setClass(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, page)
+            .putStringArrayListExtra(EXTRA_RISK_ACCEPTED, acceptance.encoded())
+            .putExtra(EXTRA_RISK_PROFILE, profile)
+            .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        // The opener's restriction as it stood, with the first host it gained at its opening.
+        if (from.hasExtra(EXTRA_ENTRIES)) intent.putStringArrayListExtra(EXTRA_ENTRIES, ArrayList(allowlistFor(from).entries.map { it.text }))
+        return start(context, intent)
+    }
+
+    /** The profiles a browser opened at risk loads in; a test's own. */
+    @Volatile
+    internal var riskProfiles: BrowserRiskProfiles = BrowserRiskProfiles.shared
+
+    /** What a browser [openAtRisk] opened accepted; null for one opened any other way. */
+    internal fun riskAcceptance(intent: Intent): BrowserRiskAcceptance? =
+        BrowserRiskAcceptance.decode(intent.getStringArrayListExtra(EXTRA_RISK_ACCEPTED))
+
+    /** The profile a browser [openAtRisk] opened loads in. */
+    internal fun riskProfile(intent: Intent): String? = intent.getStringExtra(EXTRA_RISK_PROFILE)
 
     private fun start(context: Context, intent: Intent): Boolean {
         if (!canClearEverything() || !BrowserSession.usable || BrowserCleanup.of(context).isPending()) return false

@@ -8,6 +8,9 @@ interface SchoolSite {
     val hosts: Set<String>
     val logoutRules: List<SiteLogoutRule>
     val logoutSelectors: List<String>
+
+    /** The encoded path, lowercased, of the page whose sign-in link goes through SSO ([signInLink]); null for none. */
+    val signInLinkPage: String? get() = null
     fun signInLink(page: HttpUrl): String? = null
 
     /** The site's own sign-in forms, by the exact encoded path of the page each is on. */
