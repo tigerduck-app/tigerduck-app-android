@@ -195,9 +195,10 @@ class WidgetUpdater internal constructor(
     }
 
     /**
-     * Arms the next class boundary without redrawing anything, as after a reboot, whose alarms are
-     * gone: from the user's courses and those of the imported tables the placed Today and Week
-     * widgets show.
+     * Arms the next class boundary, and the class hours' redraws while a class widget is placed,
+     * without redrawing or sending anything, as after a reboot, whose alarms are gone, or a class
+     * widget's update ([ClassWidgetReceiver]): from the user's courses and those of the imported
+     * tables the placed Today and Week widgets show.
      */
     suspend fun armBoundaries() {
         val manager = GlanceAppWidgetManager(context)
@@ -234,6 +235,11 @@ class WidgetUpdater internal constructor(
      */
     fun requestUpdate() {
         scope.launch { updateAll() }
+    }
+
+    /** [armBoundaries] on the app's scope, for a class widget's update ([ClassWidgetReceiver]). */
+    fun requestArm() {
+        scope.launch { armBoundaries() }
     }
 
     /**

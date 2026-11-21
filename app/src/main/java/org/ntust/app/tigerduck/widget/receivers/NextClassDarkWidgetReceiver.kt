@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.widget.receivers
 
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import org.ntust.app.tigerduck.widget.BaseClassTableWidget
+import org.ntust.app.tigerduck.widget.ClassWidgetReceiver
 import org.ntust.app.tigerduck.widget.WidgetLayout
 
 /**
@@ -10,6 +10,6 @@ import org.ntust.app.tigerduck.widget.WidgetLayout
  * leave them broken on the home screen.
  */
 class NextClassDarkWidget : BaseClassTableWidget(WidgetLayout.NextClass)
-class NextClassDarkWidgetReceiver : GlanceAppWidgetReceiver() {
+class NextClassDarkWidgetReceiver : ClassWidgetReceiver() {
     override val glanceAppWidget = NextClassDarkWidget()
 }
