@@ -46,13 +46,14 @@ class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
 
     /**
      * A new profile's name, for one browser opened at risk to load in; null where the WebView has no
-     * profiles. Kept, before it can be made, as one a later process deletes.
+     * profiles, or where the name could not be kept first, as one a later process deletes: a process
+     * death would leave a profile no sweep finds.
      */
     @Synchronized
     fun create(cleanup: BrowserCleanup): String? {
         if (!supported()) return null
         val name = PREFIX + UUID.randomUUID()
-        cleanup.addRiskProfile(name)
+        if (!cleanup.addRiskProfile(name)) return null
         made += name
         return name
     }

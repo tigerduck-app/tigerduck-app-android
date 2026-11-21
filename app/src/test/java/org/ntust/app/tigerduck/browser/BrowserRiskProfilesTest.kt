@@ -5,6 +5,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.SharedPreferences
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.ntust.app.tigerduck.util.JvmContext
@@ -46,6 +49,16 @@ class BrowserRiskProfilesTest {
         assertTrue(first.startsWith(BrowserRiskProfiles.PREFIX))
         assertTrue(profiles.isMadeHere(first) && profiles.isMadeHere(second))
         assertEquals(setOf(first, second), cleanup.riskProfiles())
+    }
+
+    @Test
+    fun `none where its name could not be kept first, so no later process would miss it`() {
+        val failing = BrowserCleanup(CommitFailingContext())
+        val profiles = BrowserRiskProfiles(FakeWebViewProfiles())
+
+        assertNull(profiles.create(failing))
+        assertTrue(failing.riskProfiles().isEmpty())
+        assertTrue("none was made here", profiles.madeHere().isEmpty())
     }
 
     @Test
@@ -196,5 +209,34 @@ class BrowserRiskProfilesTest {
         assertFalse("its cookies may still be there", clearing.inTime)
         assertFalse(clearing.settled())
         assertTrue("and the browser opens again once it settled", BrowserSession.usable)
+    }
+}
+
+/** A context whose preference writes all fail to reach the disk: each `commit()` says false and keeps nothing. */
+private class CommitFailingContext : ContextWrapper(null) {
+    // Held here: android.jar's ContextWrapper hands nothing on in a plain JVM test.
+    private val base = JvmContext()
+    private val prefs = mutableMapOf<String, SharedPreferences>()
+
+    override fun getApplicationContext(): Context = this
+
+    override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+        prefs.getOrPut(name) { FailingPreferences(base.getSharedPreferences(name, mode)) }
+
+    private class FailingPreferences(private val base: SharedPreferences) : SharedPreferences by base {
+        override fun edit(): SharedPreferences.Editor = FailingEditor()
+    }
+
+    private class FailingEditor : SharedPreferences.Editor {
+        override fun putString(key: String?, value: String?) = this
+        override fun putStringSet(key: String?, values: MutableSet<String>?) = this
+        override fun putInt(key: String?, value: Int) = this
+        override fun putLong(key: String?, value: Long) = this
+        override fun putFloat(key: String?, value: Float) = this
+        override fun putBoolean(key: String?, value: Boolean) = this
+        override fun remove(key: String?) = this
+        override fun clear() = this
+        override fun commit() = false
+        override fun apply() = Unit
     }
 }

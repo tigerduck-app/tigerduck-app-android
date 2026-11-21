@@ -466,6 +466,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
         darkensPages = runCatching { BrowserColors.allowDarkening(settings) }.getOrDefault(false)
         mobileUserAgent = settings.userAgentString
+        keepAutofillOutAtRisk(this, atRisk = riskProfile != null)
         val web = this
         (if (riskProfile != null) WebViewCompat.getProfile(web).cookieManager else CookieManager.getInstance()).apply {
             setAcceptCookie(true)

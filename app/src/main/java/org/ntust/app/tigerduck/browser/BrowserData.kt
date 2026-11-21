@@ -125,8 +125,8 @@ class BrowserCleanup(context: Context) {
     /** The profiles browsers opened at risk were given, which a later process deletes ([BrowserRiskProfiles]). */
     fun riskProfiles(): Set<String> = prefs.getStringSet(KEY_RISK_PROFILES, null).orEmpty().toSet()
 
-    /** Written to disk before it returns, ahead of the profile it names. */
-    fun addRiskProfile(name: String): Unit = synchronized(LOCK) {
+    /** Written to disk before it returns, ahead of the profile it names; false when the write failed. */
+    fun addRiskProfile(name: String): Boolean = synchronized(LOCK) {
         prefs.edit().putStringSet(KEY_RISK_PROFILES, riskProfiles() + name).commit()
     }
 
