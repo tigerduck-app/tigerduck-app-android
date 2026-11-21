@@ -3,21 +3,18 @@ package org.ntust.app.tigerduck.widget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
-import java.time.LocalDate
 import java.time.LocalTime
 
 /**
  * Which classes the redesigned widgets show and how, on made-up Thursday courses
- * ([WidgetDayRows], [WidgetDataLoader.computeUpNext], [WidgetDataLoader.termWeek]): over, on with
- * its progress, or to come; the rows that fit; the class hours' redraws; the class after the one
- * Next Class shows; and the term's week.
+ * ([WidgetDayRows], [WidgetDataLoader.computeUpNext]): over, on with its progress, or to come; the
+ * rows that fit; the class hours' redraws; and the class after the one Next Class shows.
  */
 class WidgetDayRowsTest {
 
@@ -122,18 +119,5 @@ class WidgetDayRowsTest {
         val on = CourseBlock.allOf(morning, 4).single()
 
         assertEquals("ZZ1004", WidgetDataLoader.computeUpNext(courses, at("11:15"), on, cancelled)?.course?.courseNo)
-    }
-
-    @Test
-    fun `the term's week counts from the Monday of the week it starts in`() {
-        // Starts on a Wednesday; its first week runs from the Monday before.
-        val term = SemesterTerm("1151", LocalDate.parse("2026-09-09"), LocalDate.parse("2027-01-08"))
-
-        assertEquals(1, WidgetDataLoader.termWeek(term, LocalDate.parse("2026-09-09")))
-        assertEquals(1, WidgetDataLoader.termWeek(term, LocalDate.parse("2026-09-13")))
-        assertEquals(2, WidgetDataLoader.termWeek(term, LocalDate.parse("2026-09-14")))
-        assertEquals(9, WidgetDataLoader.termWeek(term, thursday))
-        assertNull(WidgetDataLoader.termWeek(term, LocalDate.parse("2026-09-08")))
-        assertNull(WidgetDataLoader.termWeek(term, LocalDate.parse("2027-01-09")))
     }
 }

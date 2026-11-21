@@ -9,7 +9,6 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.QuietDays
-import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
@@ -64,7 +63,6 @@ object WidgetDataLoader {
         val semester = entry.dataCache().currentSemesterCode()
         val table = widgetTable(person, semester, courses, isLoggedIn, entry.academicCalendar().quietDays())
         val now = AppClock.localDateTime()
-        val term = entry.academicCalendar().current().terms.firstOrNull { it.code == semester }
         val state = state(
             courses = table.courses,
             now = now,
@@ -73,7 +71,7 @@ object WidgetDataLoader {
             changes = entry.courseChangeStore().current(),
             courseNameScale = entry.appPreferences().courseNameScale,
             courseColors = table.courseColors,
-        ).copy(termWeek = term?.let { termWeek(it, now.toLocalDate()) })
+        ).copy(termWeek = entry.academicCalendar().current().week(of = semester, on = now.toLocalDate()))
         val customCount = courses.count { it.customColorHex != null }
         Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${state.courseColors.size} color assignments")
         courses.filter { it.customColorHex != null }.forEach { c ->
@@ -157,15 +155,6 @@ object WidgetDataLoader {
             .firstOrNull { !it.isSameBlock(shown) }
     }
 
-    /**
-     * [term]'s week on [day], counting from 1 from the Monday of the week it starts in; null on a
-     * day outside it. As iOS `QuietDayCalendar.Span.week`.
-     */
-    internal fun termWeek(term: SemesterTerm, day: LocalDate): Int? {
-        if (!term.contains(day)) return null
-        val monday = term.start.minusDays(term.start.dayOfWeek.value - 1L)
-        return (ChronoUnit.DAYS.between(monday, day) / 7).toInt() + 1
-    }
 
     internal data class TomorrowFirst(
         val courseNo: String,

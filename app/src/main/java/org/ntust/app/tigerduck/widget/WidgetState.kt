@@ -76,9 +76,8 @@ data class WidgetState(
      */
     val courseChanges: CourseChanges = CourseChanges.EMPTY,
     /**
-     * The current term's week on [today], counting from 1 from the Monday of the week the term
-     * starts in, which the Week grid writes in its corner; null outside the term. As iOS
-     * `QuietDayCalendar.Span.week`.
+     * The current term's week on [today] ([org.ntust.app.tigerduck.academic.AcademicCalendar.week]),
+     * which the Week grid writes in its corner, as the class table does; null outside the term.
      */
     val termWeek: Int? = null,
     /**

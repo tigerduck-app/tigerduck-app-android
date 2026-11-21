@@ -167,8 +167,8 @@ class WidgetRedesignDrawTest {
 
     @Test
     fun `the Week widget writes the term's week and reads each block with its time and room`() {
-        val term = SemesterTerm("1151", LocalDate.parse("2026-09-07"), LocalDate.parse("2027-01-08"))
-        val state = state("11:00").copy(termWeek = WidgetDataLoader.termWeek(term, thursday))
+        val calendar = AcademicCalendar(1L, listOf(SemesterTerm("1151", LocalDate.parse("2026-09-07"), LocalDate.parse("2027-01-08"))), emptyList())
+        val state = state("11:00").copy(termWeek = calendar.week(of = "1151", on = thursday))
 
         val views = drawn(WidgetLayout.Week, state, DpSize(320.dp, 360.dp))
 
