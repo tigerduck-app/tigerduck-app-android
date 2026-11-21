@@ -138,9 +138,9 @@ fun SchoolMailMessageScreen(
 
     val cs = MaterialTheme.colorScheme
     // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.surface/cs.onSurface
-    // below follow the app's own resolved theme (MainActivity's themeMode override -- "dark"
+    // below follow the app's own resolved theme (MainActivityHost's themeMode override -- "dark"
     // or "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
-    // Compose-observable value MainActivity mirrors that resolved theme into, so this stays
+    // Compose-observable value MainActivityHost mirrors that resolved theme into, so this stays
     // in lockstep with the colors right next to it instead of just the OS half of the time.
     val isDark = TigerDuckTheme.isDarkMode
     // Remembered: building it finds the link color that reads on the surface, a search not worth

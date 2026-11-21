@@ -15,6 +15,15 @@ import kotlin.coroutines.CoroutineContext
 /** Moodle's answers are read off the thread that asked: HTML parsing a page of posts is not for the main thread. */
 class LiveMoodleCourseApiTest {
 
+    private companion object {
+        /** Made-up courses; a row Gson cannot build is dropped. */
+        const val USERS_COURSES = """[
+            {"id":30001,"shortname":"Algorithms","fullname":"1141 CS2001301 Algorithms","idnumber":"1141CS2001301","startdate":1788192000,"enddate":1799596800},
+            null,
+            {"id":900,"shortname":"Notices","fullname":"Department Notices","idnumber":"","startdate":0,"enddate":0}
+        ]"""
+    }
+
     private class Recording : CoroutineDispatcher() {
         var used = 0
         override fun dispatch(context: CoroutineContext, block: Runnable) {
@@ -101,6 +110,7 @@ class LiveMoodleCourseApiTest {
             "core_webservice_get_site_info" -> """{"userid":7,"functions":[],"userprivateaccesskey":"key"}""" to "application/json"
             "mod_forum_get_discussion_posts" -> """{"posts":[{"id":1,"subject":"S","message":"M"}]}""" to "application/json"
             "core_course_get_contents" -> "[]" to "application/json"
+            "core_enrol_get_users_courses" -> USERS_COURSES to "application/json"
             null -> file
             else -> """{"status":true}""" to "application/json"
         }
@@ -121,6 +131,18 @@ class LiveMoodleCourseApiTest {
         assertEquals(1, api.posts(40).single().id)
         val body = calls.single { it.function == "mod_forum_get_discussion_posts" }.body
         assertEquals("wstoken=t1&discussionid=40&sortby=created&sortdirection=ASC&moodlewssettingfilter=true", body)
+    }
+
+    @Test
+    fun `a member's courses are asked for by their user id, without counting each course's participants`() = runTest {
+        val calls = mutableListOf<Recorded>()
+        val api = LiveMoodleCourseApi(MoodleWebservice({ recordingClient(calls) }, tokens), Recording())
+
+        val courses = api.sharedCourses(43)
+
+        assertEquals("wstoken=t1&userid=43&returnusercount=0", calls.single { it.function == "core_enrol_get_users_courses" }.body)
+        assertEquals(listOf(30001, 900), courses.map { it.id })
+        assertEquals(listOf("1141", ""), courses.map { it.semesterCode })
     }
 
     @Test

@@ -101,7 +101,7 @@ class SchoolMailComposeViewModel @Inject constructor(
     /**
      * Whether the system rebuilt this composer from saved state after ending the app. Such a one
      * keeps nothing, so it opens as if afresh; the app opens another for a mail kept for its send
-     * (MainActivity's reopenHeldMail), and this one, untouched, gives way to it.
+     * (MainActivityHost's reopenHeldMail), and this one, untouched, gives way to it.
      */
     private val rebuilt: Boolean = savedStateHandle.contains(OPENED).also { savedStateHandle[OPENED] = true }
 

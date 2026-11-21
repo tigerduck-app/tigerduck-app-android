@@ -7,14 +7,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppLink
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.startRouteOf
 import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
-/** What MainActivity opens for a tap on one of the app's home-screen widgets. */
+/** What MainActivityHost opens for a tap on one of the app's home-screen widgets. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class WidgetTapTest {
@@ -22,7 +22,7 @@ class WidgetTapTest {
     private val context: Application = RuntimeEnvironment.getApplication()
 
     /**
-     * [intent] as MainActivity receives it from the widget. Glance gives an
+     * [intent] as MainActivityHost receives it from the widget. Glance gives an
      * intent that has no data a `glance-action:` URI of its own, to keep its
      * PendingIntents apart (ApplyAction's createUniqueUri), and leaves one
      * that has data as it is.
@@ -45,13 +45,13 @@ class WidgetTapTest {
     }
 
     @Test
-    fun `each widget opens its tigerduck link in MainActivity`() {
+    fun `each widget opens its tigerduck link in MainActivityHost`() {
         val classTable = BaseClassTableWidget.tapIntent(context)
         assertEquals(AppLink.ClassTable, AppLink.parse(classTable.data))
-        assertEquals(MainActivity::class.java.name, classTable.component?.className)
+        assertEquals(MainActivityHost::class.java.name, classTable.component?.className)
 
         val library = LibraryShortcutWidget.tapIntent(context)
         assertEquals(AppLink.Library, AppLink.parse(library.data))
-        assertEquals(MainActivity::class.java.name, library.component?.className)
+        assertEquals(MainActivityHost::class.java.name, library.component?.className)
     }
 }

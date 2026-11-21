@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.setMain
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -141,6 +142,22 @@ class HomeViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `a TalkBack move is made on the layout as it is and saved at once`() {
+        val ids = home.sections.value.map { it.id }
+        assertTrue("the default layout has a section to move past", ids.size >= 2)
+
+        val landed = home.step { HomeSectionLayout.stepSection(it, ids[0], by = 1, shown = ids) }
+
+        val moved = listOf(ids[1], ids[0]) + ids.drop(2)
+        assertEquals(2 to ids.size, landed?.let { it.position to it.count })
+        assertEquals(moved, home.sections.value.map { it.id })
+        assertEquals(moved, prefs.homeSections.map { it.id })
+        // A step that moves nothing answers so, and leaves the layout as it was.
+        assertEquals(null, home.step { HomeSectionLayout.stepSection(it, ids[0], by = -1, shown = listOf(ids[0])) })
+        assertEquals(moved, prefs.homeSections.map { it.id })
     }
 
     @Test

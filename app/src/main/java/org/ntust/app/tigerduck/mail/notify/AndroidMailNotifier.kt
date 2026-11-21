@@ -10,7 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
-import org.ntust.app.tigerduck.MainActivity
+import org.ntust.app.tigerduck.MainActivityHost
 import org.ntust.app.tigerduck.StartRoute
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.MailRoutes
@@ -23,7 +23,7 @@ import org.ntust.app.tigerduck.util.replaceIosArg
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Posts what [MailNotificationPlanner] decides. Taps open the mail through MainActivity's [StartRoute] extra. */
+/** Posts what [MailNotificationPlanner] decides. Taps open the mail through MainActivityHost's [StartRoute] extra. */
 @Singleton
 class AndroidMailNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -40,7 +40,7 @@ class AndroidMailNotifier @Inject constructor(
     private fun tap(route: String, requestCode: Int): PendingIntent = PendingIntent.getActivity(
         context,
         requestCode,
-        Intent(context, MainActivity::class.java)
+        Intent(context, MainActivityHost::class.java)
             .putExtra(StartRoute.EXTRA, route)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

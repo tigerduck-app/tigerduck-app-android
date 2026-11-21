@@ -328,7 +328,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     // --- "What's new" dialog ---
     // WHATS_NEW_UNSET (-1) means no versionCode has been recorded yet — either
     // a fresh install or an upgrade from a build that predates this pref.
-    // MainActivity.resolveWhatsNew() tells the two apart via
+    // MainActivityHost.resolveWhatsNew() tells the two apart via
     // hasCompletedOnboarding: a fresh install is suppressed, a real upgrade
     // shows the dialog once.
     // WHATS_NEW_REPLAY (0) is the debug "Replay What's new" sentinel — it is
@@ -435,6 +435,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putString(MOODLE_OPEN_IN_KEY, value).apply()
 
     val pinMyselfInCourseMembers = PinMyselfPreference(prefs)
+    val appIcon = AppIconPreference(prefs)
 
     /** One of "system", "dark", "light". */
     var themeMode: String
@@ -1087,21 +1088,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         val accentBefore = watchAccent()
         val presetBefore = visualPreset
         prefs.edit().clear().apply()
-        // The watch hears of the accent and the interface style only through
-        // accentColorChanged and visualPresetChanged, and a reset while signed
-        // out publishes nothing else.
+        // The watch hears of the accent and the interface style only through accentColorChanged
+        // and visualPresetChanged, and a reset while signed out publishes nothing else.
         if (watchAccent() != accentBefore) _accentColorChanged.tryEmit(Unit)
         if (visualPreset != presetBefore) _visualPresetChanged.tryEmit(Unit)
         forgetLegacyLastCourseSyncAt()
-        // `alwaysShowAllPeriods` and the class table's display switches are
-        // read from in-memory mirrors rather than the file, so clearing the
-        // file alone leaves the class table pinned — and the Settings rows
-        // reading "on" — until the next process start.
+        // `alwaysShowAllPeriods`, the class table's display switches and the app icon are read from
+        // in-memory mirrors rather than the file, so clearing the file alone leaves the class table
+        // pinned, and the Settings rows reading "on", until the next process start.
         _alwaysShowAllPeriods.value = false
         _showClassroomInClassTable.value = true
         _pinTodayCoursesOnClassTable.value = false
         _outlineRequiredCourses.value = false
         pinMyselfInCourseMembers.reload()
+        appIcon.reload()
         _schoolDataSyncedAtMs.value = 0L
         _librarySyncedAtMs.value = 0L
     }
@@ -1238,7 +1238,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
         /**
          * [scale] as stored, read straight from the file: for
-         * MainActivity.attachBaseContext, which sizes the Activity before Hilt
+         * MainActivityHost.attachBaseContext, which sizes the Activity before Hilt
          * can hand it this class.
          */
         fun storedDisplayScale(context: Context, scale: DisplayScale): Float =

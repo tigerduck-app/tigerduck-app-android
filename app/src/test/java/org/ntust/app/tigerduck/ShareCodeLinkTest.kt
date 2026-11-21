@@ -90,7 +90,7 @@ class ShareCodeLinkTest {
         lookup: suspend (String, List<String>) -> List<Course> = { _, _ -> listOf(calculus) },
     ) = ClassTableImportModel(store, { account }, { true }, lookup, this)
 
-    /** The import a link opens over [open], as MainActivity hands it over. */
+    /** The import a link opens over [open], as MainActivityHost hands it over. */
     private suspend fun TestScope.openLink(link: String, open: ClassTableImportModel? = null, next: ClassTableImportModel = model()) =
         ClassTableImportViewModel.linkedImport(store, { open }, { next }, take(link)!!)!!
 
@@ -268,7 +268,7 @@ class ShareCodeLinkTest {
     }
 
     @Test
-    fun `MainActivity holds a link that cannot open yet, and the sign-out drops it`() {
+    fun `MainActivityHost holds a link that cannot open yet, and the sign-out drops it`() {
         val activity = source("MainActivity.kt")
         assertTrue("a link goes through the holder", "heldShareLink.arrived(" in activity)
         assertTrue("and is released once someone may import it", "heldShareLink.release(" in activity)
@@ -328,7 +328,7 @@ class ShareCodeLinkTest {
     }
 
     @Test
-    fun `a QR app or a browser opens the share host's links and the web page's button in MainActivity`() {
+    fun `a QR app or a browser opens the share host's links and the web page's button in MainActivityHost`() {
         val packageManager = context.packageManager
         listOf(
             "https://share.tigerduck.app/${rest(code)}",
@@ -338,7 +338,7 @@ class ShareCodeLinkTest {
         ).forEach { link ->
             // A QR app may leave out the BROWSABLE category a browser adds.
             listOf(Intent(Intent.ACTION_VIEW, Uri.parse(link)), linkIntent(link)).forEach { intent ->
-                assertEquals(link, MainActivity::class.java.name, packageManager.resolveActivity(intent, 0)?.activityInfo?.name)
+                assertEquals(link, MainActivityHost::class.java.name, packageManager.resolveActivity(intent, 0)?.activityInfo?.name)
             }
         }
     }
@@ -355,7 +355,7 @@ class ShareCodeLinkTest {
             code,
         ).forEach { link ->
             val resolved = packageManager.resolveActivity(linkIntent(link), 0)?.activityInfo?.name
-            assertNotEquals(link, MainActivity::class.java.name, resolved)
+            assertNotEquals(link, MainActivityHost::class.java.name, resolved)
         }
     }
 }

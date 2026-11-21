@@ -73,6 +73,10 @@ class DataCache @Inject constructor(
      */
     val coursesVersion: StateFlow<Int> = _coursesVersion.asStateFlow()
 
+    private val _courseHidesVersion = MutableStateFlow(0)
+    /** Bumped after every write of the course hides, for a reader of which courses the class table shows. */
+    val courseHidesVersion: StateFlow<Int> = _courseHidesVersion.asStateFlow()
+
     private val _assignmentsVersion = MutableStateFlow(0)
 
     /**
@@ -83,15 +87,12 @@ class DataCache @Inject constructor(
     val assignmentsVersion: StateFlow<Int> = _assignmentsVersion.asStateFlow()
 
     private val _assignmentRecordsVersion = MutableStateFlow(0)
-
     /** Bumped after every write of [saveAssignmentRecords]. */
     val assignmentRecordsVersion: StateFlow<Int> = _assignmentRecordsVersion.asStateFlow()
 
     private val _assignmentMarksVersion = MutableStateFlow(0)
 
-    /**
-     * Bumped after every write of the ignored, marked-done and ignored-course sets, so a screen that only reads them reads them again.
-     */
+    /** Bumped after every write of the ignored, marked-done and ignored-course sets, for a screen that only reads them. */
     val assignmentMarksVersion: StateFlow<Int> = _assignmentMarksVersion.asStateFlow()
 
     private val _marksAdoptedVersion = MutableStateFlow(0)
@@ -241,7 +242,7 @@ class DataCache @Inject constructor(
         // objects with null-typed-as-non-null Strings — the first caller that reads `courseNo` /
         // `displayName` NPEs. DataMigration sweeps these files on first injection of AppState, but
         // Application.onCreate launches wearBridge.publish() on Dispatchers.IO and can race ahead of
-        // MainActivity-triggered migration. Guard at every read.
+        // MainActivityHost-triggered migration. Guard at every read.
         val remote = load<List<Course>>(
             type,
             coursesFilename(semester),
@@ -775,11 +776,10 @@ class DataCache @Inject constructor(
     }
 
     /**
-     * [nos] written as the hides, under [courseHidesMutex], with the marks and
-     * the courses being brought back kept in step; see [hideDeletedCourse]. A
-     * mark goes once its hide does, and so does one whose hide was gone
-     * before this write, as a damaged file leaves it; a course being brought
-     * back goes once it is hidden again. Nothing, once [signIn] has ended.
+     * [nos] written as the hides, under [courseHidesMutex], with the marks and the courses being brought back
+     * kept in step ([hideDeletedCourse]), and told on [courseHidesVersion]. A mark goes once its hide does, as
+     * does one whose hide was gone before this write, as a damaged file leaves it; a course being brought back
+     * goes once it is hidden again. Nothing, once [signIn] has ended.
      */
     private suspend fun writeDeletedCourseNos(nos: Set<String>, signIn: SignIn) {
         val before = loadDeletedCourseNos()
@@ -790,6 +790,7 @@ class DataCache @Inject constructor(
         val restored = loadRestoredCourses()
         val keptRestored = restored.filterKeys { it !in nos }
         if (keptRestored != restored) saveToUserData(keptRestored, RESTORED_COURSES_FILE, signIn)
+        _courseHidesVersion.update { it + 1 }
     }
 
     // --- Hides of deleted hand-added courses (scoped keys) ---
@@ -1432,22 +1433,21 @@ class DataCache @Inject constructor(
         return load<Map<String, CourseLookupEntry>>(type, "course_lookups.json") ?: emptyMap()
     }
 
-    // --- Moodle course id map (idnumber → numeric id) ---
-    // Powers the course-detail "Open in Moodle" deep link, which needs the
-    // numeric id (Moodle's web endpoint won't accept the idnumber). The map
-    // is harvested from `fetchEnrolledCourses` across ALL semesters so
-    // historical terms keep working too. Cached so a transient Moodle
-    // failure doesn't make the button vanish for the rest of the session;
-    // wiped on logout via [clearAllUserData] so it can't survive an
-    // account switch.
+    // --- Moodle course ids ---
+    // The idnumber → numeric id map behind "Open in Moodle" (whose web endpoint won't take the idnumber), and every enrolled course,
+    // where a member's courses in common are found: from `fetchEnrolledCourses` across ALL terms, cached so a failure hides neither; wiped on logout.
 
     suspend fun saveMoodleCourseIds(map: Map<String, Int>, signIn: SignIn) =
         save(map, "moodle_course_ids.json", signIn)
 
-    suspend fun loadMoodleCourseIds(): Map<String, Int> {
-        val type = object : TypeToken<Map<String, Int>>() {}.type
-        return load<Map<String, Int>>(type, "moodle_course_ids.json") ?: emptyMap()
-    }
+    suspend fun loadMoodleCourseIds(): Map<String, Int> =
+        load<Map<String, Int>>(object : TypeToken<Map<String, Int>>() {}.type, "moodle_course_ids.json") ?: emptyMap()
+
+    suspend fun saveMoodleEnrolledCourseIds(ids: Set<Int>, signIn: SignIn) =
+        save(ids.sorted(), "moodle_enrolled_course_ids.json", signIn)
+
+    suspend fun loadMoodleEnrolledCourseIds(): Set<Int> =
+        load<List<Int>>(object : TypeToken<List<Int>>() {}.type, "moodle_enrolled_course_ids.json").orEmpty().toSet()
 
     // --- A course's Moodle data, per account ---
     // What the course detail's Moodle screens show (forums, announcements,
@@ -1581,6 +1581,7 @@ class DataCache @Inject constructor(
                         "calendar_events.json",
                         "course_lookups.json",
                         "moodle_course_ids.json",
+                        "moodle_enrolled_course_ids.json",
                         "closed_assignments.json",
                         ASSIGNMENT_RECORDS_FILE,
                     ).forEach { name ->

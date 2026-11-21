@@ -7,28 +7,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,10 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,13 +43,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.compose.material3.Switch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -74,11 +58,9 @@ import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,6 +77,7 @@ fun CalendarScreen(
     val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
+    val openable by viewModel.openableAssignmentIds.collectAsStateWithLifecycle()
     val resources = LocalResources.current
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,7 +94,6 @@ fun CalendarScreen(
             snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
         }
     }
-
 
     PageScaffold(
         title = stringResource(R.string.feature_calendar),
@@ -197,7 +179,7 @@ fun CalendarScreen(
                                 onNotifyOnHolidayChange = holidayId?.let { id ->
                                     { on: Boolean -> viewModel.setNotifyOnHoliday(id, on) }
                                 },
-                                onOpenAssignment = onOpenAssignment,
+                                onOpen = event.assignmentToOpen(openable)?.let { id -> { onOpenAssignment(id) } },
                             )
                         }
                     }
@@ -224,130 +206,6 @@ internal fun CalendarDayHeading(date: LocalDate, today: LocalDate) {
         // So TalkBack's heading navigation jumps from the grid to the list.
         modifier = Modifier.semantics { heading() },
     )
-}
-
-@Composable
-private fun MonthCalendar(
-    displayedMonth: Date,
-    selectedDate: Date,
-    eventsByDay: Map<LocalDate, List<CalendarEvent>>,
-    onDateSelected: (Date) -> Unit,
-    onMonthChanged: (Date) -> Unit
-) {
-    val taipeiTz = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-    val coroutineScope = rememberCoroutineScope()
-
-    val baseDate = remember {
-        AppClock.calendar().apply {
-            set(Calendar.DAY_OF_MONTH, 1)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.time
-    }
-
-    val pagerState = rememberPagerState(initialPage = 1000) { 2000 }
-
-    // Sync pager with ViewModel's displayedMonth (VM → pager).
-    LaunchedEffect(displayedMonth) {
-        val diff = getYearMonthDiff(baseDate, displayedMonth)
-        val targetPage = 1000 + diff
-        if (pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
-        }
-    }
-
-    // Sync ViewModel with pager once it SETTLES (pager → VM). Listening to
-    // currentPage instead reports transient values during fast swipes /
-    // animateScrollToPage and re-triggers the VM→pager effect, producing a
-    // ping-pong. settledPage debounces this to the post-animation page only.
-    val currentDisplayedMonth by rememberUpdatedState(displayedMonth)
-    val currentOnMonthChanged by rememberUpdatedState(onMonthChanged)
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }
-            .distinctUntilChanged()
-            .collect { settled ->
-                val diff = settled - 1000
-                val newMonth = getDateFromDiff(baseDate, diff)
-                if (!isSameMonth(newMonth, currentDisplayedMonth)) {
-                    currentOnMonthChanged(newMonth)
-                }
-            }
-    }
-
-    val cal = Calendar.getInstance(taipeiTz).apply { time = displayedMonth }
-    val year = cal.get(Calendar.YEAR)
-    val month = cal.get(Calendar.MONTH)
-    val monthLabel = stringResource(R.string.calendar_month_year, year, month + 1)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        // Month nav
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                }
-            }) {
-                Icon(Icons.Filled.ChevronLeft, stringResource(R.string.calendar_previous_month))
-            }
-            Text(
-                text = monthLabel,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center
-            )
-            IconButton(onClick = {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            }) {
-                Icon(Icons.Filled.ChevronRight, stringResource(R.string.calendar_next_month))
-            }
-        }
-
-        // Day of week headers
-        Row {
-            listOf(
-                stringResource(R.string.weekday_mon_short),
-                stringResource(R.string.weekday_tue_short),
-                stringResource(R.string.weekday_wed_short),
-                stringResource(R.string.weekday_thu_short),
-                stringResource(R.string.weekday_fri_short),
-                stringResource(R.string.weekday_sat_short),
-                stringResource(R.string.weekday_sun_short)
-            ).forEach {
-                Text(
-                    text = it,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(4.dp))
-
-        // HorizontalPager for the grid
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
-        ) { page ->
-            val monthDate = getDateFromDiff(baseDate, page - 1000)
-            CalendarGrid(
-                monthDate = monthDate,
-                selectedDate = selectedDate,
-                eventsByDay = eventsByDay,
-                onDateSelected = onDateSelected
-            )
-        }
-    }
 }
 
 @Composable
@@ -472,109 +330,6 @@ internal fun CalendarGrid(
                     }
                 }
             }
-        }
-        // Add empty rows to keep height consistent if needed (e.g., always 6 rows)
-        if (rows < 6) {
-            repeat(6 - rows) {
-                Spacer(modifier = Modifier.height(40.dp))
-            }
-        }
-    }
-}
-
-private fun getYearMonthDiff(start: Date, end: Date): Int {
-    val calStart =
-        Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = start }
-    val calEnd =
-        Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = end }
-    val yearDiff = calEnd.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)
-    val monthDiff = calEnd.get(Calendar.MONTH) - calStart.get(Calendar.MONTH)
-    return yearDiff * 12 + monthDiff
-}
-
-private fun getDateFromDiff(baseDate: Date, monthDiff: Int): Date {
-    return Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply {
-        time = baseDate
-        add(Calendar.MONTH, monthDiff)
-    }.time
-}
-
-private fun isSameMonth(a: Date, b: Date): Boolean {
-    val ca = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = a }
-    val cb = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = b }
-    return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
-            ca.get(Calendar.MONTH) == cb.get(Calendar.MONTH)
-}
-
-
-@Composable
-internal fun EventRow(
-    event: CalendarEvent,
-    notifyOnHoliday: Boolean? = null,
-    onNotifyOnHolidayChange: ((Boolean) -> Unit)? = null,
-    onOpenAssignment: ((assignmentId: String) -> Unit)? = null,
-) {
-    val timeFmt = remember {
-        SimpleDateFormat("HH:mm", Locale.TAIWAN).apply {
-            timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-        }
-    }
-    // A Moodle deadline opens its assignment's page, as a row on Home does.
-    val assignmentId = event.moodleAssignmentId
-    val open = if (assignmentId != null && onOpenAssignment != null) {
-        Modifier.clickable(role = Role.Button) { onOpenAssignment(assignmentId) }
-    } else {
-        Modifier
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(open)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(36.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(event.source.color)
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(event.title, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                stringResource(event.source.labelRes),
-                style = MaterialTheme.typography.labelSmall,
-                color = event.source.color
-            )
-        }
-        if (notifyOnHoliday != null && onNotifyOnHolidayChange != null) {
-            // Where a timed row has its time: a holiday is a whole day, so it
-            // has none to show.
-            //
-            // The switch is labelled rather than bare: on its own it asked
-            // the user to guess what it governed, and a screen reader had
-            // only the accessibility string to go on.
-            Text(
-                stringResource(R.string.calendar_holiday_notify_title),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                maxLines = 1,
-            )
-            Spacer(Modifier.width(8.dp))
-            Switch(
-                checked = notifyOnHoliday,
-                onCheckedChange = onNotifyOnHolidayChange,
-            )
-        } else if (!event.isAllDay) {
-            // A whole day has no time worth showing: "00:00" read as a
-            // midnight deadline.
-            Text(
-                timeFmt.format(event.date),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
         }
     }
 }
