@@ -63,9 +63,11 @@ class MailWebViewTest {
 
     private fun webView(): WebView = rule.activity.window.decorView.webView()!!
 
+    /** Polls [condition] on the main thread, letting Compose recompose between polls: the test drives its clock. */
     private fun waitUntil(what: String, condition: () -> Boolean) {
         val until = SystemClock.uptimeMillis() + 15_000
         while (SystemClock.uptimeMillis() < until) {
+            rule.waitForIdle()
             var held = false
             rule.runOnUiThread { held = condition() }
             if (held) return
@@ -80,6 +82,7 @@ class MailWebViewTest {
         var still = 0
         while (still < 10) {
             Thread.sleep(50)
+            rule.waitForIdle()
             var height = 0
             rule.runOnUiThread { height = webView().height }
             still = if (height == last) still + 1 else 0
@@ -94,14 +97,14 @@ class MailWebViewTest {
         waitUntil("the page") { webView().height > 100 }
         val standard = settledHeight()
 
-        rule.runOnUiThread { zoom.intValue = 200 }
+        zoom.intValue = 200
         waitUntil("a taller page") { webView().height > standard * 1.6 }
         rule.runOnUiThread {
             assertFalse("no sideways scroll", webView().canScrollHorizontally(1))
             assertEquals(rule.activity.window.decorView.width, webView().width)
         }
 
-        rule.runOnUiThread { zoom.intValue = 50 }
+        zoom.intValue = 50
         waitUntil("a shorter page") { webView().height < standard * 0.7 }
         assertTrue(settledHeight() < standard * 0.7)
     }
@@ -113,7 +116,7 @@ class MailWebViewTest {
         waitUntil("the page") { webView().height > 100 }
         val long = settledHeight()
 
-        rule.runOnUiThread { html.value = "<p>短</p>" }
+        html.value = "<p>短</p>"
         waitUntil("a shorter page") { webView().height < long / 4 }
     }
 
@@ -144,6 +147,7 @@ class MailWebViewTest {
             tap(xDp, yDp)
             val until = SystemClock.uptimeMillis() + 3_000
             while (SystemClock.uptimeMillis() < until) {
+                rule.waitForIdle()
                 var held = false
                 rule.runOnUiThread { held = done() }
                 if (held) return

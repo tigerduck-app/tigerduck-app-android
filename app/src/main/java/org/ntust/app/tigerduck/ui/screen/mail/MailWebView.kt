@@ -161,7 +161,9 @@ private fun lockedDownWebView(context: Context, backgroundColor: Int, onImage: (
 private fun WebView.reportImageTaps(onImage: (String) -> Unit) {
     val taps = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-            hitTestResult.let { tappedImage(it.type, it.extra) }?.let(onImage)
+            // Chromium's throws while it has no hit test to give: none come back yet, or destroyed.
+            val hit = runCatching { hitTestResult }.getOrNull() ?: return false
+            tappedImage(hit.type, hit.extra)?.let(onImage)
             return false
         }
     })
