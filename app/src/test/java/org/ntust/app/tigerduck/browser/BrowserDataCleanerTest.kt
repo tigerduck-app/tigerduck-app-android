@@ -19,6 +19,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.security.KeyPairGenerator
+import org.ntust.app.tigerduck.util.PageZoom
 
 /** Clearing everything the browser keeps about the student, and the certificate's fingerprint. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -50,7 +51,7 @@ class BrowserDataCleanerTest {
 
         assertEquals(before + 2, BrowserSession.generation.value)
         assertTrue(downloads.items.value.isEmpty())
-        assertEquals(BrowserZoom.DEFAULT, settings.zoom("moodle2.ntust.edu.tw"))
+        assertEquals(PageZoom.DEFAULT, settings.zoom("moodle2.ntust.edu.tw"))
         assertEquals(BrowserAppearance.DARK, settings.appearance)
         assertEquals(1, storageCleared)
     }

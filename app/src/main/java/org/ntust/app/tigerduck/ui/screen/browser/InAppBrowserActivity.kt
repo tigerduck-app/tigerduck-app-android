@@ -90,7 +90,7 @@ import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.browser.BrowserSiteSignIn
 import org.ntust.app.tigerduck.browser.BrowserUpload
 import org.ntust.app.tigerduck.browser.BrowserUserAgent
-import org.ntust.app.tigerduck.browser.BrowserZoom
+import org.ntust.app.tigerduck.util.PageZoom
 import org.ntust.app.tigerduck.browser.CertificateInfo
 import org.ntust.app.tigerduck.browser.CertificateRefusal
 import org.ntust.app.tigerduck.browser.DownloadPlan
@@ -614,7 +614,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         val host = url.toHttpUrlOrNull()?.host ?: return
         if (host == appliedHost) return
         appliedHost = host
-        val zoom = if (risk == null) settings.zoom(host) else BrowserZoom.DEFAULT
+        val zoom = if (risk == null) settings.zoom(host) else PageZoom.DEFAULT
         val desktop = risk == null && settings.desktopSite(host)
         state.zoom = zoom
         webView.settings.textZoom = zoom
@@ -816,9 +816,9 @@ class InAppBrowserActivity : AppCompatActivity() {
         override fun open(url: String) {
             if (!handleNavigation(url, tapped = true)) load(url)
         }
-        override fun zoomIn() = setZoom(BrowserZoom.zoomIn(state.zoom))
-        override fun zoomOut() = setZoom(BrowserZoom.zoomOut(state.zoom))
-        override fun zoomReset() = setZoom(BrowserZoom.DEFAULT)
+        override fun zoomIn() = setZoom(PageZoom.zoomIn(state.zoom))
+        override fun zoomOut() = setZoom(PageZoom.zoomOut(state.zoom))
+        override fun zoomReset() = setZoom(PageZoom.DEFAULT)
         private fun setZoom(percent: Int) {
             if (risk != null) return
             state.zoom = percent

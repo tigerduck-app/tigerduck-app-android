@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import org.ntust.app.tigerduck.browser.BrowserZoom
+import org.ntust.app.tigerduck.util.PageZoom
 import org.ntust.app.tigerduck.browser.CertificateInfo
 import org.ntust.app.tigerduck.browser.CertificateRefusal
 import org.ntust.app.tigerduck.browser.UploadSource
@@ -53,7 +53,7 @@ class BrowserPageState {
      */
     var barsCollapsed by mutableStateOf(false)
 
-    var zoom by mutableIntStateOf(BrowserZoom.DEFAULT)
+    var zoom by mutableIntStateOf(PageZoom.DEFAULT)
     var desktopSite by mutableStateOf(false)
 
     /**
