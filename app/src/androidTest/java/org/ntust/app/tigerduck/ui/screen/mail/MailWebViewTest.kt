@@ -120,6 +120,18 @@ class MailWebViewTest {
         waitUntil("a shorter page") { webView().height < long / 4 }
     }
 
+    /** A sender's box of a fixed height doesn't cut off the text running past it, as iOS #1047 sizes the body. */
+    @Test
+    fun textRunningPastAFixedHeightBoxIsNotCutOff() {
+        show()
+        waitUntil("the page") { webView().height > 100 }
+        val unboxed = settledHeight()
+
+        // Twice the text in a box of 40px: the page grows to fit all of it, not the box.
+        html.value = "<div style=\"height:40px\">$paragraph$paragraph</div>"
+        waitUntil("the whole boxed text") { webView().height > unboxed * 1.6 }
+    }
+
     @Test
     fun aTapOnAnImageOpensItAndOneInsideALinkStaysTheLinks() {
         val png = pngAddress()
