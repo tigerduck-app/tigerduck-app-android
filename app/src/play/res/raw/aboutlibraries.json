@@ -268,10 +268,10 @@
         },
         {
             "uniqueId": "androidx.camera.featurecombinationquery:featurecombinationquery",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera Feature Combination Query",
             "description": "Camera feature combination components for the Camera Library, a library providing a seamless experience for querying camera features across all of Android.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera-featurecombinationquery#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera-featurecombinationquery#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -293,10 +293,10 @@
         },
         {
             "uniqueId": "androidx.camera.viewfinder:viewfinder-compose",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera Viewfinder Compose",
             "description": "Standalone Composable Viewfinder for Camera",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera-viewfinder#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera-viewfinder#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -318,10 +318,10 @@
         },
         {
             "uniqueId": "androidx.camera.viewfinder:viewfinder-core",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera Viewfinder Core",
             "description": "Core dependencies for Viewfinder",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera-viewfinder#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera-viewfinder#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -343,10 +343,10 @@
         },
         {
             "uniqueId": "androidx.camera:camera-camera2",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera2",
             "description": "A Camera2 Pipe implementation of CameraX, a library providing a consistent and reliable camera foundation that enables great camera driven experiences across all of Android.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -368,10 +368,35 @@
         },
         {
             "uniqueId": "androidx.camera:camera-camera2-pipe",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera2 Pipe",
-            "description": "A set of opinionated camera interfaces and implementations on top of Camera2 that will form a flexible shim layer to power Frameserver and CameraX.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "description": "CameraPipe is a low level, high performance alternative to Camera2 built on Kotlin",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.7.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.camera:camera-common",
+            "artifactVersion": "1.7.0",
+            "name": "androidx.camera:camera-common",
+            "description": "CameraX Common is a collection of well documented common types, interfaces, wrappers, math and utilities designed to enable library and application developers to build on a shared set of types regardless of CameraX or Camera2 usage.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -393,10 +418,10 @@
         },
         {
             "uniqueId": "androidx.camera:camera-compose",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera Compose",
             "description": "Jetpack Compose tools for users of the Jetpack Camera camera-core library",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -418,10 +443,10 @@
         },
         {
             "uniqueId": "androidx.camera:camera-core",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera Core",
             "description": "Core components for the Jetpack Camera Library, a library providing a consistent and reliable camera foundation that enables great camera driven experiences across all of Android. This library includes code from libyuv, which is licensed under the BSD-3-Clause license.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -444,10 +469,10 @@
         },
         {
             "uniqueId": "androidx.camera:camera-lifecycle",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.0",
             "name": "Camera Lifecycle",
             "description": "Lifecycle components for the Jetpack Camera Library, a library providing a consistent and reliable camera foundation that enables great camera driven experiences across all of Android.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.7.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1833,10 +1858,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-common",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle-Common",
             "description": "Android Lifecycle-Common",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1858,10 +1883,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-common-java8",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle-Common for Java 8",
             "description": "Android Lifecycle-Common for Java 8 Language",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1883,10 +1908,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle LiveData",
             "description": "Android Lifecycle LiveData",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1908,10 +1933,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata-core",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle LiveData Core",
             "description": "Android Lifecycle LiveData Core",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1933,10 +1958,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata-core-ktx",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "LiveData Core Kotlin Extensions",
             "description": "Kotlin extensions for 'livedata-core' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1958,10 +1983,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-process",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle Process",
             "description": "Android Lifecycle Process",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1983,10 +2008,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle Runtime",
             "description": "Android Lifecycle Runtime",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2008,10 +2033,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime-compose",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle Runtime Compose",
             "description": "Compose integration with Lifecycle",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2033,10 +2058,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime-ktx",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle Kotlin Extensions",
             "description": "Kotlin extensions for 'lifecycle' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2058,10 +2083,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-service",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle Service",
             "description": "Android Lifecycle Service",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2083,10 +2108,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle ViewModel",
             "description": "Android Lifecycle ViewModel",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2108,10 +2133,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-compose",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle ViewModel Compose",
             "description": "Compose integration with Lifecycle ViewModel",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2133,10 +2158,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-ktx",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle ViewModel Kotlin Extensions",
             "description": "Kotlin extensions for 'viewmodel' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2158,10 +2183,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-savedstate",
-            "artifactVersion": "2.11.0",
+            "artifactVersion": "2.11.1",
             "name": "Lifecycle ViewModel with SavedState",
             "description": "Android Lifecycle ViewModel",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -5251,6 +5276,28 @@
             "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
             "artifactVersion": "1.11.0",
             "name": "kotlinx-coroutines-core",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-guava",
+            "artifactVersion": "1.11.0",
+            "name": "kotlinx-coroutines-guava",
             "description": "Coroutines support libraries for Kotlin",
             "website": "https://github.com/Kotlin/kotlinx.coroutines",
             "developers": [
