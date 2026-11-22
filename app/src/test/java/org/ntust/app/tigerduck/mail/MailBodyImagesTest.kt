@@ -103,6 +103,14 @@ class MailBodyImagesTest {
     }
 
     @Test
+    fun `a remote image named at length still opens`() {
+        answer = { Answer(200, PNG, "image/png") }
+        val opened = open("https://a.example/" + "%E8%AA%B2".repeat(90) + ".png", remoteAllowed = true)!!
+        assertTrue(opened.file.name.endsWith(".png"))
+        assertArrayEquals(PNG, opened.file.readBytes())
+    }
+
+    @Test
     fun `only a web address is fetched, remote images or not`() {
         answer = { Answer(200, PNG, "image/png") }
         assertNull(open("file:///etc/hosts", remoteAllowed = true))

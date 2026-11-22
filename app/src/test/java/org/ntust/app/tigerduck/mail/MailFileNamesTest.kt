@@ -39,6 +39,19 @@ class MailFileNamesTest {
         assertFalse(stem.isNotEmpty() && Character.isHighSurrogate(stem.last()))
     }
 
+    /** A file name may run to 255 bytes, and a Chinese character is three of them in UTF-8. */
+    @Test
+    fun `a long Chinese name fits the file system's 255 bytes, its extension kept`() {
+        val name = MailFileNames.safe("課".repeat(150) + ".png")
+        assertTrue(name.toByteArray(Charsets.UTF_8).size <= 200)
+        assertTrue(name.endsWith(".png"))
+        assertTrue(name.removeSuffix(".png").all { it == '課' })
+
+        val emoji = MailFileNames.safe("😀".repeat(100) + ".pdf")
+        assertTrue(emoji.toByteArray(Charsets.UTF_8).size <= 200)
+        assertFalse(Character.isHighSurrogate(emoji.removeSuffix(".pdf").last()))
+    }
+
     @Test
     fun `a body image takes the extension of the kind its bytes are`() {
         assertEquals("photo.png", MailFileNames.image("photo.JPG", RasterImage.PNG))
