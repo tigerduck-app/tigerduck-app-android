@@ -154,7 +154,7 @@ internal fun accountWorld(
     val demoAccount = with(demoShows) {
         DemoAccount(
             context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions,
-            courseChanges, clubDirectory, clubActivities, clubSubscriptions,
+            { courseChanges }, { clubDirectory }, { clubActivities }, { clubSubscriptions },
         )
     }
     val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)

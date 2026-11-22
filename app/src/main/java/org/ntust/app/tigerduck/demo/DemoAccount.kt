@@ -61,10 +61,11 @@ class DemoAccount @Inject constructor(
     private val appPreferences: AppPreferences,
     private val importedClassTables: ImportedClassTableStore,
     private val sessions: AccountSessions,
-    private val courseChanges: CourseChangeStore,
-    private val clubDirectory: ClubDirectory,
-    private val clubActivities: ClubActivities,
-    private val clubSubscriptions: ClubSubscriptions,
+    // Lazy, as in SchoolStores: built when the demo writes or leaves, not with the sign-in at the app's start.
+    private val courseChanges: dagger.Lazy<CourseChangeStore>,
+    private val clubDirectory: dagger.Lazy<ClubDirectory>,
+    private val clubActivities: dagger.Lazy<ClubActivities>,
+    private val clubSubscriptions: dagger.Lazy<ClubSubscriptions>,
 ) {
     private val isActive: Boolean get() = sessions.school.isDemo
 
@@ -158,8 +159,8 @@ class DemoAccount @Inject constructor(
      */
     fun exit() {
         if (store.demoMode) {
-            courseChanges.replaceFeed(null)
-            clubDirectory.showStored()
+            courseChanges.get().replaceFeed(null)
+            clubDirectory.get().showStored()
         }
         store.clearSchool()
         sessions.school.signIns.leaveDemo()
@@ -210,7 +211,8 @@ class DemoAccount @Inject constructor(
         val today = TaipeiClock.today()
         fixture.courseChanges?.let { changes ->
             val feed = DemoFeatures.courseChangeFeed(term, changes, today)
-            signIn.ifCurrent { courseChanges.replaceFeed(feed) }
+            val store = courseChanges.get()
+            signIn.ifCurrent { store.replaceFeed(feed) }
         }
         val studentId = fixture.studentId?.trim()?.uppercase()
         val enrolled = fixture.courses.orEmpty().sumOf { it.credits.toDouble() }.toFloat()
@@ -218,9 +220,10 @@ class DemoAccount @Inject constructor(
         if (studentId != null && report != null) dataCache.saveScoreReport(report, studentId, signIn)
         fixture.clubs?.let { clubs ->
             val activities = clubs.flatMap { DemoFeatures.activities(it, today) }
+            val (directory, feed) = clubDirectory.get() to clubActivities.get()
             signIn.ifCurrent {
-                clubDirectory.show(clubs.map(DemoFeatures::card))
-                clubActivities.show(activities)
+                directory.show(clubs.map(DemoFeatures::card))
+                feed.show(activities)
             }
         }
     }
@@ -235,7 +238,7 @@ class DemoAccount @Inject constructor(
      */
     suspend fun signedIn(signIn: SignIn) {
         val fixture = load(currentLang()) ?: return
-        fixture.clubs.orEmpty().filter { it.subscribed }.forEach { clubSubscriptions.subscribe(it.id, signIn) }
+        fixture.clubs.orEmpty().filter { it.subscribed }.forEach { clubSubscriptions.get().subscribe(it.id, signIn) }
         val classmates = fixture.classmates ?: return
         importDemoClassmates(
             importedClassTables, dataCache.currentSemesterCode(), classmates,
