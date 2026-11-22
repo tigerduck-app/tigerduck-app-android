@@ -253,4 +253,20 @@ class MailCacheTest {
         assertTrue(cache.saveBodyIf("INBOX", 2, 7, body()) { true })
         assertTrue(cache.loadBody("INBOX", 2, 7) != null)
     }
+
+    @Test
+    fun `a tapped image prunes the files over a day old, as a download does, but never one in use`() {
+        val cache = MailCache(tmp.root)
+        val twoDaysAgo = System.currentTimeMillis() - 2 * 24 * 60 * 60 * 1000L
+        val old = File(cache.attachmentsDir, "old").apply { mkdirs(); File(this, "a.png").writeBytes(byteArrayOf(1)); setLastModified(twoDaysAgo) }
+        val writing = cache.newAttachmentSlot().apply { setLastModified(twoDaysAgo) }
+        val fresh = File(cache.attachmentsDir, "fresh").apply { mkdirs() }
+
+        val saved = cache.saveAttachmentIf("image.png", byteArrayOf(2)) { true }
+
+        assertFalse(old.exists())
+        assertTrue(writing.exists())
+        assertTrue(fresh.exists())
+        assertArrayEquals(byteArrayOf(2), saved!!.readBytes())
+    }
 }

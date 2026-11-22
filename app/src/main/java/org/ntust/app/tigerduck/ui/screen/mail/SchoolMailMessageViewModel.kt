@@ -556,11 +556,8 @@ class SchoolMailMessageViewModel @Inject constructor(
      * rather than leaving it behind.
      */
     private suspend fun download(attachment: MailAttachment): File = withContext(io) {
-        val dir = cache.attachmentsDir
-        dir.mkdirs()
-        val cutoff = System.currentTimeMillis() - DAY_MS
-        val inUse = cache.attachmentSlotsInUse()
-        dir.listFiles()?.filter { it.lastModified() < cutoff && it.name !in inUse }?.forEach { it.deleteRecursively() }
+        cache.attachmentsDir.mkdirs()
+        cache.pruneAttachments()
         val slot = cache.newAttachmentSlot()
         val file = File(slot, MailFileNames.safe(attachment.fileName))
         var committed = false
@@ -758,7 +755,6 @@ class SchoolMailMessageViewModel @Inject constructor(
     // onCleared() after it.
 
     companion object {
-        private const val DAY_MS = 24L * 60 * 60 * 1000
         private val EMPTY_BODY = MailBody(null, null, emptyList(), emptyMap())
 
         /** [viewInLight]'s key in the saved state. */
