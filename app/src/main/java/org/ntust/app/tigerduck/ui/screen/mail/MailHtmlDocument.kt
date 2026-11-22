@@ -202,14 +202,42 @@ object MailHtmlDocument {
         return body.copy(
             html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
                 "<meta http-equiv=\"Content-Security-Policy\" content=\"${csp(allowRemoteImages)}\">" +
-                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+                "<meta name=\"viewport\" content=\"$VIEWPORT\">" +
                 "<style>:root{color-scheme:$scheme}" +
                 "html,body{margin:0;padding:0;background:${theme.background};color:${theme.foreground}}" +
-                "body{padding:12px;font-family:sans-serif;overflow-wrap:anywhere}a[href]{color:${theme.link}}" +
-                "img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style>" +
+                "body{${pageEdges(theme)}font-family:sans-serif;overflow-wrap:anywhere}a[href]{color:${theme.link}}" +
+                "img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}$FIRST_LINE_AT_TOP</style>" +
                 "</head><body>${body.html}</body></html>",
         )
     }
+
+    /**
+     * The page's width, which nothing scales: no pinch zoom, as on the iPhone (tigerduck-app#1047).
+     * The text size is the WebView's own ([MailWebView]), which reflows the text to this width.
+     */
+    internal const val VIEWPORT = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+
+    /**
+     * The page runs from edge to edge of the screen, the text inset as the header's, by
+     * [SIDE_INSET_DP]: a CSS pixel of this page is a dp. White paper has the inset all round, and a
+     * plain shadow inside its top and bottom edges, where it meets the app around it.
+     */
+    internal fun pageEdges(theme: MailHtmlTheme): String =
+        if (theme.isDark) {
+            "padding:0 ${SIDE_INSET_DP}px;"
+        } else {
+            "padding:${SIDE_INSET_DP}px;box-shadow:inset 0 12px 12px -12px rgba(0,0,0,.5),inset 0 -12px 12px -12px rgba(0,0,0,.5);"
+        }
+
+    /** The screen's side margin, the header's, which the page's text inset repeats. */
+    const val SIDE_INSET_DP = 16
+
+    /**
+     * The mail's first line sits at the page's top: the elements that open it, each the first child
+     * of the one before, inside wrappers such as a `div` or `table`, drop their top margin, even one
+     * the sender set inline.
+     */
+    internal const val FIRST_LINE_AT_TOP = "body :first-child:not(body :not(:first-child) *){margin-top:0!important}"
 
     private fun MailReadableHtml.on(theme: MailHtmlTheme): String =
         adjust(pageBackgroundHex = theme.background, pageForegroundHex = theme.foreground, linkForegroundHex = theme.link)

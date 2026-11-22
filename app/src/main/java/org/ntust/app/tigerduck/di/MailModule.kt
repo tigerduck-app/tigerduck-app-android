@@ -8,12 +8,17 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineDispatcher
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.data.preferences.MailTextSizePreference
+import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.mail.AssetsMailDemoGate
+import org.ntust.app.tigerduck.mail.MailBodyImages
 import org.ntust.app.tigerduck.mail.MailConnectionProbe
 import org.ntust.app.tigerduck.mail.MailDemoGate
 import org.ntust.app.tigerduck.mail.MailDevServerStore
@@ -117,6 +122,16 @@ object MailModule {
     @Provides
     @Singleton
     fun cache(@ApplicationContext context: Context): MailCache = MailCache(File(context.cacheDir, "mail"))
+
+    /** A tapped image of a mail's body, a remote one fetched on a client of its own ([MailBodyImages.client]). */
+    @Provides
+    @Singleton
+    fun bodyImages(tls: PinnedTls, demoMode: DemoModeInterceptor, cache: MailCache, @IoDispatcher io: CoroutineDispatcher): MailBodyImages =
+        MailBodyImages(MailBodyImages.client(tls, demoMode), cache, io)
+
+    /** School Mail's text size, one for every mail, which [AppPreferences] keeps. */
+    @Provides
+    fun textSize(prefs: AppPreferences): MailTextSizePreference = prefs.mailTextSize
 
     // Not the cache directory, which the system may empty to free space: a held mail must stay
     // until it is sent or taken back. No backup copies this one.

@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.files.RasterImage
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.network.moodle.MoodleFileUrls
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
@@ -759,16 +760,11 @@ internal enum class MoodlePictureType(val extension: String, val mimeType: Strin
     ;
 
     companion object {
-        fun of(bytes: ByteArray): MoodlePictureType {
-            fun at(index: Int, vararg expected: Int) =
-                bytes.size >= index + expected.size &&
-                    expected.withIndex().all { (i, b) -> bytes[index + i] == b.toByte() }
-            return when {
-                at(0, 0x89, 'P'.code, 'N'.code, 'G'.code) -> PNG
-                at(0, 'G'.code, 'I'.code, 'F'.code, '8'.code) -> GIF
-                at(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) && at(8, 'W'.code, 'E'.code, 'B'.code, 'P'.code) -> WEBP
-                else -> JPEG
-            }
+        fun of(bytes: ByteArray): MoodlePictureType = when (RasterImage.of(bytes)) {
+            RasterImage.PNG -> PNG
+            RasterImage.GIF -> GIF
+            RasterImage.WEBP -> WEBP
+            else -> JPEG
         }
 
         fun ofExtension(extension: String): MoodlePictureType =

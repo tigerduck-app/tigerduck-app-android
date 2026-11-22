@@ -45,6 +45,45 @@ class MailHtmlDocumentTest {
         assertTrue(doc.contains("<body><p>x</p></body>"))
     }
 
+    // --- the page: edge to edge, no pinch zoom, the first line at its top (tigerduck-app#1047) -
+
+    @Test
+    fun `the page cannot be pinched wider than the screen`() {
+        val head = Jsoup.parse(MailHtmlDocument.build("<p>x</p>", emptyMap(), false, dark).html).head()
+        assertEquals(
+            "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+            head.selectFirst("meta[name=viewport]")!!.attr("content"),
+        )
+    }
+
+    @Test
+    fun `a dark page is inset at its sides only, as the header is, with no shadow`() {
+        val style = Jsoup.parse(MailHtmlDocument.build("<p>x</p>", emptyMap(), false, dark).html).selectFirst("style")!!.data()
+        assertTrue(style, style.contains("body{padding:0 16px;font-family"))
+        assertFalse(style, style.contains("box-shadow"))
+    }
+
+    @Test
+    fun `a light page is inset all round, with a plain shadow inside its top and bottom edges`() {
+        listOf(light, MailHtmlTheme.LIGHT).forEach { theme ->
+            val style = Jsoup.parse(MailHtmlDocument.build("<p>x</p>", emptyMap(), false, theme).html).selectFirst("style")!!.data()
+            assertTrue(style, style.contains("body{padding:16px;box-shadow:inset 0 12px 12px -12px rgba(0,0,0,.5),inset 0 -12px 12px -12px rgba(0,0,0,.5);"))
+        }
+    }
+
+    @Test
+    fun `the first line starts at the page's top`() {
+        val style = Jsoup.parse(MailHtmlDocument.build("<p>x</p>", emptyMap(), false, dark).html).selectFirst("style")!!.data()
+        assertTrue(style, style.contains("body :first-child:not(body :not(:first-child) *){margin-top:0!important}"))
+        // The rule picks the chain of first children from the body down, and nothing past it.
+        val mail = Jsoup.parse(
+            """<div id="wrapper" style="margin-top:20px"><table><tr><td><p id="first">a</p><p id="second">b</p></td></tr></table></div>""" +
+                """<blockquote id="quote"><p id="quoted">c</p></blockquote>""",
+        )
+        val chain = mail.select("body :first-child:not(body :not(:first-child) *)").map { it.id() }.filter { it.isNotEmpty() }
+        assertEquals(listOf("wrapper", "first"), chain)
+    }
+
     // --- theme: the page's own surface, and a sender's colors where they read ---------------
 
     @Test

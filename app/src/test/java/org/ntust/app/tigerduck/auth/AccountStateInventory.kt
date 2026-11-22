@@ -293,8 +293,8 @@ internal class AccountStateInventory(
     /**
      * Sources handed a file another source opens, under no constant of their own: the token stores
      * and the owed unregister share the credential store CredentialManager opens, and the school's
-     * keys, the accent's upgrade step, the members list's pin and the app icon the preferences
-     * AppPreferences opens.
+     * keys, the accent's upgrade step, the members list's pin, the app icon and School Mail's text size
+     * the preferences AppPreferences opens.
      */
     private val sharedFiles = mapOf(
         "V3TokenStore.kt" to "tigerduck_credentials",
@@ -303,6 +303,7 @@ internal class AccountStateInventory(
         "AccentUpgrade.kt" to "tigerduck_prefs",
         "PinMyselfPreference.kt" to "tigerduck_prefs",
         "AppIconPreference.kt" to "tigerduck_prefs",
+        "MailTextSizePreference.kt" to "tigerduck_prefs",
     )
 
     /**

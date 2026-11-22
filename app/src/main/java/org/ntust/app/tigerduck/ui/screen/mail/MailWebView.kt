@@ -1,5 +1,9 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -20,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import org.ntust.app.tigerduck.util.PageZoom
 import java.io.ByteArrayInputStream
 
 /**
@@ -52,8 +57,13 @@ fun MailWebView(
     backgroundColor: Int,
     onLink: (index: Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** The text size, in percent ([PageZoom]): the page reflows to it within its width, and its height follows. */
+    textZoom: Int = PageZoom.DEFAULT,
+    /** A tapped image outside any link, by the address the page has for it ([tappedImage]). */
+    onImage: (source: String) -> Unit = {},
 ) {
     val latestOnLink by rememberUpdatedState(onLink)
+    val latestOnImage by rememberUpdatedState(onImage)
     val allowed by rememberUpdatedState(allowedRemoteUrls)
     val currentLinkCount by rememberUpdatedState(linkCount)
     // A WebView has no height until its page is first drawn, which left nothing at all under the
@@ -65,24 +75,7 @@ fun MailWebView(
         AndroidView(
             modifier = Modifier.fillMaxWidth(),
             factory = { context ->
-                WebView(context).apply {
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                    setBackgroundColor(backgroundColor)
-                    isVerticalScrollBarEnabled = false
-                    isHorizontalScrollBarEnabled = false
-                    settings.apply {
-                        javaScriptEnabled = false
-                        javaScriptCanOpenWindowsAutomatically = false
-                        allowFileAccess = false
-                        allowContentAccess = false
-                        domStorageEnabled = false
-                        setGeolocationEnabled(false)
-                        setSupportMultipleWindows(false)
-                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        cacheMode = WebSettings.LOAD_NO_CACHE
-                        blockNetworkLoads = true
-                        safeBrowsingEnabled = true
-                    }
+                lockedDownWebView(context, backgroundColor) { latestOnImage(it) }.apply {
                     webViewClient = object : WebViewClient() {
                         override fun onPageCommitVisible(view: WebView, url: String?) {
                             drawnDocument = view.tag
@@ -116,6 +109,7 @@ fun MailWebView(
             },
             update = { view ->
                 view.settings.blockNetworkLoads = allowed.isEmpty()
+                view.settings.textZoom = textZoom
                 view.setBackgroundColor(backgroundColor)
                 if (view.tag != document) {
                     view.tag = document
@@ -127,6 +121,63 @@ fun MailWebView(
         if (drawnDocument != document) CircularProgressIndicator(Modifier.align(Alignment.Center).padding(24.dp))
     }
 }
+
+/**
+ * A WebView with JavaScript, storage, file and content access off, as [MailWebView]'s doc says,
+ * and no zoom of its own: the text size is [MailWebView]'s `textZoom`. A tap on an image goes to
+ * [onImage] ([reportImageTaps]).
+ */
+private fun lockedDownWebView(context: Context, backgroundColor: Int, onImage: (String) -> Unit): WebView = WebView(context).apply {
+    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    setBackgroundColor(backgroundColor)
+    isVerticalScrollBarEnabled = false
+    isHorizontalScrollBarEnabled = false
+    settings.apply {
+        javaScriptEnabled = false
+        javaScriptCanOpenWindowsAutomatically = false
+        allowFileAccess = false
+        allowContentAccess = false
+        domStorageEnabled = false
+        setGeolocationEnabled(false)
+        setSupportMultipleWindows(false)
+        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        cacheMode = WebSettings.LOAD_NO_CACHE
+        blockNetworkLoads = true
+        safeBrowsingEnabled = true
+        // No pinch or double-tap zoom, as on the iPhone (tigerduck-app#1047).
+        setSupportZoom(false)
+        builtInZoomControls = false
+    }
+    reportImageTaps(onImage)
+}
+
+/**
+ * Hands [onImage] the image a single tap lands on. The WebView's own hit test names it, with
+ * JavaScript off: it asks the page what is under a finger as it comes down, and has the answer by
+ * the time the tap is confirmed as no double tap. The touches are only watched: the WebView still
+ * has every one, a link's tap and the scroll among them.
+ */
+@SuppressLint("ClickableViewAccessibility")
+private fun WebView.reportImageTaps(onImage: (String) -> Unit) {
+    val taps = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+        override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+            hitTestResult.let { tappedImage(it.type, it.extra) }?.let(onImage)
+            return false
+        }
+    })
+    setOnTouchListener { _, event ->
+        taps.onTouchEvent(event)
+        false
+    }
+}
+
+/**
+ * The address of the image a tap hit, as the page has it: a `data:` address or a web one. Not
+ * an image inside a link ([WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE]), whose tap stays the
+ * link's, with its check.
+ */
+internal fun tappedImage(type: Int, extra: String?): String? =
+    extra?.takeIf { type == WebView.HitTestResult.IMAGE_TYPE && it.isNotBlank() }
 
 // Exactly what MailHtmlDocument.rewriteLinks emits: https://link.invalid/<decimal index>, no
 // leading zeros, no userinfo/port/query/fragment, nothing else. Anything that doesn't match this

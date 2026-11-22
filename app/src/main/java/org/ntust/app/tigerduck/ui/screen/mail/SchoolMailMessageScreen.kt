@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import android.text.format.Formatter
 import android.widget.Toast
@@ -54,14 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextDecoration
 import org.ntust.app.tigerduck.files.FileViewer
-import org.ntust.app.tigerduck.mail.sanitize.PlainTextLink
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,6 +82,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
+import org.ntust.app.tigerduck.mail.MailFileNames
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.mail.model.MailAddress
@@ -104,6 +99,7 @@ import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.PageZoom
 import org.ntust.app.tigerduck.util.replaceIosArg
 
 private val WarningOrange = Color(0xFFFF9500)
@@ -126,6 +122,7 @@ fun SchoolMailMessageScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val sentCopyNotice by viewModel.sentCopyNotice.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
+    val textZoom by viewModel.textSize.flow.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showMove by remember { mutableStateOf(false) }
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -213,7 +210,7 @@ fun SchoolMailMessageScreen(
     LaunchedEffect(state.saveRequest) {
         val attachment = state.saveRequest ?: return@LaunchedEffect
         pendingSavePart = attachment.partId
-        saveLauncher.launch(SchoolMailMessageViewModel.safeFileName(attachment.fileName))
+        saveLauncher.launch(MailFileNames.safe(attachment.fileName))
         viewModel.consumeSaveRequest()
     }
 
@@ -236,6 +233,8 @@ fun SchoolMailMessageScreen(
         menu = if (state.content is Content.Loading) null else messageMenu { close ->
             MessageMenuItems(
                 mode = state.mode,
+                textZoom = textZoom,
+                onTextZoom = { viewModel.textSize.value = it },
                 canFormat = canFormat,
                 offersLightMode = offersLightMode(isDark, state.mode, canFormat),
                 viewInLight = viewInLight,
@@ -317,23 +316,19 @@ fun SchoolMailMessageScreen(
                                     emptySet()
                                 }
                             }
-                            // Spec §9.3: the HTML sits on the app's own surface color, not
-                            // hardcoded white paper, so it reads as part of the app in dark theme
-                            // -- unless the reader asked for white paper ("View in light mode").
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = pageColor,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                MailWebView(
-                                    document = document.html,
-                                    allowedRemoteUrls = allowedRemoteUrls,
-                                    linkCount = document.links.size,
-                                    backgroundColor = pageColor.toArgb(),
-                                    onLink = { pendingLink = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
+                            // Spec §9.3: the HTML sits on the app's own surface color, not hardcoded
+                            // white paper -- unless the reader asked for it ("View in light mode"). It
+                            // runs edge to edge, the text inset as the header's (MailHtmlDocument.pageEdges).
+                            MailWebView(
+                                document = document.html,
+                                allowedRemoteUrls = allowedRemoteUrls,
+                                linkCount = document.links.size,
+                                backgroundColor = pageColor.toArgb(),
+                                onLink = { pendingLink = it },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                textZoom = textZoom,
+                                onImage = viewModel::previewImage,
+                            )
                         }
                         ViewMode.PLAIN -> item(key = "plain") {
                             SelectionContainer {
@@ -342,6 +337,7 @@ fun SchoolMailMessageScreen(
                                     links = content.plainLinks,
                                     onLink = { pendingPlainLink = it },
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    textZoom = textZoom,
                                 )
                             }
                         }
@@ -367,7 +363,7 @@ fun SchoolMailMessageScreen(
                                 }
                             } else {
                                 item(key = "source-copy") {
-                                    TextButton(onClick = { copyToClipboard(context, source) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                                    TextButton(onClick = { copySource(context, source) }, modifier = Modifier.padding(horizontal = 8.dp)) {
                                         Text(stringResource(R.string.school_mail_copy_all))
                                     }
                                 }
@@ -499,6 +495,9 @@ internal fun messageMenu(items: @Composable ColumnScope.(close: () -> Unit) -> U
 @Composable
 internal fun ColumnScope.MessageMenuItems(
     mode: ViewMode,
+    /** The text size, whose row heads the menu over the formatted and plain views ([MailTextSizeRow]). */
+    textZoom: Int,
+    onTextZoom: (Int) -> Unit,
     canFormat: Boolean,
     offersLightMode: Boolean,
     viewInLight: Boolean,
@@ -510,6 +509,7 @@ internal fun ColumnScope.MessageMenuItems(
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    if (mode != ViewMode.SOURCE) MailTextSizeRow(textZoom, onTextZoom)
     if (canFormat) {
         ModeItem(stringResource(R.string.school_mail_view_formatted), mode == ViewMode.FORMATTED) { onMode(ViewMode.FORMATTED) }
     }
@@ -646,26 +646,6 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String, selfAddress:
         if (to.isNotEmpty()) MailRecipientRow(toLabel, to, labelWidth = labelWidth)
         if (cc.isNotEmpty()) MailRecipientRow(ccLabel, cc, labelWidth = labelWidth)
     }
-}
-
-/**
- * A plain-text mail with its URLs and addresses drawn as links. A tap only reports the link's
- * index: what it opens goes through the same check dialog an HTML link does. Kept selectable --
- * the caller wraps it in a SelectionContainer, and a long press still selects across links.
- */
-@Composable
-internal fun LinkedPlainText(text: String, links: List<PlainTextLink>, onLink: (Int) -> Unit, modifier: Modifier = Modifier) {
-    val linkStyle = TextLinkStyles(SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline))
-    val latestOnLink by rememberUpdatedState(onLink)
-    val annotated = remember(text, links, linkStyle) {
-        buildAnnotatedString {
-            append(text)
-            links.forEachIndexed { index, link ->
-                addLink(LinkAnnotation.Clickable(tag = "link-$index", styles = linkStyle) { latestOnLink(index) }, link.start, link.end)
-            }
-        }
-    }
-    Text(annotated, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
 }
 
 /** The sender's address under their name, selectable so it can be copied like the recipients'. */
@@ -844,7 +824,9 @@ internal fun attachmentShareIntent(context: Context, request: SchoolMailMessageV
     return Intent.createChooser(send, request.file.name)
 }
 
-private fun copyToClipboard(context: Context, text: String) {
+/** Copy all, which says Copied, as on the iPhone, where Android 13 and later do not say so themselves. */
+private fun copySource(context: Context, text: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
     clipboard.setPrimaryClip(ClipData.newPlainText("mail source", text))
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(context, R.string.school_mail_source_copied, Toast.LENGTH_SHORT).show()
 }

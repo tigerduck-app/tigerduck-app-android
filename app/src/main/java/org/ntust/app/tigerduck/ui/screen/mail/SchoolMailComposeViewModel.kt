@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
+import org.ntust.app.tigerduck.mail.MailFileNames
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.SentCopyNotice
 import org.ntust.app.tigerduck.mail.SentCopyNotices
@@ -652,9 +653,7 @@ class SchoolMailComposeViewModel @Inject constructor(
      * Takes the held send back, the form left as it was for the student to change and send
      * again. Nothing once it has gone out.
      */
-    fun undoSend() {
-        heldSend?.complete(false)
-    }
+    fun undoSend() { heldSend?.complete(false) }
 
     /**
      * Ends the hold and sends at once: the screen is leaving the foreground, to another app, the
@@ -785,7 +784,7 @@ class SchoolMailComposeViewModel @Inject constructor(
                         // so none of it (least of all the FileOutputStream close, which can block
                         // on a flush) lands on Main.
                         is ComposeAttachment.Source.Original -> withContext(io) {
-                            val file = File(staging, "${a.id}-${SchoolMailMessageViewModel.safeFileName(a.fileName)}")
+                            val file = File(staging, "${a.id}-${MailFileNames.safe(a.fileName)}")
                             staging.mkdirs()
                             file.outputStream().use { out -> repository.writeAttachment(src.folder, src.uid, src.partId, out) }
                             OutgoingAttachment(a.fileName, a.contentType, file.length()) { file.inputStream() }

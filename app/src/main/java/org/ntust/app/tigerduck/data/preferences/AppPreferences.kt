@@ -436,6 +436,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     val pinMyselfInCourseMembers = PinMyselfPreference(prefs)
     val appIcon = AppIconPreference(prefs)
+    val mailTextSize = MailTextSizePreference(prefs)
 
     /** One of "system", "dark", "light". */
     var themeMode: String
@@ -1102,15 +1103,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         _outlineRequiredCourses.value = false
         pinMyselfInCourseMembers.reload()
         appIcon.reload()
+        mailTextSize.reload()
         _schoolDataSyncedAtMs.value = 0L
         _librarySyncedAtMs.value = 0L
     }
 
     fun getString(key: String): String? = prefs.getString(key, null)
 
-    fun putString(key: String, value: String) {
-        prefs.edit().putString(key, value).apply()
-    }
+    fun putString(key: String, value: String) = prefs.edit().putString(key, value).apply()
 
     fun remove(key: String) {
         prefs.edit().remove(key).apply()
