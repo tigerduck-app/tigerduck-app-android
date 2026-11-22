@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.clubs
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
@@ -13,6 +14,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.clubs.FakeClubServer.Answer
 import org.ntust.app.tigerduck.clubs.FakeClubServer.Companion.club
 import org.ntust.app.tigerduck.clubs.FakeClubServer.Companion.envelope
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.ntust.app.tigerduck.util.JvmContext
 import java.time.Instant
 
@@ -163,5 +165,48 @@ class ClubDirectoryTest {
         assertTrue(clubs.state.value.underMaintenance)
         assertSame(failure, clubs.state.value.failure)
         assertEquals(1, server.requests("clubs").size)
+    }
+
+    @Test
+    fun `the demo's directory shows in memory alone, asks for nothing, and the stored one shows again after`() = runBlocking {
+        server.enqueue("clubs", Answer(body = envelope(club(9001, "測試棋藝社")), headers = mapOf("Cache-Control" to "max-age=0")))
+        val clubs = directory()
+        clubs.refresh()
+
+        clubs.show(listOf(card(990001, "測試示範社", "Demo Club", "學藝性")))
+        assertEquals(listOf(990001), clubs.state.value.clubs.map { it.id })
+        clubs.refresh()
+        assertEquals("fresh, so nothing is asked", 1, server.requests("clubs").size)
+        assertEquals("the stored answer stays on the device", listOf(9001), directory().state.value.clubs.map { it.id })
+
+        clubs.showStored()
+        assertEquals(listOf(9001), clubs.state.value.clubs.map { it.id })
+        server.enqueue("clubs", Answer(body = envelope(club(9002, "測試吉他社")), headers = mapOf("Cache-Control" to "max-age=0")))
+        clubs.refresh()
+        assertEquals("stale again, as stored", listOf(9002), clubs.state.value.clubs.map { it.id })
+    }
+
+    @Test
+    fun `a fetch out as the demo's directory shows keeps nothing`() = runBlocking {
+        val reached = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val stalling = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+            reached.countDown()
+            release.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            server.client.newCall(chain.request()).execute()
+        }.build()
+        val api = ClubApiClient(stalling, ClubApiClient.BASE_URL.toHttpUrl())
+        server.enqueue("clubs", Answer(body = envelope(club(9001, "測試棋藝社")), headers = mapOf("Cache-Control" to "max-age=600")))
+        val prefs = context.getSharedPreferences("club_directory", 0)
+        val clubs = ClubDirectory(prefs, api, { chinese }, languageChanged, CoroutineScope(Dispatchers.Unconfined)) { now }
+        val out = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).async { clubs.refresh() }
+        assertTrue(reached.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        clubs.show(listOf(card(990001, "測試示範社")))
+        release.countDown()
+        out.await()
+        assertEquals(listOf(990001), clubs.state.value.clubs.map { it.id })
+        assertNull(clubs.state.value.failure)
+        assertEquals("nothing written to the device", emptyList<Int>(), directory().state.value.clubs.map { it.id })
     }
 }

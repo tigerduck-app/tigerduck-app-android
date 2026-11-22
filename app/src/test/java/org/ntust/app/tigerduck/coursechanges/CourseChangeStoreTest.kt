@@ -185,6 +185,46 @@ class CourseChangeStoreTest {
     }
 
     @Test
+    fun `a feed no server sent replaces the copy, a request out keeps nothing, and its ETag goes`() = runTest {
+        val store = store()
+        store.refresh()
+        val stalled = java.util.concurrent.CountDownLatch(1)
+        val reached = java.util.concurrent.CountDownLatch(1)
+        whileAnswering = {
+            reached.countDown()
+            stalled.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        }
+        answer = Triple(200, OTHER_FEED, "W/\"2\"")
+        val out = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { store.refresh() }
+        assertTrue(reached.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        store.replaceFeed(NOTE_FEED)
+        assertEquals(CourseChanges.decode(NOTE_FEED), store.current())
+        stalled.countDown()
+        out.await()
+        assertEquals("the answer to the request out is not kept", CourseChanges.decode(NOTE_FEED), store.current())
+        assertEquals("kept on the device", CourseChanges.decode(NOTE_FEED), store().current())
+
+        whileAnswering = {}
+        answer = Triple(500, "", null)
+        store.refresh()
+        assertNull("no ETag of the feed before it", requests.last().header("If-None-Match"))
+        assertEquals("a failed refresh keeps it", CourseChanges.decode(NOTE_FEED), store.current())
+    }
+
+    @Test
+    fun `replacing the feed with none drops it`() = runTest {
+        val store = store()
+        store.replaceFeed(NOTE_FEED)
+        store.replaceFeed(null)
+        assertEquals(CourseChanges.EMPTY, store.current())
+        assertEquals(CourseChanges.EMPTY, store().current())
+        store.refresh()
+        assertNull(requests.last().header("If-None-Match"))
+        assertEquals("the next refresh asks for the whole term", CourseChanges.decode(FEED), store.current())
+    }
+
+    @Test
     fun `an answer from an endpoint that moved while it was out is dropped`() = runTest {
         val store = store()
         whileAnswering = { base = "https://other.example.test/v3" }

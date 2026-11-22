@@ -215,7 +215,7 @@ class AuthService @Inject constructor(
                     sessions.schoolTookSignIn()
                     importedClassTables.accountDidSignIn(normalizedId)
                     // After the store knows who signed in, which empties another account's leftovers.
-                    if (signIn.isDemo) demoAccount.importClassmates(signIn)
+                    if (signIn.isDemo) demoAccount.signedIn(signIn)
                 },
             ) { signIn, sameStudent ->
                 // Best-effort: v3 JWT login failures must not block the SSO session. The automatic

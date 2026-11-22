@@ -1,8 +1,11 @@
 package org.ntust.app.tigerduck.clubs
 
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.clubs.FakeClubServer.Answer
 import org.ntust.app.tigerduck.clubs.FakeClubServer.Companion.activity
@@ -97,5 +100,28 @@ class ClubActivitiesTest {
         assertEquals("Test Chess Club", shown.last().clubName)
         assertEquals("測試社團9002", shown.first().clubName)
         assertEquals(18 * 60, shown.first().start)
+    }
+
+    @Test
+    fun `the demo's activities show in memory alone, and a fetch out as they show keeps nothing`() = runBlocking {
+        val reached = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val stalling = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+            reached.countDown()
+            release.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            server.client.newCall(chain.request()).execute()
+        }.build()
+        server.enqueue("activities", Answer(body = monday, headers = mapOf("ETag" to "\"v1\"")))
+        val feed = ClubActivities(context.getSharedPreferences("club_activities", 0), ClubApiClient(stalling, ClubApiClient.BASE_URL.toHttpUrl()))
+        val signIn = testSignIn()
+        val out = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { feed.refresh(signIn) }
+        assertTrue(reached.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        val demo = ClubApiList.activities(envelope(activity(991001, 990001, "2026-11-04", "19:00", "21:00")))
+        feed.show(demo)
+        release.countDown()
+        out.await()
+        assertEquals(listOf(991001), feed.activities.value.map { it.id })
+        assertEquals("nothing written to the device", emptyList<Int>(), feed().activities.value.map { it.id })
     }
 }

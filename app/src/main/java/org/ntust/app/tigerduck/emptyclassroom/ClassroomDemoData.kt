@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.demo.DemoDates
 import org.ntust.app.tigerduck.demo.DemoFixture
 import org.ntust.app.tigerduck.util.logSummary
 import java.time.LocalDate
@@ -37,7 +38,7 @@ class ClassroomDemoData @Inject constructor(
     }
 
     private fun load(lang: String): DemoClassrooms? = runCatching {
-        context.assets.open("demo.json").bufferedReader().use { DemoClassrooms.parse(it.readText(), lang) }
+        DemoClassrooms.parse(DemoDates.read(context), lang)
     }.onFailure { Log.e("ClassroomDemoData", "cannot read demo.json: ${it.logSummary()}") }.getOrNull()
 
     private fun currentLang(): String {

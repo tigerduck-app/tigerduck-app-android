@@ -76,14 +76,35 @@ class ClubDirectory internal constructor(
     @Volatile
     private var maxAgeSeconds = 0L
 
+    // Guards what is shown against the demo account's: a fetch keeps its answer, and [show] puts
+    // the demo's in place, each whole under it.
+    private val lock = Any()
+
+    /** The demo account's directories shown so far; a fetch begun before the last keeps nothing. */
+    private var shown = 0
+
     init {
-        val payload = prefs.getString(KEY_PAYLOAD, null)
-        val read = payload?.let { runCatching { ClubApiList.clubs(it) }.getOrNull() }
-        if (read != null) {
-            storedAtMs = runCatching { prefs.getLong(KEY_STORED_AT, 0L) }.getOrNull()
-            maxAgeSeconds = storedLifetime(runCatching { prefs.getLong(KEY_MAX_AGE, 0L) }.getOrNull())
-            _state.value = ClubDirectoryState(listed(read, chinese()))
-        }
+        showStored()
+    }
+
+    /** The stored answer, with its own age, as the directory starts: shown again after the demo account's. */
+    fun showStored() = synchronized(lock) {
+        val read = prefs.getString(KEY_PAYLOAD, null)?.let { runCatching { ClubApiList.clubs(it) }.getOrNull() }
+        storedAtMs = read?.let { runCatching { prefs.getLong(KEY_STORED_AT, 0L) }.getOrNull() }
+        maxAgeSeconds = if (read == null) 0L else storedLifetime(runCatching { prefs.getLong(KEY_MAX_AGE, 0L) }.getOrNull())
+        _state.value = ClubDirectoryState(listed(read.orEmpty(), chinese()))
+    }
+
+    /**
+     * The demo account's directory, which no server sends, in memory alone: the stored answer stays
+     * on the device. It counts as fresh for the longest `max-age`, so no refresh asks for another,
+     * and a fetch already out keeps nothing.
+     */
+    fun show(clubs: List<ClubCard>) = synchronized(lock) {
+        shown++
+        storedAtMs = now().toEpochMilli()
+        maxAgeSeconds = ClubApiClient.LONGEST_MAX_AGE_SECONDS
+        _state.value = ClubDirectoryState(listed(clubs, chinese()))
     }
 
     init {
@@ -110,23 +131,29 @@ class ClubDirectory internal constructor(
      */
     suspend fun refresh() = refreshLock.withLock {
         if (isFresh(storedAtMs, maxAgeSeconds, now())) return@withLock
+        val asked = synchronized(lock) { shown }
         try {
             val answer = client.clubs()
             val read = ClubApiList.clubs(answer.body)
             val at = now()
-            prefs.edit()
-                .putString(KEY_PAYLOAD, answer.body)
-                .putLong(KEY_STORED_AT, at.toEpochMilli())
-                .putLong(KEY_MAX_AGE, answer.maxAgeSeconds)
-                .apply()
-            storedAtMs = at.toEpochMilli()
-            maxAgeSeconds = storedLifetime(answer.maxAgeSeconds)
-            _state.value = ClubDirectoryState(listed(read, chinese()))
+            synchronized(lock) {
+                if (shown != asked) return@withLock
+                prefs.edit()
+                    .putString(KEY_PAYLOAD, answer.body)
+                    .putLong(KEY_STORED_AT, at.toEpochMilli())
+                    .putLong(KEY_MAX_AGE, answer.maxAgeSeconds)
+                    .apply()
+                storedAtMs = at.toEpochMilli()
+                maxAgeSeconds = storedLifetime(answer.maxAgeSeconds)
+                _state.value = ClubDirectoryState(listed(read, chinese()))
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "club directory refresh failed: ${e.logSummary()}")
-            _state.value = _state.value.copy(failure = e, underMaintenance = ClubApiClient.isMaintenance(e, now()))
+            synchronized(lock) {
+                if (shown == asked) _state.value = _state.value.copy(failure = e, underMaintenance = ClubApiClient.isMaintenance(e, now()))
+            }
         }
     }
 
