@@ -10,6 +10,8 @@ import org.jsoup.safety.Safelist
 import org.jsoup.select.NodeTraversor
 import org.jsoup.select.NodeVisitor
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
+import java.net.URLDecoder
+import java.util.Base64
 
 data class MailLink(val text: String, val href: String)
 
@@ -94,6 +96,22 @@ object HtmlSanitizer {
         clean.outputSettings().prettyPrint(false)
         return SanitizedHtml(clean.body().html(), blocked, remote, links)
     }
+
+    /**
+     * The bytes of a base64 `data:` image [sanitize] keeps, decoded in the app rather than by
+     * whatever shows them: null for any other address. Its data is percent-decoded first, as a
+     * browser reads a `data:` address, and characters outside base64's are skipped.
+     */
+    fun dataImageBytes(source: String): ByteArray? {
+        val comma = source.indexOf(',')
+        if (!DATA_IMAGE.containsMatchIn(source) || comma < 0) return null
+        if (!source.substring(0, comma).lowercase().endsWith(";base64")) return null
+        return runCatching { Base64.getMimeDecoder().decode(percentDecoded(source.substring(comma + 1))) }.getOrNull()
+    }
+
+    /** `%XX` escapes as their bytes; a `+` stays a `+`, which base64 uses. */
+    private fun percentDecoded(data: String): String =
+        if ('%' !in data) data else runCatching { URLDecoder.decode(data.replace("+", "%2B"), "UTF-8") }.getOrDefault(data)
 
     /** Text with line breaks at block boundaries, for the plain-text view when a mail has no text part. */
     fun plainText(sanitizedHtml: String): String {

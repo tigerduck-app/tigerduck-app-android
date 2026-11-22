@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.PageZoom
 
 /** Zoom steps, each site's zoom and desktop choice, and the Appearance kept. */
 class BrowserSettingsTest {
@@ -21,15 +22,15 @@ class BrowserSettingsTest {
 
     @Test
     fun `zoom goes in steps of ten between fifty and two hundred`() {
-        assertEquals(110, BrowserZoom.zoomIn(100))
-        assertEquals(90, BrowserZoom.zoomOut(100))
-        assertEquals(110, BrowserZoom.zoomIn(105))
-        assertEquals(100, BrowserZoom.zoomOut(105))
-        assertEquals(200, BrowserZoom.zoomIn(200))
-        assertEquals(50, BrowserZoom.zoomOut(50))
-        assertFalse(BrowserZoom.canZoomIn(200))
-        assertFalse(BrowserZoom.canZoomOut(50))
-        assertTrue(BrowserZoom.canZoomIn(190))
+        assertEquals(110, PageZoom.zoomIn(100))
+        assertEquals(90, PageZoom.zoomOut(100))
+        assertEquals(110, PageZoom.zoomIn(105))
+        assertEquals(100, PageZoom.zoomOut(105))
+        assertEquals(200, PageZoom.zoomIn(200))
+        assertEquals(50, PageZoom.zoomOut(50))
+        assertFalse(PageZoom.canZoomIn(200))
+        assertFalse(PageZoom.canZoomOut(50))
+        assertTrue(PageZoom.canZoomIn(190))
     }
 
     @Test
@@ -39,7 +40,7 @@ class BrowserSettingsTest {
 
         assertEquals(130, settings.zoom("Moodle2.ntust.edu.tw"))
         assertTrue(settings.desktopSite("moodle2.ntust.edu.tw"))
-        assertEquals(BrowserZoom.DEFAULT, settings.zoom("other.ntust.edu.tw"))
+        assertEquals(PageZoom.DEFAULT, settings.zoom("other.ntust.edu.tw"))
         assertFalse(settings.desktopSite("other.ntust.edu.tw"))
     }
 
@@ -51,7 +52,7 @@ class BrowserSettingsTest {
 
         settings.clearSites()
 
-        assertEquals(BrowserZoom.DEFAULT, settings.zoom("moodle2.ntust.edu.tw"))
+        assertEquals(PageZoom.DEFAULT, settings.zoom("moodle2.ntust.edu.tw"))
         assertFalse(settings.desktopSite("moodle2.ntust.edu.tw"))
         assertEquals(BrowserAppearance.DARK, settings.appearance)
     }

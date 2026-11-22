@@ -16,10 +16,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.data.preferences.MailTextSizePreference
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.MailAccount
+import org.ntust.app.tigerduck.mail.MailBodyImages
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
+import org.ntust.app.tigerduck.mail.MailFileNames
 import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.SentCopyNotice
@@ -61,6 +64,9 @@ class SchoolMailMessageViewModel @Inject constructor(
     private val site: MailSite,
     private val sentCopyNotices: SentCopyNotices,
     @IoDispatcher private val io: CoroutineDispatcher,
+    private val bodyImages: MailBodyImages,
+    /** The text size the message's ⋮ sets and its body follows, one for every mail. */
+    val textSize: MailTextSizePreference,
 ) : ViewModel() {
     val folder: String = savedStateHandle.get<String>("folder").orEmpty()
     val uid: Long = savedStateHandle.get<Long>("uid") ?: -1L
@@ -510,14 +516,30 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     fun consumeSaveRequest() = update { it.copy(saveRequest = null) }
 
-    private fun open(attachment: MailAttachment, deliver: (File) -> Unit) {
-        if (attachment.partId in _state.value.downloading) return
+    private fun open(attachment: MailAttachment, deliver: (File) -> Unit) = downloading(attachment.partId) { deliver(download(attachment)) }
+
+    /**
+     * A tapped image of the formatted view ([MailWebView]), opened as an attachment opens once
+     * [bodyImages] has it as a picture it shows: nothing for anything else. A remote one is fetched
+     * only while remote images are let in, and kept only while this sign-in stands.
+     */
+    fun previewImage(source: String) {
+        val remote = _state.value.remoteImagesAllowed
+        val signIn = account.currentSignIn
+        downloading("image $source") {
+            bodyImages.open(source, remote) { signIn.isCurrent }?.let { image -> update { it.copy(openRequest = OpenRequest(image.file, image.mimeType)) } }
+        }
+    }
+
+    /** One of [act]'s, with [key] in [UiState.downloading] while it runs; nothing while it already is. */
+    private fun downloading(key: String, block: suspend () -> Unit) {
+        if (key in _state.value.downloading) return
         act {
-            update { it.copy(downloading = it.downloading + attachment.partId) }
+            update { it.copy(downloading = it.downloading + key) }
             try {
-                deliver(download(attachment))
+                block()
             } finally {
-                update { it.copy(downloading = it.downloading - attachment.partId) }
+                update { it.copy(downloading = it.downloading - key) }
             }
         }
     }
@@ -534,13 +556,10 @@ class SchoolMailMessageViewModel @Inject constructor(
      * rather than leaving it behind.
      */
     private suspend fun download(attachment: MailAttachment): File = withContext(io) {
-        val dir = cache.attachmentsDir
-        dir.mkdirs()
-        val cutoff = System.currentTimeMillis() - DAY_MS
-        val inUse = cache.attachmentSlotsInUse()
-        dir.listFiles()?.filter { it.lastModified() < cutoff && it.name !in inUse }?.forEach { it.deleteRecursively() }
+        cache.attachmentsDir.mkdirs()
+        cache.pruneAttachments()
         val slot = cache.newAttachmentSlot()
-        val file = File(slot, safeFileName(attachment.fileName))
+        val file = File(slot, MailFileNames.safe(attachment.fileName))
         var committed = false
         try {
             file.outputStream().use { out -> repository.writeAttachment(folder, uid, attachment.partId, out) }
@@ -736,14 +755,11 @@ class SchoolMailMessageViewModel @Inject constructor(
     // onCleared() after it.
 
     companion object {
-        private const val DAY_MS = 24L * 60 * 60 * 1000
-        private const val MAX_NAME_LENGTH = 120
         private val EMPTY_BODY = MailBody(null, null, emptyList(), emptyMap())
 
         /** [viewInLight]'s key in the saved state. */
         private const val VIEW_IN_LIGHT = "viewInLight"
         private val UNPARSEABLE_VERDICT = LinkVerdict(host = "", shownHost = null, mismatch = false, punycode = false, insecure = false)
-        private val UNSAFE_NAME = Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]")
 
         /**
          * The only schemes `openBodyLink` can actually launch, and therefore the only ones
@@ -771,38 +787,6 @@ class SchoolMailMessageViewModel @Inject constructor(
             val canonical = href.toHttpUrlOrNull()?.toString()
                 ?: return LinkTarget(link.href, UNPARSEABLE_VERDICT, canOpen = false)
             return LinkTarget(canonical, MailWarnings.checkLink(link.text, canonical), canOpen = true)
-        }
-
-        /**
-         * At most [MAX_NAME_LENGTH] UTF-16 code units, the extension kept intact (the stem is
-         * shortened instead), never cutting a surrogate pair in half, and trimmed of leading or
-         * trailing dots/spaces only *after* truncation -- truncating first can otherwise leave a
-         * new trailing "." or " " that trimming beforehand never saw.
-         */
-        fun safeFileName(name: String): String {
-            val cleaned = TextCleaning.clean(name).replace(UNSAFE_NAME, "_")
-            val truncated = truncateKeepingExtension(cleaned, MAX_NAME_LENGTH)
-            return truncated.trim('.', ' ').ifBlank { "attachment" }
-        }
-
-        private fun truncateKeepingExtension(name: String, maxLength: Int): String {
-            if (name.length <= maxLength) return name
-            val dot = name.lastIndexOf('.')
-            // Only treat it as a real extension when there's a non-empty stem before it and the
-            // suffix is short enough to plausibly be one, not just some dot deep in a long name.
-            val hasExtension = dot > 0 && dot < name.length - 1 && (name.length - dot - 1) <= 10
-            val extension = if (hasExtension) name.substring(dot) else ""
-            val stem = if (hasExtension) name.substring(0, dot) else name
-            val stemBudget = (maxLength - extension.length).coerceAtLeast(1)
-            return truncateAtCodePointBoundary(stem, stemBudget) + extension
-        }
-
-        private fun truncateAtCodePointBoundary(s: String, maxLength: Int): String {
-            if (maxLength <= 0) return ""
-            if (s.length <= maxLength) return s
-            var end = maxLength
-            if (Character.isHighSurrogate(s[end - 1])) end--
-            return s.substring(0, end)
         }
 
         /**

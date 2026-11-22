@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -41,6 +42,7 @@ class MailMessageMenuTest {
     private val formatted = context.getString(R.string.school_mail_view_formatted)
     private val plain = context.getString(R.string.school_mail_view_plain)
     private val source = context.getString(R.string.school_mail_view_source)
+    private val larger = context.getString(R.string.school_mail_text_larger)
 
     private fun hasRole(role: Role) = SemanticsMatcher.expectValue(SemanticsProperties.Role, role)
 
@@ -52,6 +54,8 @@ class MailMessageMenuTest {
                 Column {
                     MessageMenuItems(
                         mode = mode,
+                        textZoom = 100,
+                        onTextZoom = {},
                         canFormat = true,
                         offersLightMode = offersLightMode,
                         viewInLight = viewInLight,
@@ -90,5 +94,18 @@ class MailMessageMenuTest {
     fun lightModeIsLeftOutWhereItIsNotOffered() {
         show(mode = ViewMode.PLAIN, offersLightMode = false)
         rule.onNodeWithText(lightMode).assertDoesNotExist()
+    }
+
+    /** As on the iPhone: the text size heads the menu over the formatted and plain views, not over the source. */
+    @Test
+    fun theTextSizeRowIsLeftOutOverTheSource() {
+        show(mode = ViewMode.SOURCE, offersLightMode = false)
+        rule.onNodeWithContentDescription(larger).assertDoesNotExist()
+    }
+
+    @Test
+    fun theTextSizeRowHeadsTheMenuOverThePlainView() {
+        show(mode = ViewMode.PLAIN, offersLightMode = false)
+        rule.onNodeWithContentDescription(larger).assertExists()
     }
 }

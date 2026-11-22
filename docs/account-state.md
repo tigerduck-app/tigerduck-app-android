@@ -218,6 +218,7 @@ the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps th
 | tigerduck_prefs | `librarySyncedAtMs` | library | `AppPreferences.kt` `forgetLibrarySynced` |
 | tigerduck_prefs | `libraryTabKeepChecked` | device | |
 | tigerduck_prefs | `mailBarQuestionAsked` | device | |
+| tigerduck_prefs | `mailTextZoom` | device | |
 | tigerduck_prefs | `moodleOpenIn` | device | |
 | tigerduck_prefs | `notifyAssignmentOffsets` | device | |
 | tigerduck_prefs | `notifyAssignments` | device | |

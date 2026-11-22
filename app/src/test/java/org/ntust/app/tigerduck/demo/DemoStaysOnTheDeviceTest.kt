@@ -6,6 +6,7 @@ import android.content.Context
 import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
@@ -35,6 +36,7 @@ import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.InMemoryCredentialStore
 import org.ntust.app.tigerduck.mail.InMemoryMailStateStore
 import org.ntust.app.tigerduck.mail.MailAccount
+import org.ntust.app.tigerduck.mail.MailBodyImages
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailRepository
 import org.ntust.app.tigerduck.mail.RecordingNotifier
@@ -303,6 +305,22 @@ class DemoStaysOnTheDeviceTest {
         val prefs = AppPreferences(context)
         assertTrue(demoMode in NtustSessionManager(prefs, demoMode).client.interceptors)
         assertTrue(demoMode in NetworkModule.libraryInterceptors(demoMode, debug = false))
+    }
+
+    @Test
+    fun `a mail's remote body image is refused in the demo`() = runBlocking {
+        val fixtures = DebugFixtureStore(context).apply { demoMode = true }
+        var reached = 0
+        val network = Interceptor {
+            reached++
+            throw IOException("no network in this test")
+        }
+        val client = MailBodyImages.client(null, DemoModeInterceptor(fixtures)).newBuilder().addInterceptor(network).build()
+
+        val images = MailBodyImages(client, MailCache(tmp.root), Dispatchers.IO)
+
+        assertEquals(null, images.open("https://tracker.example/p.png", remoteAllowed = true))
+        assertEquals(0, reached)
     }
 
     /** Every file that starts an OkHttp client, the phone's: the demo never runs on the watch. */

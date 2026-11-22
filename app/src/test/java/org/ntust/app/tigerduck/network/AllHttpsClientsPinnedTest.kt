@@ -3,13 +3,16 @@ package org.ntust.app.tigerduck.network
 import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import okhttp3.CookieJar
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.di.NetworkModule
+import org.ntust.app.tigerduck.mail.MailBodyImages
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
 import org.ntust.app.tigerduck.shared.tls.PinnedTrustManager
 import org.ntust.app.tigerduck.shared.tls.PinPolicy
@@ -126,6 +129,18 @@ class AllHttpsClientsPinnedTest {
 
         assertSame(tls.socketFactory, NetworkModule.provideOkHttpClient(AppPreferences(context), demoMode, tls).sslSocketFactory)
         assertSame(tls.socketFactory, NtustSessionManager(AppPreferences(context), demoMode, tls).client.sslSocketFactory)
+    }
+
+    /** A remote image a mail's reader tapped (tigerduck-app#1047), fetched as the page fetched it and no more. */
+    @Test
+    fun `a mail's body image is fetched pinned, with no cookies or cache, for 30 seconds at most`() {
+        val tls = PinnedTls(PinnedTrustManager(NoTrust, { _, _, _ -> emptyList() }, { PinPolicy(appVersion = 1) }, {}))
+        val client = MailBodyImages.client(tls, DemoModeInterceptor(DebugFixtureStore(JvmContext())))
+
+        assertSame(tls.socketFactory, client.sslSocketFactory)
+        assertSame(CookieJar.NO_COOKIES, client.cookieJar)
+        assertNull(client.cache)
+        assertEquals(30_000, client.callTimeoutMillis)
     }
 
     private object NoTrust : X509ExtendedTrustManager() {

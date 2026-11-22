@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.data.model.mail.SourceCacheDto
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailPage
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -185,6 +186,33 @@ class MailCache(
     @Synchronized
     fun attachmentSlotsInUse(): Set<String> = slotsInUse.toSet()
 
+    /** Deletes each [attachmentsDir] folder over a day old that no download is still writing into. */
+    @Synchronized
+    fun pruneAttachments() {
+        val cutoff = System.currentTimeMillis() - DAY_MS
+        attachmentsDir.listFiles()?.filter { it.lastModified() < cutoff && it.name !in slotsInUse }?.forEach { it.deleteRecursively() }
+    }
+
+    /**
+     * [bytes] as [name] in a new folder under [attachmentsDir], while [stillCurrent] says they are
+     * still the signed-in account's, asked under the lock [clearAll] takes, as [saveBodyIf] asks:
+     * a sign-out's clear waits for the write it allowed, then takes it. Null when not written.
+     * Prunes first, as a download does.
+     */
+    @Synchronized
+    fun saveAttachmentIf(name: String, bytes: ByteArray, stillCurrent: () -> Boolean): File? {
+        if (!stillCurrent()) return null
+        pruneAttachments()
+        val slot = File(attachmentsDir, UUID.randomUUID().toString())
+        return try {
+            slot.mkdirs()
+            File(slot, name).apply { writeBytes(bytes) }
+        } catch (e: IOException) {
+            slot.deleteRecursively()
+            null
+        }
+    }
+
     private fun <T> read(file: File, type: Class<T>): T? {
         if (!file.exists()) return null
         return try {
@@ -248,5 +276,7 @@ class MailCache(
 
         /** How a send's staging folder under [attachmentsDir] is named. */
         const val OUTGOING_PREFIX = "outgoing-"
+
+        private const val DAY_MS = 24L * 60 * 60 * 1000
     }
 }

@@ -123,7 +123,7 @@ import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.browser.BrowserAppearance
 import org.ntust.app.tigerduck.browser.BrowserDownload
-import org.ntust.app.tigerduck.browser.BrowserZoom
+import org.ntust.app.tigerduck.util.PageZoom
 import org.ntust.app.tigerduck.browser.CertificateInfo
 import org.ntust.app.tigerduck.browser.UploadSource
 import org.ntust.app.tigerduck.ui.component.DetentSheet
@@ -131,7 +131,6 @@ import org.ntust.app.tigerduck.ui.component.DetentSheetMotion
 import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState
 import org.ntust.app.tigerduck.util.replaceIosArg
 import java.text.DateFormat
-import java.text.NumberFormat
 import java.util.Date
 import kotlinx.coroutines.launch
 
@@ -440,7 +439,7 @@ internal fun BrowserMenuPage(
         // Zoom: − and + only; the percentage puts it back to 100%. While the zoom changes, the rest
         // of the menu steps aside and these keep a pill of their own over the page.
         val locale = LocalConfiguration.current.locales[0]
-        val percent = remember(state.zoom, locale) { NumberFormat.getPercentInstance(locale).format(state.zoom / 100.0) }
+        val percent = remember(state.zoom, locale) { PageZoom.label(state.zoom, locale) }
         val pill = MaterialTheme.colorScheme.surfaceContainerHigh
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(aside.weight(1f), verticalAlignment = Alignment.CenterVertically) {
@@ -454,14 +453,14 @@ internal fun BrowserMenuPage(
                 },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedIconButton(onClick = { zoom(actions::zoomOut) }, enabled = !state.atRisk && BrowserZoom.canZoomOut(state.zoom)) {
+                OutlinedIconButton(onClick = { zoom(actions::zoomOut) }, enabled = !state.atRisk && PageZoom.canZoomOut(state.zoom)) {
                     Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.browser_zoom_out))
                 }
                 TextButton(onClick = { zoom(actions::zoomReset) }, enabled = !state.atRisk, colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current)) {
                     // As wide as it is, and no narrower than 48dp, so it stays put from 50% to 200%.
                     Text(percent, modifier = Modifier.widthIn(min = 48.dp).width(IntrinsicSize.Max), maxLines = 1, textAlign = TextAlign.Center)
                 }
-                OutlinedIconButton(onClick = { zoom(actions::zoomIn) }, enabled = !state.atRisk && BrowserZoom.canZoomIn(state.zoom)) {
+                OutlinedIconButton(onClick = { zoom(actions::zoomIn) }, enabled = !state.atRisk && PageZoom.canZoomIn(state.zoom)) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.browser_zoom_in))
                 }
             }

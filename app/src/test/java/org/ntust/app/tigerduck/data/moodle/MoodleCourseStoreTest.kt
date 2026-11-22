@@ -911,7 +911,8 @@ class MoodleCourseStoreTest {
         val fallback = store.fullPicture(amy())!!
         assertTrue(fallback.file.readBytes().contentEquals(jpeg))
 
-        api.pictureAnswer = { byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte(), 9) }
+        // A PNG's whole signature, which the picture's type is read from (RasterImage).
+        api.pictureAnswer = { byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte(), 0x0D, 0x0A, 0x1A, 0x0A, 9) }
         val retried = store.fullPicture(amy())!!
         assertEquals(listOf(small, large, large), api.pictureUrls)
         assertEquals("image/png", retried.mimeType)

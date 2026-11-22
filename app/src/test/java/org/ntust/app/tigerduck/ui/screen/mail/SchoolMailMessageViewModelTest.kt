@@ -12,12 +12,14 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.ntust.app.tigerduck.auth.session.SignOutReason
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.FakeSchoolMailRepository
 import org.ntust.app.tigerduck.mail.InMemoryCredentialStore
 import org.ntust.app.tigerduck.mail.InMemoryMailStateStore
 import org.ntust.app.tigerduck.mail.MailAccount
+import org.ntust.app.tigerduck.mail.MailBodyImages
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailLimits
 import org.ntust.app.tigerduck.mail.SentCopyNotice
@@ -43,12 +45,14 @@ import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.PendingAttachment
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import java.io.ByteArrayOutputStream
+import java.util.Base64
 import kotlin.coroutines.CoroutineContext
 import kotlin.system.measureTimeMillis
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import org.ntust.app.tigerduck.mail.schoolMailSite
+import org.ntust.app.tigerduck.util.JvmContext
 
 /**
  * Stands in for the injected `@IoDispatcher` and holds everything handed to it until [drain].
@@ -106,7 +110,12 @@ class SchoolMailMessageViewModelTest {
         uid: Long = 5,
         io: CoroutineDispatcher = main.dispatcher,
         saved: SavedStateHandle = SavedStateHandle(mapOf("folder" to folder, "uid" to uid)),
-    ) = SchoolMailMessageViewModel(saved, repo, account, notifier, cache, schoolMailSite(), notices, io)
+    ) = SchoolMailMessageViewModel(
+        saved, repo, account, notifier, cache, schoolMailSite(), notices, io,
+        // No fetch: a remote image's are MailBodyImagesTest's.
+        MailBodyImages({ error("no fetch here") }, cache, io),
+        AppPreferences(JvmContext()).mailTextSize,
+    )
 
     private fun ready(vm: SchoolMailMessageViewModel) = vm.state.value.content as Content.Ready
 
@@ -1245,37 +1254,24 @@ class SchoolMailMessageViewModelTest {
         )
     }
 
-    // --- safeFileName ----------------------------------------------------------------------
-
     @Test
-    fun `safeFileName never lets a name traverse out of the attachments directory`() {
-        assertEquals("attachment", SchoolMailMessageViewModel.safeFileName(".."))
-        assertEquals("attachment", SchoolMailMessageViewModel.safeFileName("."))
-        val traversal = SchoolMailMessageViewModel.safeFileName("../../x")
-        assertFalse(traversal.contains('/'))
-        assertFalse(traversal.contains('\\'))
-        assertTrue(traversal != "." && traversal != "..")
-        assertEquals("a_b_c", SchoolMailMessageViewModel.safeFileName("a/b\\c"))
-    }
+    fun `a tapped image of the body opens as an attachment does, and only a picture`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("<p>hi</p>", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0)
 
-    @Test
-    fun `safeFileName truncates a long name but keeps its extension and never splits a surrogate pair`() {
-        val longName = "a".repeat(200) + ".pdf"
-        val result = SchoolMailMessageViewModel.safeFileName(longName)
-        assertTrue(result.length <= 120)
-        assertTrue(result.endsWith(".pdf"))
+        vm.previewImage("data:image/png;base64," + Base64.getEncoder().encodeToString(png))
+        val request = vm.state.value.openRequest!!
+        assertEquals("image/png", request.contentType)
+        assertEquals("image.png", request.file.name)
+        assertTrue(vm.state.value.downloading.isEmpty())
+        vm.consumeOpenRequest()
 
-        // U+1F600 (an emoji outside the BMP) is a surrogate pair in UTF-16. The leading "x"
-        // shifts every pair's boundary by one code unit relative to a bare run of pairs, so the
-        // stem's truncation cut (120 - ".png".length = 116 code units in) lands exactly between
-        // a pair's two halves -- precisely the case a naive take(116) would get wrong.
-        val emojiName = "x" + "😀".repeat(70) + ".png"
-        val truncatedEmoji = SchoolMailMessageViewModel.safeFileName(emojiName)
-        assertTrue(truncatedEmoji.endsWith(".png"))
-        val stem = truncatedEmoji.removeSuffix(".png")
-        // A lone high surrogate at the very end (its low half was cut off) means a pair got
-        // split; ending on a low surrogate is fine -- that IS a pair's completed second half.
-        assertFalse(stem.isNotEmpty() && Character.isHighSurrogate(stem.last()))
+        vm.previewImage("data:image/png;base64," + Base64.getEncoder().encodeToString("<svg onload=x>".toByteArray()))
+        assertNull(vm.state.value.openRequest)
+        assertNull(vm.state.value.actionError)
     }
 
     @Test
