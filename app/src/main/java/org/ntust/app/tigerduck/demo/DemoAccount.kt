@@ -6,6 +6,10 @@ import androidx.core.os.ConfigurationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.clubs.ClubActivities
+import org.ntust.app.tigerduck.clubs.ClubDirectory
+import org.ntust.app.tigerduck.clubs.ClubSubscriptions
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -18,6 +22,7 @@ import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.util.logSummary
 import java.time.Instant
@@ -43,6 +48,9 @@ import javax.inject.Singleton
  * Signing out leaves it. The school session answers whether the app is in the
  * demo ([org.ntust.app.tigerduck.auth.session.AccountSession.isDemo]): this
  * class moves it, and the stored flag it starts from at the next process.
+ *
+ * The file's dates follow today ([DemoDates]). Its course changes, transcript and clubs go where the
+ * real ones do, the club directory and activities in memory alone, since those caches are public.
  */
 @Singleton
 class DemoAccount @Inject constructor(
@@ -53,6 +61,11 @@ class DemoAccount @Inject constructor(
     private val appPreferences: AppPreferences,
     private val importedClassTables: ImportedClassTableStore,
     private val sessions: AccountSessions,
+    // Lazy, as in SchoolStores: built when the demo writes or leaves, not with the sign-in at the app's start.
+    private val courseChanges: dagger.Lazy<CourseChangeStore>,
+    private val clubDirectory: dagger.Lazy<ClubDirectory>,
+    private val clubActivities: dagger.Lazy<ClubActivities>,
+    private val clubSubscriptions: dagger.Lazy<ClubSubscriptions>,
 ) {
     private val isActive: Boolean get() = sessions.school.isDemo
 
@@ -136,13 +149,19 @@ class DemoAccount @Inject constructor(
     }
 
     /**
-     * Leave the demo account. Part of the school sign-out, which clears the cached data itself; a
-     * demo library signed in stays, as a real library account does, until [signOutLibrary]. The
-     * stored flag first: one that would not clear leaves the session's answer as the flag reads,
-     * which the next start tries again from, and School Mail, which only that answer keeps shut,
-     * shut until then.
+     * Leave the demo account. Part of the school sign-out, which clears the cached data itself, the
+     * transcript, the club subscriptions and the club feed among them; a demo library signed in
+     * stays, as a real library account does, until [signOutLibrary]. Then what the demo kept outside
+     * the account's stores: the public course-change feed, and its directory of clubs shown in place
+     * of the stored one. The stored flag after those and before the rest: one that would not clear
+     * leaves the session's answer as the flag reads, which the next start tries again from, and
+     * School Mail, which only that answer keeps shut, shut until then.
      */
     fun exit() {
+        if (store.demoMode) {
+            courseChanges.get().replaceFeed(null)
+            clubDirectory.get().showStored()
+        }
         store.clearSchool()
         sessions.school.signIns.leaveDemo()
         ServerStatusTracker.exitDemoMode()
@@ -164,10 +183,10 @@ class DemoAccount @Inject constructor(
 
     private suspend fun write(fixture: DemoFixture, signIn: SignIn) {
         fixture.courses?.let { dataCache.saveCourses(it, signIn) }
+        val term = dataCache.currentSemesterCode()
         // The ids the course detail finds the demo courses' Moodle content under. A course has
         // no idnumber of its own, so it is looked up as `<term><courseNo>`, as one added by hand.
         fixture.moodle?.let { moodle ->
-            val term = dataCache.currentSemesterCode()
             val ids = moodle.courses.associate {
                 MoodleCourseIds.normalizedIdnumber(term + it.courseNo) to it.moodleId
             }
@@ -181,18 +200,45 @@ class DemoAccount @Inject constructor(
         // its clear, which a write let through earlier lands before.
         fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { signIn.isCurrent } }
         fixture.calendar?.let { dataCache.saveCalendarEvents(it, signIn) }
+        writeFeatures(fixture, term, signIn)
     }
 
     /**
-     * The classmates' class tables, imported as their share codes would import them, on the term
-     * the demo courses are in. Called by the demo sign-in once the store knows the demo account
-     * signed in, so another account's leftovers are gone first. Only at sign-in, not on each
-     * start: a classmate the reviewer deleted stays deleted. A sign-out empties them with every
-     * other import, and one past [signIn]'s end, whose import would be the next student's, is
-     * not imported.
+     * The course changes, each on its coming weekday, the transcript under the demo's student ID,
+     * and the clubs, shown in memory alone: again on each start, which nothing else writes.
      */
-    suspend fun importClassmates(signIn: SignIn) {
+    private suspend fun writeFeatures(fixture: DemoFixture, term: String, signIn: SignIn) {
+        val today = TaipeiClock.today()
+        fixture.courseChanges?.let { changes ->
+            val feed = DemoFeatures.courseChangeFeed(term, changes, today)
+            val store = courseChanges.get()
+            signIn.ifCurrent { store.replaceFeed(feed) }
+        }
+        val studentId = fixture.studentId?.trim()?.uppercase()
+        val enrolled = fixture.courses.orEmpty().sumOf { it.credits.toDouble() }.toFloat()
+        val report = fixture.scores?.let { DemoFeatures.scoreReport(it, term, enrolled) }
+        if (studentId != null && report != null) dataCache.saveScoreReport(report, studentId, signIn)
+        fixture.clubs?.let { clubs ->
+            val activities = clubs.flatMap { DemoFeatures.activities(it, today) }
+            val (directory, feed) = clubDirectory.get() to clubActivities.get()
+            signIn.ifCurrent {
+                directory.show(clubs.map(DemoFeatures::card))
+                feed.show(activities)
+            }
+        }
+    }
+
+    /**
+     * The file's subscribed clubs, subscribed, and the classmates' class tables, imported as their
+     * share codes would import them, on the term the demo courses are in. Called by the demo
+     * sign-in once the store knows the demo account signed in, so another account's leftovers are
+     * gone first. Only at sign-in, not on each start: a club unsubscribed and a classmate deleted
+     * stay so. A sign-out empties them with every other subscription and import, and one past
+     * [signIn]'s end, whose would be the next student's, is not made.
+     */
+    suspend fun signedIn(signIn: SignIn) {
         val fixture = load(currentLang()) ?: return
+        fixture.clubs.orEmpty().filter { it.subscribed }.forEach { clubSubscriptions.get().subscribe(it.id, signIn) }
         val classmates = fixture.classmates ?: return
         importDemoClassmates(
             importedClassTables, dataCache.currentSemesterCode(), classmates,
@@ -201,8 +247,8 @@ class DemoAccount @Inject constructor(
     }
 
     private fun load(lang: String): DemoFixture? = runCatching {
-        context.assets.open(ASSET).bufferedReader().use { DemoFixture.parse(it.readText(), lang) }
-    }.onFailure { Log.e(TAG, "cannot read $ASSET: ${it.logSummary()}") }.getOrNull()
+        DemoFixture.parse(DemoDates.read(context), lang)
+    }.onFailure { Log.e(TAG, "cannot read ${DemoDates.ASSET}: ${it.logSummary()}") }.getOrNull()
 
     /** The language the app is showing, resolved the way push registration resolves it. */
     private fun currentLang(): String {
@@ -213,7 +259,6 @@ class DemoAccount @Inject constructor(
 
     private companion object {
         const val TAG = "DemoAccount"
-        const val ASSET = "demo.json"
     }
 }
 

@@ -7,6 +7,7 @@ import com.google.gson.JsonParser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.demo.DemoDates
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
@@ -144,7 +145,7 @@ class AssetsMailDemoGate @Inject constructor(
 ) : MailDemoGate {
     private val box: DemoMailbox by lazy {
         runCatching {
-            context.assets.open("demo.json").bufferedReader().use { DemoMailFixture.parse(it.readText(), lang()) }
+            DemoMailFixture.parse(DemoDates.read(context), lang())
         }.getOrNull() ?: DemoMailbox.EMPTY
     }
 

@@ -412,7 +412,7 @@ class DemoSessionTest {
         world.plans.signOut(SignOutReason.SCHOOL)
         world.wipeDone()
 
-        world.demoAccount.importClassmates(signIn)
+        world.demoAccount.signedIn(signIn)
 
         assertEquals(emptyList<Any>(), world.imported.tables.value.people)
     }

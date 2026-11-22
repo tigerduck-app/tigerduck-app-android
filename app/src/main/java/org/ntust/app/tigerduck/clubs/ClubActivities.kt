@@ -57,6 +57,9 @@ class ClubActivities internal constructor(
 
     private val lock = Any()
     private val refreshLock = Mutex()
+
+    /** The demo account's feeds shown so far; a fetch begun before the last keeps nothing. */
+    private var shown = 0
     private val _activities = MutableStateFlow(stored())
     val activities: StateFlow<List<ClubActivity>> = _activities.asStateFlow()
 
@@ -67,11 +70,12 @@ class ClubActivities internal constructor(
     suspend fun refresh(signIn: SignIn) = refreshLock.withLock {
         if (!signIn.isCurrent) return@withLock
         try {
-            val etag = synchronized(lock) { prefs.getString(KEY_ETAG, null)?.takeIf { prefs.contains(KEY_PAYLOAD) } }
+            val (etag, asked) = synchronized(lock) { prefs.getString(KEY_ETAG, null)?.takeIf { prefs.contains(KEY_PAYLOAD) } to shown }
             val copy = client.activities(etag) ?: return@withLock
             val read = ClubApiList.activities(copy.body)
             signIn.ifCurrent {
                 synchronized(lock) {
+                    if (shown != asked) return@synchronized
                     prefs.edit().putString(KEY_PAYLOAD, copy.body).putString(KEY_ETAG, copy.etag.orEmpty()).apply()
                     if (read != _activities.value) _activities.value = read
                 }
@@ -81,6 +85,12 @@ class ClubActivities internal constructor(
         } catch (e: Exception) {
             Log.w(TAG, "club activities refresh failed: ${e.logSummary()}")
         }
+    }
+
+    /** The demo account's feed, which no server sends, in memory alone; a fetch already out keeps nothing. */
+    fun show(activities: List<ClubActivity>) = synchronized(lock) {
+        shown++
+        _activities.value = activities
     }
 
     /** At the school's sign-out: the feed and its ETag. */

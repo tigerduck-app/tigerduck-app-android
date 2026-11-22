@@ -25,7 +25,8 @@ import java.util.Date
  *
  * Parsed with Gson's tree API rather than `org.json`, which is only a stub
  * under this module's plain-JVM unit tests. A section the file leaves out
- * reads as null rather than empty, so a caller can tell "none" from "absent".
+ * reads as null rather than empty, so a caller can tell "none" from "absent". Its dates are read as
+ * written: [DemoDates] moves the file's next to today before it gets here.
  */
 data class DemoFixture(
     val studentId: String?,
@@ -44,6 +45,12 @@ data class DemoFixture(
      * codes, so someone else's class table and the switcher show without a server.
      */
     val classmates: List<Classmate>? = null,
+    /** The course-change feed's rows, each on its coming weekday; see [DemoFeatures]. */
+    val courseChanges: List<DemoCourseChange>? = null,
+    /** The transcript of the terms before the current one. */
+    val scores: DemoScores? = null,
+    /** Clubs of the directory, shown in memory only, and their activities on their coming weekdays. */
+    val clubs: List<DemoClub>? = null,
 ) {
     data class Classmate(val studentId: String, val nickname: String, val courses: List<Course>)
 
@@ -96,6 +103,9 @@ data class DemoFixture(
                 calendar = root.list("calendar") { o, i -> parseCalendarEvent(o, i) },
                 moodle = DemoMoodleFixture.parse(root, lang),
                 classmates = root.list("classmates") { o, _ -> parseClassmate(o, lang) },
+                courseChanges = DemoFeatures.parseCourseChanges(root),
+                scores = DemoFeatures.parseScores(root, lang),
+                clubs = DemoFeatures.parseClubs(root, lang),
             )
         }
 

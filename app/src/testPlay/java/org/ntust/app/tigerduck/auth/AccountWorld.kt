@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -27,7 +28,9 @@ import org.ntust.app.tigerduck.browser.BrowserSettings
 import org.ntust.app.tigerduck.browser.StorageClearing
 import org.ntust.app.tigerduck.clubs.ClubActivities
 import org.ntust.app.tigerduck.clubs.ClubApiClient
+import org.ntust.app.tigerduck.clubs.ClubDirectory
 import org.ntust.app.tigerduck.clubs.ClubSubscriptions
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -94,6 +97,15 @@ internal class AccountWorld(
     val fixtures: DebugFixtureStore,
     /** Every sign-out: the school's real plan; School Mail and the library hold nothing here. */
     val plans: SignOutPlans,
+    /** Where the demo's course changes and clubs show, as one instance each, the way Hilt hands them out. */
+    val demoShows: DemoShows,
+)
+
+internal class DemoShows(
+    val courseChanges: CourseChangeStore,
+    val clubDirectory: ClubDirectory,
+    val clubActivities: ClubActivities,
+    val clubSubscriptions: ClubSubscriptions,
 )
 
 /**
@@ -133,7 +145,18 @@ internal fun accountWorld(
     val bulletinCache = BulletinCache(context)
     val portalLinksCache = PortalLinksCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
-    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
+    val demoShows = DemoShows(
+        CourseChangeStore(prefs("course_changes"), refusing, { "https://api.example.test/v3" }, { true }),
+        ClubDirectory(prefs("club_directory"), ClubApiClient(refusing), { true }, emptyFlow(), idleScope),
+        ClubActivities(context, ClubApiClient(refusing)),
+        ClubSubscriptions(context),
+    )
+    val demoAccount = with(demoShows) {
+        DemoAccount(
+            context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions,
+            { courseChanges }, { clubDirectory }, { clubActivities }, { clubSubscriptions },
+        )
+    }
     val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
@@ -211,8 +234,8 @@ internal fun accountWorld(
             prefs = appPrefs,
             sessionManager = sessionManager,
             stores = SchoolStores(
-                { BulletinReadStateStore(context) }, { appPrefs }, { latch }, { ClubSubscriptions(context) },
-                { ClubActivities(context, ClubApiClient(OkHttpClient())) }, { imported }, { outbox }, { dataCache },
+                { BulletinReadStateStore(context) }, { appPrefs }, { latch }, { demoShows.clubSubscriptions },
+                { demoShows.clubActivities }, { imported }, { outbox }, { dataCache },
             ),
             pushRegistration = pushRegistration,
             demoAccount = demoAccount,
@@ -264,7 +287,7 @@ internal fun accountWorld(
     return AccountWorld(
         appPrefs, credentials, dataCache, bulletinCache, portalLinksCache, imported, tokens, auth, browserClearings, sessions, effects,
         pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
-        academicCalendar, demoAccount, fixtures, plans,
+        academicCalendar, demoAccount, fixtures, plans, demoShows,
     )
 }
 

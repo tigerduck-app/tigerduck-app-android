@@ -141,10 +141,24 @@ class CourseChangeStore internal constructor(
      * out at the old one, which would keep the next refresh waiting behind it. The caller fetches
      * the new backend's next.
      */
-    fun endpointMoved() = synchronized(lock) {
+    fun endpointMoved() = replaceFeed(null)
+
+    /**
+     * Takes [body] in place of the stored copy, as the demo account's feed, which no server sends;
+     * null drops the copy. A request still out is cancelled and its answer not kept, and the copy's
+     * ETag goes, so the next refresh asks for the whole term.
+     */
+    fun replaceFeed(body: String?) = synchronized(lock) {
         generation++
         inFlight?.cancel()
-        forget()
+        val read = body?.let { runCatching { CourseChanges.decode(it) }.getOrNull() } ?: return@synchronized forget()
+        prefs.edit()
+            .putString(KEY_PAYLOAD, body)
+            .remove(KEY_ETAG)
+            .putString(KEY_ENDPOINT, endpoint())
+            .putString(KEY_KINDS, KINDS)
+            .apply()
+        _changes.value = read
     }
 
     /** Drops the stored feed, as for another endpoint's. */
