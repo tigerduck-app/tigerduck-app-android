@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.data.model.mail.SourceCacheDto
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailPage
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -184,6 +185,24 @@ class MailCache(
 
     @Synchronized
     fun attachmentSlotsInUse(): Set<String> = slotsInUse.toSet()
+
+    /**
+     * [bytes] as [name] in a new folder under [attachmentsDir], while [stillCurrent] says they are
+     * still the signed-in account's, asked under the lock [clearAll] takes, as [saveBodyIf] asks:
+     * a sign-out's clear waits for the write it allowed, then takes it. Null when not written.
+     */
+    @Synchronized
+    fun saveAttachmentIf(name: String, bytes: ByteArray, stillCurrent: () -> Boolean): File? {
+        if (!stillCurrent()) return null
+        val slot = File(attachmentsDir, UUID.randomUUID().toString())
+        return try {
+            slot.mkdirs()
+            File(slot, name).apply { writeBytes(bytes) }
+        } catch (e: IOException) {
+            slot.deleteRecursively()
+            null
+        }
+    }
 
     private fun <T> read(file: File, type: Class<T>): T? {
         if (!file.exists()) return null

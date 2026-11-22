@@ -23,6 +23,9 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.ntust.app.tigerduck.mail.store.MailCache
 import java.util.Base64
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * A tapped image of a mail's body, as on the iPhone (tigerduck-app#1047): from a `data:` address,
@@ -144,6 +147,26 @@ class MailBodyImagesTest {
     @Test
     fun `nothing is written once the sign-in it was tapped under has gone`() {
         assertNull(open(dataAddress(PNG), stillCurrent = { false }))
+        assertNoFiles()
+    }
+
+    /**
+     * A sign-out's clear that lands just after the check said the sign-in stands waits for the
+     * write it allowed, and then removes it: the departing student's image is never left behind.
+     */
+    @Test
+    fun `a sign-out racing the write still leaves nothing`() {
+        val cleared = CountDownLatch(1)
+        var clearing: Thread? = null
+
+        open(dataAddress(PNG), stillCurrent = {
+            clearing = thread { cache.clearAll(); cleared.countDown() }
+            // Given the time to finish first if it could; held behind the write, it cannot.
+            cleared.await(300, TimeUnit.MILLISECONDS)
+            true
+        })
+        clearing!!.join(5_000)
+
         assertNoFiles()
     }
 

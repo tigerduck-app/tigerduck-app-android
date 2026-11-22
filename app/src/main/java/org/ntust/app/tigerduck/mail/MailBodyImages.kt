@@ -49,15 +49,15 @@ class MailBodyImages(
     internal class Loaded(val bytes: ByteArray, val name: String?)
 
     /**
-     * The image the page has at [source], written into an attachment's folder; null for one that
-     * is no picture this opens, or that [stillCurrent], asked before anything is written, says
-     * has outlived the sign-in it was tapped under.
+     * The image the page has at [source], written into an attachment's folder, which the
+     * FileProvider serves; null for one that is no picture this opens, or that [stillCurrent],
+     * asked under the cache's lock as it is written ([MailCache.saveAttachmentIf]), says has
+     * outlived the sign-in it was tapped under.
      */
     suspend fun open(source: String, remoteAllowed: Boolean, stillCurrent: () -> Boolean = { true }): Opened? = withContext(io) {
         val loaded = load(source, remoteAllowed) ?: return@withContext null
         val kind = RasterImage.of(loaded.bytes) ?: return@withContext null
-        if (!stillCurrent()) return@withContext null
-        write(loaded.bytes, MailFileNames.image(loaded.name, kind))?.let { Opened(it, kind.mimeType) }
+        cache.saveAttachmentIf(MailFileNames.image(loaded.name, kind), loaded.bytes, stillCurrent)?.let { Opened(it, kind.mimeType) }
     }
 
     /** [source]'s bytes: a `data:` image's own, or, while [remoteAllowed], a web address's. */
@@ -89,19 +89,6 @@ class MailBodyImages(
             if (read < 0) return out.toByteArray()
             if (out.size() + read > MailLimits.INLINE_IMAGE_BYTES) return null
             out.write(buffer, 0, read)
-        }
-    }
-
-    /** Into a new folder of [MailCache.attachmentsDir], which the FileProvider serves, as an attachment opened. */
-    private fun write(bytes: ByteArray, name: String): File? {
-        val slot = cache.newAttachmentSlot()
-        return try {
-            File(slot, name).apply { writeBytes(bytes) }
-        } catch (e: IOException) {
-            slot.deleteRecursively()
-            null
-        } finally {
-            cache.releaseAttachmentSlot(slot)
         }
     }
 
