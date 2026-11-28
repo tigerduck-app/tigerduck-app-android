@@ -321,13 +321,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
     "kind": "long-file",
-    "count": 1057
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
-    "kind": "long-function",
-    "name": "PushRegistrationService.registerWith(String?, SignIn)",
-    "lines": 91
+    "count": 1011
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",

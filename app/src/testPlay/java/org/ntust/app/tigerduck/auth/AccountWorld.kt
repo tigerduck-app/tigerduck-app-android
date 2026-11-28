@@ -198,7 +198,7 @@ internal fun accountWorld(
         AnalyticsLogger(context, appPrefs), idleScope, uiLanguage,
     )
     val pushRegistration = PushRegistrationService(
-        context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope,
+        context, PushIdentity(appPrefs, context, credentials), pushApi, tokens, appPrefs, uiLanguage, idleScope,
         DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
     )
     lateinit var plans: SignOutPlans

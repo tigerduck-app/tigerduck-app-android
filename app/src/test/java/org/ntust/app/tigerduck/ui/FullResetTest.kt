@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.library.libraryCredentialsForWatch
+import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -143,5 +144,21 @@ class FullResetTest {
         fullReset().start(this) {}.join()
 
         assertTrue(prefs.lastSyncedSettingsSeedDone)
+    }
+
+    // The backend refuses a new secret for the id an old one bound, and a new id would leave the
+    // old registration behind.
+    @Test
+    fun `a full reset keeps the device's push id and secret, which belong to no account`() = runBlocking {
+        // An id minted after a refusal, which ANDROID_ID would not give again.
+        prefs.putString("push.device_uuid", "minted-device")
+        val secret = PushIdentity(prefs, context, credentials).secret()
+
+        fullReset().start(this) {}.join()
+
+        val next = PushIdentity(prefs, context, credentials)
+        assertEquals("minted-device", next.uuid())
+        assertEquals(secret, next.secret())
+        assertEquals(43, secret?.length)
     }
 }

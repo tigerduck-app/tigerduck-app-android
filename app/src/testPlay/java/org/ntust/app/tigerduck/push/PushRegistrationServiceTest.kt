@@ -35,6 +35,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.auth.DepartingSession
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.data.preferences.PendingUnregisterPrefs
 import org.ntust.app.tigerduck.data.preferences.clearAllButOwedUnregister
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
@@ -65,6 +66,7 @@ class PushRegistrationServiceTest {
     private lateinit var context: Application
     private lateinit var prefs: AppPreferences
     private lateinit var tokens: V3TokenStore
+    private lateinit var credentials: CredentialManager
     private val backend = FakeBackend()
 
     /** The token manager of the last [service]. */
@@ -83,6 +85,7 @@ class PushRegistrationServiceTest {
         prefs = AppPreferences(context)
         prefs.hasCompletedOnboarding = true
         tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-test", Context.MODE_PRIVATE))
+        credentials = CredentialManager(context.getSharedPreferences("credentials-identity-test", Context.MODE_PRIVATE))
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
             Configuration.Builder().setExecutor(SynchronousExecutor()).build(),
@@ -112,7 +115,7 @@ class PushRegistrationServiceTest {
         }
         return PushRegistrationService(
             context = context,
-            identity = PushIdentity(prefs, context),
+            identity = PushIdentity(prefs, context, credentials),
             api = PushApiClient(backend.client, prefs, auth),
             authTokenManager = auth,
             appPreferences = prefs,
@@ -412,7 +415,7 @@ class PushRegistrationServiceTest {
         baseUrl = resolveAnnouncementEndpoint(prefs).url.trimEnd('/'),
     )
 
-    private fun deleteEndpoint() = "DELETE /v4/devices/" + PushIdentity(prefs, context).uuid()
+    private fun deleteEndpoint() = "DELETE /v4/devices/" + PushIdentity(prefs, context, credentials).uuid()
 
     private fun deletes() = backend.received(deleteEndpoint())
 

@@ -47,6 +47,21 @@ class PendingUnregisterPrefsTest {
         assertTrue(PendingUnregisterPrefs(prefs).load().isEmpty())
     }
 
+    // The device's secret belongs to no account: a new one would not prove the device's id.
+    @Test
+    fun `the full reset's wipe keeps the device secret and its refusal`() {
+        val secrets = DeviceSecretPrefs(prefs)
+        secrets.save("made-up-device-secret")
+        secrets.recordRefusal()
+        prefs.edit().putString("moodle_token", "made-up-token").commit()
+
+        clearAllButOwedUnregister(prefs)
+
+        assertEquals("made-up-device-secret", DeviceSecretPrefs(prefs).load())
+        assertTrue(DeviceSecretPrefs(prefs).refused)
+        assertFalse(prefs.contains("moodle_token"))
+    }
+
     private fun legacyDebt() {
         // The keys and values written by the single-entry build, without using today's writer.
         prefs.edit()

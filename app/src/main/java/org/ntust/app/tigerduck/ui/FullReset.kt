@@ -16,7 +16,9 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
  * [CredentialManager.clearAll] and [AppPreferences.clearAllPrefs] both clear
  * their whole store, so the library account and every library preference
  * (flip-to-open consent) go with them; neither needs naming here, and neither
- * should be, since a named list silently stops being complete.
+ * should be, since a named list silently stops being complete. What outlasts
+ * them is the device's, not an account's: the unregister a sign-out owes, and
+ * the device's push id and secret.
  */
 internal class FullReset(
     /**

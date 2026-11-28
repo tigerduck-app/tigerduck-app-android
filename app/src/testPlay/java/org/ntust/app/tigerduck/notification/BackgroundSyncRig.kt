@@ -88,7 +88,7 @@ internal fun backgroundSyncWorker(
         session = w.sessions.school,
     )
     val registration = PushRegistrationService(
-        context, PushIdentity(w.appPrefs, context), w.pushApi, w.tokens, w.appPrefs, UiLanguageMonitor(w.appPrefs), idleScope,
+        context, PushIdentity(w.appPrefs, context, w.credentials), w.pushApi, w.tokens, w.appPrefs, UiLanguageMonitor(w.appPrefs), idleScope,
         DepartingDeviceUnregister(OwedUnregister(w.credentials), w.pushApi, w.tokens, w.appPrefs),
     )
     val factory = object : WorkerFactory() {
