@@ -36,7 +36,7 @@ class Release240PagesTest {
 
     @Test
     fun `a replay from Settings opens on where to see it again too`() {
-        val replay = WhatsNewFlow.from(Plan.Show(listOf(30), summaryVersion = null, replay = true), mapOf(30 to pages), emptyMap())
+        val replay = WhatsNewFlow.from(Plan.Show(listOf(30), summaryVersions = emptyList(), replay = true), mapOf(30 to pages), emptyMap())
 
         assertEquals("whats-new-replay", replay?.pageIds?.first())
     }
@@ -49,7 +49,7 @@ class Release240PagesTest {
             isLibrarySignedIn = { false }, tabs = { tabs }, setTabs = { tabs = it },
             mailBarQuestionAsked = { asked },
         )
-        return WhatsNewFlow.from(Plan.Show(listOf(30), summaryVersion = null, replay = false), mapOf(30 to pages), emptyMap())?.pageIds
+        return WhatsNewFlow.from(Plan.Show(listOf(30), summaryVersions = emptyList(), replay = false), mapOf(30 to pages), emptyMap())?.pageIds
     }
 
     @Test
@@ -71,7 +71,7 @@ class Release240PagesTest {
             28 to release230Pages(tabs = { bar }, setTabs = {}, mailBarQuestionAsked = { asked }),
             30 to release240Pages(isLibrarySignedIn = { false }, tabs = { bar }, setTabs = {}, mailBarQuestionAsked = { asked }),
         )
-        return WhatsNewFlow.from(Plan.Show(listOf(28, 30), summaryVersion = null, replay = false), pages, emptyMap())?.pageIds
+        return WhatsNewFlow.from(Plan.Show(listOf(28, 30), summaryVersions = emptyList(), replay = false), pages, emptyMap())?.pageIds
     }
 
     @Test

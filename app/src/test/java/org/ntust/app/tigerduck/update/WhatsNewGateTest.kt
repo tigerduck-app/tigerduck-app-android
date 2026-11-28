@@ -66,27 +66,27 @@ class WhatsNewGateTest {
     )
 
     @Test
-    fun `stacks feature pages of every skipped version oldest first, then the current summary`() {
-        val result = plan(lastSeen = 26, pages = setOf(29, 27, 30, 25), summaries = setOf(27, 30))
-        assertEquals(Plan.Show(listOf(27, 29, 30), summaryVersion = 30, replay = false), result)
+    fun `stacks the pages and the summary of every skipped version, oldest first`() {
+        val result = plan(lastSeen = 26, pages = setOf(29, 27, 30, 25), summaries = setOf(30, 26, 28, 27, 31))
+        assertEquals(Plan.Show(listOf(27, 29, 30), summaryVersions = listOf(27, 28, 30), replay = false), result)
     }
 
     @Test
-    fun `skipped versions contribute pages but not their summaries`() {
-        val result = plan(lastSeen = 26, pages = emptySet(), summaries = setOf(27, 28))
-        assertEquals(Plan.RecordOnly, result)
+    fun `skipped versions with only summaries still show them`() {
+        val result = plan(lastSeen = 26, pages = emptySet(), summaries = setOf(28, 27))
+        assertEquals(Plan.Show(emptyList(), summaryVersions = listOf(27, 28), replay = false), result)
     }
 
     @Test
     fun `pages without a summary still show`() {
         val result = plan(lastSeen = 29, pages = setOf(30))
-        assertEquals(Plan.Show(listOf(30), summaryVersion = null, replay = false), result)
+        assertEquals(Plan.Show(listOf(30), summaryVersions = emptyList(), replay = false), result)
     }
 
     @Test
     fun `a summary without pages still shows`() {
         val result = plan(lastSeen = 29, summaries = setOf(30))
-        assertEquals(Plan.Show(emptyList(), summaryVersion = 30, replay = false), result)
+        assertEquals(Plan.Show(emptyList(), summaryVersions = listOf(30), replay = false), result)
     }
 
     @Test
@@ -97,7 +97,7 @@ class WhatsNewGateTest {
     @Test
     fun `pages registered ahead of the running build are not shown`() {
         val result = plan(lastSeen = 29, pages = setOf(30, 31), summaries = setOf(31))
-        assertEquals(Plan.Show(listOf(30), summaryVersion = null, replay = false), result)
+        assertEquals(Plan.Show(listOf(30), summaryVersions = emptyList(), replay = false), result)
     }
 
     @Test
@@ -125,7 +125,7 @@ class WhatsNewGateTest {
             pages = setOf(27, 28, 30),
             summaries = setOf(28, 30),
         )
-        assertEquals(Plan.Show(listOf(30), summaryVersion = 30, replay = false), result)
+        assertEquals(Plan.Show(listOf(30), summaryVersions = listOf(30), replay = false), result)
     }
 
     @Test
@@ -146,7 +146,7 @@ class WhatsNewGateTest {
             pages = setOf(27, 31),
             summaries = setOf(28, 31),
         )
-        assertEquals(Plan.Show(listOf(31), summaryVersion = 31, replay = true), result)
+        assertEquals(Plan.Show(listOf(31), summaryVersions = listOf(31), replay = true), result)
     }
 
     @Test
@@ -156,7 +156,7 @@ class WhatsNewGateTest {
             pages = setOf(27),
             summaries = setOf(28),
         )
-        assertEquals(Plan.Show(emptyList(), summaryVersion = 28, replay = true), result)
+        assertEquals(Plan.Show(emptyList(), summaryVersions = listOf(28), replay = true), result)
     }
 
     @Test
@@ -183,13 +183,13 @@ class WhatsNewGateTest {
             pages = setOf(30),
             summaries = setOf(30),
         )
-        assertEquals(Plan.Show(listOf(30), summaryVersion = 30, replay = true), result)
+        assertEquals(Plan.Show(listOf(30), summaryVersions = listOf(30), replay = true), result)
     }
 
     @Test
     fun `settings replay stops at the installed version`() {
         assertEquals(
-            Plan.Show(listOf(28), summaryVersion = 28, replay = true),
+            Plan.Show(listOf(28), summaryVersions = listOf(28), replay = true),
             WhatsNewGate.replay(pageVersions = setOf(28, 29), summaryVersions = setOf(27, 28), upTo = 28),
         )
         assertEquals(null, WhatsNewGate.replay(pageVersions = setOf(29), summaryVersions = emptySet(), upTo = 28))
@@ -198,7 +198,7 @@ class WhatsNewGateTest {
     @Test
     fun `the debug replay previews versions ahead of the build`() {
         assertEquals(
-            Plan.Show(listOf(29), summaryVersion = null, replay = true),
+            Plan.Show(listOf(29), summaryVersions = emptyList(), replay = true),
             WhatsNewGate.replay(pageVersions = setOf(28, 29), summaryVersions = setOf(28)),
         )
     }
@@ -253,24 +253,5 @@ class WhatsNewGateTest {
     @Test
     fun `replay is null when nothing is registered`() {
         assertNull(WhatsNewGate.replay(emptySet(), emptySet()))
-    }
-
-    // --- collectPages ---
-
-    @Test
-    fun `collectPages keeps version order and drops pages that do not apply`() {
-        val catalog = mapOf(
-            27 to listOf("a", "skip-b"),
-            29 to listOf("c"),
-            30 to listOf("skip-d", "e"),
-        )
-        val pages = WhatsNewGate.collectPages(listOf(27, 29, 30), catalog) { !it.startsWith("skip") }
-        assertEquals(listOf("a", "c", "e"), pages)
-    }
-
-    @Test
-    fun `collectPages tolerates versions missing from the catalog`() {
-        val pages = WhatsNewGate.collectPages(listOf(28), mapOf(27 to listOf("a"))) { true }
-        assertTrue(pages.isEmpty())
     }
 }

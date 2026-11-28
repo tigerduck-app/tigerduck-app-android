@@ -5,9 +5,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 /**
  * Pure gating logic for the paged "What's new" sheet.
  *
- * After an upgrade the sheet shows the feature pages of every version the
- * user hasn't seen yet, oldest first, then the summary page of the running
- * version. A fresh install (last-seen versionCode is the
+ * After an upgrade the sheet shows every version the user hasn't seen yet,
+ * oldest first: its feature pages, then its summary page. A fresh install (last-seen versionCode is the
  * [AppPreferences.WHATS_NEW_UNSET] sentinel, onboarding not yet done) shows
  * nothing — a brand-new user hasn't missed anything.
  */
@@ -35,13 +34,13 @@ object WhatsNewGate {
         data object Defer : Plan
 
         /**
-         * Show the feature pages registered for [pageVersions] (oldest first),
-         * then the summary of [summaryVersion] if it isn't null. [replay]
+         * Show the feature pages registered for [pageVersions] and the
+         * summaries of [summaryVersions], each list oldest first. [replay]
          * means the user asked to see it again.
          */
         data class Show(
             val pageVersions: List<Int>,
-            val summaryVersion: Int?,
+            val summaryVersions: List<Int>,
             val replay: Boolean,
         ) : Plan
     }
@@ -87,12 +86,11 @@ object WhatsNewGate {
         // version, never the whole history.
         if (lastSeen == AppPreferences.WHATS_NEW_UNSET) {
             if (!hasCompletedOnboarding) return Plan.RecordOnly
-            return show(listOf(current).filter { it in pageVersions() }, current, summaryVersions())
+            return show(current..current, pageVersions(), summaryVersions())
         }
 
         if (!shouldShow(lastSeen, current)) return Plan.RecordOnly
-        val skipped = pageVersions().filter { it in (lastSeen + 1)..current }.sorted()
-        return show(skipped, current, summaryVersions())
+        return show((lastSeen + 1)..current, pageVersions(), summaryVersions())
     }
 
     /**
@@ -117,25 +115,16 @@ object WhatsNewGate {
             .maxOrNull() ?: return null
         return Plan.Show(
             pageVersions = listOfNotNull(latest.takeIf { it in pageVersions }),
-            summaryVersion = latest.takeIf { it in summaryVersions },
+            summaryVersions = listOfNotNull(latest.takeIf { it in summaryVersions }),
             replay = true,
         )
     }
 
-    /**
-     * Flattens the pages of [versions] in order, keeping a page only when
-     * [keep] says so. Generic so the rule is testable without building
-     * Compose page objects.
-     */
-    fun <P> collectPages(
-        versions: List<Int>,
-        catalog: Map<Int, List<P>>,
-        keep: (P) -> Boolean,
-    ): List<P> = versions.flatMap { catalog[it].orEmpty() }.filter(keep)
-
-    private fun show(pageVersions: List<Int>, current: Int, summaryVersions: Set<Int>): Plan {
-        val summaryVersion = current.takeIf { it in summaryVersions }
-        if (pageVersions.isEmpty() && summaryVersion == null) return Plan.RecordOnly
-        return Plan.Show(pageVersions, summaryVersion, replay = false)
+    /** The pages and the summaries of the versions in [shown], each oldest first. */
+    private fun show(shown: IntRange, pageVersions: Set<Int>, summaryVersions: Set<Int>): Plan {
+        val pages = pageVersions.filter { it in shown }.sorted()
+        val summaries = summaryVersions.filter { it in shown }.sorted()
+        if (pages.isEmpty() && summaries.isEmpty()) return Plan.RecordOnly
+        return Plan.Show(pages, summaries, replay = false)
     }
 }
