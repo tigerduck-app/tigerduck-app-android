@@ -39,8 +39,15 @@ data class BackendError(val status: Int, val code: String?) {
      */
     val refusesSession: Boolean get() = status == 401
 
+    /**
+     * The backend refused the device secret an anonymous registration went with: the registration
+     * holds another, or the request did not prove it may bind one. Nothing was written.
+     */
+    val refusesDeviceSecret: Boolean get() = status == 403 && code == DEVICE_SECRET_INVALID
+
     companion object {
         const val SYNC_REVISION_EXPIRED = "sync_revision_expired"
+        private const val DEVICE_SECRET_INVALID = "device_secret_invalid"
 
         private val RETIRING = setOf("api_retired", "app_version_retired")
         private val WORD = Regex("[a-z_]+")

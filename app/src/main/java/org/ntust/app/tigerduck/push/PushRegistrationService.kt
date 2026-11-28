@@ -115,6 +115,9 @@ class PushRegistrationService @Inject constructor(
         api.updateDevicePreferences(identity.uuid(), signIn, cloudSyncEnabled = enabled)
     }
 
+    // The requests that carry the device secret.
+    private val requests = DeviceRequests(identity, api::registerAnonymous)
+
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -342,7 +345,7 @@ class PushRegistrationService @Inject constructor(
      *
      * Signed in only: the PATCH needs a session, and a signed-out device
      * has no `user_devices` row for `locale` to live on — a signed-out
-     * device's next real registration (`announceDevice`) will reach the
+     * device's next real registration (`DeviceRequests.announce`) will reach the
      * server anyway once it signs in, and `performRegister` always carries
      * the current tag.
      *
@@ -465,14 +468,13 @@ class PushRegistrationService @Inject constructor(
             recordRegistrationAttempt(landed = false, countsAsFailure = false)
             return RegistrationPass(landed = false)
         }
-        val clientDeviceId = identity.uuid()
         // Announce the hardware first, every time, signed in or not. The two
         // registrations answer different questions — "which device is this"
         // and "whose account is on it" — and only the device one puts a row in
         // the table custom-push targeting reads. Gating it on sign-in would
         // leave a device that signs in immediately just as unreachable as one
         // that never signs in at all.
-        val announceError = announceDevice(clientDeviceId, token)
+        val announceError = requests.announce(token, serverPushEnabled = !isServerPushOptedOut())
 
         // Without an account there is no second registration to make. The
         // backend links the two rows on sign-in and unlinks them on sign-out,
@@ -492,19 +494,8 @@ class PushRegistrationService @Inject constructor(
         }
         val cloudSyncEnabled = appPreferences.cloudSyncEnabled
         return runCatching {
-            api.register(
-                DeviceRegisterRequest(
-                    clientDeviceId = clientDeviceId,
-                    deviceClass = identity.deviceClass(),
-                    appVersion = BuildConfig.VERSION_NAME,
-                    osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
-                    deviceModel = currentDeviceModel(),
-                    pushToken = PushTokenIn(tokenValue = token),
-                    cloudSyncEnabled = cloudSyncEnabled,
-                    locale = currentLocaleTag(),
-                ),
-                signIn,
-            )
+            val request = requests.registerRequest(token, currentLocaleTag())
+            api.register(request.copy(cloudSyncEnabled = cloudSyncEnabled), signIn)
         }.fold(
             onSuccess = {
                 updateDiagnostic {
@@ -656,20 +647,15 @@ class PushRegistrationService @Inject constructor(
             // would never leave the device — so the announce carries it
             // instead. With no token yet there is no row to correct: the
             // attempt below is a no-op success, and the pref is stored so
-            // the first announce will carry it.
+            // the first announce will carry it. So it is when the backend
+            // refuses the device secret and the next launch starts over
+            // (DeviceRequests.sendOptOut).
             val token = if (isUnregistering) null else fcmToken
             val failure = applyOptOutIfAccepted(prefs, KEY_SERVER_PUSH_OPT_OUT, optOut) {
                 if (signedIn) {
                     api.updateDevicePreferences(deviceId, signIn, serverPushEnabled = !optOut)
                 } else if (token != null) {
-                    api.registerAnonymous(
-                        AnonymousDeviceRequest(
-                            deviceId = deviceId,
-                            deviceClass = identity.deviceClass(),
-                            pushToken = token,
-                            serverPushEnabled = !optOut,
-                        )
-                    )
+                    requests.sendOptOut(token, serverPushEnabled = !optOut)
                 }
             }
             failure?.let {
@@ -682,38 +668,6 @@ class PushRegistrationService @Inject constructor(
         updateDiagnostic { it.copy(lastError = error) }
         return error == null
     }
-
-    /**
-     * Register the physical device, with no account attached.
-     *
-     * Returns the failure rather than throwing, and never writes the
-     * diagnostic: the caller decides what a failure here means. Signed in it
-     * is a background detail — cloud sync still works — while signed out it
-     * is the only registration there was, so it is the thing to report.
-     */
-    private suspend fun announceDevice(deviceId: String, token: String): Throwable? =
-        runCatching {
-            api.registerAnonymous(
-                AnonymousDeviceRequest(
-                    deviceId = deviceId,
-                    deviceClass = identity.deviceClass(),
-                    pushToken = token,
-                    // Carried on every announce, not just when it changes.
-                    // This row is what operator targeting filters on, and
-                    // while signed out the preferences PATCH has no session
-                    // to authenticate with — so the announce is the only
-                    // path the opt-out has to the server.
-                    serverPushEnabled = !isServerPushOptedOut(),
-                )
-            )
-        }.fold(
-            onSuccess = { null },
-            onFailure = { e ->
-                if (e is CancellationException) throw e
-                Log.w(TAG, "device announce failed: ${e.logSummary()}")
-                e
-            },
-        )
 
     /**
      * Unlike [updateServerPushOptOut], this has no fdroid check of its own —
@@ -1018,11 +972,11 @@ internal fun registrationRetryBackoffMillis(consecutiveFailures: Int): Long = wh
  *
  * `updateServerPushOptOut` used to write [prefs] unconditionally *before*
  * attempting the call, on the theory that a failure would eventually
- * reconcile via the next `performRegister` / `announceDevice`. That
+ * reconcile via the next `performRegister` / `DeviceRequests.announce`. That
  * silently contradicted `SettingsViewModel.setServerPushOn`'s
  * revert-and-Toast on failure, which tells the user the change did not take
  * effect while the persisted value kept the rejected one — surviving a
- * screen revisit or process death and still feeding `announceDevice`'s
+ * screen revisit or process death and still feeding `DeviceRequests.announce`'s
  * reconciliation. The rule: record a preference only once the thing it
  * claims has actually happened.
  *
