@@ -468,13 +468,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/AppNavigation.kt",
     "kind": "long-file",
-    "count": 943
+    "count": 927
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/AppNavigation.kt",
     "kind": "long-function",
     "name": "MainNavigation(NavHostController, AppState, AnalyticsLogger, String?, ()->Unit)",
-    "lines": 612
+    "lines": 597
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/CoursePages.kt",
@@ -1050,15 +1050,9 @@
     "count": 929
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailNotificationSettingsScreen.kt",
-    "kind": "long-function",
-    "name": "SchoolMailNotificationSettingsScreen(()->Unit, SchoolMailSettingsViewModel)",
-    "lines": 103
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-file",
-    "count": 986
+    "count": 982
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
@@ -1075,8 +1069,8 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailScreen(String, (folder:String,uid:Long)->Unit, (folder:String,uid:Long)->Unit, ()->Unit, ()->Unit, SchoolMailListViewModel, MailAccountViewModel, SchoolMailSettingsViewModel)",
-    "lines": 349
+    "name": "SchoolMailScreen(String, (folder:String,uid:Long)->Unit, (folder:String,uid:Long)->Unit, ()->Unit, SchoolMailListViewModel, MailAccountViewModel, SchoolMailSettingsViewModel)",
+    "lines": 345
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
@@ -1281,12 +1275,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SignOutConfirmation.kt",
     "kind": "sync-switch-read",
     "count": 6
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/StorageScreen.kt",
-    "kind": "long-function",
-    "name": "StorageScreen(()->Unit, StorageViewModel)",
-    "lines": 139
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SyncContentScreen.kt",

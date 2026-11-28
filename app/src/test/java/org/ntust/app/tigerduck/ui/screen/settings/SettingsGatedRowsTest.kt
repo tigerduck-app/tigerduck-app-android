@@ -99,40 +99,46 @@ class SettingsGatedRowsTest {
 
     @Test
     fun `a page closes once its last row goes, and only then`() {
-        // A phone that cannot sense the flip: the library's page holds only its sign-out.
-        var state by mutableStateOf(SettingsState(librarySignedIn = true))
+        // The library's page holds only flip-to-library, which a phone that cannot sense the flip
+        // does not show.
+        var state by mutableStateOf(SettingsState(hasFlipToLibrary = true))
         var closes = 0
         composeRule.setContent { ClosesWhenEmpty(PageSettings.LIBRARY, state) { closes++ } }
         composeRule.waitForIdle()
         assertEquals(0, closes)
 
-        composeRule.runOnIdle { state = state.copy(librarySignedIn = false) }
+        composeRule.runOnIdle { state = state.copy(hasFlipToLibrary = false) }
         composeRule.waitForIdle()
         assertEquals(1, closes)
     }
 
     @Test
-    fun `a result on a page opens it, and one on the root goes back to it`() {
+    fun `a result on a page or a sub-page opens it, and one on the root goes back to it`() {
         val opened = mutableListOf<PageSettings>()
+        val links = mutableListOf<SettingsLink>()
         val revealed = mutableListOf<SettingsRow>()
         val showClassroom = context.getString(R.string.settings_class_table_show_classroom)
         val appIcon = context.getString(R.string.settings_app_icon)
+        val vibration = context.getString(R.string.vibration_settings_title)
         var query by mutableStateOf(showClassroom)
-        composeRule.setContent { SettingsSearchResults(query, SettingsState(), { opened += it }) { revealed += it } }
+        composeRule.setContent { SettingsSearchResults(query, SettingsState(), { opened += it }, { links += it }) { revealed += it } }
 
         composeRule.onNodeWithText("${context.getString(R.string.feature_class_table)} › $showClassroom").performClick()
         composeRule.runOnIdle { query = appIcon }
         composeRule.onNodeWithText("${context.getString(R.string.settings_section_other_settings)} › $appIcon").performClick()
+        composeRule.runOnIdle { query = vibration }
+        composeRule.onNodeWithText("${context.getString(R.string.settings_section_other_settings)} › $vibration").performClick()
 
         assertEquals(listOf(PageSettings.CLASS_TABLE), opened)
         assertEquals(listOf(SettingsRow.APP_ICON), revealed)
+        assertEquals(listOf(SettingsLink.OTHER_SETTINGS), links)
     }
 
     @Test
     fun `a result on the root clears the search and scrolls the list to its section`() {
         val appIcon = context.getString(R.string.settings_app_icon)
         composeRule.setContent {
-            SettingsList(Modifier, SettingsState(), openPage = {}, header = { Text("Settings") }, initialQuery = appIcon) { part ->
+            SettingsList(Modifier, SettingsState(), openPage = {}, open = {}, header = { Text("Settings") }, initialQuery = appIcon) { part ->
                 // Each part taller than the screen, so only a scroll shows the one asked for.
                 Text(part.name, Modifier.height(800.dp))
             }
@@ -150,7 +156,7 @@ class SettingsGatedRowsTest {
         val appIcon = context.getString(R.string.settings_app_icon)
         val result = "${context.getString(R.string.settings_section_other_settings)} › $appIcon"
         composeRule.setContent {
-            SettingsList(Modifier, SettingsState(), openPage = {}, header = { Text("Settings") }, initialQuery = appIcon) { part ->
+            SettingsList(Modifier, SettingsState(), openPage = {}, open = {}, header = { Text("Settings") }, initialQuery = appIcon) { part ->
                 Text(part.name, Modifier.height(800.dp))
             }
         }

@@ -20,23 +20,8 @@ import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.SystemPermissions
-import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.DayOfWeek
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
-
-object MailDiagnostics {
-    private val FORMAT = DateTimeFormatter.ofPattern("MM/dd HH:mm:ss").withZone(TaipeiClock.zone)
-
-    /** `"<epochMillis>|<source>|<outcome>"` → `"09/15 18:00:42 · ALARM · NewMail"`, or null if malformed. */
-    fun format(entry: String): String? {
-        val parts = entry.split('|')
-        if (parts.size != 3) return null
-        val millis = parts[0].toLongOrNull() ?: return null
-        return "${FORMAT.format(Instant.ofEpochMilli(millis))} · ${parts[1]} · ${parts[2]}"
-    }
-}
 
 @HiltViewModel
 class SchoolMailSettingsViewModel @Inject constructor(
@@ -69,7 +54,6 @@ class SchoolMailSettingsViewModel @Inject constructor(
         val notificationsEnabled: Boolean,
         val displayName: String,
         val canExactAlarm: Boolean,
-        val diagnostics: List<String>,
         /** The system blocks this app's notifications, or School Mail's channel, so new mail could not be announced. */
         val notificationsDenied: Boolean,
         /** Quiet hours and mute rules: which new mail is not notified. */
@@ -79,7 +63,7 @@ class SchoolMailSettingsViewModel @Inject constructor(
     private val _ui = MutableStateFlow(read())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
-    /** Re-read on resume: the exact-alarm and notification grants and the diagnostics change behind the screen. */
+    /** Re-read on resume: the exact-alarm and notification grants change behind the screen. */
     fun refresh() {
         _ui.value = read().copy(displayName = _ui.value.displayName)
     }
@@ -136,7 +120,6 @@ class SchoolMailSettingsViewModel @Inject constructor(
         notificationsEnabled = state.notificationsEnabled,
         displayName = state.displayName.orEmpty(),
         canExactAlarm = exactAlarms.canScheduleExactAlarms(),
-        diagnostics = state.diagnostics.mapNotNull(MailDiagnostics::format),
         notificationsDenied = systemPermissions.notificationsBlocked(NotificationChannels.SCHOOL_MAIL),
         muteSettings = state.muteSettings,
     )

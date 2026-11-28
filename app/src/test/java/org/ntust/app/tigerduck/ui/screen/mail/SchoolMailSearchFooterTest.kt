@@ -98,7 +98,6 @@ class SchoolMailSearchFooterTest {
                     onOpenMessage = { _, _ -> },
                     onEditDraft = { _, _ -> },
                     onCompose = {},
-                    onOpenGuide = {},
                     viewModel = list,
                     accountViewModel = MailAccountViewModel(account, schoolMailSite(), noNtustAccount, mailSignOutPlans(account)),
                     settingsViewModel = settings,

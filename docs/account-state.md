@@ -137,6 +137,7 @@ Scopes:
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
 | prefs | `tls_pin_acceptances` | keys | |
 | prefs | `wear_bridge_state` | keys | |
+| prefs | `wear_watch_seen` | keys | |
 
 A file listed with an account's scope is cleared whole, and its keys have no rows.
 
@@ -387,6 +388,7 @@ into `library_password_refusals` when it opens.
 | tls_pin_acceptances | `acceptances` | device | |
 | wear_bridge_state | `libraryCredentialEpoch` | device | |
 | wear_bridge_state | `tlsPinsEpoch` | device | |
+| wear_watch_seen | `watch_seen` | device | |
 
 `moodle_files` holds the salt that names the downloaded files' folders, which the sign-out
 deletes with DataCache's. `class_preparing_tracker`'s `next_request_code` stays so that no code an
@@ -394,6 +396,10 @@ alarm may still hold is handed out again. `stored_password_rejected` is the refu
 before the count; the latch takes it up into `stored_password_refusals` when it opens. A site's
 zoom and desktop choice go with the in-app browser's clearing (`BrowserDataCleaner.clear()`),
 which `AccountSessionEffects` runs after each sign-out and sign-in.
+
+`wear_watch_seen` remembers that a Wear OS watch has been connected to this phone (`WatchSeen`),
+which Settings' Gradient on Wear OS waits for. It is the phone's, not an account's, and nothing
+forgets it.
 
 `tigerduck_outbox` holds the time this build first ran (`OldEntryTime`), recorded once as the
 process starts, before anything writes a queue. An edit an older build queued with no time is

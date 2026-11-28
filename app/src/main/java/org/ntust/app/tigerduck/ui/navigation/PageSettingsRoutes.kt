@@ -13,6 +13,8 @@ import org.ntust.app.tigerduck.ui.component.PageSettings
 import org.ntust.app.tigerduck.ui.screen.settings.PageSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsLink
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.SettingsSubPage
+import org.ntust.app.tigerduck.ui.screen.settings.SubPageSettingsScreen
 
 /**
  * A page's settings, pushed as Settings pushes every one of its pages: from Settings' Pages
@@ -21,26 +23,28 @@ import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 internal val PageSettings.route: String
     get() = "settings/page/${name.lowercase()}"
 
-/** The page each of Settings' links opens. */
+/** The page each of Settings' links opens. About › Others keeps the route it had before the other sub-pages came. */
 internal val SettingsLink.route: String
     get() = when (this) {
         SettingsLink.TAB_EDITOR -> Screen.TabEditor.route
         SettingsLink.ACCENT_COLOR -> Screen.AccentColor.route
+        SettingsLink.GRADIENT_USAGE, SettingsLink.NOTIFICATION_SWITCHES, SettingsLink.OTHER_SETTINGS -> "settings/sub/${name.lowercase()}"
         SettingsLink.DISPLAY_SIZE -> Screen.DisplaySizeSettings.route
-        SettingsLink.CLOUD_SYNC -> Screen.CloudSync.route
         SettingsLink.NOTIFICATION_PERMISSIONS -> Screen.NotificationPermissionSettings.route
+        SettingsLink.CLOUD_SYNC -> Screen.CloudSync.route
         SettingsLink.LANGUAGE -> Screen.LanguagePicker.route
         SettingsLink.APP_ICON -> Screen.AppIcon.route
+        SettingsLink.STORAGE -> Screen.Storage.route
         SettingsLink.VIBRATION -> Screen.VibrationSettings.route
         SettingsLink.API_ENDPOINT -> Screen.ApiEndpointDebug.route
-        SettingsLink.STORAGE -> Screen.Storage.route
         SettingsLink.ABOUT_OTHERS -> Screen.AboutOthers.route
+        SettingsLink.LICENSES -> Screen.OpenSourceLicenses.route
+        SettingsLink.SOURCE_CODE -> Screen.SourceCodePicker.route
         SettingsLink.ASSIGNMENT_REMINDERS -> Screen.AssignmentReminderSettings.route
         SettingsLink.LIVE_ACTIVITY -> Screen.LiveActivitySettings.route
         SettingsLink.COURSE_NAME_SIZE -> Screen.CourseNameSizeSettings.route
         SettingsLink.CLASS_REMINDERS -> Screen.ClassReminderSettings.route
         SettingsLink.MAIL_NOTIFICATIONS -> Screen.SchoolMailNotificationSettings.route
-        SettingsLink.MAIL_GUIDE -> Screen.SchoolMailGuide.route
         SettingsLink.CLASS_TABLE_LIST -> Screen.ClassTableList.route
         SettingsLink.DEBUG_TIME -> Screen.Debug.route
         SettingsLink.DEBUG_NOTIFICATION -> Screen.NotificationDebug.route
@@ -60,14 +64,20 @@ internal fun NavController.openSettings(link: SettingsLink) {
     if (!link.debugOnly || BuildConfig.DEBUG) navigate(link.route)
 }
 
-/** Settings, and a page of settings for each page that has them. */
+/** Settings, a page of settings for each page that has them, and the sub-pages of its sections. */
 internal fun NavGraphBuilder.settingsPages(navController: NavController) {
+    val openPage = { page: PageSettings -> navController.navigate(page.route) }
     page(Screen.Settings.route) {
-        SettingsScreen(open = navController::openSettings, openPage = { navController.navigate(it.route) })
+        SettingsScreen(open = navController::openSettings, openPage = openPage)
     }
     PageSettings.entries.forEach { settings ->
         page(settings.route) { entry ->
             PageSettingsScreen(settings, onBack = { navController.popIfTop(entry) }, open = navController::openSettings)
+        }
+    }
+    SettingsSubPage.entries.forEach { subPage ->
+        page(subPage.link.route) { entry ->
+            SubPageSettingsScreen(subPage, onBack = { navController.popIfTop(entry) }, open = navController::openSettings, openPage = openPage)
         }
     }
 }

@@ -109,7 +109,6 @@ class SchoolMailHeaderTest {
                         onOpenMessage = { _, _ -> },
                         onEditDraft = { _, _ -> },
                         onCompose = {},
-                        onOpenGuide = {},
                         viewModel = list,
                         accountViewModel = accountViewModel,
                         settingsViewModel = settings,
@@ -123,7 +122,7 @@ class SchoolMailHeaderTest {
     private fun menuButton() = composeRule.onNodeWithContentDescription(text(R.string.action_more_actions))
 
     @Test
-    fun `signed in, the title, dot, unread filter, guide and menu share the row, in that order`() {
+    fun `signed in, the title, dot, unread filter and menu share the row, in that order`() {
         repo.add("INBOX", *(1L..30L).map { mailSummary(it) }.toTypedArray())
         show(signedIn = true)
         val title = text(R.string.feature_school_mail)
@@ -131,12 +130,10 @@ class SchoolMailHeaderTest {
         composeRule.assertHeaderAtTop(title, density)
         val dot = composeRule.onNodeWithContentDescription(text(R.string.sync_status_ok)).assertIsDisplayed()
         val filter = composeRule.onNodeWithContentDescription(text(R.string.school_mail_unread_only)).assertIsDisplayed()
-        val guide = composeRule.onNodeWithContentDescription(text(R.string.school_mail_use_other_app)).assertIsDisplayed()
         val menu = menuButton().assertIsDisplayed()
         composeRule.assertSitsLeftOf(composeRule.title(title), dot)
         composeRule.assertSitsLeftOf(dot, filter)
-        composeRule.assertSitsLeftOf(filter, guide)
-        composeRule.assertSitsLeftOf(guide, menu)
+        composeRule.assertSitsLeftOf(filter, menu)
         composeRule.assertRowEndsWith(menu, density, targetMargin = 4f)
     }
 

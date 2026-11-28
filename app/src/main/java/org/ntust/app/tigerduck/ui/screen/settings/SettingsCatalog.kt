@@ -1,6 +1,7 @@
 // Every row of Settings, once: its title, where it sits, what it needs and when it shows. The
-// root, the pages, search and the tests all read this list, as iOS's SettingsRow catalog
-// (tigerduck-app#939) is read there.
+// root, the pages, the sub-pages, search and the tests all read this list, as iOS's SettingsRow
+// catalog (tigerduck-app#939) is read there. A notification's row is here twice: on its page, and
+// on Notifications' sub-page, which links to each.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
@@ -22,7 +23,7 @@ internal data class SettingsState(
     val usesEnglishClassroomNames: Boolean = false,
     /** The phone can sense the flip that opens the library's QR code. */
     val hasFlipToLibrary: Boolean = false,
-    /** This build ships the watch app. */
+    /** This build ships the watch app, and a Wear OS watch has been connected to this phone ([org.ntust.app.tigerduck.wear.WatchSeen]). */
     val hasWatch: Boolean = false,
     /** A Live Update on this phone can draw the accent's gradient. */
     val hasLiveUpdateGradient: Boolean = false,
@@ -34,27 +35,47 @@ internal data class SettingsState(
     val hasImportedClassTables: Boolean = false,
 )
 
-/** The root's sections, in order, around the list of pages. A section with no title has none shown. */
-internal enum class SettingsSection(@StringRes val title: Int?) {
+/** The root's sections, in order, around the list of pages. */
+internal enum class SettingsSection(@StringRes val title: Int) {
     ACCOUNT(R.string.settings_section_account),
     APPEARANCE(R.string.settings_section_appearance),
+    NOTIFICATIONS(R.string.settings_section_notifications),
     TIGERSYNC(R.string.cloud_sync_title),
-    NOTIFICATION_PERMISSIONS(null),
     LANGUAGE(R.string.feature_category_language),
     OTHER(R.string.settings_section_other_settings),
     ABOUT(R.string.settings_section_about),
 }
 
-/** Where a row sits: in one of the root's sections, or on a page's own settings. */
+/**
+ * A page that a row of a root section opens ([opener]), with rows of its own, as About › Others
+ * is: titled as that row, and opened through [link].
+ */
+internal enum class SettingsSubPage(val opener: SettingsRow, val link: SettingsLink) {
+    GRADIENT_USAGE(SettingsRow.GRADIENT_USAGE, SettingsLink.GRADIENT_USAGE),
+    NOTIFICATION_SWITCHES(SettingsRow.NOTIFICATION_SWITCHES, SettingsLink.NOTIFICATION_SWITCHES),
+    OTHER_SETTINGS(SettingsRow.OTHER_SETTINGS, SettingsLink.OTHER_SETTINGS),
+    ABOUT_OTHERS(SettingsRow.ABOUT_OTHERS, SettingsLink.ABOUT_OTHERS);
+
+    @get:StringRes
+    val title: Int get() = opener.title
+
+    val section: SettingsSection get() = (opener.place as SettingsPlace.Section).section
+}
+
+/** Where a row sits: in one of the root's sections, on a page's own settings, or on a section's sub-page. */
 internal sealed interface SettingsPlace {
-    @get:StringRes val title: Int?
+    @get:StringRes val title: Int
 
     data class Section(val section: SettingsSection) : SettingsPlace {
-        override val title: Int? get() = section.title
+        override val title: Int get() = section.title
     }
 
     data class Page(val page: PageSettings) : SettingsPlace {
         override val title: Int get() = page.title
+    }
+
+    data class SubPage(val subPage: SettingsSubPage) : SettingsPlace {
+        override val title: Int get() = subPage.title
     }
 }
 
@@ -77,12 +98,13 @@ internal enum class SettingsGate(@StringRes val reason: Int) {
     }
 }
 
-/** Every setting, in the order its section or page lists it. */
+/** Every setting, in the order its section, page or sub-page lists it. */
 internal enum class SettingsRow(@StringRes val title: Int) {
     SCHOOL_ACCOUNT(R.string.settings_account_ntust_system),
     LIBRARY_ACCOUNT(R.string.settings_account_library_system),
     MAIL_ACCOUNT(R.string.school_mail_account_title),
     ACCENT_COLOR(R.string.settings_accent_color),
+    GRADIENT_USAGE(R.string.settings_accent_gradient_usage),
     ACCENT_GRADIENT_ON_WIDGETS(R.string.settings_accent_gradient_on_widgets),
     ACCENT_GRADIENT_ON_WATCH(R.string.settings_accent_gradient_on_watch),
     ACCENT_GRADIENT_ON_LIVE_ACTIVITIES(R.string.settings_accent_gradient_on_live_activities),
@@ -90,21 +112,28 @@ internal enum class SettingsRow(@StringRes val title: Int) {
     COLOR_THEME(R.string.settings_color_theme),
     DISPLAY_SIZE(R.string.settings_display_size_title),
     TAB_BAR(R.string.tab_editor_title),
-    TIGERSYNC(R.string.cloud_sync_title),
     NOTIFICATION_PERMISSIONS(R.string.notification_permission_settings_nav_title),
+    NOTIFICATION_SWITCHES(R.string.settings_notification_switches),
+    NOTIFICATION_LIVE_ACTIVITY(R.string.live_activity_channel_name),
+    NOTIFICATION_ASSIGNMENT_REMINDERS(R.string.settings_assignment_due_reminder),
+    NOTIFICATION_CLASS_REMINDERS(R.string.settings_class_reminder),
+    NOTIFICATION_BULLETINS(R.string.bulletin_notifications_title),
+    NOTIFICATION_MAIL(R.string.school_mail_settings_notifications),
+    TIGERSYNC(R.string.cloud_sync_title),
     LANGUAGE(R.string.settings_language),
     APP_ICON(R.string.settings_app_icon),
-    SCREEN_ROTATION(R.string.settings_screen_rotation),
-    VIBRATION(R.string.vibration_settings_title),
-    API_ENDPOINT(R.string.settings_api_endpoint),
     STORAGE(R.string.settings_storage_title),
+    OTHER_SETTINGS(R.string.settings_section_other_settings),
+    API_ENDPOINT(R.string.settings_api_endpoint),
+    VIBRATION(R.string.vibration_settings_title),
+    SCREEN_ROTATION(R.string.settings_screen_rotation),
     ANALYTICS(R.string.settings_analytics_enabled),
     VERSION(R.string.settings_version),
     CHECK_FOR_UPDATES(R.string.settings_check_for_updates),
-    SERVER_STATUS(R.string.settings_check_server_status),
     WHATS_NEW(R.string.settings_whats_new),
     WEBSITE(R.string.settings_official_website),
     ABOUT_OTHERS(R.string.settings_about_others),
+    SERVER_STATUS(R.string.settings_check_server_status),
     SHOW_FULL_DUE_DATE(R.string.settings_home_full_due_date),
     INVERT_SLIDER(R.string.settings_invert_slider_direction),
     ASSIGNMENT_REMINDERS(R.string.settings_assignment_due_reminder),
@@ -120,13 +149,12 @@ internal enum class SettingsRow(@StringRes val title: Int) {
     ENGLISH_CLASSROOM_NAMES(R.string.settings_use_english_classroom_abbreviation),
     MANDARIN_CLASSROOM_NAMES(R.string.settings_classroom_mandarin_display),
     REASSIGN_COURSE_COLORS(R.string.settings_reset_course_colors),
+    CLASS_TABLE_STORAGE(R.string.settings_storage_title),
     BULLETIN_PUSH(R.string.bulletin_push_settings_header),
     MAIL_NOTIFICATIONS(R.string.school_mail_settings_notifications),
     MAIL_DISPLAY_NAME(R.string.school_mail_settings_display_name),
-    MAIL_GUIDE(R.string.school_mail_use_other_app),
     MAIL_STORAGE(R.string.settings_storage_title),
     FLIP_TO_LIBRARY(R.string.settings_library_flip_to_show_qr),
-    LIBRARY_SIGN_OUT(R.string.settings_library_sign_out),
     LINK_OPENING_METHOD(R.string.settings_link_opening_method),
     WEBSITE_DATA(R.string.settings_storage_title),
     MOODLE_OPEN_IN(R.string.settings_moodle_open_in),
@@ -136,22 +164,26 @@ internal enum class SettingsRow(@StringRes val title: Int) {
     val place: SettingsPlace
         get() = when (this) {
             SCHOOL_ACCOUNT, LIBRARY_ACCOUNT, MAIL_ACCOUNT -> SettingsPlace.Section(SettingsSection.ACCOUNT)
-            ACCENT_COLOR, ACCENT_GRADIENT_ON_WIDGETS, ACCENT_GRADIENT_ON_WATCH, ACCENT_GRADIENT_ON_LIVE_ACTIVITIES,
-            VISUAL_PRESET, COLOR_THEME, DISPLAY_SIZE, TAB_BAR -> SettingsPlace.Section(SettingsSection.APPEARANCE)
+            ACCENT_COLOR, GRADIENT_USAGE, VISUAL_PRESET, COLOR_THEME, DISPLAY_SIZE, TAB_BAR ->
+                SettingsPlace.Section(SettingsSection.APPEARANCE)
+            ACCENT_GRADIENT_ON_WIDGETS, ACCENT_GRADIENT_ON_WATCH, ACCENT_GRADIENT_ON_LIVE_ACTIVITIES ->
+                SettingsPlace.SubPage(SettingsSubPage.GRADIENT_USAGE)
+            NOTIFICATION_PERMISSIONS, NOTIFICATION_SWITCHES -> SettingsPlace.Section(SettingsSection.NOTIFICATIONS)
+            NOTIFICATION_LIVE_ACTIVITY, NOTIFICATION_ASSIGNMENT_REMINDERS, NOTIFICATION_CLASS_REMINDERS, NOTIFICATION_BULLETINS,
+            NOTIFICATION_MAIL -> SettingsPlace.SubPage(SettingsSubPage.NOTIFICATION_SWITCHES)
             TIGERSYNC -> SettingsPlace.Section(SettingsSection.TIGERSYNC)
-            NOTIFICATION_PERMISSIONS -> SettingsPlace.Section(SettingsSection.NOTIFICATION_PERMISSIONS)
             LANGUAGE -> SettingsPlace.Section(SettingsSection.LANGUAGE)
-            APP_ICON, SCREEN_ROTATION, VIBRATION, API_ENDPOINT, STORAGE, ANALYTICS ->
-                SettingsPlace.Section(SettingsSection.OTHER)
-            VERSION, CHECK_FOR_UPDATES, SERVER_STATUS, WHATS_NEW, WEBSITE, ABOUT_OTHERS ->
-                SettingsPlace.Section(SettingsSection.ABOUT)
+            APP_ICON, STORAGE, OTHER_SETTINGS -> SettingsPlace.Section(SettingsSection.OTHER)
+            API_ENDPOINT, VIBRATION, SCREEN_ROTATION, ANALYTICS -> SettingsPlace.SubPage(SettingsSubPage.OTHER_SETTINGS)
+            VERSION, CHECK_FOR_UPDATES, WHATS_NEW, WEBSITE, ABOUT_OTHERS -> SettingsPlace.Section(SettingsSection.ABOUT)
+            SERVER_STATUS -> SettingsPlace.SubPage(SettingsSubPage.ABOUT_OTHERS)
             SHOW_FULL_DUE_DATE, INVERT_SLIDER, ASSIGNMENT_REMINDERS, LIVE_ACTIVITY -> SettingsPlace.Page(PageSettings.HOME)
             CLASS_TABLE_LIST, PIN_TODAY_COURSES, SHOW_CLASSROOM, OUTLINE_REQUIRED_COURSES, SHOW_ALL_PERIODS, COURSE_NAME_SIZE,
             CLASS_REMINDERS, ENGLISH_COURSE_NAMES, ENGLISH_CLASSROOM_NAMES, MANDARIN_CLASSROOM_NAMES,
-            REASSIGN_COURSE_COLORS -> SettingsPlace.Page(PageSettings.CLASS_TABLE)
+            REASSIGN_COURSE_COLORS, CLASS_TABLE_STORAGE -> SettingsPlace.Page(PageSettings.CLASS_TABLE)
             BULLETIN_PUSH -> SettingsPlace.Page(PageSettings.BULLETINS)
-            MAIL_NOTIFICATIONS, MAIL_DISPLAY_NAME, MAIL_GUIDE, MAIL_STORAGE -> SettingsPlace.Page(PageSettings.MAIL)
-            FLIP_TO_LIBRARY, LIBRARY_SIGN_OUT -> SettingsPlace.Page(PageSettings.LIBRARY)
+            MAIL_NOTIFICATIONS, MAIL_DISPLAY_NAME, MAIL_STORAGE -> SettingsPlace.Page(PageSettings.MAIL)
+            FLIP_TO_LIBRARY -> SettingsPlace.Page(PageSettings.LIBRARY)
             LINK_OPENING_METHOD, WEBSITE_DATA -> SettingsPlace.Page(PageSettings.BROWSER)
             MOODLE_OPEN_IN, PIN_MYSELF, MOODLE_STORAGE -> SettingsPlace.Page(PageSettings.MOODLE)
         }
@@ -162,8 +194,8 @@ internal enum class SettingsRow(@StringRes val title: Int) {
      */
     val gate: SettingsGate?
         get() = when (this) {
-            BULLETIN_PUSH -> SettingsGate.SCHOOL_SIGN_IN
-            MAIL_NOTIFICATIONS, MAIL_DISPLAY_NAME -> SettingsGate.MAIL_SIGN_IN
+            BULLETIN_PUSH, NOTIFICATION_BULLETINS -> SettingsGate.SCHOOL_SIGN_IN
+            MAIL_NOTIFICATIONS, MAIL_DISPLAY_NAME, NOTIFICATION_MAIL -> SettingsGate.MAIL_SIGN_IN
             FLIP_TO_LIBRARY -> SettingsGate.LIBRARY_SIGN_IN
             else -> null
         }
@@ -177,7 +209,6 @@ internal enum class SettingsRow(@StringRes val title: Int) {
         ENGLISH_COURSE_NAMES, ENGLISH_CLASSROOM_NAMES -> state.coursesInEnglish
         MANDARIN_CLASSROOM_NAMES -> state.coursesInEnglish && state.usesEnglishClassroomNames
         FLIP_TO_LIBRARY -> state.hasFlipToLibrary
-        LIBRARY_SIGN_OUT -> state.librarySignedIn
         MOODLE_OPEN_IN -> state.hasMoodleApp
         CLASS_TABLE_LIST -> state.hasImportedClassTables
         else -> true
@@ -198,6 +229,17 @@ internal val PageSettings.title: Int
         PageSettings.LIBRARY -> R.string.feature_library
         PageSettings.BROWSER -> R.string.settings_page_browser
         PageSettings.MOODLE -> R.string.settings_page_moodle
+    }
+
+/**
+ * Where the root links to the page: the Pages section for the app's own pages, Other settings for
+ * the browser's and Moodle's, which serve every page rather than being one.
+ */
+internal val PageSettings.linkedFrom: RootPart
+    get() = when (this) {
+        PageSettings.BROWSER, PageSettings.MOODLE -> RootPart.OTHER
+        PageSettings.HOME, PageSettings.CLASS_TABLE, PageSettings.BULLETINS, PageSettings.MAIL, PageSettings.LIBRARY ->
+            RootPart.PAGES
     }
 
 internal val PageSettings.rows: List<SettingsRow>

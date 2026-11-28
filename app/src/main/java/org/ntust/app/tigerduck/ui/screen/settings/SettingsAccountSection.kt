@@ -1,11 +1,12 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -196,11 +197,30 @@ private fun MailLoginSheet(mail: MailAccountViewModel, browserPreference: String
     )
 }
 
-/** A root section: its title over a card of its rows, or for one with no title, a gap. */
+/** A root section: its title over a card of its rows. */
 @Composable
 internal fun SettingsSectionCard(section: SettingsSection, content: @Composable () -> Unit) {
     Column {
-        section.title?.let { SectionHeader(stringResource(it)) } ?: Spacer(Modifier.height(12.dp))
+        SettingsSectionTitle(stringResource(section.title))
         ContentCard { Column { content() } }
     }
 }
+
+/**
+ * A section's title on Settings' root and its pages, larger than other screens' [SectionHeader]:
+ * 8dp over its card, as there.
+ */
+@Composable
+internal fun SettingsSectionTitle(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
+
+/** Between one root section's card and the next one's title, with their own 4dp each: 24dp in all. */
+internal val SettingsSectionGap = 16.dp

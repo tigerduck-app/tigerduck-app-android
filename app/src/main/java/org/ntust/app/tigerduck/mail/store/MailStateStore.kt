@@ -33,8 +33,6 @@ interface MailStateStore {
      * [org.ntust.app.tigerduck.mail.store.MailCache.saveBodyIf].
      */
     fun setFetchedAtIf(folder: String, atMs: Long, stillCurrent: () -> Boolean): Boolean
-    /** Newest first, at most 10, `"<epochMillis>|<source>|<outcome>"`. */
-    var diagnostics: List<String>
     fun ownedDeleted(folder: String, uidValidity: Long): Set<Long>
     fun setOwnedDeleted(folder: String, uidValidity: Long, uids: Set<Long>)
 
@@ -134,10 +132,6 @@ class SharedPrefsMailStateStore(context: Context) : MailStateStore {
     private fun fetchedKey(folder: String): String =
         if (folder.equals(SpecialFolder.INBOX.imapName, ignoreCase = true)) K_FETCHED else K_FETCHED_PREFIX + folder
 
-    override var diagnostics: List<String>
-        get() = prefs.getString(K_DIAG, null)?.split('\n')?.filter { it.isNotBlank() }.orEmpty()
-        set(value) = prefs.edit().putString(K_DIAG, value.take(10).joinToString("\n")).apply()
-
     override fun ownedDeleted(folder: String, uidValidity: Long): Set<Long> =
         prefs.getStringSet(K_OWNED, emptySet()).orEmpty()
             .mapNotNull(OwnedDeletedCodec::decode)
@@ -191,7 +185,6 @@ class SharedPrefsMailStateStore(context: Context) : MailStateStore {
         const val K_MUTE = "mute_settings"
         const val K_FETCHED = "inbox_fetched_at"
         const val K_FETCHED_PREFIX = "fetched_at:"
-        const val K_DIAG = "diagnostics"
         const val K_OWNED = "owned_deleted"
     }
 }

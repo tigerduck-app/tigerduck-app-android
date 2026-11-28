@@ -89,7 +89,6 @@ import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
-import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AccentColorScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LicenseDetailScreen
@@ -150,7 +149,6 @@ sealed class Screen(val route: String) {
     object LicenseDetail : Screen("openSourceLicenses/{key}") {
         fun route(key: String) = "openSourceLicenses/$key"
     }
-    object SchoolMailGuide : Screen(MailRoutes.GUIDE)
     object SchoolMail : Screen(MailRoutes.LIST)
     object SchoolMailMessage : Screen(MailRoutes.MESSAGE) {
         fun route(folder: String, uid: Long) = MailRoutes.message(folder, uid)
@@ -619,7 +617,6 @@ fun MainNavigation(
                     onOpenMessage = { folder, uid -> navController.navigate(Screen.SchoolMailMessage.route(folder, uid)) },
                     onEditDraft = { folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.DRAFT, folder, uid)) },
                     onCompose = { navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.NEW)) },
-                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
                 )
             }
             page(
@@ -716,13 +713,6 @@ fun MainNavigation(
             page(Screen.Storage.route) {
                 StorageScreen(onBack = { navController.popBackStack() })
             }
-            page(Screen.AboutOthers.route) {
-                AboutOthersScreen(
-                    onBack = { navController.popBackStack() },
-                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
-                    onNavigateToLicenses = { navController.navigate(Screen.OpenSourceLicenses.route) },
-                )
-            }
             page(Screen.OpenSourceLicenses.route) {
                 OpenSourceLicensesScreen(
                     onBack = { navController.popBackStack() },
@@ -735,12 +725,6 @@ fun MainNavigation(
             ) { entry ->
                 LicenseDetailScreen(
                     key = entry.arguments?.getString("key").orEmpty(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            page(Screen.SchoolMailGuide.route) {
-                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(
-                    browserPreference = appState.browserPreference,
                     onBack = { navController.popBackStack() },
                 )
             }

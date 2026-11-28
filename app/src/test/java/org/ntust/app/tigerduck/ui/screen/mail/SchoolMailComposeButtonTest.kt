@@ -106,7 +106,6 @@ class SchoolMailComposeButtonTest {
                     onOpenMessage = { _, _ -> },
                     onEditDraft = { _, _ -> },
                     onCompose = { composes++ },
-                    onOpenGuide = {},
                     viewModel = list,
                     accountViewModel = accountViewModel,
                     settingsViewModel = settings,

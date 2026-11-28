@@ -50,8 +50,7 @@ fun InformationSystemScreen(
     viewModel: InformationSystemViewModel = hiltViewModel(),
 ) {
     // Only zh vs. en variants exist on NTUST's own portal — every other app
-    // locale falls back to English, the same choice GuideWebView-adjacent
-    // screens make for locale-specific embeds.
+    // locale falls back to English.
     val useEnglish = LocalConfiguration.current.locales[0].language != "zh"
     LaunchedEffect(useEnglish) { viewModel.load(useEnglish) }
 

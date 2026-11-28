@@ -27,10 +27,15 @@ class SettingsCatalogTest {
     private fun page(page: PageSettings, state: SettingsState): Map<SettingsRow, Int?> =
         page.rows.filter { it.isShown(state) }.associateWith { it.closedReason(state) }
 
+    private fun section(section: SettingsSection) = SettingsRow.entries.filter { it.place == SettingsPlace.Section(section) }
+
+    private fun subPage(subPage: SettingsSubPage) = SettingsRow.entries.filter { it.place == SettingsPlace.SubPage(subPage) }
+
     @Test
     fun `every row has a title and every page a row`() {
         SettingsRow.entries.forEach { assertTrue("$it has no title", context.getString(it.title).isNotBlank()) }
         PageSettings.entries.forEach { assertTrue("$it lists no row", it.rows.isNotEmpty()) }
+        SettingsSubPage.entries.forEach { assertTrue("$it lists no row", subPage(it).isNotEmpty()) }
     }
 
     @Test
@@ -56,7 +61,7 @@ class SettingsCatalogTest {
                 listOf(
                     SettingsRow.PIN_TODAY_COURSES, SettingsRow.SHOW_CLASSROOM, SettingsRow.OUTLINE_REQUIRED_COURSES,
                     SettingsRow.SHOW_ALL_PERIODS, SettingsRow.COURSE_NAME_SIZE, SettingsRow.CLASS_REMINDERS,
-                    SettingsRow.REASSIGN_COURSE_COLORS,
+                    SettingsRow.REASSIGN_COURSE_COLORS, SettingsRow.CLASS_TABLE_STORAGE,
                 ).associateWith { null },
                 page(PageSettings.CLASS_TABLE, state),
             )
@@ -65,19 +70,12 @@ class SettingsCatalogTest {
                 case,
                 mapOf(
                     SettingsRow.MAIL_NOTIFICATIONS to mailGate, SettingsRow.MAIL_DISPLAY_NAME to mailGate,
-                    SettingsRow.MAIL_GUIDE to null, SettingsRow.MAIL_STORAGE to null,
+                    SettingsRow.MAIL_STORAGE to null,
                 ),
                 page(PageSettings.MAIL, state),
             )
-            assertEquals(
-                case,
-                if (library) {
-                    mapOf(SettingsRow.FLIP_TO_LIBRARY to null, SettingsRow.LIBRARY_SIGN_OUT to null)
-                } else {
-                    mapOf(SettingsRow.FLIP_TO_LIBRARY to libraryGate)
-                },
-                page(PageSettings.LIBRARY, state),
-            )
+            // Signed in or not, no sign-out: that is the Account section's, and the library's ⋮.
+            assertEquals(case, mapOf(SettingsRow.FLIP_TO_LIBRARY to libraryGate), page(PageSettings.LIBRARY, state))
             assertEquals(
                 case,
                 mapOf(SettingsRow.LINK_OPENING_METHOD to null, SettingsRow.WEBSITE_DATA to null),
@@ -88,12 +86,25 @@ class SettingsCatalogTest {
                 mapOf(SettingsRow.MOODLE_OPEN_IN to null, SettingsRow.PIN_MYSELF to null, SettingsRow.MOODLE_STORAGE to null),
                 page(PageSettings.MOODLE, state),
             )
+            assertEquals(
+                case,
+                listOf(
+                    SettingsRow.NOTIFICATION_LIVE_ACTIVITY to null, SettingsRow.NOTIFICATION_ASSIGNMENT_REMINDERS to null,
+                    SettingsRow.NOTIFICATION_CLASS_REMINDERS to null, SettingsRow.NOTIFICATION_BULLETINS to schoolGate,
+                    SettingsRow.NOTIFICATION_MAIL to mailGate,
+                ),
+                subPage(SettingsSubPage.NOTIFICATION_SWITCHES).map { it to it.closedReason(state) },
+            )
         }
     }
 
     @Test
     fun `the reminders and Live Updates take input with TigerSync off and nobody signed in`() {
-        for (row in listOf(SettingsRow.CLASS_REMINDERS, SettingsRow.ASSIGNMENT_REMINDERS, SettingsRow.LIVE_ACTIVITY)) {
+        for (row in listOf(
+            SettingsRow.CLASS_REMINDERS, SettingsRow.ASSIGNMENT_REMINDERS, SettingsRow.LIVE_ACTIVITY,
+            SettingsRow.NOTIFICATION_CLASS_REMINDERS, SettingsRow.NOTIFICATION_ASSIGNMENT_REMINDERS,
+            SettingsRow.NOTIFICATION_LIVE_ACTIVITY,
+        )) {
             assertNull("$row", row.gate)
             assertNull("$row", row.closedReason(SettingsState()))
         }
@@ -125,13 +136,15 @@ class SettingsCatalogTest {
     fun `a row its condition hides is not shown`() {
         val bare = SettingsState()
         listOf(
-            SettingsRow.FLIP_TO_LIBRARY, SettingsRow.LIBRARY_SIGN_OUT, SettingsRow.WHATS_NEW, SettingsRow.MOODLE_OPEN_IN,
+            SettingsRow.FLIP_TO_LIBRARY, SettingsRow.WHATS_NEW, SettingsRow.MOODLE_OPEN_IN,
             SettingsRow.CHECK_FOR_UPDATES, SettingsRow.ACCENT_GRADIENT_ON_WATCH, SettingsRow.ACCENT_GRADIENT_ON_LIVE_ACTIVITIES,
             SettingsRow.ENGLISH_COURSE_NAMES, SettingsRow.ENGLISH_CLASSROOM_NAMES, SettingsRow.MANDARIN_CLASSROOM_NAMES,
             SettingsRow.CLASS_TABLE_LIST,
         ).forEach { assertFalse("$it", it.isShown(bare)) }
         // The class tables' list, first on the class table's page, while anyone is imported.
         assertEquals(SettingsRow.CLASS_TABLE_LIST, PageSettings.CLASS_TABLE.rows.first { it.isShown(SettingsState(hasImportedClassTables = true)) })
+        // Gradient on Wear OS once a watch has been seen on this phone.
+        assertTrue(SettingsRow.ACCENT_GRADIENT_ON_WATCH.isShown(SettingsState(hasWatch = true)))
 
         val english = SettingsState(coursesInEnglish = true)
         assertTrue(SettingsRow.ENGLISH_COURSE_NAMES.isShown(english))
@@ -144,25 +157,108 @@ class SettingsCatalogTest {
     @Test
     fun `a page with nothing to show is hidden`() {
         val bare = SettingsState()
+        // The library's page has only flip-to-library: on a phone that cannot sense the flip, none,
+        // signed in to the library or not.
         assertFalse(PageSettings.LIBRARY.isShown(bare))
+        assertFalse(PageSettings.LIBRARY.isShown(bare.copy(librarySignedIn = true)))
         assertTrue(PageSettings.LIBRARY.isShown(bare.copy(hasFlipToLibrary = true)))
-        // Signed in, it has the sign-out, flip or no flip.
-        assertTrue(PageSettings.LIBRARY.isShown(bare.copy(librarySignedIn = true)))
         PageSettings.entries.filter { it != PageSettings.LIBRARY }.forEach { assertTrue("$it", it.isShown(bare)) }
     }
 
     @Test
-    fun `the root's rows sit in its sections, in order`() {
+    fun `the root's parts come in their order, and its sections' rows in theirs`() {
         assertEquals(
             listOf(
-                SettingsSection.ACCOUNT, SettingsSection.APPEARANCE, SettingsSection.TIGERSYNC,
-                SettingsSection.NOTIFICATION_PERMISSIONS, SettingsSection.LANGUAGE, SettingsSection.OTHER, SettingsSection.ABOUT,
+                RootPart.ACCOUNT, RootPart.APPEARANCE, RootPart.NOTIFICATIONS, RootPart.PAGES, RootPart.TIGERSYNC,
+                RootPart.LANGUAGE, RootPart.OTHER, RootPart.ABOUT, RootPart.DEVELOPER,
             ),
-            SettingsRow.entries.mapNotNull { (it.place as? SettingsPlace.Section)?.section }.distinct(),
+            RootPart.entries.toList(),
+        )
+        // The catalog's sections are the root's parts but the pages' list and the debug build's own.
+        assertEquals(
+            RootPart.entries.filter { it != RootPart.PAGES && it != RootPart.DEVELOPER },
+            SettingsSection.entries.map(RootPart::of),
         )
         assertEquals(
-            listOf(SettingsRow.APP_ICON, SettingsRow.SCREEN_ROTATION, SettingsRow.VIBRATION, SettingsRow.API_ENDPOINT, SettingsRow.STORAGE, SettingsRow.ANALYTICS),
-            SettingsRow.entries.filter { it.place == SettingsPlace.Section(SettingsSection.OTHER) },
+            listOf(SettingsRow.SCHOOL_ACCOUNT, SettingsRow.LIBRARY_ACCOUNT, SettingsRow.MAIL_ACCOUNT),
+            section(SettingsSection.ACCOUNT),
         )
+        assertEquals(
+            listOf(
+                SettingsRow.ACCENT_COLOR, SettingsRow.GRADIENT_USAGE, SettingsRow.VISUAL_PRESET, SettingsRow.COLOR_THEME,
+                SettingsRow.DISPLAY_SIZE, SettingsRow.TAB_BAR,
+            ),
+            section(SettingsSection.APPEARANCE),
+        )
+        assertEquals(
+            listOf(SettingsRow.NOTIFICATION_PERMISSIONS, SettingsRow.NOTIFICATION_SWITCHES),
+            section(SettingsSection.NOTIFICATIONS),
+        )
+        assertEquals(listOf(SettingsRow.TIGERSYNC), section(SettingsSection.TIGERSYNC))
+        assertEquals(listOf(SettingsRow.LANGUAGE), section(SettingsSection.LANGUAGE))
+        assertEquals(listOf(SettingsRow.APP_ICON, SettingsRow.STORAGE, SettingsRow.OTHER_SETTINGS), section(SettingsSection.OTHER))
+        assertEquals(
+            listOf(SettingsRow.VERSION, SettingsRow.CHECK_FOR_UPDATES, SettingsRow.WHATS_NEW, SettingsRow.WEBSITE, SettingsRow.ABOUT_OTHERS),
+            section(SettingsSection.ABOUT),
+        )
+    }
+
+    @Test
+    fun `the Pages section lists the app's pages, and Other settings the browser's and Moodle's`() {
+        assertEquals(
+            listOf(PageSettings.HOME, PageSettings.CLASS_TABLE, PageSettings.BULLETINS, PageSettings.MAIL, PageSettings.LIBRARY),
+            PageSettings.entries.filter { it.linkedFrom == RootPart.PAGES },
+        )
+        assertEquals(
+            listOf(PageSettings.BROWSER, PageSettings.MOODLE),
+            PageSettings.entries.filter { it.linkedFrom == RootPart.OTHER },
+        )
+    }
+
+    @Test
+    fun `each sub-page lists its rows in order, opened by a row of its section titled as it`() {
+        assertEquals(
+            listOf(
+                SettingsRow.ACCENT_GRADIENT_ON_WIDGETS, SettingsRow.ACCENT_GRADIENT_ON_WATCH,
+                SettingsRow.ACCENT_GRADIENT_ON_LIVE_ACTIVITIES,
+            ),
+            subPage(SettingsSubPage.GRADIENT_USAGE),
+        )
+        assertEquals(
+            listOf(
+                SettingsRow.NOTIFICATION_LIVE_ACTIVITY, SettingsRow.NOTIFICATION_ASSIGNMENT_REMINDERS,
+                SettingsRow.NOTIFICATION_CLASS_REMINDERS, SettingsRow.NOTIFICATION_BULLETINS, SettingsRow.NOTIFICATION_MAIL,
+            ),
+            subPage(SettingsSubPage.NOTIFICATION_SWITCHES),
+        )
+        assertEquals(
+            listOf(SettingsRow.API_ENDPOINT, SettingsRow.VIBRATION, SettingsRow.SCREEN_ROTATION, SettingsRow.ANALYTICS),
+            subPage(SettingsSubPage.OTHER_SETTINGS),
+        )
+        // Server status, first on About › Others.
+        assertEquals(listOf(SettingsRow.SERVER_STATUS), subPage(SettingsSubPage.ABOUT_OTHERS))
+
+        assertEquals(
+            mapOf(
+                SettingsSubPage.GRADIENT_USAGE to (SettingsRow.GRADIENT_USAGE to SettingsSection.APPEARANCE),
+                SettingsSubPage.NOTIFICATION_SWITCHES to (SettingsRow.NOTIFICATION_SWITCHES to SettingsSection.NOTIFICATIONS),
+                SettingsSubPage.OTHER_SETTINGS to (SettingsRow.OTHER_SETTINGS to SettingsSection.OTHER),
+                SettingsSubPage.ABOUT_OTHERS to (SettingsRow.ABOUT_OTHERS to SettingsSection.ABOUT),
+            ),
+            SettingsSubPage.entries.associateWith { it.opener to it.section },
+        )
+        SettingsSubPage.entries.forEach {
+            assertEquals("$it", it.opener.title, it.title)
+            assertEquals("$it", SettingsPlace.Section(it.section), it.opener.place)
+        }
+        assertEquals(R.string.settings_accent_gradient_usage, SettingsSubPage.GRADIENT_USAGE.title)
+        assertEquals(R.string.settings_notification_switches, SettingsSubPage.NOTIFICATION_SWITCHES.title)
+        assertEquals(R.string.settings_section_other_settings, SettingsSubPage.OTHER_SETTINGS.title)
+    }
+
+    @Test
+    fun `each sub-page opens a page of its own`() {
+        assertEquals(SettingsSubPage.entries.size, SettingsSubPage.entries.map { it.link }.toSet().size)
+        assertEquals(SettingsLink.ABOUT_OTHERS, SettingsSubPage.ABOUT_OTHERS.link)
     }
 }

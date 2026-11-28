@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
@@ -14,6 +15,7 @@ import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.library.LibrarySession
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.wear.WatchSeen
 import javax.inject.Inject
 
 /** Who is signed in, as Settings' rows are gated by it. */
@@ -34,10 +36,18 @@ class SettingsGatesViewModel @Inject constructor(
     mail: MailAccount,
     library: LibrarySession,
     importedClassTables: ImportedClassTableStore,
+    watch: WatchSeen,
     val appState: AppState,
 ) : ViewModel() {
     /** Whose class tables are imported: the class table's page lists them while there is anyone. */
     val importedTables: StateFlow<ImportedClassTables> = importedClassTables.tables
+
+    /** Whether a Wear OS watch has been seen on this phone: looked for again each time Settings opens. */
+    val watchSeen: StateFlow<Boolean> = watch.seen
+
+    init {
+        viewModelScope.launch { watch.check() }
+    }
 
     val accounts: StateFlow<SignedInAccounts> =
         combine(sessions.school.changes, sessions.mail.changes, library.signedIn, ::SignedInAccounts)

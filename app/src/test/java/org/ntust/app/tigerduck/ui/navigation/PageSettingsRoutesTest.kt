@@ -16,9 +16,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.ui.component.LocalOpenPageSettings
 import org.ntust.app.tigerduck.ui.component.PageSettings
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsLink
+import org.ntust.app.tigerduck.ui.screen.settings.SettingsSubPage
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -37,6 +39,22 @@ class PageSettingsRoutesTest {
         assertEquals(PageSettings.entries.size, routes.toSet().size)
         assertEquals("settings/page/class_table", PageSettings.CLASS_TABLE.route)
         assertTrue(routes.none { it == Screen.Settings.route })
+    }
+
+    @Test
+    fun `each sub-page opens a page of its own, About › Others where it always was`() {
+        val routes = SettingsSubPage.entries.map { it.link.route }
+        assertEquals(SettingsSubPage.entries.size, routes.toSet().size)
+        assertTrue(routes.none { route -> PageSettings.entries.any { it.route == route } })
+        assertEquals(Screen.AboutOthers.route, SettingsSubPage.ABOUT_OTHERS.link.route)
+        assertEquals("settings/sub/notification_switches", SettingsSubPage.NOTIFICATION_SWITCHES.link.route)
+    }
+
+    @Test
+    fun `School Mail's "Use another app" guide has no page to open`() {
+        assertTrue(SettingsLink.entries.none { it.name.contains("GUIDE") })
+        assertTrue(Screen::class.java.declaredClasses.none { it.simpleName.contains("Guide") })
+        assertTrue(MailRoutes::class.java.declaredFields.none { it.name.contains("GUIDE") })
     }
 
     @Test
