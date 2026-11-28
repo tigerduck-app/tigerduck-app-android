@@ -5,6 +5,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
 
 /** Moodle's sign-in provider: its site, its session, its sign-in page. */
 class BrowserSignInTest {
@@ -52,6 +55,32 @@ class BrowserSignInTest {
         assertFalse(MoodleBrowserSignIn.isMoodleSignInLink("https://moodle2.ntust.edu.tw/user/edit.php"))
         assertFalse(MoodleBrowserSignIn.isMoodleSignInLink("https://moodle2.ntust.edu.tw/login/index.php"))
         assertFalse(MoodleBrowserSignIn.isMoodleSignInLink("https://example.com/admin/tool/mobile/autologin.php?key=k"))
+    }
+
+    /** Moodle's provider, with an autologin that is never asked for a key here. */
+    private val moodle = MoodleBrowserSignIn(
+        MoodleAutologin(
+            keySource = { error("no key asked for") },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            currentSignIn = { error("no key asked for") },
+            hasPrivateToken = { false },
+            canFetchPrivateToken = { false },
+            fetchPrivateToken = { false },
+        ),
+    )
+
+    @Test
+    fun `Moodle signs in by itself from no page or a school page, as the school sites do`() {
+        listOf(null, "https://moodle2.ntust.edu.tw/my/", "https://i.ntust.edu.tw/student", "https://ntust.edu.tw/").forEach {
+            assertTrue("$it", moodle.signsInFrom(it))
+        }
+    }
+
+    @Test
+    fun `a sign-in page any other page sent the browser to waits for the student's Retry`() {
+        listOf("https://example.com/", "http://moodle2.ntust.edu.tw/", "https://ntust.edu.tw.example.com/", "about:blank").forEach {
+            assertFalse(it, moodle.signsInFrom(it))
+        }
     }
 
     @Test
