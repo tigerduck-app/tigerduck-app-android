@@ -34,7 +34,7 @@ data class WhatsNewText(val en: String, val zhHant: String) {
     }
 }
 
-/** The language [WhatsNewSheet] resolved for the flow on screen. */
+/** The language [WhatsNewScreen] resolved for the flow on screen. */
 val LocalWhatsNewLanguage = staticCompositionLocalOf { WhatsNewLanguage.En }
 
 @Composable

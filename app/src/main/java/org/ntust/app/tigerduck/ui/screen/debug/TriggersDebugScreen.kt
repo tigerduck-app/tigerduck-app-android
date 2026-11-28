@@ -28,7 +28,7 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PageScaffold
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewScreen
 import org.ntust.app.tigerduck.update.UpdateChecker
 
 /**
@@ -171,7 +171,7 @@ fun TriggersDebugScreen(
     }
 
     if (showWhatsNewSample) {
-        WhatsNewSheet(flow = whatsNewSample, onDismiss = { showWhatsNewSample = false })
+        WhatsNewScreen(flow = whatsNewSample, onDismiss = { showWhatsNewSample = false })
     }
 }
 

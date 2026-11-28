@@ -24,7 +24,7 @@ class WhatsNewTextTest {
     }
 
     @Test
-    fun `the page position reads in the sheet's language, with the heading when there is one`() {
+    fun `the page position reads in What's New's language, with the heading when there is one`() {
         assertEquals(
             "Page 2 of 4: Reset your bottom bar?",
             pagePositionDescription(1, 4, "Reset your bottom bar?", WhatsNewLanguage.En),

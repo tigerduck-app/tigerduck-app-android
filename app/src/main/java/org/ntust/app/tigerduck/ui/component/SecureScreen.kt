@@ -80,7 +80,7 @@ internal interface SecureScreenEntryPoint {
  * own window; outside a dialog we fall back to the Activity window.
  */
 @Composable
-private fun rememberHostWindow(): Window? {
+internal fun rememberHostWindow(): Window? {
     val view = LocalView.current
     return remember(view) {
         if (view is DialogWindowProvider) return@remember view.window

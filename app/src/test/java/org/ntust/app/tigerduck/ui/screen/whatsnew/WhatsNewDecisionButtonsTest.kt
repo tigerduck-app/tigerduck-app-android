@@ -58,7 +58,7 @@ class WhatsNewDecisionButtonsTest {
     )
 
     private fun open(vararg pages: WhatsNewPage) {
-        composeRule.setContent { WhatsNewSheet(WhatsNewFlow(pages = pages.toList(), summary = null), onDismiss = {}) }
+        composeRule.setContent { WhatsNewScreen(WhatsNewFlow(pages = pages.toList(), summary = null), onDismiss = {}) }
         composeRule.waitForIdle()
     }
 

@@ -5,7 +5,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.WhatsNewSummary
 import org.ntust.app.tigerduck.update.WhatsNewGate
 
-/** One step of the What's New sheet: a release's feature page, or its summary. */
+/** One step of What's New: a release's feature page, or its summary. */
 sealed interface WhatsNewStep {
     /** Unique in a flow: a page's own id, a summary's `summary:<versionCode>`. */
     val id: String
@@ -20,7 +20,7 @@ sealed interface WhatsNewStep {
 }
 
 /**
- * One run of the What's New sheet: the [steps] to go through, in order.
+ * One run of What's New: the [steps] to go through, in order.
  * Never empty — [from] returns null instead.
  */
 class WhatsNewFlow(val steps: List<WhatsNewStep>) {

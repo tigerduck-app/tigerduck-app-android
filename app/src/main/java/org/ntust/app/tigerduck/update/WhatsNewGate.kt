@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.update
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 
 /**
- * Pure gating logic for the paged "What's new" sheet.
+ * Pure gating logic for the paged "What's new" screen.
  *
  * After an upgrade the sheet shows every version the user hasn't seen yet,
  * oldest first: its feature pages, then its summary page. A fresh install (last-seen versionCode is the

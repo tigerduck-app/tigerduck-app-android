@@ -78,7 +78,7 @@ import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportView
 import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewScreen
 import org.ntust.app.tigerduck.ui.screen.whatsnew.ranRelease23x
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -333,11 +333,11 @@ class MainActivityHost : AppCompatActivity() {
     @Composable
     private fun WhatsNewHost() {
         whatsNewFlow.value?.takeIf { !appState.showOnboarding }?.let { flow ->
-            WhatsNewSheet(
+            WhatsNewScreen(
                 flow = flow,
                 onDismiss = {
                     whatsNewFlow.value = null
-                    // Recorded only now: a sheet a config-change recreation dropped before this is
+                    // Recorded only now: What's New a config-change recreation dropped before this is
                     // shown again by the next onCreate (issue #89). Any dismissal, from any page.
                     recordWhatsNewSeen(appPreferences.lastSeenWhatsNewVersionCode, BuildConfig.VERSION_CODE)
                 },
@@ -597,7 +597,7 @@ class MainActivityHost : AppCompatActivity() {
     }
 
     /**
-     * Decides what the "What's new" sheet shows on this launch — see
+     * Decides what the "What's new" screen shows on this launch — see
      * [WhatsNewGate.plan]. After an upgrade: every version since the last
      * one seen, oldest first, each with its feature pages, then its summary.
      * A fresh install records the current version and shows nothing; a user
@@ -824,7 +824,7 @@ internal fun startRouteFor(link: AppLink): String? = when (link) {
     is AppLink.Assignment -> Screen.Assignment.route(link.id)
 }
 
-/** Page ids of a pending What's New sheet, kept across a config-change recreation. */
+/** Page ids of a pending What's New, kept across a config-change recreation. */
 private const val KEY_WHATS_NEW_PAGE_IDS = "whatsNewPageIds"
 
 /**

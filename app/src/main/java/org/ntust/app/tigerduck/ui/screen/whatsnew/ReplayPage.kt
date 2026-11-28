@@ -84,26 +84,25 @@ private fun ReplayDemo(animate: Boolean) {
                 tapped = 1,
             ),
         ),
-        // Still: the sheet up.
+        // Still: What's New up.
         featureStill = 0.6f,
     ) { t ->
-        // The sheet rises over Settings, and stays.
+        // What's New rises over the whole of Settings, and stays.
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = span(t(), 0f, 0.05f) }.background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.3f)))
-        WhatsNewSheetMock(
-            Modifier.offset { IntOffset(0, lerp(MockScreenHeight, 24.dp, span(t(), 0f, 0.3f)).roundToPx()) },
+        WhatsNewScreenMock(
+            Modifier.offset { IntOffset(0, lerp(MockScreenHeight, 0.dp, span(t(), 0f, 0.3f)).roundToPx()) },
         )
     }
 }
 
 /** What's New as it opens: page dots, its sparkles, a title and a button. */
 @Composable
-private fun WhatsNewSheetMock(modifier: Modifier) {
+private fun WhatsNewScreenMock(modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(
         modifier
             .fillMaxWidth()
-            .height(MockScreenHeight - 24.dp)
-            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .height(MockScreenHeight)
             .background(colors.surface)
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
