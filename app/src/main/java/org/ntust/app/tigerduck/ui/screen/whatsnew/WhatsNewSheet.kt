@@ -71,13 +71,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -93,10 +89,10 @@ import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 /**
- * The paged What's New sheet: [WhatsNewFlow.pages] one at a time, then the
- * summary page. Swiping the sheet down, the system back gesture or a tap on
- * the scrim closes the whole flow from any page; [onDismiss] runs either way,
- * so the caller records the flow as seen in one place.
+ * The paged What's New sheet: [WhatsNewFlow.steps] one at a time. Swiping
+ * the sheet down, the system back gesture or a tap on the scrim closes the
+ * whole flow from any page; [onDismiss] runs either way, so the caller
+ * records the flow as seen in one place.
  */
 @Composable
 fun WhatsNewSheet(flow: WhatsNewFlow, onDismiss: () -> Unit) {
@@ -204,11 +200,10 @@ private fun WhatsNewFlowContent(
                 .fillMaxWidth(),
             label = "whatsNewStep",
         ) { step ->
-            val isLast = step == lastIndex
-            if (step < flow.pages.size) {
-                PageStep(page = flow.pages[step], isLast = isLast, animate = animate, advance = advance)
-            } else {
-                flow.summary?.let { SummaryStep(summary = it, onContinue = advance) }
+            val label = stringResource(flow.advanceLabel(step))
+            when (val shown = flow.steps[step]) {
+                is WhatsNewStep.Page -> PageStep(page = shown.page, primaryLabel = label, animate = animate, advance = advance)
+                is WhatsNewStep.Summary -> SummaryStep(summary = shown.summary, primaryLabel = label, advance = advance)
             }
         }
     }
@@ -217,8 +212,7 @@ private fun WhatsNewFlowContent(
 // --- Feature pages ---
 
 @Composable
-private fun PageStep(page: WhatsNewPage, isLast: Boolean, animate: Boolean, advance: () -> Unit) {
-    val primaryLabel = stringResource(if (isLast) R.string.whats_new_continue else R.string.action_next)
+private fun PageStep(page: WhatsNewPage, primaryLabel: String, animate: Boolean, advance: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         when (page) {
             is WhatsNewPage.Feature -> {
@@ -600,7 +594,7 @@ private fun PermissionButtons(page: WhatsNewPage.Permission, advance: () -> Unit
 // --- Summary page ---
 
 @Composable
-private fun SummaryStep(summary: WhatsNewSummary, onContinue: () -> Unit) {
+private fun SummaryStep(summary: WhatsNewSummary, primaryLabel: String, advance: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -622,7 +616,7 @@ private fun SummaryStep(summary: WhatsNewSummary, onContinue: () -> Unit) {
                 Spacer(Modifier.height(20.dp))
             }
         }
-        PrimaryButton(stringResource(R.string.whats_new_continue), onContinue)
+        PrimaryButton(primaryLabel, advance)
     }
 }
 
@@ -682,40 +676,6 @@ private fun SummaryRow(item: WhatsNewSummaryItem) {
 
 // --- Shared pieces ---
 
-/**
- * The dots stand in for the page position with TalkBack: one node reading
- * [description] ("Page 2 of 4: <title>"). It stays put while pages slide
- * under it, so as a polite live region its description changing is what
- * announces each new page — focus otherwise stays on the Next button, which
- * sits in the same place on every page.
- */
-@Composable
-private fun PageDots(count: Int, current: Int, description: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.clearAndSetSemantics {
-            contentDescription = description
-            liveRegion = LiveRegionMode.Polite
-        },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(count) { i ->
-            Box(
-                Modifier
-                    .size(if (i == current) 8.dp else 6.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (i == current) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                        },
-                    ),
-            )
-        }
-    }
-}
-
 @Composable
 private fun PrimaryButton(label: String, onClick: () -> Unit) {
     ButtonArea {
@@ -758,7 +718,11 @@ internal fun pagePositionDescription(
 
 /** The heading of step [step]: a page's title, or the summary's. */
 private fun stepTitle(flow: WhatsNewFlow, step: Int, language: WhatsNewLanguage): String? {
-    val page = flow.pages.getOrNull(step) ?: return flow.summary?.title
+    val page = when (val shown = flow.steps.getOrNull(step)) {
+        is WhatsNewStep.Summary -> return shown.summary.title
+        is WhatsNewStep.Page -> shown.page
+        null -> return null
+    }
     val title = when (page) {
         is WhatsNewPage.Feature -> page.title
         is WhatsNewPage.OptIn -> page.instead()?.title ?: page.title

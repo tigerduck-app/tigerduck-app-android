@@ -598,13 +598,13 @@ class MainActivityHost : AppCompatActivity() {
 
     /**
      * Decides what the "What's new" sheet shows on this launch — see
-     * [WhatsNewGate.plan]. After an upgrade: the feature pages of every
-     * version since the last one seen, oldest first, then the running
-     * version's summary. A fresh install records the current version and
-     * shows nothing; a user upgrading from a build that predates the
-     * last-seen pref has no record either but has completed onboarding, and
-     * gets the running version's pages once. The debug "Replay What's new"
-     * sentinel forces the newest registered version.
+     * [WhatsNewGate.plan]. After an upgrade: every version since the last
+     * one seen, oldest first, each with its feature pages, then its summary.
+     * A fresh install records the current version and shows nothing; a user
+     * upgrading from a build that predates the last-seen pref has no record
+     * either but has completed onboarding, and gets the running version's
+     * pages and summary once. The debug "Replay What's new" sentinel forces
+     * the newest registered version.
      *
      * Safe to call on every onCreate: when the sheet is shown the last-seen
      * versionCode is recorded on dismiss (not here), so a config-change

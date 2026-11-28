@@ -73,9 +73,9 @@ class WhatsNewPageContext(
 )
 
 /**
- * One feature page shown before the summary. Pages are written in
+ * One feature page shown before its release's summary. Pages are written in
  * [WhatsNewCatalog] under the versionCode that introduced them; a user who
- * skipped versions sees every skipped version's pages, oldest first.
+ * skipped versions sees every skipped version's pages and summary, oldest first.
  *
  * Every page has a stable [id] (kept across a config-change recreation so
  * the flow doesn't reshuffle) and an [isApplicable] check — return false to
