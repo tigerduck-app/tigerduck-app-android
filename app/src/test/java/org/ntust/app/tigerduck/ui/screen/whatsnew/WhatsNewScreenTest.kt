@@ -45,6 +45,7 @@ class WhatsNewScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private val statusBarPx = 100
+    private val navigationBarPx = 150
 
     private fun summary(versionCode: Int, title: String) = WhatsNewSummary(
         versionCode = versionCode,
@@ -67,10 +68,11 @@ class WhatsNewScreenTest {
             }
         }
         composeRule.waitForIdle()
-        val statusBar = WindowInsetsCompat.Builder()
+        val bars = WindowInsetsCompat.Builder()
             .setInsets(WindowInsetsCompat.Type.statusBars(), Insets.of(0, statusBarPx, 0, 0))
+            .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, navigationBarPx))
             .build()
-        composeRule.runOnUiThread { ViewCompat.dispatchApplyWindowInsets(dialog().window!!.decorView, statusBar) }
+        composeRule.runOnUiThread { ViewCompat.dispatchApplyWindowInsets(dialog().window!!.decorView, bars) }
         composeRule.waitForIdle()
     }
 
@@ -95,6 +97,16 @@ class WhatsNewScreenTest {
         // The dots are centered in the 48dp row of the back arrow and the dots: 3x density.
         val dots = composeRule.onNodeWithContentDescription("Page 1 of 2", substring = true)
         assertEquals(statusBarPx + 24 * 3f, dots.fetchSemanticsNode().boundsInWindow.center.y, 1f)
+    }
+
+    @Test
+    fun `the last page's button sits above the navigation bar`() {
+        open()
+        next()
+
+        val window = dialog().window!!.decorView
+        val button = composeRule.onNodeWithText(string(R.string.whats_new_continue)).fetchSemanticsNode().boundsInWindow
+        assertTrue("the button reaches under the navigation bar", button.bottom <= window.height - navigationBarPx)
     }
 
     @Test
@@ -136,10 +148,27 @@ class WhatsNewScreenTest {
         val done = composeRule.onNodeWithText(string(R.string.whats_new_continue))
         done.performClick()
         done.performClick()
+        composeRule.mainClock.advanceTimeByFrame()
+        assertEquals("closed while still on screen", 0, dismissals)
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
 
         assertEquals(1, dismissals)
+    }
+
+    @Test
+    fun `recreated on a later page, it stays open on that page`() {
+        val screen = @Composable { WhatsNewScreen(twoSteps, onDismiss = { dismissals++ }) }
+        composeRule.setContent(screen)
+        composeRule.waitForIdle()
+        next()
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.runOnUiThread { composeRule.activity.setContent(content = screen) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("What's new in 2.4.0").assertIsDisplayed()
+        assertEquals(0, dismissals)
     }
 
     @Test
