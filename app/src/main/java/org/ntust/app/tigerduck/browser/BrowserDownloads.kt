@@ -222,7 +222,7 @@ class MediaStoreDownloadTransfer(
             val hopAllowlist = plan.restriction ?: allowlist().let { if (plan.anyPage) it.lettingAnyPageIn() else it }
             if (!hopAllowlist.allows(url)) throw IOException("download left the allowlist")
             // It carries the browser's cookies, SSO's session among them, which a logout would end.
-            if (BrowserRouting.isLogout(url)) throw IOException("download reached a logout")
+            if (BrowserRouting.isRefusedLogout(url, hopAllowlist)) throw IOException("download reached a logout")
             val request = Request.Builder().url(url).apply {
                 if (plan.withCookies) cookieOf(url)?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }
                 userAgent()?.let { header("User-Agent", it) }

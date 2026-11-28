@@ -151,4 +151,13 @@ object BrowserPageScripts {
         TOUCH_FOCUS to TOUCH_FOCUS_ORIGINS,
         EMPTY_WINDOW to EMPTY_WINDOW_ORIGINS,
     ) + BrowserSchoolSites.logoutScripts
+
+    /**
+     * [DOCUMENT_START], or, in a browser that keeps no session of the app's ([hidesLogouts] false,
+     * the links browser), all of it but the scripts that hide Moodle's and the school sites' logouts.
+     */
+    fun documentStart(hidesLogouts: Boolean): List<Pair<String, Set<String>>> =
+        if (hidesLogouts) DOCUMENT_START else DOCUMENT_START.filter { it.first !in LOGOUT_HIDING }
+
+    private val LOGOUT_HIDING: Set<String> get() = setOf(HIDE_LOGOUT, HIDE_SCHOOL_LOGOUT) + BrowserSchoolSites.logoutScripts.map { it.first }
 }

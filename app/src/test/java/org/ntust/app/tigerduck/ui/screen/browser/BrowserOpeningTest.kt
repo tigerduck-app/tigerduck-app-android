@@ -122,6 +122,9 @@ class BrowserOpeningTest {
         listOf("http://example.com/", "http://i.ntust.edu.tw/").forEach {
             assertEquals(it, NavigationDecision.OpenOutside(it), BrowserRouting.navigation(it, policy))
         }
+        // A session the student made here by hand is theirs to end: only the app's own are kept.
+        assertFalse(policy.refusesLogouts)
+        assertEquals(NavigationDecision.Load, BrowserRouting.navigation("https://i.ntust.edu.tw/Account/Logout", policy))
     }
 
     @Test
@@ -178,6 +181,9 @@ class BrowserOpeningTest {
             assertSame(CookieManager.getInstance(), opening.cookieManager(WebView(context)) { asked = true; CookieManager.getInstance() })
             assertFalse(asked)
             assertNull("the app's own cookies, as the transfer reads them", opening.downloadCookies(WebView(context)) { error("not its profile's") })
+        }
+        listOf(informationSystem, moodle, profileEditor).forEach {
+            assertTrue("the app's own sessions are kept", InAppBrowser.allowlistFor(it).refusesLogouts)
         }
     }
 }

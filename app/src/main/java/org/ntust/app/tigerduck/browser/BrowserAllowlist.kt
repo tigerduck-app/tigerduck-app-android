@@ -62,7 +62,9 @@ sealed interface AllowlistEntry {
  * the developer page's "Open a page" opened lets in every http and https page
  * at all ([anyPage], [lettingAnyPageIn]). A launch also lets its first page load, even when
  * its HTTPS port differs from the default. An unrestricted launch lets in every HTTPS page
- * ([anyHttpsPage]), while HTTP pages still open outside.
+ * ([anyHttpsPage]), while HTTP pages still open outside. A school site's logout is refused
+ * ([refusesLogouts]) but in the links browser, which holds no session of the app's: one the
+ * student made there by hand is theirs to end.
  */
 class BrowserAllowlist(
     val entries: List<AllowlistEntry>,
@@ -70,6 +72,7 @@ class BrowserAllowlist(
     val anyPage: Boolean = false,
     private val firstPage: String? = null,
     val anyHttpsPage: Boolean = false,
+    val refusesLogouts: Boolean = true,
 ) {
     /** Whether [url] may load inside. */
     fun allows(url: String): Boolean {
@@ -83,7 +86,8 @@ class BrowserAllowlist(
     }
 
     /** This allowlist, letting in every http and https page, any port and any user included. */
-    fun lettingAnyPageIn(): BrowserAllowlist = BrowserAllowlist(entries, allowEverySite, anyPage = true, firstPage = firstPage)
+    fun lettingAnyPageIn(): BrowserAllowlist =
+        BrowserAllowlist(entries, allowEverySite, anyPage = true, firstPage = firstPage, refusesLogouts = refusesLogouts)
 
     /** Whether [entry] adds nothing: an exact host a wildcard entry already lets in. */
     fun isRedundant(entry: AllowlistEntry): Boolean =

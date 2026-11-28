@@ -163,9 +163,12 @@ object InAppBrowser {
                 anyHttpsPage = intent.getBooleanExtra(EXTRA_ANY_HTTPS_PAGE, false),
             )
         }
-        val signedOut = opensLinks(intent) || riskAcceptance(intent) != null
-        val policy = if (requested == null && signedOut) BrowserLaunchPolicy.ANY_HTTPS_PAGE
-        else BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
+        val policy = when {
+            requested != null -> BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
+            opensLinks(intent) -> BrowserLaunchPolicy.LINKS
+            riskAcceptance(intent) != null -> BrowserLaunchPolicy.ANY_HTTPS_PAGE
+            else -> BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty())
+        }
         return if (debug && intent.getBooleanExtra(EXTRA_ANY_PAGE, false)) policy.lettingAnyPageIn() else policy
     }
 

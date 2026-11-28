@@ -489,7 +489,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         // Before the page's own scripts, in each of its frames. Every WebView the browser opens in has
         // this: deleting all browsing data (InAppBrowser.canClearEverything) came long after it.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            BrowserPageScripts.DOCUMENT_START.forEach { (script, origins) ->
+            BrowserPageScripts.documentStart(hidesLogouts = allowlist.refusesLogouts).forEach { (script, origins) ->
                 runCatching { WebViewCompat.addDocumentStartJavaScript(this, script, origins) }
             }
         }
@@ -894,7 +894,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = if (request.isForMainFrame) {
             handleNavigation(request.url.toString(), tapped = request.hasGesture())
         } else {
-            BrowserRouting.isLogout(request.url.toString())
+            BrowserRouting.isRefusedLogout(request.url.toString(), allowlist)
         }
 
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {

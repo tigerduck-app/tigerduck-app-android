@@ -53,15 +53,38 @@ class BrowserLaunchPolicyTest {
     }
 
     @Test
+    fun `the links browser lets a school or Moodle logout through, which ends only that profile's own session`() {
+        val logouts = listOf(
+            "https://i.ntust.edu.tw/Account/Logout",
+            "https://moodle2.ntust.edu.tw/login/logout.php?sesskey=x",
+            "https://ssoam2.ntust.edu.tw/connect/endsession",
+        )
+        logouts.forEach {
+            assertEquals(it, NavigationDecision.Load, BrowserRouting.navigation(it, BrowserLaunchPolicy.LINKS))
+            assertFalse(it, BrowserRouting.blocksRequest(it, isForMainFrame = false, BrowserLaunchPolicy.LINKS))
+            assertFalse(it, BrowserRouting.isRefusedLogout(it, BrowserLaunchPolicy.LINKS))
+        }
+        // A browser that holds the app's sessions refuses them still, and so does one opened at risk.
+        listOf(informationSystem, BrowserAllowlist.DEFAULT, BrowserLaunchPolicy.ANY_HTTPS_PAGE).forEach { policy ->
+            logouts.forEach {
+                assertEquals(it, NavigationDecision.Refuse, BrowserRouting.navigation(it, policy))
+                assertTrue(it, BrowserRouting.blocksRequest(it, isForMainFrame = false, policy))
+                assertTrue(it, BrowserRouting.isRefusedLogout(it, policy))
+            }
+        }
+    }
+
+    @Test
     fun `a launch signed in to nothing of the app's loads any HTTPS page and asks before HTTP`() {
-        val policy = BrowserLaunchPolicy.ANY_HTTPS_PAGE
-        listOf("https://outside.example/", "https://outside.example:8443/").forEach {
-            assertEquals(NavigationDecision.Load, BrowserRouting.navigation(it, policy))
+        listOf(BrowserLaunchPolicy.ANY_HTTPS_PAGE, BrowserLaunchPolicy.LINKS).forEach { policy ->
+            listOf("https://outside.example/", "https://outside.example:8443/").forEach {
+                assertEquals(NavigationDecision.Load, BrowserRouting.navigation(it, policy))
+            }
+            listOf("http://first.example/", "http://outside.example:8080/").forEach {
+                assertEquals(NavigationDecision.OpenOutside(it), BrowserRouting.navigation(it, policy))
+            }
+            assertFalse(BrowserRouting.blocksRequest("https://example.com/collect", isForMainFrame = true, policy))
         }
-        listOf("http://first.example/", "http://outside.example:8080/").forEach {
-            assertEquals(NavigationDecision.OpenOutside(it), BrowserRouting.navigation(it, policy))
-        }
-        assertFalse(BrowserRouting.blocksRequest("https://example.com/collect", isForMainFrame = true, policy))
     }
 
     @Test

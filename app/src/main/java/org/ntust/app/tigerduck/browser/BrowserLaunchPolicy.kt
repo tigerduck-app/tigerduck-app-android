@@ -18,8 +18,14 @@ object BrowserLaunchPolicy {
             (listOf(SCHOOL_DOMAIN) + ssoHosts + BrowserSchoolSites.all.flatMap { it.hosts }).map { AllowlistEntry.Exact(it) }
         ).distinct()
 
-    /** A launch signed in to nothing of the app's, the links browser's: every HTTPS page loads, and HTTP pages ask. */
+    /** A launch signed in to nothing of the app's, one opened at risk: every HTTPS page loads, and HTTP pages ask. */
     val ANY_HTTPS_PAGE = BrowserAllowlist(emptyList(), anyHttpsPage = true)
+
+    /**
+     * The links browser's: as [ANY_HTTPS_PAGE], and a school site's logout goes, as it ends only a
+     * session the student made in the links profile by hand.
+     */
+    val LINKS = BrowserAllowlist(emptyList(), anyHttpsPage = true, refusesLogouts = false)
 
     /**
      * The restriction of a launch in the app's own profile, which holds the student's school sessions.

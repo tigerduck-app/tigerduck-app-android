@@ -76,6 +76,22 @@ class DownloadLaunchPolicyTest {
     }
 
     @Test
+    fun `a links browser's download may pass a school logout, which ends only that profile's own session`() = runTest {
+        transfer("https://i.ntust.edu.tw/Account/Logout").download(plan(BrowserLaunchPolicy.LINKS)) { _, _ -> }
+        assertEquals(listOf("https://first.example/a.pdf", "https://i.ntust.edu.tw/Account/Logout"), sent)
+    }
+
+    @Test
+    fun `a download in the app's own profile stops at a school logout, which would end the app's session`() = runTest {
+        try {
+            transfer("https://i.ntust.edu.tw/Account/Logout").download(plan(BrowserLaunchPolicy.allowlist("https://first.example/a.pdf"))) { _, _ -> }
+            fail("reached a logout")
+        } catch (_: IOException) {
+        }
+        assertEquals(listOf("https://first.example/a.pdf"), sent)
+    }
+
+    @Test
     fun `a launch in the app's own profile with no restriction stops a download that leaves the school`() = runTest {
         val policy = BrowserLaunchPolicy.allowlist("https://first.example/a.pdf")
         try {

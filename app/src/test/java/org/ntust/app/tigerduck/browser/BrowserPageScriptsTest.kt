@@ -103,6 +103,18 @@ class BrowserPageScriptsTest {
     }
 
     @Test
+    fun `a browser that keeps no session of the app's hides no logout, and runs the rest`() {
+        val hiding = listOf(BrowserPageScripts.HIDE_LOGOUT, BrowserPageScripts.HIDE_SCHOOL_LOGOUT) +
+            org.ntust.app.tigerduck.browser.sites.BrowserSchoolSites.logoutScripts.map { it.first }
+        val shown = BrowserPageScripts.documentStart(hidesLogouts = false)
+
+        assertTrue(shown.none { it.first in hiding })
+        assertEquals(BrowserPageScripts.DOCUMENT_START.filter { it.first !in hiding }, shown)
+        assertTrue(shown.contains(BrowserPageScripts.EMPTY_WINDOW to BrowserPageScripts.EMPTY_WINDOW_ORIGINS))
+        assertEquals(BrowserPageScripts.DOCUMENT_START, BrowserPageScripts.documentStart(hidesLogouts = true))
+    }
+
+    @Test
     fun `every school page loses its logout`() {
         assertEquals(setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw", "http://ntust.edu.tw", "http://*.ntust.edu.tw"), BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS)
     }
