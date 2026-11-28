@@ -106,7 +106,8 @@ class PushDeviceSecretTest {
 
     /** Uninstalled and installed again: every store the app keeps is gone, and the FCM token is new. */
     private fun reinstall() {
-        prefs.clearAllPrefs()
+        // Every key, the id's too, which the full reset keeps.
+        context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE).edit().clear().commit()
         credentialPrefs.edit().clear().commit()
         context.getSharedPreferences("push_diagnostics", Context.MODE_PRIVATE).edit().clear().commit()
         prefs.hasCompletedOnboarding = true

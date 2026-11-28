@@ -68,7 +68,8 @@ class PushIdentityTest {
         val id = installed.uuid()
         val secret = installed.secret()
 
-        prefs.clearAllPrefs()
+        // Every key, the id's too, which the full reset keeps.
+        context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE).edit().clear().commit()
         credentialPrefs.edit().clear().commit()
         val reinstalled = launch()
 
