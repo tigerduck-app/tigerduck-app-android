@@ -69,9 +69,21 @@ class DownloadLaunchPolicyTest {
     }
 
     @Test
-    fun `an unrestricted launch follows a download outside the stored defaults`() = runTest {
-        transfer("https://outside.example/b.pdf").download(plan(BrowserLaunchPolicy.allowlist("https://first.example/"))) { _, _ -> }
+    fun `the links browser's launch follows a download outside the stored defaults`() = runTest {
+        transfer("https://outside.example/b.pdf").download(plan(BrowserLaunchPolicy.ANY_HTTPS_PAGE)) { _, _ -> }
         assertEquals(listOf("https://first.example/a.pdf", "https://outside.example/b.pdf"), sent)
         assertEquals(listOf("PDF"), saved)
+    }
+
+    @Test
+    fun `a launch in the app's own profile with no restriction stops a download that leaves the school`() = runTest {
+        val policy = BrowserLaunchPolicy.allowlist("https://first.example/a.pdf")
+        try {
+            transfer("https://outside.example/b.pdf").download(plan(policy)) { _, _ -> }
+            fail("left the school's hosts")
+        } catch (_: IOException) {
+        }
+        assertEquals(listOf("https://first.example/a.pdf"), sent)
+        assertTrue(saved.isEmpty())
     }
 }

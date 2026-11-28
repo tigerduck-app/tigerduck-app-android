@@ -61,8 +61,8 @@ object InAppBrowser {
      * not one, when this phone's WebView cannot be cleared ([canClearEverything]),
      * while a deletion is unconfirmed or a clearing owed ([BrowserCleanup]),
      * or when nothing could open, for the caller to open it another way.
-     * With no [allowlist], every HTTPS page loads; HTTP pages ask before opening outside.
-     * A supplied restriction gains the opening host
+     * With no [allowlist], the school's pages and [url] itself load; any other page asks, then
+     * opens as "Open links with" says. A supplied restriction gains the opening host
      * and the SSO hosts used by automatic sign-in.
      */
     fun open(context: Context, url: String, allowlist: BrowserAllowlist? = null): Boolean {
@@ -148,7 +148,11 @@ object InAppBrowser {
         return runCatching { context.startActivity(intent) }.isSuccess
     }
 
-    /** Each launch carries its caller's restriction, with its opening host and SSO redirects added. */
+    /**
+     * Each launch carries its caller's restriction, with its opening host and SSO redirects added. One
+     * with none lets in the school's pages and its first page in the app's own profile, and every
+     * HTTPS page in a profile signed in to nothing: the links browser's, or one opened at risk.
+     */
     internal fun allowlistFor(intent: Intent, debug: Boolean = BuildConfig.DEBUG): BrowserAllowlist {
         val entries = intent.getStringArrayListExtra(EXTRA_ENTRIES)
         val requested = entries?.let {
@@ -159,7 +163,9 @@ object InAppBrowser {
                 anyHttpsPage = intent.getBooleanExtra(EXTRA_ANY_HTTPS_PAGE, false),
             )
         }
-        val policy = BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
+        val signedOut = opensLinks(intent) || riskAcceptance(intent) != null
+        val policy = if (requested == null && signedOut) BrowserLaunchPolicy.ANY_HTTPS_PAGE
+        else BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
         return if (debug && intent.getBooleanExtra(EXTRA_ANY_PAGE, false)) policy.lettingAnyPageIn() else policy
     }
 

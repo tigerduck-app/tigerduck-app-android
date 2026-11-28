@@ -4,22 +4,64 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.browser.sites.BrowserSchoolSites
 
 class BrowserLaunchPolicyTest {
+    private val informationSystem = BrowserLaunchPolicy.allowlist("https://i.ntust.edu.tw/student")
+
     @Test
-    fun `no restriction loads any HTTPS page`() {
-        val policy = BrowserLaunchPolicy.allowlist("https://first.example/")
-        listOf("https://outside.example/", "https://outside.example:8443/").forEach {
-            assertEquals(NavigationDecision.Load, BrowserRouting.navigation(it, policy))
+    fun `with no restriction, a launch in the app's own profile sends another site's page outside, through the question`() {
+        listOf(
+            "https://example.com/",
+            "https://outside.example:8443/",
+            "https://ntust.edu.tw.example.com/",
+            "https://evilntust.edu.tw/",
+            "http://example.com/",
+            "http://i.ntust.edu.tw/student",
+        ).forEach {
+            assertEquals(it, NavigationDecision.OpenOutside(it), BrowserRouting.navigation(it, informationSystem))
         }
     }
 
     @Test
-    fun `no restriction asks before opening HTTP outside`() {
-        val policy = BrowserLaunchPolicy.allowlist("https://first.example/")
+    fun `with no restriction, every school page still loads, on any of the school's hosts`() {
+        val school = listOf(
+            "https://www.lib.ntust.edu.tw/",
+            "https://moodle2.ntust.edu.tw/my/",
+            "https://ssoam.ntust.edu.tw/nidp/app/login",
+            "https://ssoam2.ntust.edu.tw/account/login",
+            "https://ntust.edu.tw/",
+            "https://a.b.ntust.edu.tw/x",
+        ) + BrowserSchoolSites.all.flatMap { it.hosts }.map { "https://$it/" }
+        school.forEach { assertEquals(it, NavigationDecision.Load, BrowserRouting.navigation(it, informationSystem)) }
+    }
+
+    @Test
+    fun `with no restriction, the first page always loads, and no other page of its site`() {
+        val policy = BrowserLaunchPolicy.allowlist("https://first.example:8443/start?x=1")
+
+        assertEquals(NavigationDecision.Load, BrowserRouting.navigation("https://first.example:8443/start?x=1", policy))
+        listOf("https://first.example/next", "https://first.example:8443/other").forEach {
+            assertEquals(it, NavigationDecision.OpenOutside(it), BrowserRouting.navigation(it, policy))
+        }
+    }
+
+    @Test
+    fun `with no restriction, a form's POST to another site is stopped before it is sent, and a school site's goes`() {
+        assertTrue(BrowserRouting.blocksRequest("https://example.com/collect", isForMainFrame = true, informationSystem))
+        assertFalse(BrowserRouting.blocksRequest("https://courseselection.ntust.edu.tw/Save", isForMainFrame = true, informationSystem))
+    }
+
+    @Test
+    fun `a launch signed in to nothing of the app's loads any HTTPS page and asks before HTTP`() {
+        val policy = BrowserLaunchPolicy.ANY_HTTPS_PAGE
+        listOf("https://outside.example/", "https://outside.example:8443/").forEach {
+            assertEquals(NavigationDecision.Load, BrowserRouting.navigation(it, policy))
+        }
         listOf("http://first.example/", "http://outside.example:8080/").forEach {
             assertEquals(NavigationDecision.OpenOutside(it), BrowserRouting.navigation(it, policy))
         }
+        assertFalse(BrowserRouting.blocksRequest("https://example.com/collect", isForMainFrame = true, policy))
     }
 
     @Test
