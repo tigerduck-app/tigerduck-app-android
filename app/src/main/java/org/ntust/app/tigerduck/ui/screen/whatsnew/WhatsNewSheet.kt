@@ -1,9 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.whatsnew
 
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -28,7 +27,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,35 +42,29 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -81,105 +73,31 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlin.math.min
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.WhatsNewSummary
 import org.ntust.app.tigerduck.data.model.WhatsNewSummaryItem
-import org.ntust.app.tigerduck.ui.component.DetentSheet
-import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 /**
- * The paged What's New sheet: [WhatsNewFlow.steps] one at a time. Swiping
- * the sheet down, the system back gesture or a tap on the scrim closes the
- * whole flow from any page; [onDismiss] runs either way, so the caller
- * records the flow as seen in one place.
+ * [WhatsNewFlow.steps] one at a time, under a row with the way back and the page dots; the last
+ * page's button runs [onFinish]. With [backGoesBack], the system back gesture goes a page back,
+ * and on the first page does nothing.
  */
 @Composable
-fun WhatsNewSheet(flow: WhatsNewFlow, onDismiss: () -> Unit) {
-    val sheetState = rememberDetentSheetState()
-    val scope = rememberCoroutineScope()
-    var finishing by remember { mutableStateOf(false) }
-    // Read here, in the activity's composition, from the same app-locale-aware
-    // configuration the summary was looked up with — so page copy and the
-    // summary always agree on the language.
-    val language = WhatsNewLanguage.of(LocalConfiguration.current.locales[0].toLanguageTag())
-    val close: () -> Unit = {
-        // Animate the sheet away before dropping it; guarded so a double
-        // tap on the last button can't dismiss twice.
-        if (!finishing) {
-            finishing = true
-            scope.launch {
-                try {
-                    sheetState.hide()
-                } finally {
-                    // Caught on its way down and pulled back up: the button closes it again.
-                    if (!sheetState.isClosed) finishing = false
-                }
-            }
-        }
-    }
-    // The app's own sheet: Material's threw this one past its top on an
-    // upward fling, lifting the page off the bottom of the screen.
-    DetentSheet(onDismissed = onDismiss, state = sheetState) {
-        CompositionLocalProvider(LocalWhatsNewLanguage provides language) {
-            WhatsNewFlowContent(
-                flow = flow,
-                onFinish = close,
-                // A fixed height so the sheet doesn't jump between short and
-                // tall pages.
-                modifier = Modifier.fillMaxHeight(0.92f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun WhatsNewFlowContent(
+internal fun WhatsNewFlowContent(
     flow: WhatsNewFlow,
+    animate: Boolean,
     onFinish: () -> Unit,
+    backGoesBack: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    // A Binder call, so read once per sheet rather than per recomposition.
-    val animate = remember(context) { animationsEnabled(context) }
     val lastIndex = flow.stepCount - 1
     var index by rememberSaveable { mutableIntStateOf(0) }
     val current = index.coerceIn(0, lastIndex)
     val advance: () -> Unit = { if (current >= lastIndex) onFinish() else index = current + 1 }
+    BackHandler(enabled = backGoesBack) { if (current > 0) index = current - 1 }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 4.dp),
-        ) {
-            if (current > 0) {
-                IconButton(
-                    onClick = { index = current - 1 },
-                    modifier = Modifier.align(Alignment.CenterStart),
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back),
-                    )
-                }
-            }
-            if (flow.stepCount > 1) {
-                val language = LocalWhatsNewLanguage.current
-                PageDots(
-                    count = flow.stepCount,
-                    current = current,
-                    description = pagePositionDescription(
-                        step = current,
-                        count = flow.stepCount,
-                        title = stepTitle(flow, current, language),
-                        language = language,
-                    ),
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            }
-        }
+        WhatsNewTopBar(flow, current, onBack = { index = current - 1 })
 
         AnimatedContent(
             targetState = current,
@@ -715,32 +633,3 @@ internal fun pagePositionDescription(
         WhatsNewLanguage.En -> "$position: $title"
     }
 }
-
-/** The heading of step [step]: a page's title, or the summary's. */
-private fun stepTitle(flow: WhatsNewFlow, step: Int, language: WhatsNewLanguage): String? {
-    val page = when (val shown = flow.steps.getOrNull(step)) {
-        is WhatsNewStep.Summary -> return shown.summary.title
-        is WhatsNewStep.Page -> shown.page
-        null -> return null
-    }
-    val title = when (page) {
-        is WhatsNewPage.Feature -> page.title
-        is WhatsNewPage.OptIn -> page.instead()?.title ?: page.title
-        is WhatsNewPage.Permission -> page.title
-        is WhatsNewPage.Choice -> page.title
-        is WhatsNewPage.Toggle -> page.title
-        is WhatsNewPage.Custom -> null
-    }
-    return title?.resolve(language)
-}
-
-/**
- * False when the system "Remove animations" / animator duration scale is 0:
- * the icon effects stop and page changes fade instead of sliding.
- */
-private fun animationsEnabled(context: Context): Boolean =
-    Settings.Global.getFloat(
-        context.contentResolver,
-        Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f,
-    ) != 0f

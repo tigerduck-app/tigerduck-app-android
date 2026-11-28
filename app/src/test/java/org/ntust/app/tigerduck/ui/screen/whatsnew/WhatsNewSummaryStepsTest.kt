@@ -16,7 +16,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 // An update past several versions shows each one's summary in turn: every summary but the last
-// moves on with Next, so Continue, which closes the sheet, comes only once the last is reached.
+// moves on with Next, so Continue, which closes What's New, comes only once the last is reached.
 @RunWith(RobolectricTestRunner::class)
 // A plain Application: the real one is a Hilt app this test does not need.
 @Config(application = Application::class, qualifiers = "w384dp-h832dp-xxhdpi")
@@ -36,7 +36,7 @@ class WhatsNewSummaryStepsTest {
     @Test
     fun `an earlier version's summary moves on to the next one`() {
         val steps = listOf(summary(29, "What's new in 2.3.1"), summary(30, "What's new in 2.4.0")).map(WhatsNewStep::Summary)
-        composeRule.setContent { WhatsNewSheet(WhatsNewFlow(steps), onDismiss = {}) }
+        composeRule.setContent { WhatsNewScreen(WhatsNewFlow(steps), onDismiss = {}) }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("What's new in 2.3.1").assertIsDisplayed()

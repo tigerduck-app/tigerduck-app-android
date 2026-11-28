@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.whatsnew
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-// An update from an old version runs to some 20 steps, whose dots would run past both edges of the sheet.
+// An update from an old version runs to some 20 steps, whose dots would run past both edges of the screen.
 class PageDotWindowTest {
 
     @Test

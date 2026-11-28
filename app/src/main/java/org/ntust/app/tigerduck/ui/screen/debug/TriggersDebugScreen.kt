@@ -28,7 +28,7 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PageScaffold
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewScreen
 import org.ntust.app.tigerduck.update.UpdateChecker
 
 /**
@@ -97,7 +97,7 @@ fun TriggersDebugScreen(
 
             TriggerSection(
                 header = "What's New sample",
-                footer = "Opens the paged sheet with one page of every kind — feature, " +
+                footer = "Opens the paged screen with one page of every kind — feature, " +
                     "custom demo, opt-in, permission, pick-between-looks, toggle and a " +
                     "custom page — then a sample summary. Answers change no setting and " +
                     "show up below, except the permission page: on Android 13+ it asks " +
@@ -171,7 +171,7 @@ fun TriggersDebugScreen(
     }
 
     if (showWhatsNewSample) {
-        WhatsNewSheet(flow = whatsNewSample, onDismiss = { showWhatsNewSample = false })
+        WhatsNewScreen(flow = whatsNewSample, onDismiss = { showWhatsNewSample = false })
     }
 }
 
