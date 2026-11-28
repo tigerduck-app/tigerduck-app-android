@@ -65,9 +65,11 @@ class PushIdentity internal constructor(
         { credentials.v3Tokens.refreshToken != null || credentials.pendingUnregister.load().isNotEmpty() },
     )
 
-    // Guarded by this: the id and the secret this process reads, each once it is read.
+    // Guarded by this: the id and the secret this process reads, each once it is read, and how
+    // many requests have bound the secret in this process.
     private var heldId: String? = null
     private var heldSecret: String? = null
+    private var bound = 0
 
     /** The device id, the same for the life of the process. */
     @Synchronized
@@ -94,16 +96,27 @@ class PushIdentity internal constructor(
         return (secrets.load() ?: mintDeviceSecret().takeIf(secrets::save)).also { heldSecret = it }
     }
 
+    /** How many requests have bound the secret in this process, taken as a request goes out. */
+    @Synchronized
+    fun bindings(): Int = bound
+
     /**
-     * Records the backend's refusal of the secret, for the next launch with no session; says
-     * whether the disk took it.
+     * Records the backend's refusal of the secret, for the next launch with no session, unless a
+     * request bound the secret since [unlessBoundSince] ([bindings]): the refusal answered a
+     * request that went out before. Says whether the disk took it.
      */
-    fun recordRefusal(): Boolean = runCatching { secrets.recordRefusal() }
-        .onFailure { Log.w(TAG, "device secret refusal not recorded: ${it.logSummary()}") }
-        .getOrDefault(false)
+    @Synchronized
+    fun recordRefusal(unlessBoundSince: Int? = null): Boolean {
+        if (unlessBoundSince != null && bound != unlessBoundSince) return false
+        return runCatching { secrets.recordRefusal() }
+            .onFailure { Log.w(TAG, "device secret refusal not recorded: ${it.logSummary()}") }
+            .getOrDefault(false)
+    }
 
     /** A request that went through with the secret and a push token bound it: the refusal is over. */
+    @Synchronized
     fun clearRefusal() {
+        bound++
         runCatching { if (secrets.refused) secrets.clearRefusal() }
             .onFailure { Log.w(TAG, "device secret refusal not cleared: ${it.logSummary()}") }
     }

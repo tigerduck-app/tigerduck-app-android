@@ -20,27 +20,36 @@ internal class DeviceRequests(
     /**
      * Sends the anonymous registration with [token] and [serverPushEnabled]. A refusal of the secret
      * is recorded before it is thrown, so the next launch with no session starts over
-     * ([PushIdentity]). One that went through with the secret and a token has the secret bound,
-     * which ends a refusal recorded before. Throws, sending nothing, while the secret cannot be
-     * read. On the I/O dispatcher, as the secret's store reads and writes the disk.
+     * ([PushIdentity]), unless a request bound the secret while this one was out. One that went
+     * through with the secret and a token has the secret bound, which ends a refusal recorded
+     * before. Throws, sending nothing, while the secret cannot be read.
      */
-    suspend fun send(token: String, serverPushEnabled: Boolean): Unit = withContext(Dispatchers.IO) {
-        val secret = identity.secret()
-        try {
-            sendAnonymous(
-                AnonymousDeviceRequest(
-                    deviceId = identity.uuid(),
-                    deviceClass = identity.deviceClass(),
-                    pushToken = token,
-                    serverPushEnabled = serverPushEnabled,
-                    deviceSecret = secret,
+    suspend fun send(token: String, serverPushEnabled: Boolean): Unit = send(token, serverPushEnabled) {}
+
+    // [send], telling [refused] whether the disk took the refusal; on the I/O dispatcher, as the
+    // secret's store reads and writes the disk.
+    private suspend fun send(token: String, serverPushEnabled: Boolean, refused: (recorded: Boolean) -> Unit) {
+        withContext(Dispatchers.IO) {
+            val secret = identity.secret()
+            val sentAt = identity.bindings()
+            try {
+                sendAnonymous(
+                    AnonymousDeviceRequest(
+                        deviceId = identity.uuid(),
+                        deviceClass = identity.deviceClass(),
+                        pushToken = token,
+                        serverPushEnabled = serverPushEnabled,
+                        deviceSecret = secret,
+                    )
                 )
-            )
-        } catch (e: Exception) {
-            if (e.backendError()?.refusesDeviceSecret == true) identity.recordRefusal()
-            throw e
+            } catch (e: Exception) {
+                if (e.backendError()?.refusesDeviceSecret == true) {
+                    refused(identity.recordRefusal(unlessBoundSince = sentAt))
+                }
+                throw e
+            }
+            if (secret != null) identity.clearRefusal()
         }
-        if (secret != null) identity.clearRefusal()
     }
 
     /**
@@ -70,17 +79,14 @@ internal class DeviceRequests(
      * caller keeps. Otherwise nothing would send it, so the refusal is thrown.
      */
     suspend fun sendOptOut(token: String, serverPushEnabled: Boolean) {
+        var recorded = false
         try {
-            send(token, serverPushEnabled)
+            send(token, serverPushEnabled) { recorded = it }
         } catch (e: Exception) {
-            if (e.backendError()?.refusesDeviceSecret != true || !keptForNextLaunch()) throw e
+            if (e.backendError()?.refusesDeviceSecret != true || !recorded || !identity.startsOverAtNextLaunch()) throw e
             Log.i(TAG, "server push opt-out kept for the next announce")
         }
     }
-
-    // Recorded again for its answer, which send() leaves: an opt-out is kept only on a refusal on disk.
-    private suspend fun keptForNextLaunch(): Boolean =
-        identity.startsOverAtNextLaunch() && withContext(Dispatchers.IO) { identity.recordRefusal() }
 
     /**
      * The account's registration of this device with [token], in the app's language [locale]; the
