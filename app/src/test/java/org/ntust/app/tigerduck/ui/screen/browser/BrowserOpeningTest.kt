@@ -140,6 +140,16 @@ class BrowserOpeningTest {
     }
 
     @Test
+    fun `a page the links browser opens at risk refuses logouts, as every page opened at risk does`() {
+        InAppBrowser.riskProfiles = BrowserRiskProfiles(FakeWebViewProfiles())
+        assertTrue(InAppBrowser.openAtRisk(context, linksLaunch(), CertificateRefusal("https://example.com/", "d".repeat(64)), null))
+
+        val policy = InAppBrowser.allowlistFor(started())
+        assertTrue(policy.refusesLogouts)
+        assertEquals(NavigationDecision.Refuse, BrowserRouting.navigation("https://i.ntust.edu.tw/Account/Logout", policy))
+    }
+
+    @Test
     fun `only an https link opens the links browser`() {
         listOf("http://example.com/", "javascript:alert(1)", "file:///sdcard/a", "intent://x#Intent;end", "mailto:a@b.example").forEach {
             assertFalse(it, InAppBrowser.openLink(context, it))

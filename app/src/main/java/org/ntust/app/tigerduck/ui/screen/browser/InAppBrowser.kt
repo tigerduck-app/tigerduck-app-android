@@ -165,8 +165,9 @@ object InAppBrowser {
         }
         val policy = when {
             requested != null -> BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
-            opensLinks(intent) -> BrowserLaunchPolicy.LINKS
+            // At risk first: a page the links browser opens at risk refuses logouts, as every one does.
             riskAcceptance(intent) != null -> BrowserLaunchPolicy.ANY_HTTPS_PAGE
+            opensLinks(intent) -> BrowserLaunchPolicy.LINKS
             else -> BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty())
         }
         return if (debug && intent.getBooleanExtra(EXTRA_ANY_PAGE, false)) policy.lettingAnyPageIn() else policy
