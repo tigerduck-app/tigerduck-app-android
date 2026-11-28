@@ -256,10 +256,34 @@ class PushIdentityTest {
         assertFalse(store.refused)
     }
 
-    /** [base], noting in [committed] each string a commit wrote; an apply's are not on disk yet. */
+    @Test
+    fun `a new id the disk did not take leaves the old id, its secret and the refusal for a later launch`() {
+        val refused = launch()
+        val id = refused.uuid()
+        val secret = refused.secret()
+        refused.recordRefusal()
+        val full = object : ContextWrapper(context) {
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                CommitRecording(context.getSharedPreferences(name, mode), mutableMapOf(), diskFull = true)
+        }
+
+        val next = PushIdentity(AppPreferences(full), full, store) { false }
+
+        assertEquals(id, next.uuid())
+        assertEquals(secret, next.secret())
+        assertTrue(store.refused)
+        assertEquals(id, prefs.getString("push.device_uuid"))
+    }
+
+    /**
+     * [base], noting in [committed] each string a commit wrote; an apply's are not on disk yet.
+     * With [diskFull], a commit changes the values in memory and says the disk did not take them,
+     * as Android's does.
+     */
     private class CommitRecording(
         private val base: SharedPreferences,
         private val committed: MutableMap<String, Any?>,
+        private val diskFull: Boolean = false,
     ) : SharedPreferences by base {
         override fun edit(): SharedPreferences.Editor {
             val real = base.edit()
@@ -272,7 +296,12 @@ class PushIdentityTest {
                     return this
                 }
 
-                override fun commit(): Boolean = real.commit().also { committed += strings }
+                override fun commit(): Boolean {
+                    real.commit()
+                    if (diskFull) return false
+                    committed += strings
+                    return true
+                }
             }
         }
     }

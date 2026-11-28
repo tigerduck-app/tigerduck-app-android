@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassReminders
+import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.AccentGradient
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
@@ -1084,11 +1085,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getInt("dataSchemaVersion", 0)
         set(value) = prefs.edit().putInt("dataSchemaVersion", value).apply()
 
-    /** Wipe every pref key. Used by the full-reset flow only. */
+    /** Wipe every pref key but the device's id ([PushIdentity]), in one edit. Used by the full-reset flow only. */
     fun clearAllPrefs() {
         val accentBefore = watchAccent()
         val presetBefore = visualPreset
-        prefs.edit().clear().apply()
+        val deviceId = prefs.getString(PushIdentity.KEY_UUID, null)
+        prefs.edit().clear().apply { deviceId?.let { putString(PushIdentity.KEY_UUID, it) } }.apply()
         // The watch hears of the accent and the interface style only through accentColorChanged
         // and visualPresetChanged, and a reset while signed out publishes nothing else.
         if (watchAccent() != accentBefore) _accentColorChanged.tryEmit(Unit)
@@ -1124,9 +1126,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     @Synchronized
     fun getOrCreateString(key: String, factory: () -> String): String {
         prefs.getString(key, null)?.let { return it }
-        val created = factory()
-        prefs.edit().putString(key, created).apply()
-        return created
+        return factory().also { prefs.edit().putString(key, it).apply() }
     }
 
     /**

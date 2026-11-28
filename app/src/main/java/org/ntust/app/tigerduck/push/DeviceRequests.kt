@@ -65,18 +65,22 @@ internal class DeviceRequests(
 
     /**
      * The signed-out half of the server-push opt-out, as iOS's `sendServerPushOptOut`. A refusal of
-     * the secret on a device that stores no session, nor one a sign-out keeps, is no failure: the
-     * next launch starts over, and its announce carries the opt-out the caller keeps. Otherwise
-     * nothing would send it, so the refusal is thrown.
+     * the secret on a device that stores no session, nor one a sign-out keeps, is no failure once
+     * the refusal is on disk: the next launch starts over, and its announce carries the opt-out the
+     * caller keeps. Otherwise nothing would send it, so the refusal is thrown.
      */
     suspend fun sendOptOut(token: String, serverPushEnabled: Boolean) {
         try {
             send(token, serverPushEnabled)
         } catch (e: Exception) {
-            if (e.backendError()?.refusesDeviceSecret != true || !identity.startsOverAtNextLaunch()) throw e
+            if (e.backendError()?.refusesDeviceSecret != true || !keptForNextLaunch()) throw e
             Log.i(TAG, "server push opt-out kept for the next announce")
         }
     }
+
+    // Recorded again for its answer, which send() leaves: an opt-out is kept only on a refusal on disk.
+    private suspend fun keptForNextLaunch(): Boolean =
+        identity.startsOverAtNextLaunch() && withContext(Dispatchers.IO) { identity.recordRefusal() }
 
     /**
      * The account's registration of this device with [token], in the app's language [locale]; the

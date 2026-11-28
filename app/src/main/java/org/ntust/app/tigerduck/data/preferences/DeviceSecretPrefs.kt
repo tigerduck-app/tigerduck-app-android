@@ -26,16 +26,19 @@ class DeviceSecretPrefs internal constructor(private val prefs: SharedPreference
 
     override val refused: Boolean get() = prefs.getBoolean(KEY_REFUSED, false)
 
-    override fun recordRefusal() = write { putBoolean(KEY_REFUSED, true) }
+    override fun recordRefusal(): Boolean = write { putBoolean(KEY_REFUSED, true) }
 
-    override fun clearRefusal() = write { remove(KEY_REFUSED) }
+    override fun clearRefusal() {
+        write { remove(KEY_REFUSED) }
+    }
 
-    override fun startOver() = write { remove(KEY_SECRET).remove(KEY_REFUSED) }
+    override fun startOver() {
+        write { remove(KEY_SECRET).remove(KEY_REFUSED) }
+    }
 
     // Committed, so a process ended right after still finds it at the next start.
-    private fun write(change: SharedPreferences.Editor.() -> SharedPreferences.Editor) {
-        if (!prefs.edit().change().commit()) Log.w(TAG, "device secret state not written to disk")
-    }
+    private fun write(change: SharedPreferences.Editor.() -> SharedPreferences.Editor): Boolean =
+        prefs.edit().change().commit().also { if (!it) Log.w(TAG, "device secret state not written to disk") }
 
     internal companion object {
         const val KEY_SECRET = "push_device_secret"

@@ -65,9 +65,16 @@ class PushDeviceSecretTest {
 
     private class Launch(val identity: PushIdentity, val service: PushRegistrationService)
 
-    /** A process start: the token manager reads the id first, as the app's does. */
-    private fun TestScope.launch(): Launch {
-        val identity = PushIdentity(prefs, context, credentials)
+    /**
+     * A process start: the token manager reads the id first, as the app's does. [secrets] for a
+     * store of the test's own.
+     */
+    private fun TestScope.launch(secrets: DeviceSecretStore? = null): Launch {
+        val identity = if (secrets == null) {
+            PushIdentity(prefs, context, credentials)
+        } else {
+            PushIdentity(prefs, context, secrets) { credentials.v3Tokens.refreshToken != null }
+        }
         val auth = AuthTokenManager(credentials.v3Tokens, backend.client, prefs, deviceUuid = identity.uuid())
         val api = PushApiClient(backend.client, prefs, auth)
         val service = PushRegistrationService(
@@ -226,6 +233,21 @@ class PushDeviceSecretTest {
                 1L,
             ),
         )
+
+        assertFalse(app.service.updateServerPushOptOut(true))
+
+        assertFalse(app.service.isServerPushOptedOut())
+    }
+
+    @Test
+    fun `a refused signed-out opt-out whose refusal the disk did not take fails, and stays off`() = runTest {
+        launch().service.register("fcm-1")
+        reinstall()
+        val full = object : DeviceSecretStore by credentials.deviceSecret {
+            override fun recordRefusal(): Boolean = false
+        }
+        val app = launch(full)
+        app.service.register("fcm-2")
 
         assertFalse(app.service.updateServerPushOptOut(true))
 

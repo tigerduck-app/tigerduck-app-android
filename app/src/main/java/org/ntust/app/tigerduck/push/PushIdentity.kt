@@ -25,7 +25,9 @@ interface DeviceSecretStore {
 
     /** The backend refused the secret, for the next launch with no session to start over. */
     val refused: Boolean
-    fun recordRefusal()
+
+    /** Says whether the disk took it. */
+    fun recordRefusal(): Boolean
     fun clearRefusal()
 
     /** Drops the secret and the refusal together. */
@@ -92,11 +94,13 @@ class PushIdentity internal constructor(
         return (secrets.load() ?: mintDeviceSecret().takeIf(secrets::save)).also { heldSecret = it }
     }
 
-    /** Records the backend's refusal of the secret, for the next launch with no session. */
-    fun recordRefusal() {
-        runCatching { secrets.recordRefusal() }
-            .onFailure { Log.w(TAG, "device secret refusal not recorded: ${it.logSummary()}") }
-    }
+    /**
+     * Records the backend's refusal of the secret, for the next launch with no session; says
+     * whether the disk took it.
+     */
+    fun recordRefusal(): Boolean = runCatching { secrets.recordRefusal() }
+        .onFailure { Log.w(TAG, "device secret refusal not recorded: ${it.logSummary()}") }
+        .getOrDefault(false)
 
     /** A request that went through with the secret and a push token bound it: the refusal is over. */
     fun clearRefusal() {
@@ -111,10 +115,16 @@ class PushIdentity internal constructor(
     private fun startOverIfRefused() {
         val due = runCatching { secrets.refused && !storesSession() }.getOrDefault(false)
         if (!due) return
+        val old = prefs.getString(KEY_UUID)
         // On disk before the refusal goes: a process ended between the two starts over again.
-        if (!prefs.commitString(KEY_UUID, UUID.randomUUID().toString())) Log.w(TAG, "new device id not written to disk")
-        runCatching { secrets.startOver() }
-            .onFailure { Log.w(TAG, "device secret not dropped: ${it.logSummary()}") }
+        if (prefs.commitString(KEY_UUID, UUID.randomUUID().toString())) {
+            runCatching { secrets.startOver() }
+                .onFailure { Log.w(TAG, "device secret not dropped: ${it.logSummary()}") }
+            return
+        }
+        // The disk kept the old id, so this process does too, and a later launch starts over.
+        Log.w(TAG, "new device id not written to disk")
+        if (old != null) prefs.putString(KEY_UUID, old) else prefs.remove(KEY_UUID)
     }
 
     /**
@@ -160,24 +170,14 @@ class PushIdentity internal constructor(
     }
 
     companion object {
-        private const val KEY_UUID = "push.device_uuid"
+        /** Where the id is kept, in [AppPreferences], whose full reset keeps it. */
+        internal const val KEY_UUID = "push.device_uuid"
         private const val TAG = "PushIdentity"
         // RFC 4122 "URL" namespace — used as the namespace for UUID v5
         private val NAMESPACE = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
         /** Matches the `sw600dp` resource qualifier — see [deviceClass]. */
         private const val TABLET_SW_DP = 600
-
-        /**
-         * Runs [wipe], the full reset's of [prefs], and keeps the device id across it, as the
-         * credentials' wipe keeps the secret: both are the device's. An id minted after a refusal
-         * would not come back, and the secret kept would not prove another.
-         */
-        fun keepingId(prefs: AppPreferences, wipe: () -> Unit) {
-            val kept = prefs.getString(KEY_UUID)
-            wipe()
-            kept?.let { prefs.putString(KEY_UUID, it) }
-        }
     }
 }
 

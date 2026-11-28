@@ -7,7 +7,6 @@ import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.push.PushIdentity
 
 /**
  * The steps of [AppState.performFullReset], apart from it so a test can run
@@ -57,8 +56,7 @@ internal class FullReset(
         // Then the watch, so a library account of another student, which the
         // school sign-out before keeps, does not stay on it.
         publishLibraryCredentialsToWatch()
-        // The device's push id stays, as its secret in the credentials does.
-        PushIdentity.keepingId(prefs) { prefs.clearAllPrefs() }
+        prefs.clearAllPrefs()
         // Re-stamp the schema so the dialog doesn't re-fire on next launch.
         prefs.dataSchemaVersion = DataMigration.CURRENT_SCHEMA
         // Same for the pre-2.3.0 bottom-bar check: once the user onboards
