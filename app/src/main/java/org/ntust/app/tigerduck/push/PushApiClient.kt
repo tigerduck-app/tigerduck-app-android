@@ -11,6 +11,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.EmptyBody
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.auth.guardedBy
@@ -95,14 +97,15 @@ class PushApiClient @Inject constructor(
      * Unauthenticated by design — there is no session yet. Deliberately does
      * not send an Authorization header even if one happens to exist: the
      * signed-in path is [register], and mixing the two would create a second,
-     * unlinked row for a device that already has one.
+     * unlinked row for a device that already has one. A refusal is a [BackendException].
      */
     suspend fun registerAnonymous(req: AnonymousDeviceRequest): Unit =
         withContext(Dispatchers.IO) {
             api.at(baseUrl).anonymousDevice(req).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw PushApiException(
-                        "anonymous register failed: HTTP ${response.code} ${response.body.string()}"
+                    throw BackendException(
+                        BackendError.of(response),
+                        "anonymous register failed: HTTP ${response.code} ${response.body.string()}",
                     )
                 }
             }

@@ -124,7 +124,8 @@ class PendingUnregisterPrefs internal constructor(private val prefs: SharedPrefe
  * signs out first, and its wipe must not take the debt along with the session it was taken
  * from, or a device whose unregister failed offline would stay registered to the account.
  * Key by key rather than `clear()` and a write back, so a debt the sign-out saves while this
- * runs is never removed either.
+ * runs is never removed either. The device's secret and its refusal stay too ([DeviceSecretPrefs]):
+ * they belong to no account, and the backend would refuse a new secret for the device's id.
  */
 internal fun clearAllButOwedUnregister(prefs: SharedPreferences) {
     val keys = runCatching { prefs.all.keys }
@@ -135,6 +136,6 @@ internal fun clearAllButOwedUnregister(prefs: SharedPreferences) {
         return
     }
     val editor = prefs.edit()
-    keys.filter { it !in PendingUnregisterPrefs.KEYS }.forEach { editor.remove(it) }
+    keys.filter { it !in PendingUnregisterPrefs.KEYS && it !in DeviceSecretPrefs.KEYS }.forEach { editor.remove(it) }
     editor.apply()
 }

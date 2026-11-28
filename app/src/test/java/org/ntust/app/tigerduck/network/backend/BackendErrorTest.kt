@@ -148,6 +148,20 @@ class BackendErrorTest {
         assertTrue(BackendError(401, "session_user_mismatch").refusesSession)
         assertTrue(BackendError(401, null).refusesSession)
         assertFalse(BackendError(403, "session_revoked").refusesSession)
+
+        assertTrue(BackendError(403, "device_secret_invalid").refusesDeviceSecret)
+        assertFalse(BackendError(403, "account_suspended").refusesDeviceSecret)
+        assertFalse(BackendError(403, null).refusesDeviceSecret)
+        assertFalse(BackendError(422, "device_secret_invalid").refusesDeviceSecret)
+    }
+
+    // `/v4`'s envelope and `/v3`'s `detail` say it alike (tigerduck-backend#233).
+    @Test
+    fun `a refused device secret reads the same from either version`() {
+        val v4 = """{"error":"device_secret_invalid","message":"The device secret is missing or does not match."}"""
+
+        assertTrue(BackendError.of(response(403, v4)).refusesDeviceSecret)
+        assertTrue(BackendError.of(response(403, """{"detail":"device_secret_invalid"}""")).refusesDeviceSecret)
     }
 
     @Test

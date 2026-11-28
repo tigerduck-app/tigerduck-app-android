@@ -37,6 +37,8 @@ data class DeviceRegisterRequest(
      * fact, not a preference.
      */
     @SerializedName("locale") val locale: String? = null,
+    /** The device secret ([PushIdentity.secret]), by which the backend links the anonymous registration. */
+    @SerializedName("device_secret") val deviceSecret: String? = null,
 )
 
 data class DeviceRegisterResponse(
@@ -68,6 +70,11 @@ data class AnonymousDeviceRequest(
      * kept receiving custom push.
      */
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
+    /**
+     * The device secret ([PushIdentity.secret]): the backend changes a registration that holds one
+     * only with it. Null when a minted one could not be saved, and Gson leaves it out.
+     */
+    @SerializedName("device_secret") val deviceSecret: String? = null,
 )
 
 /**

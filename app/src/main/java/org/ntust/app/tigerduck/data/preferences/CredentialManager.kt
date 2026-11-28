@@ -175,6 +175,7 @@ class CredentialManager private constructor(
 
     val v3Tokens = V3TokenStore(prefs)
     val pendingUnregister = PendingUnregisterPrefs(prefs)
+    val deviceSecret = DeviceSecretPrefs(prefs)
 
     @Synchronized
     fun clearNtustCredentials() {
@@ -248,7 +249,7 @@ class CredentialManager private constructor(
 
     /** Wipe every credential key. Used by the full-reset flow, which gives its [reason]. */
     fun clearAll(reason: SignOutReason) {
-        // All but the device unregister a sign-out still owes; see PendingUnregisterPrefs.
+        // All but the device unregister a sign-out owes and the device's secret; see clearAllButOwedUnregister.
         val ended = synchronized(this) { signOutLibrary { clearAllButOwedUnregister(prefs) } }
         library.cancelWork()
         library.emit(AccountEvent.SignedOut(Account.LIBRARY, reason, ended, address = null))

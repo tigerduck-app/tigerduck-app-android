@@ -201,4 +201,16 @@ class PushApiModelsTest {
         assertEquals(false, decoded.syncAssignmentReminders)
         assertEquals(false, decoded.syncLiveActivity)
     }
+
+    /** `device_secret` under its wire name on both device requests, and left out when there is none. */
+    @Test
+    fun `the device secret goes as device_secret, and not at all when there is none`() {
+        val secret = "s".repeat(43)
+        val anonymous = AnonymousDeviceRequest("device-1", deviceClass = "android", deviceSecret = secret)
+
+        assertEquals(secret, jsonOf(anonymous).get("device_secret").asString)
+        assertEquals(secret, jsonOf(DeviceRegisterRequest("device-1", deviceSecret = secret)).get("device_secret").asString)
+        assertFalse(jsonOf(AnonymousDeviceRequest("device-1", deviceClass = "android")).has("device_secret"))
+        assertFalse(jsonOf(DeviceRegisterRequest("device-1")).has("device_secret"))
+    }
 }

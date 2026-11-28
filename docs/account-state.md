@@ -267,6 +267,9 @@ The semester catalog is the school's own list of terms.
 
 The encrypted store `CredentialManager` opens, with the backend's tokens (`V3TokenStore`) and the
 unregisters still owed, one per backend, by a sign-out or a backend move (`PendingUnregisterPrefs`).
+The device secret, which proves the device's id to the backend's anonymous registration, and the
+backend's refusal of it (`DeviceSecretPrefs`) are the device's, as `push.device_uuid` is: the full
+reset keeps the three.
 The `departing_*` keys besides `departing_unregisters` are the single debt an older build kept,
 read once and moved into the list.
 
@@ -294,6 +297,8 @@ read once and moved into the list.
 | tigerduck_credentials | `moodle_token` | school | `CredentialManager.kt` `clearNtustCredentials` |
 | tigerduck_credentials | `ntust_password` | school | `CredentialManager.kt` `clearNtustCredentials` |
 | tigerduck_credentials | `ntust_student_id` | school | `CredentialManager.kt` `clearNtustCredentials` |
+| tigerduck_credentials | `push_device_secret` | device | |
+| tigerduck_credentials | `push_device_secret_refused` | device | |
 | tigerduck_credentials | `v3_access_token` | school | `V3TokenStore.kt` `clear` |
 | tigerduck_credentials | `v3_issued_by` | school | `V3TokenStore.kt` `clear` |
 | tigerduck_credentials | `v3_refresh_token` | school | `V3TokenStore.kt` `clear` |
