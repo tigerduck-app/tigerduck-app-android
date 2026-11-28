@@ -6,9 +6,9 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 
 /** The values Settings > "Open links with" stores in [AppState.browserPreference]. */
 object BrowserPreference {
@@ -17,10 +17,14 @@ object BrowserPreference {
 }
 
 /**
- * Opens [url] the way "Open links with" says: a Custom Tab for
- * [BrowserPreference.IN_APP], the default browser otherwise. A `mailto:` link
- * becomes a new message in the mail app, as a mail link does in the message
- * screen. The one opener every link in the app goes through.
+ * Opens [url] the way "Open links with" says: for [BrowserPreference.IN_APP],
+ * an https link in the TigerDuck browser's links profile, signed in to nothing
+ * of the app's ([InAppBrowser.openLink]); the default browser otherwise, and
+ * for an http link, or where that browser cannot open (a WebView with no
+ * profiles apart, or one that cannot be cleared, a clearing owed): never the
+ * app's own profile, which holds the student's school sessions. A `mailto:`
+ * link becomes a new message in the mail app, as a mail link does in the
+ * message screen. The one opener every link in the app goes through.
  *
  * Any other scheme is refused, whoever wrote the link: `file:`, `content:`,
  * `intent:` or `javascript:` from a bulletin or a web page would hand another
@@ -41,9 +45,7 @@ private fun launchLink(context: Context, url: String, browserPreference: String)
     fun Intent.inATask() = apply { if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
     return try {
         when (uri.scheme) {
-            "http", "https" -> if (browserPreference == BrowserPreference.IN_APP) {
-                CustomTabsIntent.Builder().build().apply { intent.inATask() }.launchUrl(context, uri)
-            } else {
+            "http", "https" -> if (browserPreference != BrowserPreference.IN_APP || !InAppBrowser.openLink(context, uri.toString())) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, uri).inATask())
             }
             "mailto" -> context.startActivity(Intent(Intent.ACTION_SENDTO, uri).inATask())

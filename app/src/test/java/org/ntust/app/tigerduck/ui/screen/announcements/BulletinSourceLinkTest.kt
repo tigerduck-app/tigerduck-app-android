@@ -3,13 +3,17 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 import android.app.Application
 import android.content.Intent
 import androidx.activity.ComponentActivity
-import androidx.browser.customtabs.CustomTabsIntent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.browser.BrowserCleanup
+import org.ntust.app.tigerduck.browser.BrowserLinksProfile
+import org.ntust.app.tigerduck.browser.FakeWebViewProfiles
+import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
+import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowserActivity
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
@@ -18,7 +22,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class BulletinSourceLinkTest {
-    // An activity, as on screen: an in-app tab needs one to start from.
+    // An activity, as on screen.
     private val context = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
     private val url = "https://www.ntust.edu.tw/p/406-1000-1.php"
 
@@ -28,15 +32,24 @@ class BulletinSourceLinkTest {
         val started = shadowOf(context).nextStartedActivity
         assertEquals(Intent.ACTION_VIEW, started.action)
         assertEquals(url, started.dataString)
-        assertFalse(started.hasExtra(CustomTabsIntent.EXTRA_SESSION))
+        assertFalse(InAppBrowser.opensLinks(started))
     }
 
     @Test
-    fun `the in-app setting opens it in an in-app tab`() {
-        openBulletinSource(context, url, "inApp")
-        val started = shadowOf(context).nextStartedActivity
-        assertEquals(url, started.dataString)
-        assertTrue(started.hasExtra(CustomTabsIntent.EXTRA_SESSION))
+    fun `the in-app setting opens it in the TigerDuck browser's links profile`() {
+        InAppBrowser.canClearEverything = { true }
+        InAppBrowser.linksProfile = BrowserLinksProfile(FakeWebViewProfiles())
+        BrowserCleanup(context).run { markDone(markPending()) }
+        try {
+            openBulletinSource(context, url, "inApp")
+            val started = shadowOf(context).nextStartedActivity
+            assertEquals(InAppBrowserActivity::class.java.name, started.component?.className)
+            assertEquals(url, started.getStringExtra(InAppBrowser.EXTRA_URL))
+            assertTrue(InAppBrowser.opensLinks(started))
+        } finally {
+            InAppBrowser.canClearEverything = { false }
+            InAppBrowser.linksProfile = BrowserLinksProfile.shared
+        }
     }
 
     @Test

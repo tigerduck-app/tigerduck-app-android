@@ -247,4 +247,29 @@ class BrowserDataCleanerTest {
             Dispatchers.resetMain()
         }
     }
+
+    @Test
+    fun `a sign-out's clearing and Settings' website data each clear the links browser's profile`() = runTest(UnconfinedTestDispatcher()) {
+        // The clearing hops to the main thread, which is this test's: run that hop here.
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val context = RuntimeEnvironment.getApplication()
+            val profiles = FakeWebViewProfiles()
+            val cleaner = BrowserDataCleaner(
+                storage = AndroidWebViewStorage(context, links = BrowserLinksProfile(profiles)),
+                settings = BrowserSettings(context),
+                downloads = BrowserDownloads(backgroundScope) { _, _ -> error("unused") },
+                cleanup = BrowserCleanup(context),
+                scope = backgroundScope,
+            )
+
+            cleaner.clear()
+            assertEquals("at the sign-out", listOf(BrowserLinksProfile.NAME), profiles.cleared)
+
+            cleaner.clearWebsiteData()
+            assertEquals("by Settings' website data", listOf(BrowserLinksProfile.NAME, BrowserLinksProfile.NAME), profiles.cleared)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 }

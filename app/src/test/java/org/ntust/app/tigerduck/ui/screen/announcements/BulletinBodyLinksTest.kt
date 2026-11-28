@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 import android.app.Application
 import android.content.Intent
 import androidx.activity.ComponentActivity
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -15,7 +14,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.browser.BrowserCleanup
+import org.ntust.app.tigerduck.browser.BrowserLinksProfile
+import org.ntust.app.tigerduck.browser.FakeWebViewProfiles
 import org.ntust.app.tigerduck.ui.BrowserPreference
+import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
+import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowserActivity
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
@@ -53,8 +57,17 @@ class BulletinBodyLinksTest {
     }
 
     @Test
-    fun `a web link opens in an in-app tab when the setting says so`() {
-        val intent = tap("[Registry](https://www.ntust.edu.tw/)", "Registry", BrowserPreference.IN_APP)
-        assertTrue(intent?.hasExtra(CustomTabsIntent.EXTRA_SESSION) == true)
+    fun `a web link opens in the TigerDuck browser's links profile when the setting says so`() {
+        InAppBrowser.canClearEverything = { true }
+        InAppBrowser.linksProfile = BrowserLinksProfile(FakeWebViewProfiles())
+        BrowserCleanup(composeRule.activity).run { markDone(markPending()) }
+        try {
+            val intent = tap("[Registry](https://www.ntust.edu.tw/)", "Registry", BrowserPreference.IN_APP)!!
+            assertEquals(InAppBrowserActivity::class.java.name, intent.component?.className)
+            assertTrue(InAppBrowser.opensLinks(intent))
+        } finally {
+            InAppBrowser.canClearEverything = { false }
+            InAppBrowser.linksProfile = BrowserLinksProfile.shared
+        }
     }
 }

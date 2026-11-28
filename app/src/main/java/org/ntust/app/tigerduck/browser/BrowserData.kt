@@ -224,9 +224,13 @@ class BrowserDataCleaner(
  * HTTP auth, and the disk cache, which a WebView clears for all of them. On
  * the main thread, as the WebView wants. The mail WebViews keep none of these.
  * A page opened at risk loads in a profile of its own ([BrowserRiskProfiles]):
- * all each one made here keeps goes too, and each one left from before.
+ * all each one made here keeps goes too, and each one left from before. So
+ * does all the links browser's profile keeps ([links]).
  */
-class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
+class AndroidWebViewStorage(
+    private val context: Context,
+    private val links: BrowserLinksProfile = BrowserLinksProfile.shared,
+) : WebViewStorage {
     override suspend fun clear(): StorageClearing = withContext(Dispatchers.Main) {
         val cookies = CookieManager.getInstance()
         var inTime = true
@@ -255,6 +259,12 @@ class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
             Log.w(TAG, "a profile opened at risk was not cleared yet")
             inTime = false
         }
+        // The links browser's, where the student may have signed in to sites by hand.
+        val linksData = links.clear(CLEAR_TIMEOUT_MS)
+        if (!linksData.inTime) {
+            Log.w(TAG, "the links profile was not cleared yet")
+            inTime = false
+        }
         WebStorage.getInstance().deleteAllData()
         WebViewDatabase.getInstance(context).clearHttpAuthUsernamePassword()
         WebView(context.applicationContext).apply {
@@ -271,7 +281,7 @@ class AndroidWebViewStorage(private val context: Context) : WebViewStorage {
                 // The flush above may have come before a cookie removal that reported late.
                 withContext(Dispatchers.Main) { cookies.flush() }
                 true
-            } && riskData.settled()
+            } && riskData.settled() && linksData.settled()
         }
     }
 

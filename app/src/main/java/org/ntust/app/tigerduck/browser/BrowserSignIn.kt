@@ -154,4 +154,9 @@ class MoodleBrowserSignIn(
 /** The providers the browser asks, first match wins. */
 class BrowserSignIns(private val providers: List<BrowserSignIn>) {
     fun forUrl(url: String): BrowserSignIn? = providers.firstOrNull { it.handles(url) }
+
+    companion object {
+        /** No provider at all: a browser signed in to nothing of the app's. */
+        val NONE = BrowserSignIns(emptyList())
+    }
 }
