@@ -1,4 +1,5 @@
-// The root's sections between Account and About, in iOS's order (tigerduck-app#939).
+// The root's sections between Account and About: Appearance, Notifications, the pages, TigerSync,
+// Language and Other settings, in the order of Sam's outline (2026-11-29).
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
@@ -6,9 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
@@ -16,15 +14,19 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageSettings
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import java.util.Locale
 
-/** The accent, how the app is drawn, the display and text size, and the bottom bar. */
+/**
+ * The accent, with where its gradient is used on a sub-page of its own, how the app is drawn, the
+ * display and text size, and the bottom bar.
+ */
 @Composable
 internal fun AppearanceSection(appState: AppState, open: (SettingsLink) -> Unit) {
     SettingsSectionCard(SettingsSection.APPEARANCE) {
-        AccentSettingsRows(appState, onOpenAccentColor = { open(SettingsLink.ACCENT_COLOR) })
+        AccentSettingsRow(appState, onOpenAccentColor = { open(SettingsLink.ACCENT_COLOR) })
+        HorizontalDivider()
+        SettingsLinkRow(SettingsRow.GRADIENT_USAGE.label()) { open(SettingsLink.GRADIENT_USAGE) }
         HorizontalDivider()
         // The style names are not localized: they read the same in every language.
         SettingsPickerRow(
@@ -54,14 +56,27 @@ internal fun AppearanceSection(appState: AppState, open: (SettingsLink) -> Unit)
     }
 }
 
-/** A row for each page with a setting to show. */
+/**
+ * The notification permissions, and a sub-page that leads to each notification's own settings,
+ * which stay on their pages' settings too.
+ */
+@Composable
+internal fun NotificationsSection(open: (SettingsLink) -> Unit) {
+    SettingsSectionCard(SettingsSection.NOTIFICATIONS) {
+        SettingsLinkRow(SettingsRow.NOTIFICATION_PERMISSIONS.label()) { open(SettingsLink.NOTIFICATION_PERMISSIONS) }
+        HorizontalDivider()
+        SettingsLinkRow(SettingsRow.NOTIFICATION_SWITCHES.label()) { open(SettingsLink.NOTIFICATION_SWITCHES) }
+    }
+}
+
+/** A row for each of the app's pages with a setting to show; the browser's and Moodle's are under Other settings. */
 @Composable
 internal fun PagesSection(state: SettingsState, openPage: (PageSettings) -> Unit) {
     Column {
-        SectionHeader(stringResource(R.string.settings_section_pages))
+        SettingsSectionTitle(stringResource(R.string.settings_section_pages))
         ContentCard {
             Column {
-                PageSettings.entries.filter { it.isShown(state) }.forEachIndexed { index, page ->
+                PageSettings.entries.filter { it.linkedFrom == RootPart.PAGES && it.isShown(state) }.forEachIndexed { index, page ->
                     if (index > 0) HorizontalDivider()
                     SettingsLinkRow(stringResource(page.title)) { openPage(page) }
                 }
@@ -86,17 +101,6 @@ internal fun TigerSyncSection(state: SettingsState, open: (SettingsLink) -> Unit
     }
 }
 
-/**
- * The notification permissions, in a section of their own as on iOS. The reminders and School
- * Mail's notifications are on their pages' settings.
- */
-@Composable
-internal fun NotificationPermissionsSection(open: (SettingsLink) -> Unit) {
-    SettingsSectionCard(SettingsSection.NOTIFICATION_PERMISSIONS) {
-        SettingsLinkRow(SettingsRow.NOTIFICATION_PERMISSIONS.label()) { open(SettingsLink.NOTIFICATION_PERMISSIONS) }
-    }
-}
-
 @Composable
 internal fun LanguageSection(appLanguage: String, open: (SettingsLink) -> Unit) {
     val normalized = AppLanguageManager.normalize(appLanguage)
@@ -112,47 +116,27 @@ internal fun LanguageSection(appLanguage: String, open: (SettingsLink) -> Unit) 
 }
 
 /**
- * The app's icon, screen rotation, vibration, the API endpoint, storage and usage analytics. iOS
- * has the icon, the endpoint and storage here; the other three are Android's own.
+ * The app's icon, storage, the browser's and Moodle's pages, which serve every page rather than
+ * being one, and the rest of the settings on a sub-page of their own (Other settings › Other
+ * settings).
  */
 @Composable
-internal fun OtherSection(viewModel: SettingsViewModel, open: (SettingsLink) -> Unit) {
+internal fun OtherSection(
+    viewModel: SettingsViewModel,
+    state: SettingsState,
+    open: (SettingsLink) -> Unit,
+    openPage: (PageSettings) -> Unit,
+) {
     val appIcon by viewModel.prefs.appIcon.flow.collectAsStateWithLifecycle()
-    var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
-    Column {
-        SettingsSectionCard(SettingsSection.OTHER) {
-            SettingsLinkRowWithValue(SettingsRow.APP_ICON.label(), stringResource(appIcon.title), onClick = { open(SettingsLink.APP_ICON) })
+    SettingsSectionCard(SettingsSection.OTHER) {
+        SettingsLinkRowWithValue(SettingsRow.APP_ICON.label(), stringResource(appIcon.title), onClick = { open(SettingsLink.APP_ICON) })
+        HorizontalDivider()
+        SettingsLinkRow(SettingsRow.STORAGE.label()) { open(SettingsLink.STORAGE) }
+        PageSettings.entries.filter { it.linkedFrom == RootPart.OTHER && it.isShown(state) }.forEach { page ->
             HorizontalDivider()
-            ScreenRotationRow(viewModel.appState)
-            HorizontalDivider()
-            SettingsLinkRow(SettingsRow.VIBRATION.label()) { open(SettingsLink.VIBRATION) }
-            HorizontalDivider()
-            SettingsLinkRow(SettingsRow.API_ENDPOINT.label()) { open(SettingsLink.API_ENDPOINT) }
-            HorizontalDivider()
-            SettingsLinkRow(SettingsRow.STORAGE.label()) { open(SettingsLink.STORAGE) }
-            HorizontalDivider()
-            SettingsToggleRow(SettingsRow.ANALYTICS.label(), analyticsEnabled) {
-                analyticsEnabled = it
-                viewModel.setAnalyticsEnabled(it)
-            }
+            SettingsLinkRow(stringResource(page.title)) { openPage(page) }
         }
-        PageFootnote(stringResource(R.string.settings_analytics_description))
+        HorizontalDivider()
+        SettingsLinkRow(SettingsRow.OTHER_SETTINGS.label()) { open(SettingsLink.OTHER_SETTINGS) }
     }
-}
-
-@Composable
-private fun ScreenRotationRow(appState: AppState) {
-    val modes = listOf(
-        "auto" to stringResource(R.string.common_automatic),
-        "enabled" to stringResource(R.string.common_enabled),
-        "disabled" to stringResource(R.string.common_disabled),
-    )
-    SettingsPickerRow(
-        label = SettingsRow.SCREEN_ROTATION.label(),
-        // Anything else stored reads as automatic, as the app applies it.
-        value = modes.firstOrNull { it.first == appState.rotationMode }?.second ?: modes.first().second,
-        options = modes,
-        selectedKey = appState.rotationMode,
-        onSelect = { appState.rotationMode = it },
-    )
 }

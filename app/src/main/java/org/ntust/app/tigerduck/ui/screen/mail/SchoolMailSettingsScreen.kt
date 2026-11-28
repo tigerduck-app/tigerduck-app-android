@@ -27,12 +27,12 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PageSettings
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.screen.settings.PageGap
 import org.ntust.app.tigerduck.ui.screen.settings.PageLinkRow
+import org.ntust.app.tigerduck.ui.screen.settings.PageStorageSection
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsLink
-import org.ntust.app.tigerduck.ui.screen.settings.SettingsLinkRow
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsRow
+import org.ntust.app.tigerduck.ui.screen.settings.SettingsSectionTitle
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsState
 import org.ntust.app.tigerduck.ui.screen.settings.closedText
 import org.ntust.app.tigerduck.ui.screen.settings.explainsClosed
@@ -42,14 +42,12 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
  * School Mail's page of Settings (spec §6.5), as iOS's `MailSettingsView`: its notifications, on a
- * page of their own ([SchoolMailNotificationSettingsScreen]); the name shown to recipients; and the
- * mail's storage.
+ * page of their own ([SchoolMailNotificationSettingsScreen]); the name shown to recipients; and
+ * the mail's storage, its attachments, cache and the mail downloaded for search, each measured
+ * and cleared here as on Settings' Storage page.
  *
  * The notifications and the name belong to the mailbox, so signed out they show dimmed, the name
  * kept, and a tap says to sign in.
- *
- * The mail's cache and the mail downloaded for search are measured and cleared on Settings'
- * Storage page, with everything else the app keeps; the row here leads there.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,17 +69,14 @@ internal fun SchoolMailSettingsScreen(
         ) {
             item { ContentCard { PageLinkRow(SettingsRow.MAIL_NOTIFICATIONS, state) { open(SettingsLink.MAIL_NOTIFICATIONS) } } }
             item { PageGap() }
-            item { SectionHeader(SettingsRow.MAIL_DISPLAY_NAME.label()) }
+            item { SettingsSectionTitle(SettingsRow.MAIL_DISPLAY_NAME.label()) }
             item {
                 ContentCard {
                     DisplayNameField(ui.displayName, SettingsRow.MAIL_DISPLAY_NAME.closedText(state), viewModel::setDisplayName)
                 }
             }
-            item {
-                ContentCard(modifier = Modifier.padding(top = 12.dp)) {
-                    SettingsLinkRow(SettingsRow.MAIL_STORAGE.label()) { open(SettingsLink.STORAGE) }
-                }
-            }
+            item { PageGap() }
+            item { Column { PageStorageSection(PageSettings.MAIL) } }
         }
     }
 }

@@ -26,8 +26,9 @@ import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
- * The About section: the version, the update check, the services' status, What's new, the
- * website and the rest of About. [onWhatsNew] is there only while there is something to show.
+ * The About section: the version, the update check, What's new, the website and the rest of
+ * About, the services' status first there. [onWhatsNew] is there only while there is something to
+ * show.
  */
 @Composable
 internal fun AboutSection(
@@ -48,17 +49,6 @@ internal fun AboutSection(
         if (SettingsRow.CHECK_FOR_UPDATES.isShown(state)) {
             HorizontalDivider()
             CheckForUpdatesRow(isChecking = isCheckingForUpdate, onClick = onCheckForUpdates)
-        }
-        // Sits under Check for updates because the two answer the same question from opposite
-        // ends: that row asks whether *this app* is current, this one whether the services
-        // behind it are up. Shown on every flavor — an F-Droid build talks to the same backend.
-        //
-        // The URL currently 302s to another origin. Custom Tabs follows that in place, so the
-        // in-app choice stays in-app; handing the redirect to an ACTION_VIEW intent instead
-        // would eject the user into their browser mid-hop.
-        HorizontalDivider()
-        SettingsLinkRow(SettingsRow.SERVER_STATUS.label()) {
-            openLink(context, AppUrls.SERVER_STATUS, browserPreference)
         }
         // Only when pages or a summary are registered for the resolved locale. During early
         // bring-up of a release there may be neither; then the row is hidden rather than

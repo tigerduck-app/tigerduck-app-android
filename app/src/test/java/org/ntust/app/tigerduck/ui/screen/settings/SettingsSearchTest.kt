@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.PageSettings
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -39,7 +40,7 @@ class SettingsSearchTest {
     @Test
     fun `a hidden row is not found, a closed one is`() {
         val bare = SettingsState()
-        listOf(SettingsRow.FLIP_TO_LIBRARY, SettingsRow.LIBRARY_SIGN_OUT, SettingsRow.WHATS_NEW, SettingsRow.MOODLE_OPEN_IN)
+        listOf(SettingsRow.FLIP_TO_LIBRARY, SettingsRow.ACCENT_GRADIENT_ON_WATCH, SettingsRow.WHATS_NEW, SettingsRow.MOODLE_OPEN_IN)
             .forEach { assertFalse("$it", found(it, label(it.title), bare)) }
         assertTrue(found(SettingsRow.MAIL_NOTIFICATIONS, label(SettingsRow.MAIL_NOTIFICATIONS.title), bare))
         assertTrue(found(SettingsRow.BULLETIN_PUSH, label(SettingsRow.BULLETIN_PUSH.title), bare))
@@ -73,14 +74,52 @@ class SettingsSearchTest {
         val result = search(label(SettingsRow.SHOW_CLASSROOM.title)).first { it.row == SettingsRow.SHOW_CLASSROOM }
         assertEquals("${label(PageSettings.CLASS_TABLE.title)} › ${label(SettingsRow.SHOW_CLASSROOM.title)}", result.text)
         assertEquals(
-            listOf(label(SettingsSection.OTHER.title!!), label(SettingsRow.APP_ICON.title)),
+            listOf(label(SettingsSection.OTHER.title), label(SettingsRow.APP_ICON.title)),
             SettingsSearch.path(SettingsRow.APP_ICON, label),
         )
-        // A section named as its one row, and one with no name, give the title alone.
+        // A section named as its one row gives the title alone.
         assertEquals(listOf(label(SettingsRow.TIGERSYNC.title)), SettingsSearch.path(SettingsRow.TIGERSYNC, label))
         assertEquals(
-            listOf(label(SettingsRow.NOTIFICATION_PERMISSIONS.title)),
+            listOf(label(SettingsSection.NOTIFICATIONS.title), label(SettingsRow.NOTIFICATION_PERMISSIONS.title)),
             SettingsSearch.path(SettingsRow.NOTIFICATION_PERMISSIONS, label),
+        )
+    }
+
+    @Test
+    fun `a row on a sub-page reads its section, the sub-page, then its title`() {
+        assertEquals(
+            listOf(
+                label(SettingsSection.APPEARANCE.title), label(R.string.settings_accent_gradient_usage),
+                label(SettingsRow.ACCENT_GRADIENT_ON_WIDGETS.title),
+            ),
+            SettingsSearch.path(SettingsRow.ACCENT_GRADIENT_ON_WIDGETS, label),
+        )
+        assertEquals(
+            listOf(
+                label(SettingsSection.NOTIFICATIONS.title), label(R.string.settings_notification_switches),
+                label(SettingsRow.NOTIFICATION_MAIL.title),
+            ),
+            SettingsSearch.path(SettingsRow.NOTIFICATION_MAIL, label),
+        )
+        assertEquals(
+            listOf(label(SettingsSection.ABOUT.title), label(R.string.settings_about_others), label(SettingsRow.SERVER_STATUS.title)),
+            SettingsSearch.path(SettingsRow.SERVER_STATUS, label),
+        )
+        // Other settings › Other settings is said once.
+        assertEquals(
+            listOf(label(SettingsSection.OTHER.title), label(SettingsRow.API_ENDPOINT.title)),
+            SettingsSearch.path(SettingsRow.API_ENDPOINT, label),
+        )
+        // Found by the sub-page's name too.
+        assertTrue(found(SettingsRow.ACCENT_GRADIENT_ON_LIVE_ACTIVITIES, label(R.string.settings_accent_gradient_usage)))
+    }
+
+    @Test
+    fun `a notification is found on the notification switches and on its page, in the root's order`() {
+        val title = label(SettingsRow.MAIL_NOTIFICATIONS.title)
+        assertEquals(
+            listOf(SettingsRow.NOTIFICATION_MAIL, SettingsRow.MAIL_NOTIFICATIONS),
+            search(title).map { it.row }.filter { it == SettingsRow.MAIL_NOTIFICATIONS || it == SettingsRow.NOTIFICATION_MAIL },
         )
     }
 }

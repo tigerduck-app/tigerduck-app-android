@@ -73,7 +73,7 @@ class OpenSourceLicensesViewModel @Inject constructor(
 }
 
 /**
- * 開源授權, behind the row of that name on [AboutOthersScreen]: every
+ * 開源授權, behind the row of that name on [AboutOthersRows]: every
  * licence this build is under or ships — TigerDuck's own first, then one row
  * per [LicenseEntry] from the flavor's generated list, so the fdroid build
  * lists no Google Play components. iOS has the same page.

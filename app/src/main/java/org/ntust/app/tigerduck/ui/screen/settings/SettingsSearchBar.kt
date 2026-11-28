@@ -82,14 +82,16 @@ internal class SearchPull(private val reveal: SearchRevealState, private val lis
 }
 
 /**
- * The rows [query] finds, each read `Page › Setting`: one on a page opens it with [onOpenPage],
- * and one on the root goes back to the list at it with [onReveal]. None found shows nothing.
+ * The rows [query] finds, each read `Page › Setting`: one on a page opens it with [onOpenPage], one
+ * on a sub-page opens that with [onOpen], and one on the root goes back to the list at it with
+ * [onReveal]. None found shows nothing.
  */
 @Composable
 internal fun SettingsSearchResults(
     query: String,
     state: SettingsState,
     onOpenPage: (PageSettings) -> Unit,
+    onOpen: (SettingsLink) -> Unit,
     onReveal: (SettingsRow) -> Unit,
 ) {
     val context = LocalContext.current
@@ -107,6 +109,7 @@ internal fun SettingsSearchResults(
                         .clickable(role = Role.Button) {
                             when (val place = result.row.place) {
                                 is SettingsPlace.Page -> onOpenPage(place.page)
+                                is SettingsPlace.SubPage -> onOpen(place.subPage.link)
                                 is SettingsPlace.Section -> onReveal(result.row)
                             }
                         }

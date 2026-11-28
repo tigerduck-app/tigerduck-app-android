@@ -1,12 +1,15 @@
-// The Settings screen itself, in iOS's sections (tigerduck-app#939): Account, Appearance, the
-// app's pages, TigerSync, notification permissions, Language, Other settings and About, with a
-// search pulled down from under its title. Its rows are the catalog's (SettingsCatalog.kt), each
-// page's on a page of its own (SettingsPages.kt); the row primitives live in SettingsRows.kt.
+// The Settings screen itself, in Sam's order (2026-11-29): Account, Appearance, Notifications, the
+// app's pages, TigerSync, Language, Other settings and About, with a search pulled down from under
+// its title. Its rows are the catalog's (SettingsCatalog.kt), each page's on a page of its own
+// (SettingsPages.kt) and a section's sub-pages' on theirs (SettingsSubPages.kt); the row
+// primitives live in SettingsRows.kt.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,11 +59,10 @@ import org.ntust.app.tigerduck.update.UpdateChecker
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
 import org.ntust.app.tigerduck.util.replaceIosArg
-import org.ntust.app.tigerduck.wear.WearCompanion
 
-/** The root's parts, in order: the catalog's sections, the pages after Appearance, and the debug build's own. */
+/** The root's parts, in order: the catalog's sections, the pages after Notifications, and the debug build's own. */
 internal enum class RootPart {
-    ACCOUNT, APPEARANCE, PAGES, TIGERSYNC, NOTIFICATION_PERMISSIONS, LANGUAGE, OTHER, ABOUT, DEVELOPER;
+    ACCOUNT, APPEARANCE, NOTIFICATIONS, PAGES, TIGERSYNC, LANGUAGE, OTHER, ABOUT, DEVELOPER;
 
     companion object {
         fun of(section: SettingsSection): RootPart = valueOf(section.name)
@@ -101,15 +103,15 @@ fun SettingsScreen(
         headerPosition = PageHeaderPosition.InContent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { scaffoldPadding ->
-        SettingsList(Modifier.padding(scaffoldPadding), state, openPage, header = { Header() }) { part ->
+        SettingsList(Modifier.padding(scaffoldPadding), state, openPage, open, header = { Header() }) { part ->
             when (part) {
                 RootPart.ACCOUNT -> AccountSection(viewModel, mailViewModel, sheets)
                 RootPart.APPEARANCE -> AppearanceSection(viewModel.appState, open)
+                RootPart.NOTIFICATIONS -> NotificationsSection(open)
                 RootPart.PAGES -> PagesSection(state, openPage)
                 RootPart.TIGERSYNC -> TigerSyncSection(state, open)
-                RootPart.NOTIFICATION_PERMISSIONS -> NotificationPermissionsSection(open)
                 RootPart.LANGUAGE -> LanguageSection(viewModel.appState.appLanguage, open)
-                RootPart.OTHER -> OtherSection(viewModel, open)
+                RootPart.OTHER -> OtherSection(viewModel, state, open, openPage)
                 RootPart.ABOUT -> AboutSection(
                     state, appVersion, isCheckingForUpdate, updateChecker::checkManually, whatsNew::show, browserPreference, open,
                 )
@@ -124,15 +126,16 @@ fun SettingsScreen(
 }
 
 /**
- * The root's list: its [header], the search drawer, then each part, or while there is a query,
- * what it finds. A row found on the root goes back to the parts, scrolled to its section, as
- * iOS's search reveals it.
+ * The root's list: its [header], the search drawer, then each part, [SettingsSectionGap] apart, or
+ * while there is a query, what it finds. A row found on the root goes back to the parts, scrolled
+ * to its section, as iOS's search reveals it.
  */
 @Composable
 internal fun SettingsList(
     modifier: Modifier,
     state: SettingsState,
     openPage: (PageSettings) -> Unit,
+    open: (SettingsLink) -> Unit,
     header: @Composable () -> Unit,
     initialQuery: String = "",
     part: @Composable (RootPart) -> Unit,
@@ -163,10 +166,13 @@ internal fun SettingsList(
             SearchDrawer(searchReveal) { SettingsSearchField(query, { query = it }, { searchFocused = it }) }
         }
         if (query.isBlank()) {
-            items(parts, key = { it }) { part(it) }
+            items(parts, key = { it }) {
+                if (it != parts.first()) Spacer(Modifier.height(SettingsSectionGap))
+                part(it)
+            }
         } else {
             item(key = "results") {
-                SettingsSearchResults(query, state, openPage) { row ->
+                SettingsSearchResults(query, state, openPage, open) { row ->
                     focusManager.clearFocus()
                     query = ""
                     revealed = Reveal(row)
@@ -202,13 +208,14 @@ private fun NtustLoginErrorSnackbar(viewModel: SettingsViewModel, snackbarHostSt
 
 /**
  * What Settings' rows are shown and gated by, followed live: who is signed in
- * ([SettingsGatesViewModel]), TigerSync, and what this phone and build have. [hasWhatsNew] is the
- * root's to know; no page has its row.
+ * ([SettingsGatesViewModel]), TigerSync, and what this phone and build have, a Wear OS watch seen
+ * on it among them. [hasWhatsNew] is the root's to know; no page has its row.
  */
 @Composable
 internal fun settingsState(hasWhatsNew: Boolean = false, gates: SettingsGatesViewModel = hiltViewModel()): SettingsState {
     val accounts by gates.accounts.collectAsStateWithLifecycle()
     val importedTables by gates.importedTables.collectAsStateWithLifecycle()
+    val watchSeen by gates.watchSeen.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val hasFlipToLibrary = remember(context) { FlipDetector.isSupported(context) }
     val hasLiveUpdateGradient = remember { LiveUpdateSegments.canShowGradient() }
@@ -223,7 +230,7 @@ internal fun settingsState(hasWhatsNew: Boolean = false, gates: SettingsGatesVie
         coursesInEnglish = AppLanguageManager.isCourseApiEnglish(appState.appLanguage),
         usesEnglishClassroomNames = appState.useEnglishClassroomAbbreviation,
         hasFlipToLibrary = hasFlipToLibrary,
-        hasWatch = WearCompanion.SHIPS,
+        hasWatch = watchSeen,
         hasLiveUpdateGradient = hasLiveUpdateGradient,
         // fdroid leaves update notifications to the F-Droid client app.
         hasUpdateCheck = !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true),

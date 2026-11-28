@@ -89,7 +89,6 @@ import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
-import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AccentColorScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LicenseDetailScreen
@@ -713,13 +712,6 @@ fun MainNavigation(
             page(Screen.AppIcon.route) { AppIconScreen(onBack = { navController.popBackStack() }) }
             page(Screen.Storage.route) {
                 StorageScreen(onBack = { navController.popBackStack() })
-            }
-            page(Screen.AboutOthers.route) {
-                AboutOthersScreen(
-                    onBack = { navController.popBackStack() },
-                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
-                    onNavigateToLicenses = { navController.navigate(Screen.OpenSourceLicenses.route) },
-                )
             }
             page(Screen.OpenSourceLicenses.route) {
                 OpenSourceLicensesScreen(

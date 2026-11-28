@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -28,7 +27,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 @Composable
 internal fun DeveloperSection(viewModel: SettingsViewModel, open: (SettingsLink) -> Unit) {
     Column {
-        SectionHeader("Developer")
+        SettingsSectionTitle("Developer")
         ContentCard {
             Column {
                 SettingsLinkRow("Time override") { open(SettingsLink.DEBUG_TIME) }

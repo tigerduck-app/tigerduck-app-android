@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,8 +18,8 @@ import org.ntust.app.tigerduck.ui.navigation.FlipToLibraryGate
 
 /**
  * The library's page of Settings: flip-to-library, on a phone that can sense the flip, which
- * reads off and says to sign in while no library account is; and the library's sign-out, while
- * one is. With neither, the page is hidden, and closes ([PageSettingsScreen]).
+ * reads off and says to sign in while no library account is. Elsewhere the page is hidden, and
+ * closes ([PageSettingsScreen]). The library's sign-out is the Account section's, and its ⋮'s.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,16 +58,6 @@ internal fun LibrarySettingsScreen(
                         stringResource(R.string.settings_flip_to_library_summary) + "\n" +
                             stringResource(R.string.settings_flip_to_library_closed_note),
                     )
-                }
-            }
-            if (SettingsRow.LIBRARY_SIGN_OUT.isShown(state)) {
-                if (SettingsRow.FLIP_TO_LIBRARY.isShown(state)) item { PageGap() }
-                item {
-                    ContentCard {
-                        SettingsActionRow(SettingsRow.LIBRARY_SIGN_OUT.label(), MaterialTheme.colorScheme.error) {
-                            viewModel.logoutLibrary()
-                        }
-                    }
                 }
             }
         }

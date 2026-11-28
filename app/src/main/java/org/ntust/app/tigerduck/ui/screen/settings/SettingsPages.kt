@@ -1,5 +1,6 @@
-// The pages of Settings' Pages section, one per page of the app (tigerduck-app#939): each lists
-// its rows from the catalog, as iOS's PageSettings.view does.
+// The pages of Settings' Pages section, one per page of the app (tigerduck-app#939), and the
+// browser's and Moodle's under Other settings: each lists its rows from the catalog, as iOS's
+// PageSettings.view does, its own storage last.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
@@ -31,7 +32,6 @@ import org.ntust.app.tigerduck.ui.BrowserPreference
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PageSettings
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailSettingsScreen
@@ -39,17 +39,16 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /** A page Settings opens, which the app's navigation maps to its route. A [debugOnly] one is in a debug build only. */
 enum class SettingsLink(val debugOnly: Boolean = false) {
-    TAB_EDITOR, ACCENT_COLOR, DISPLAY_SIZE, CLOUD_SYNC, NOTIFICATION_PERMISSIONS, LANGUAGE, APP_ICON, VIBRATION,
-    API_ENDPOINT, STORAGE, ABOUT_OTHERS, ASSIGNMENT_REMINDERS, LIVE_ACTIVITY, COURSE_NAME_SIZE, CLASS_REMINDERS,
-    MAIL_NOTIFICATIONS, CLASS_TABLE_LIST,
+    TAB_EDITOR, ACCENT_COLOR, GRADIENT_USAGE, DISPLAY_SIZE, NOTIFICATION_PERMISSIONS, NOTIFICATION_SWITCHES, CLOUD_SYNC,
+    LANGUAGE, APP_ICON, STORAGE, OTHER_SETTINGS, VIBRATION, API_ENDPOINT, ABOUT_OTHERS, LICENSES, SOURCE_CODE,
+    ASSIGNMENT_REMINDERS, LIVE_ACTIVITY, COURSE_NAME_SIZE, CLASS_REMINDERS, MAIL_NOTIFICATIONS, CLASS_TABLE_LIST,
     DEBUG_TIME(true), DEBUG_NOTIFICATION(true), DEBUG_TRIGGERS(true), DEBUG_SERVER_FAILURE(true),
     DEBUG_OUTSIDE_APPS(true), DEBUG_MAIL_SERVER(true), DEBUG_BROWSER_ALLOWLIST(true), DEBUG_VIEWER_SAMPLES(true),
 }
 
 /**
- * [page]'s settings, opened from Settings' Pages section, a search result, or the page's own ⋮.
- * It closes once it has no row left to show, as after signing out of the library on its own page
- * of a phone that cannot sense the flip.
+ * [page]'s settings, opened from Settings' Pages or Other settings section, a search result, or
+ * the page's own ⋮. It closes once it has no row left to show, as iOS's page leaves.
  */
 @Composable
 fun PageSettingsScreen(page: PageSettings, onBack: () -> Unit, open: (SettingsLink) -> Unit) {
@@ -71,8 +70,8 @@ fun PageSettingsScreen(page: PageSettings, onBack: () -> Unit, open: (SettingsLi
                             when (page) {
                                 PageSettings.HOME -> HomePageSettings(viewModel.appState, state, open)
                                 PageSettings.CLASS_TABLE -> ClassTablePageSettings(viewModel, state, open)
-                                PageSettings.BROWSER -> BrowserPageSettings(viewModel.appState, open)
-                                else -> MoodlePageSettings(viewModel, state, open)
+                                PageSettings.BROWSER -> BrowserPageSettings(viewModel.appState)
+                                else -> MoodlePageSettings(viewModel, state)
                             }
                         }
                     }
@@ -144,9 +143,9 @@ private fun HomePageSettings(appState: AppState, state: SettingsState, open: (Se
 
 /**
  * The class table's: the list of imported class tables while there is one, today's courses above
- * the grid and what each cell shows, the course name's
- * size, the class reminders, the English abbreviations where course names come in English, and
- * new colors for every course.
+ * the grid and what each cell shows, the course name's size, the class reminders, the English
+ * abbreviations where course names come in English, new colors for every course, and the images
+ * made for sharing.
  */
 @Composable
 private fun ClassTablePageSettings(viewModel: SettingsViewModel, state: SettingsState, open: (SettingsLink) -> Unit) {
@@ -181,11 +180,13 @@ private fun ClassTablePageSettings(viewModel: SettingsViewModel, state: Settings
     ContentCard { PageLinkRow(SettingsRow.CLASS_REMINDERS, state) { open(SettingsLink.CLASS_REMINDERS) } }
     if (SettingsRow.ENGLISH_COURSE_NAMES.isShown(state)) {
         PageGap()
-        SectionHeader(stringResource(R.string.settings_section_abbreviation))
+        SettingsSectionTitle(stringResource(R.string.settings_section_abbreviation))
         ContentCard { AbbreviationRows(appState, state) }
     }
     PageGap()
     ReassignCourseColors(viewModel::resetCourseColors)
+    PageGap()
+    PageStorageSection(PageSettings.CLASS_TABLE)
 }
 
 @Composable
@@ -239,9 +240,9 @@ private fun ReassignCourseColors(reset: () -> Unit) {
     }
 }
 
-/** The browser's: where links open, and its storage, which the Storage page clears with the rest. */
+/** The browser's: where links open, and the sites' data it keeps. */
 @Composable
-private fun BrowserPageSettings(appState: AppState, open: (SettingsLink) -> Unit) {
+private fun BrowserPageSettings(appState: AppState) {
     val system = stringResource(R.string.settings_browser_system_default)
     val inApp = stringResource(R.string.settings_browser_in_app)
     ContentCard {
@@ -254,12 +255,12 @@ private fun BrowserPageSettings(appState: AppState, open: (SettingsLink) -> Unit
         )
     }
     PageGap()
-    ContentCard { SettingsLinkRow(SettingsRow.WEBSITE_DATA.label()) { open(SettingsLink.STORAGE) } }
+    PageStorageSection(PageSettings.BROWSER)
 }
 
-/** Moodle's: where "Open in Moodle" goes while the Moodle app is there, Pin myself, and its storage. */
+/** Moodle's: where "Open in Moodle" goes while the Moodle app is there, Pin myself, and its files. */
 @Composable
-private fun MoodlePageSettings(viewModel: SettingsViewModel, state: SettingsState, open: (SettingsLink) -> Unit) {
+private fun MoodlePageSettings(viewModel: SettingsViewModel, state: SettingsState) {
     val appState = viewModel.appState
     ContentCard {
         Column {
@@ -271,7 +272,7 @@ private fun MoodlePageSettings(viewModel: SettingsViewModel, state: SettingsStat
         }
     }
     PageGap()
-    ContentCard { SettingsLinkRow(SettingsRow.MOODLE_STORAGE.label()) { open(SettingsLink.STORAGE) } }
+    PageStorageSection(PageSettings.MOODLE)
 }
 
 /**
