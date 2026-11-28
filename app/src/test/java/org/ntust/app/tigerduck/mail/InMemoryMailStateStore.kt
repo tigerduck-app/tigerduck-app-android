@@ -21,8 +21,6 @@ class InMemoryMailStateStore : MailStateStore {
     override var inboxSeenUidNext: Long = 0
     override var lastForegroundCheckAt: Long = 0
     override var muteSettings: MailMuteSettings = MailMuteSettings()
-    override var diagnostics: List<String> = emptyList()
-        set(value) { field = value.take(10) }
     private val fetchedAt = mutableMapOf<String, Long>()
     private val owned = mutableMapOf<Pair<String, Long>, Set<Long>>()
 
@@ -75,7 +73,6 @@ class InMemoryMailStateStore : MailStateStore {
         displayName = null; notificationsEnabled = true; authFailed = false; demoMailbox = false
         inboxUidValidity = 0; inboxSeenUidNext = 0; lastForegroundCheckAt = 0
         muteSettings = MailMuteSettings()
-        diagnostics = emptyList()
         fetchedAt.clear()
         owned.clear()
     }

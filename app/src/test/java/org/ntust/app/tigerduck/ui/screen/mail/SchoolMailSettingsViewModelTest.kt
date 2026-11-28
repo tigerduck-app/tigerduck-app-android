@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.mail.notify.MailMuteSettings
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.notification.SystemPermissions
@@ -44,10 +45,7 @@ class SchoolMailSettingsViewModelTest {
     @After
     fun stopTheAppScope() = appScope.cancelAndJoinBlocking()
 
-    private val state = InMemoryMailStateStore().apply {
-        displayName = "中文名"
-        diagnostics = listOf("1789466442000|ALARM|NewMail", "garbage")
-    }
+    private val state = InMemoryMailStateStore().apply { displayName = "中文名" }
     private val scheduler = RecordingScheduler()
     private val credentials = InMemoryCredentialStore()
     private val server = FakeMailServer()
@@ -87,7 +85,13 @@ class SchoolMailSettingsViewModelTest {
         assertEquals(true, ui.notificationsEnabled)
         assertEquals("中文名", ui.displayName)
         assertFalse(ui.canExactAlarm)
-        assertEquals(listOf("09/15 18:00:42 · ALARM · NewMail"), ui.diagnostics)
+    }
+
+    /** The notifications page lists no checks any more, so nothing keeps or reads a log of them. */
+    @Test
+    fun `no log of the checks is kept or shown`() {
+        assertTrue(SchoolMailSettingsViewModel.UiState::class.java.declaredFields.none { it.name.contains("diagnostic", ignoreCase = true) })
+        assertTrue(MailStateStore::class.java.methods.none { it.name.contains("diagnostic", ignoreCase = true) })
     }
 
     @Test

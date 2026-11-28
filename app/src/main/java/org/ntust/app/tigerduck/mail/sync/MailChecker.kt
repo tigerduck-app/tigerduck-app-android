@@ -23,8 +23,6 @@ import javax.inject.Singleton
 enum class CheckSource { FOREGROUND, ALARM, WORKER }
 
 sealed interface CheckOutcome {
-    val label: String get() = javaClass.simpleName
-
     data object NotSignedIn : CheckOutcome
     data object Disabled : CheckOutcome
     data object Throttled : CheckOutcome
@@ -33,9 +31,7 @@ sealed interface CheckOutcome {
     data object NoChange : CheckOutcome
     data class Baseline(val uidNext: Long) : CheckOutcome
     data class NewMail(val notified: Int) : CheckOutcome
-    data class Failed(val error: MailError) : CheckOutcome {
-        override val label: String get() = "Failed:${error.javaClass.simpleName}"
-    }
+    data class Failed(val error: MailError) : CheckOutcome
 }
 
 fun interface MailClock {
@@ -80,7 +76,6 @@ class MailChecker @Inject constructor(
         // since, and the date would land in the state its sign-out just cleared.
         val reached = outcome is CheckOutcome.Baseline || outcome is CheckOutcome.NoChange || outcome is CheckOutcome.NewMail
         if (reached) state.setFetchedAtIf(INBOX, clock.now()) { signIn.isCurrent }
-        record(source, outcome)
         return outcome
     }
 
@@ -196,7 +191,7 @@ class MailChecker @Inject constructor(
             }
         } catch (e: CancellationException) {
             // The one place in the package that used to let a cancellation through to classify,
-            // which has no case for one: the check was recorded as Failed:Protocol before the
+            // which has no case for one: the check ended as Failed:Protocol before the
             // surrounding withContext rethrew it anyway.
             throw e
         } catch (e: Exception) {
@@ -211,10 +206,6 @@ class MailChecker @Inject constructor(
             }
             CheckOutcome.Failed(error)
         }
-    }
-
-    private fun record(source: CheckSource, outcome: CheckOutcome) {
-        state.diagnostics = listOf("${clock.now()}|${source.name}|${outcome.label}") + state.diagnostics
     }
 
     /**

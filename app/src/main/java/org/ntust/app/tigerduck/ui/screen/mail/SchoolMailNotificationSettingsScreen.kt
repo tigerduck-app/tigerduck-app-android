@@ -1,17 +1,17 @@
 // The "School Mail notifications" page, reached from the first row of School
-// Mail's page of Settings, a page of its own. The new-mail toggle, its
-// hint, the exact-alarm gap warning and the notification diagnostics log were
-// MOVED here out of SchoolMailSettingsScreen, not copied: this is the one
-// place in the app the toggle lives, so there is no second copy to disagree
-// with it.
+// Mail's page of Settings, a page of its own. The new-mail toggle, its hint and
+// the exact-alarm gap warning were MOVED here out of SchoolMailSettingsScreen,
+// not copied: this is the one place in the app the toggle lives, so there is
+// no second copy to disagree with it.
 //
 // It shares SchoolMailSettingsViewModel with SchoolMailSettingsScreen, which
 // keeps the "Name shown to recipients" field. Both are thin readers/writers of
 // the same MailStateStore, so the toggle keeps exactly the scheduling side
 // effects it had before the move (MailBackgroundScheduler schedule/cancel).
 //
-// iOS carries the same page with the same contents in the same order, quiet
-// hours and mute rules included (SchoolMailMuteSettings.kt).
+// iOS carries the same page in the same order, quiet hours and mute rules
+// included (SchoolMailMuteSettings.kt); its list of the last checks Android
+// leaves out.
 
 package org.ntust.app.tigerduck.ui.screen.mail
 
@@ -19,7 +19,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -56,7 +55,6 @@ import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.PermissionState
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageScaffold
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.screen.settings.PermissionRow
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsToggleRow
 import org.ntust.app.tigerduck.ui.screen.settings.rememberAllowNotificationsAction
@@ -76,9 +74,8 @@ fun SchoolMailNotificationSettingsScreen(
     // page reads the grant again once the prompt answers or the user comes back.
     val allowNotifications = rememberAllowNotificationsAction(viewModel.systemPermissions) { viewModel.refresh() }
 
-    // The exact-alarm and notification grants and the diagnostics log all change
-    // behind this screen — the user leaves to grant a permission, or a background
-    // check runs — so re-read them on the way back in.
+    // The exact-alarm and notification grants change behind this screen — the
+    // user leaves to grant a permission — so re-read them on the way back in.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh() }
@@ -141,28 +138,6 @@ fun SchoolMailNotificationSettingsScreen(
             }
             // Only while new mail notifies at all: muting is a question of which of it does.
             mailMuteItems(ui.muteSettings, enabled = signedIn && ui.notificationsEnabled, actions = muteActions)
-            item { SectionHeader(stringResource(R.string.school_mail_settings_diagnostics), Modifier.padding(top = 12.dp)) }
-            item {
-                ContentCard {
-                    Column(Modifier.padding(vertical = 8.dp)) {
-                        if (ui.diagnostics.isEmpty()) {
-                            Text(
-                                stringResource(R.string.school_mail_settings_no_checks),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                        ui.diagnostics.forEachIndexed { i, line ->
-                            if (i > 0) HorizontalDivider()
-                            Text(
-                                line,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }

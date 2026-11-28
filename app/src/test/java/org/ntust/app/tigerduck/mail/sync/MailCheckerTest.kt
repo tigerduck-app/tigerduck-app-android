@@ -181,14 +181,12 @@ class MailCheckerTest {
 
     /**
      * A check that was called off is not a check that failed. The cancellation used to be caught
-     * with every other Exception and classified -- classify has no case for one -- so the run was
-     * recorded as Failed:Protocol before the surrounding withContext rethrew it anyway, leaving a
-     * failure in the diagnostics the student is asked to read out when mail stops arriving.
+     * with every other Exception and classified -- classify has no case for one -- so the run
+     * ended as Failed:Protocol before the surrounding withContext rethrew it anyway.
      */
     @Test
-    fun `a cancelled check is rethrown, not recorded as a failure`() = runTest {
+    fun `a cancelled check is rethrown, not classified as a failure`() = runTest {
         account.signIn("b10000001", "pw")
-        state.diagnostics = emptyList()
         // kotlinx recovers the stack trace across withContext, so this is a copy of the
         // exception thrown below, not the same instance.
         val thrown = runCatching {
@@ -196,7 +194,6 @@ class MailCheckerTest {
         }.exceptionOrNull()
         assertTrue("expected the cancellation to propagate, got $thrown", thrown is CancellationException)
         assertEquals("called off", thrown?.message)
-        assertEquals(emptyList<String>(), state.diagnostics)
     }
 
     @Test
@@ -502,15 +499,6 @@ class MailCheckerTest {
 
         assertTrue(notifier.posted.isEmpty())
         assertEquals(CheckOutcome.NotSignedIn, outcome)
-    }
-
-    @Test
-    fun `every check is recorded for the diagnostics screen, newest first`() = runTest {
-        account.signIn("b10000001", "pw")
-        checker().check(CheckSource.ALARM)
-        now += 1
-        checker().check(CheckSource.WORKER)
-        assertEquals(listOf("${now}|WORKER|NoChange", "${now - 1}|ALARM|NoChange"), state.diagnostics)
     }
 
     /** What the School Mail page's "Last synced" row dates: a check that reached the inbox. */
