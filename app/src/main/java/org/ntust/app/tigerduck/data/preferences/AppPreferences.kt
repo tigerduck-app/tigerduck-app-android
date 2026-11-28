@@ -1112,9 +1112,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     fun putString(key: String, value: String) = prefs.edit().putString(key, value).apply()
 
-    fun remove(key: String) {
-        prefs.edit().remove(key).apply()
-    }
+    fun commitString(key: String, value: String): Boolean = prefs.edit().putString(key, value).commit()
+
+    fun remove(key: String) = prefs.edit().remove(key).apply()
 
     /**
      * Read [key], or generate-and-persist a value via [factory] if absent.

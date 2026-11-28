@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.push
 
 import android.app.Application
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.SharedPreferences
 import android.provider.Settings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -226,5 +228,52 @@ class PushIdentityTest {
 
         assertFalse(store.refused)
         assertEquals(identity.uuid(), launch().uuid())
+    }
+
+    /**
+     * A process ended between the new id and the refusal's end must find one or the other on disk
+     * at its next start: the old id with no refusal would be refused again, a launch later.
+     */
+    @Test
+    fun `the start-over has the new id on disk before the secret and the refusal go`() {
+        launch().recordRefusal()
+        val committed = mutableMapOf<String, Any?>()
+        val disk = object : ContextWrapper(context) {
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                CommitRecording(context.getSharedPreferences(name, mode), committed)
+        }
+        var idOnDisk: Any? = null
+        val dropping = object : DeviceSecretStore by store {
+            override fun startOver() {
+                idOnDisk = committed["push.device_uuid"]
+                store.startOver()
+            }
+        }
+
+        val id = PushIdentity(AppPreferences(disk), disk, dropping) { false }.uuid()
+
+        assertEquals(id, idOnDisk)
+        assertFalse(store.refused)
+    }
+
+    /** [base], noting in [committed] each string a commit wrote; an apply's are not on disk yet. */
+    private class CommitRecording(
+        private val base: SharedPreferences,
+        private val committed: MutableMap<String, Any?>,
+    ) : SharedPreferences by base {
+        override fun edit(): SharedPreferences.Editor {
+            val real = base.edit()
+            return object : SharedPreferences.Editor by real {
+                private val strings = mutableMapOf<String, Any?>()
+
+                override fun putString(key: String?, value: String?): SharedPreferences.Editor {
+                    strings[key!!] = value
+                    real.putString(key, value)
+                    return this
+                }
+
+                override fun commit(): Boolean = real.commit().also { committed += strings }
+            }
+        }
     }
 }

@@ -111,7 +111,8 @@ class PushIdentity internal constructor(
     private fun startOverIfRefused() {
         val due = runCatching { secrets.refused && !storesSession() }.getOrDefault(false)
         if (!due) return
-        prefs.putString(KEY_UUID, UUID.randomUUID().toString())
+        // On disk before the refusal goes: a process ended between the two starts over again.
+        if (!prefs.commitString(KEY_UUID, UUID.randomUUID().toString())) Log.w(TAG, "new device id not written to disk")
         runCatching { secrets.startOver() }
             .onFailure { Log.w(TAG, "device secret not dropped: ${it.logSummary()}") }
     }
