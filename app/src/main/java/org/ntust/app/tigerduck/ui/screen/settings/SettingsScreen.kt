@@ -51,7 +51,7 @@ import org.ntust.app.tigerduck.ui.screen.coursemoodle.rememberMoodleAppInstalled
 import org.ntust.app.tigerduck.ui.screen.mail.MailAccountViewModel
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewScreen
 import org.ntust.app.tigerduck.update.UpdateChecker
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
@@ -120,7 +120,7 @@ fun SettingsScreen(
 
     AccountSheetsHost(viewModel, mailViewModel, sheets, browserPreference)
     ManualUpdateCheckResult(updateChecker)
-    whatsNew.Sheet()
+    whatsNew.Screen()
 }
 
 /**
@@ -263,7 +263,7 @@ private fun ManualUpdateCheckResult(updateChecker: UpdateChecker) {
     )
 }
 
-/** About's What's new: the pages it would show now, and the sheet once its row is tapped. */
+/** About's What's new: the pages it would show now, and What's New once its row is tapped. */
 private class ManualWhatsNew(
     val latest: WhatsNewFlow?,
     private val now: () -> WhatsNewFlow?,
@@ -281,8 +281,8 @@ private class ManualWhatsNew(
      * Settings.
      */
     @Composable
-    fun Sheet() {
-        shown()?.let { flow -> WhatsNewSheet(flow = flow, onDismiss = { setShown(null) }) }
+    fun Screen() {
+        shown()?.let { flow -> WhatsNewScreen(flow = flow, onDismiss = { setShown(null) }, skippable = true) }
     }
 }
 

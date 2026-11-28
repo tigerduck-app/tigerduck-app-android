@@ -133,7 +133,7 @@ class WhatsNewDemosTest {
         composeRule.setContent {
             MaterialTheme {
                 CompositionLocalProvider(LocalWhatsNewLanguage provides language) {
-                    // As wide as the sheet's page on a small phone.
+                    // As wide as What's New's page on a small phone.
                     Box(Modifier.width(312.dp)) { demos[index].page.visual().content(animate) }
                 }
             }
@@ -169,7 +169,7 @@ class WhatsNewDemosTest {
             apply = { bar = bar + AppFeature.SCHOOL_MAIL },
         )
         val library = libraryBottomBarPage(isSignedIn = { false }, tabs = { bar }, setTabs = { bar = it })
-        composeRule.setContent { WhatsNewSheet(WhatsNewFlow(listOf(fill, library), summary = null), onDismiss = {}) }
+        composeRule.setContent { WhatsNewScreen(WhatsNewFlow(listOf(fill, library), summary = null), onDismiss = {}) }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Fill it").performClick()
@@ -183,7 +183,7 @@ class WhatsNewDemosTest {
     fun `confirming the library question doesn't turn it into where library is`() {
         var bar = listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.SCORE)
         val library = libraryBottomBarPage(isSignedIn = { false }, tabs = { bar }, setTabs = { bar = it })
-        composeRule.setContent { WhatsNewSheet(WhatsNewFlow(listOf(library), summary = null), onDismiss = {}) }
+        composeRule.setContent { WhatsNewScreen(WhatsNewFlow(listOf(library), summary = null), onDismiss = {}) }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Add Library").performClick()
