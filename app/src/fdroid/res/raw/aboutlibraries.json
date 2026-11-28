@@ -242,31 +242,6 @@
             ]
         },
         {
-            "uniqueId": "androidx.browser:browser",
-            "artifactVersion": "1.10.0",
-            "name": "Browser",
-            "description": "Provides support for embedding Custom Tabs in an app.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/browser#1.10.0",
-            "developers": [
-                {
-                    "name": "The Android Open Source Project"
-                }
-            ],
-            "organization": {
-                "name": "The Android Open Source Project"
-            },
-            "scm": {
-                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
-                "url": "https://cs.android.com/androidx/platform/frameworks/support"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ],
-            "funding": [
-                
-            ]
-        },
-        {
             "uniqueId": "androidx.camera.featurecombinationquery:featurecombinationquery",
             "artifactVersion": "1.6.2",
             "name": "Camera Feature Combination Query",

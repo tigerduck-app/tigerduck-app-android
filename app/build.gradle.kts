@@ -642,8 +642,6 @@ dependencies {
     "playImplementation"(libs.firebase.messaging)
     "playImplementation"(libs.firebase.analytics)
 
-    // In-app browser (Custom Tabs)
-    implementation(libs.androidx.browser)
     // The TigerDuck browser clears everything a WebView keeps (WebStorageCompat.deleteBrowsingData).
     implementation(libs.androidx.webkit)
     // The file viewer's video and sound.
