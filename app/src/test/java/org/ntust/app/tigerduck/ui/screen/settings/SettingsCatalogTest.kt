@@ -65,7 +65,7 @@ class SettingsCatalogTest {
                 case,
                 mapOf(
                     SettingsRow.MAIL_NOTIFICATIONS to mailGate, SettingsRow.MAIL_DISPLAY_NAME to mailGate,
-                    SettingsRow.MAIL_GUIDE to null, SettingsRow.MAIL_STORAGE to null,
+                    SettingsRow.MAIL_STORAGE to null,
                 ),
                 page(PageSettings.MAIL, state),
             )

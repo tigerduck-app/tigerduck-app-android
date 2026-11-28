@@ -1,11 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
@@ -59,14 +56,10 @@ internal fun SchoolMailSyncDot(
 
 /**
  * After the title and dot, signed in: the unread filter, whose long press marks every mail shown
- * read while one of them is unread, then the guide to using the mailbox in another app.
+ * read while one of them is unread.
  */
 @Composable
-internal fun SchoolMailHeaderActions(
-    state: SchoolMailListViewModel.UiState,
-    viewModel: SchoolMailListViewModel,
-    onOpenGuide: () -> Unit,
-) {
+internal fun SchoolMailHeaderActions(state: SchoolMailListViewModel.UiState, viewModel: SchoolMailListViewModel) {
     UnreadFilterButton(
         unreadOnly = state.unreadOnly,
         label = stringResource(R.string.school_mail_unread_only),
@@ -74,9 +67,6 @@ internal fun SchoolMailHeaderActions(
         onUnreadOnlyChange = viewModel::setUnreadOnly,
         onMarkAllRead = if (state.displayed.any { !it.summary.flags.seen }) viewModel::markAllRead else null,
     )
-    IconButton(onClick = onOpenGuide) {
-        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.school_mail_use_other_app))
-    }
 }
 
 /**

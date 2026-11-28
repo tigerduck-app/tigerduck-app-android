@@ -153,7 +153,6 @@ fun SchoolMailScreen(
     onOpenMessage: (folder: String, uid: Long) -> Unit,
     onEditDraft: (folder: String, uid: Long) -> Unit,
     onCompose: () -> Unit,
-    onOpenGuide: () -> Unit,
     viewModel: SchoolMailListViewModel = hiltViewModel(),
     accountViewModel: MailAccountViewModel = hiltViewModel(),
     settingsViewModel: SchoolMailSettingsViewModel = hiltViewModel(),
@@ -241,9 +240,6 @@ fun SchoolMailScreen(
                     uppercaseId = accountViewModel.devServer == null,
                     onSubmit = accountViewModel::signIn,
                 )
-                TextButton(onClick = onOpenGuide, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Text(stringResource(R.string.school_mail_use_other_app))
-                }
             }
         }
         return
@@ -277,7 +273,7 @@ fun SchoolMailScreen(
         title = stringResource(R.string.feature_school_mail),
         headerPosition = PageHeaderPosition.InContent,
         syncDot = { SchoolMailSyncDot(state.loadState, authFailed, indexProgress, isLoading, state.fetchedAt) },
-        actions = { SchoolMailHeaderActions(state, viewModel, onOpenGuide) },
+        actions = { SchoolMailHeaderActions(state, viewModel) },
         menu = schoolMailMenu(settingsViewModel),
     ) { padding ->
         // The compose button is the pull's sibling, not its content, so a pull does not carry it down.

@@ -42,12 +42,11 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
  * School Mail's page of Settings (spec §6.5), as iOS's `MailSettingsView`: its notifications, on a
- * page of their own ([SchoolMailNotificationSettingsScreen]); the name shown to recipients; using
- * the mailbox from another app; and the mail's storage.
+ * page of their own ([SchoolMailNotificationSettingsScreen]); the name shown to recipients; and the
+ * mail's storage.
  *
  * The notifications and the name belong to the mailbox, so signed out they show dimmed, the name
- * kept, and a tap says to sign in. The guide stays live either way: it is about using the mailbox
- * from another app, which is the one thing a signed-out user here might still want.
+ * kept, and a tap says to sign in.
  *
  * The mail's cache and the mail downloaded for search are measured and cleared on Settings'
  * Storage page, with everything else the app keeps; the row here leads there.
@@ -76,11 +75,6 @@ internal fun SchoolMailSettingsScreen(
             item {
                 ContentCard {
                     DisplayNameField(ui.displayName, SettingsRow.MAIL_DISPLAY_NAME.closedText(state), viewModel::setDisplayName)
-                }
-            }
-            item {
-                ContentCard(modifier = Modifier.padding(top = 12.dp)) {
-                    SettingsLinkRow(SettingsRow.MAIL_GUIDE.label()) { open(SettingsLink.MAIL_GUIDE) }
                 }
             }
             item {

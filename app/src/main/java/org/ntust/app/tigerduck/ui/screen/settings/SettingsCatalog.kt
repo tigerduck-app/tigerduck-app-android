@@ -123,7 +123,6 @@ internal enum class SettingsRow(@StringRes val title: Int) {
     BULLETIN_PUSH(R.string.bulletin_push_settings_header),
     MAIL_NOTIFICATIONS(R.string.school_mail_settings_notifications),
     MAIL_DISPLAY_NAME(R.string.school_mail_settings_display_name),
-    MAIL_GUIDE(R.string.school_mail_use_other_app),
     MAIL_STORAGE(R.string.settings_storage_title),
     FLIP_TO_LIBRARY(R.string.settings_library_flip_to_show_qr),
     LIBRARY_SIGN_OUT(R.string.settings_library_sign_out),
@@ -150,7 +149,7 @@ internal enum class SettingsRow(@StringRes val title: Int) {
             CLASS_REMINDERS, ENGLISH_COURSE_NAMES, ENGLISH_CLASSROOM_NAMES, MANDARIN_CLASSROOM_NAMES,
             REASSIGN_COURSE_COLORS -> SettingsPlace.Page(PageSettings.CLASS_TABLE)
             BULLETIN_PUSH -> SettingsPlace.Page(PageSettings.BULLETINS)
-            MAIL_NOTIFICATIONS, MAIL_DISPLAY_NAME, MAIL_GUIDE, MAIL_STORAGE -> SettingsPlace.Page(PageSettings.MAIL)
+            MAIL_NOTIFICATIONS, MAIL_DISPLAY_NAME, MAIL_STORAGE -> SettingsPlace.Page(PageSettings.MAIL)
             FLIP_TO_LIBRARY, LIBRARY_SIGN_OUT -> SettingsPlace.Page(PageSettings.LIBRARY)
             LINK_OPENING_METHOD, WEBSITE_DATA -> SettingsPlace.Page(PageSettings.BROWSER)
             MOODLE_OPEN_IN, PIN_MYSELF, MOODLE_STORAGE -> SettingsPlace.Page(PageSettings.MOODLE)

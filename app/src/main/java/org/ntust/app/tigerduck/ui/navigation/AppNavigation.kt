@@ -150,7 +150,6 @@ sealed class Screen(val route: String) {
     object LicenseDetail : Screen("openSourceLicenses/{key}") {
         fun route(key: String) = "openSourceLicenses/$key"
     }
-    object SchoolMailGuide : Screen(MailRoutes.GUIDE)
     object SchoolMail : Screen(MailRoutes.LIST)
     object SchoolMailMessage : Screen(MailRoutes.MESSAGE) {
         fun route(folder: String, uid: Long) = MailRoutes.message(folder, uid)
@@ -619,7 +618,6 @@ fun MainNavigation(
                     onOpenMessage = { folder, uid -> navController.navigate(Screen.SchoolMailMessage.route(folder, uid)) },
                     onEditDraft = { folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.DRAFT, folder, uid)) },
                     onCompose = { navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.NEW)) },
-                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
                 )
             }
             page(
@@ -735,12 +733,6 @@ fun MainNavigation(
             ) { entry ->
                 LicenseDetailScreen(
                     key = entry.arguments?.getString("key").orEmpty(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            page(Screen.SchoolMailGuide.route) {
-                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(
-                    browserPreference = appState.browserPreference,
                     onBack = { navController.popBackStack() },
                 )
             }
