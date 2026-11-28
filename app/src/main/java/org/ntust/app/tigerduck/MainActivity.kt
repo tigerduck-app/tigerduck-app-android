@@ -338,7 +338,7 @@ class MainActivityHost : AppCompatActivity() {
                 onDismiss = {
                     whatsNewFlow.value = null
                     // Recorded only now: What's New a config-change recreation dropped before this is
-                    // shown again by the next onCreate (issue #89). Any dismissal, from any page.
+                    // shown again by the next onCreate (issue #89). Only its last page closes it.
                     recordWhatsNewSeen(appPreferences.lastSeenWhatsNewVersionCode, BuildConfig.VERSION_CODE)
                 },
             )

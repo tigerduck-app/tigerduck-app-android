@@ -1,7 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.whatsnew
 
 import android.content.Context
+import android.graphics.Color
+import android.os.Build
 import android.provider.Settings
+import android.view.Window
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -18,7 +21,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,35 +52,44 @@ import org.ntust.app.tigerduck.ui.component.rememberHostWindow
 
 /**
  * What's New over the whole screen: [WhatsNewFlow.steps] one at a time, in a window of its own
- * that slides up as it opens and back down as it closes. The ✕ at its top, the button on its last
- * page or the system back gesture closes the whole flow from any page; [onDismiss] runs once it
- * has slid away, once, so the caller records the flow as seen in one place.
+ * that slides up as it opens and back down as it closes. The button on the last page closes it,
+ * the only way out of a flow an update shows; one the person opened again themselves, [skippable],
+ * also closes on the system back gesture from any page. [onDismiss] runs once it has slid away,
+ * once, so the caller records the flow as seen in one place.
  */
 @Composable
-fun WhatsNewScreen(flow: WhatsNewFlow, onDismiss: () -> Unit) {
+fun WhatsNewScreen(flow: WhatsNewFlow, onDismiss: () -> Unit, skippable: Boolean = false) {
     val context = LocalContext.current
     // A Binder call, so read once rather than per recomposition.
     val animate = remember(context) { animationsEnabled(context) }
     // Read here, in the activity's composition, from the same app-locale-aware configuration the
     // summary was looked up with, so page copy and the summary always agree on the language.
     val language = WhatsNewLanguage.of(LocalConfiguration.current.locales[0].toLanguageTag())
-    // One that comes back with the activity, as for a change of dark mode, is up already.
+    // One that comes back with the activity, as for a change of dark mode, is up already, and
+    // one closed on its way down is gone at once.
     var opened by rememberSaveable { mutableStateOf(false) }
-    val shown = remember { MutableTransitionState(opened) }
+    var closing by rememberSaveable { mutableStateOf(false) }
+    val shown = remember { MutableTransitionState(opened && !closing) }
     val dismissed by rememberUpdatedState(onDismiss)
     LaunchedEffect(shown) {
-        shown.targetState = true
-        opened = true
+        if (!closing) {
+            shown.targetState = true
+            opened = true
+        }
         snapshotFlow { !shown.targetState && !shown.currentState && shown.isIdle }.first { it }
         dismissed()
     }
     // A second close on the way down changes nothing, so a double tap can't dismiss twice.
-    val close: () -> Unit = { shown.targetState = false }
+    val close: () -> Unit = {
+        closing = true
+        shown.targetState = false
+    }
     Dialog(
         onDismissRequest = close,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
+            dismissOnBackPress = skippable,
             dismissOnClickOutside = false,
         ),
     ) {
@@ -93,7 +104,8 @@ fun WhatsNewScreen(flow: WhatsNewFlow, onDismiss: () -> Unit) {
                     WhatsNewFlowContent(
                         flow = flow,
                         animate = animate,
-                        onClose = close,
+                        onFinish = close,
+                        backGoesBack = !skippable,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
                     )
                 }
@@ -102,9 +114,9 @@ fun WhatsNewScreen(flow: WhatsNewFlow, onDismiss: () -> Unit) {
     }
 }
 
-/** The back arrow from the second page on, the page dots, and the ✕ that closes the whole flow. */
+/** The back arrow from the second page on, and the page dots. */
 @Composable
-internal fun WhatsNewTopBar(flow: WhatsNewFlow, current: Int, onBack: () -> Unit, onClose: () -> Unit) {
+internal fun WhatsNewTopBar(flow: WhatsNewFlow, current: Int, onBack: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -130,25 +142,34 @@ internal fun WhatsNewTopBar(flow: WhatsNewFlow, current: Int, onBack: () -> Unit
                 modifier = Modifier.align(Alignment.Center),
             )
         }
-        IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) {
-            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
-        }
     }
 }
 
 /**
  * Dark status and navigation bar icons over a light page, light ones over a dark page: the page
- * draws under both bars, in a window whose icons nothing else sets.
+ * draws under both bars, in a window whose bars nothing else sets.
  */
 @Composable
 private fun SystemBarIcons(onLight: Boolean) {
     val window = rememberHostWindow() ?: return
     SideEffect {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) window.clearBarColors()
         WindowCompat.getInsetsController(window, window.decorView).run {
             isAppearanceLightStatusBars = onLight
             isAppearanceLightNavigationBars = onLight
         }
     }
+}
+
+/**
+ * Clear bars, so the page shows through them: Android 15 makes them so itself, but before it a
+ * dialog's bars take the theme's color. With three-button navigation the system still keeps the
+ * buttons readable over the page.
+ */
+@Suppress("DEPRECATION")
+private fun Window.clearBarColors() {
+    statusBarColor = Color.TRANSPARENT
+    navigationBarColor = Color.TRANSPARENT
 }
 
 /** The heading of step [step]: a page's title, or the summary's. */

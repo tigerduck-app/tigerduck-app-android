@@ -282,7 +282,7 @@ private class ManualWhatsNew(
      */
     @Composable
     fun Screen() {
-        shown()?.let { flow -> WhatsNewScreen(flow = flow, onDismiss = { setShown(null) }) }
+        shown()?.let { flow -> WhatsNewScreen(flow = flow, onDismiss = { setShown(null) }, skippable = true) }
     }
 }
 

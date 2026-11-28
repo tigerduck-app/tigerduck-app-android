@@ -1,16 +1,21 @@
-// What's New over the whole screen: its top row sits just under the status bar, a ✕ there closes
-// the whole flow from any page, as Back does, and the status bar's icons stay readable on the page.
+// What's New over the whole screen: its top row sits just under the status bar, and the status bar's
+// icons stay readable on the page. A flow an update shows has no way out but its last page's button:
+// no close button, and Back goes a page back. One opened again from Settings closes on Back.
 //
 // Robolectric gives the window no status bar, so open hands the page's window one.
 
 package org.ntust.app.tigerduck.ui.screen.whatsnew
 
 import android.app.Application
+import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.activity.ComponentDialog
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -53,12 +58,12 @@ class WhatsNewScreenTest {
 
     private var dismissals = 0
 
-    private fun open(dark: Boolean = false) {
+    private fun open(dark: Boolean = false, skippable: Boolean = false) {
         composeRule.setContent {
             if (dark) {
                 MaterialTheme(colorScheme = darkColorScheme()) { WhatsNewScreen(twoSteps, onDismiss = { dismissals++ }) }
             } else {
-                WhatsNewScreen(twoSteps, onDismiss = { dismissals++ })
+                WhatsNewScreen(twoSteps, onDismiss = { dismissals++ }, skippable = skippable)
             }
         }
         composeRule.waitForIdle()
@@ -73,10 +78,13 @@ class WhatsNewScreenTest {
 
     private fun string(id: Int) = composeRule.activity.getString(id)
 
-    private fun closeButton() = composeRule.onNodeWithContentDescription(string(R.string.action_close))
-
     private fun next() {
         composeRule.onNodeWithText(string(R.string.action_next)).performClick()
+        composeRule.waitForIdle()
+    }
+
+    private fun back() {
+        composeRule.runOnUiThread { dialog().onBackPressedDispatcher.onBackPressed() }
         composeRule.waitForIdle()
     }
 
@@ -84,42 +92,50 @@ class WhatsNewScreenTest {
     fun `the page reaches the top of the screen, its top row just under the status bar`() {
         open()
 
-        // The 48dp row of the back arrow, the dots and the ✕, centered in it: 3x density.
-        val closeCenter = closeButton().fetchSemanticsNode().boundsInWindow.center.y
-        assertEquals(statusBarPx + 24 * 3f, closeCenter, 1f)
+        // The dots are centered in the 48dp row of the back arrow and the dots: 3x density.
+        val dots = composeRule.onNodeWithContentDescription("Page 1 of 2", substring = true)
+        assertEquals(statusBarPx + 24 * 3f, dots.fetchSemanticsNode().boundsInWindow.center.y, 1f)
     }
 
     @Test
-    fun `the close button closes the whole flow from a later page`() {
+    fun `there is no close button`() {
         open()
         next()
 
-        closeButton().performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(1, dismissals)
+        composeRule.onNodeWithContentDescription(string(R.string.action_close)).assertDoesNotExist()
     }
 
     @Test
-    fun `back closes the whole flow from a later page`() {
+    fun `back on a later page goes a page back and closes nothing`() {
         open()
         next()
 
-        composeRule.runOnUiThread { dialog().onBackPressedDispatcher.onBackPressed() }
-        composeRule.waitForIdle()
+        back()
 
-        assertEquals(1, dismissals)
+        composeRule.onNodeWithText("What's new in 2.3.1").assertIsDisplayed()
+        assertEquals(0, dismissals)
     }
 
     @Test
-    fun `tapping Continue and the close button together closes it once`() {
+    fun `back on the first page closes nothing`() {
+        open()
+
+        back()
+
+        composeRule.onNodeWithText("What's new in 2.3.1").assertIsDisplayed()
+        assertEquals(0, dismissals)
+    }
+
+    @Test
+    fun `the last page's button closes it, once however often it is tapped`() {
         open()
         next()
 
         // Both before the page has slid away.
         composeRule.mainClock.autoAdvance = false
-        composeRule.onNodeWithText(string(R.string.whats_new_continue)).performClick()
-        closeButton().performClick()
+        val done = composeRule.onNodeWithText(string(R.string.whats_new_continue))
+        done.performClick()
+        done.performClick()
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
 
@@ -127,11 +143,53 @@ class WhatsNewScreenTest {
     }
 
     @Test
-    fun `a light page gets dark status bar icons`() {
+    fun `closed and recreated before it has slid away, it still closes`() {
+        val screen = @Composable { WhatsNewScreen(twoSteps, onDismiss = { dismissals++ }) }
+        composeRule.setContent(screen)
+        composeRule.waitForIdle()
+        next()
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.onNodeWithText(string(R.string.whats_new_continue)).performClick()
+        repeat(3) { composeRule.mainClock.advanceTimeByFrame() }
+        // As a change of dark mode on the way down: the new activity shows what the old one saved.
+        composeRule.activityRule.scenario.recreate()
+        composeRule.runOnUiThread { composeRule.activity.setContent(content = screen) }
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(1, dismissals)
+        composeRule.onNodeWithText("What's new in 2.4.0").assertDoesNotExist()
+    }
+
+    @Test
+    fun `one opened again from Settings closes on back from a later page`() {
+        open(skippable = true)
+        next()
+
+        back()
+
+        assertEquals(1, dismissals)
+    }
+
+    @Test
+    fun `the page shows through both system bars`() {
+        open()
+
+        // Android 10 to 14 give a dialog's window bars of the theme's color; 15 makes them clear.
+        val window = dialog().window!!
+        assertEquals(Color.TRANSPARENT, window.statusBarColor)
+        assertEquals(Color.TRANSPARENT, window.navigationBarColor)
+    }
+
+    @Test
+    fun `a light page gets dark status and navigation bar icons`() {
         open()
 
         val window = dialog().window!!
-        assertTrue(WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars)
+        val bars = WindowCompat.getInsetsController(window, window.decorView)
+        assertTrue(bars.isAppearanceLightStatusBars)
+        assertTrue(bars.isAppearanceLightNavigationBars)
     }
 
     @Test

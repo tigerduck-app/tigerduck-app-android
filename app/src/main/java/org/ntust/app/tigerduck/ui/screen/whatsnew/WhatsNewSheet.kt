@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.whatsnew
 
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -76,21 +77,27 @@ import org.ntust.app.tigerduck.data.model.WhatsNewSummary
 import org.ntust.app.tigerduck.data.model.WhatsNewSummaryItem
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
-/** [WhatsNewFlow.steps] one at a time, under a row with the way back, the page dots and a ✕ that runs [onClose]. */
+/**
+ * [WhatsNewFlow.steps] one at a time, under a row with the way back and the page dots; the last
+ * page's button runs [onFinish]. With [backGoesBack], the system back gesture goes a page back,
+ * and on the first page does nothing.
+ */
 @Composable
 internal fun WhatsNewFlowContent(
     flow: WhatsNewFlow,
     animate: Boolean,
-    onClose: () -> Unit,
+    onFinish: () -> Unit,
+    backGoesBack: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val lastIndex = flow.stepCount - 1
     var index by rememberSaveable { mutableIntStateOf(0) }
     val current = index.coerceIn(0, lastIndex)
-    val advance: () -> Unit = { if (current >= lastIndex) onClose() else index = current + 1 }
+    val advance: () -> Unit = { if (current >= lastIndex) onFinish() else index = current + 1 }
+    BackHandler(enabled = backGoesBack) { if (current > 0) index = current - 1 }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        WhatsNewTopBar(flow, current, onBack = { index = current - 1 }, onClose = onClose)
+        WhatsNewTopBar(flow, current, onBack = { index = current - 1 })
 
         AnimatedContent(
             targetState = current,

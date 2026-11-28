@@ -97,7 +97,7 @@ fun TriggersDebugScreen(
 
             TriggerSection(
                 header = "What's New sample",
-                footer = "Opens the paged sheet with one page of every kind — feature, " +
+                footer = "Opens the paged screen with one page of every kind — feature, " +
                     "custom demo, opt-in, permission, pick-between-looks, toggle and a " +
                     "custom page — then a sample summary. Answers change no setting and " +
                     "show up below, except the permission page: on Android 13+ it asks " +
