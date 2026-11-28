@@ -97,7 +97,8 @@ interface BrowserSignIn {
  *
  * Moodle's `/login/` page is never shown: it offers the local password form,
  * which counts each failure and locks the account after about ten (see
- * `MoodleTokenService`).
+ * `MoodleTokenService`). The browser signs in by itself only from a page the
+ * app opened or a school page ([signsInFrom]).
  */
 class MoodleBrowserSignIn(
     private val autologin: MoodleAutologin,
@@ -110,6 +111,12 @@ class MoodleBrowserSignIn(
     override fun hasSession(cookieHeader: String?): Boolean = hasMoodleSession(cookieHeader)
 
     override fun isSignInPage(url: String): Boolean = isMoodleSignInPage(url)
+
+    /**
+     * Only from a page the app opened or a school page, as the school sites' ([SchoolBrowserSignIn]):
+     * another site sending the browser to Moodle's sign-in gets the sign-in screen, and the student's Retry.
+     */
+    override fun signsInFrom(page: String?): Boolean = page == null || SchoolBrowserSignIn.isSchool(page)
 
     override fun isReturnPage(url: String): Boolean = isMoodleReturnPage(url)
 
@@ -154,4 +161,9 @@ class MoodleBrowserSignIn(
 /** The providers the browser asks, first match wins. */
 class BrowserSignIns(private val providers: List<BrowserSignIn>) {
     fun forUrl(url: String): BrowserSignIn? = providers.firstOrNull { it.handles(url) }
+
+    companion object {
+        /** No provider at all: a browser signed in to nothing of the app's. */
+        val NONE = BrowserSignIns(emptyList())
+    }
 }

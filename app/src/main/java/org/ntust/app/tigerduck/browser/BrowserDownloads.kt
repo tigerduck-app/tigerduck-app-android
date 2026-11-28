@@ -41,7 +41,8 @@ sealed interface DownloadPlan {
      * caller left unrestricted, whose every hop may go anywhere. [restriction] follows the launch
      * through redirects, including its first host and any SSO hosts added at opening. Without
      * [withCookies], asked for in a browser opened at risk, it carries none of the browser's cookies
-     * and keeps none.
+     * and keeps none. With [cookies], asked for in the links browser, it carries and keeps that
+     * profile's alone, never the app's own.
      */
     data class Save(
         val url: String,
@@ -50,10 +51,20 @@ sealed interface DownloadPlan {
         val anyPage: Boolean = false,
         val restriction: BrowserAllowlist? = null,
         val withCookies: Boolean = true,
+        val cookies: DownloadCookies? = null,
     ) : DownloadPlan
 
     /** Not saved: off the allowlist, or not an https file the browser can fetch again (`blob:`, `data:`). */
     data object Refused : DownloadPlan
+}
+
+/** A WebView profile's cookies, as a download carries and keeps them; the links browser's ([DownloadPlan.Save.cookies]). */
+interface DownloadCookies {
+    /** The cookies [url] is sent, as `CookieManager.getCookie` gives them. */
+    fun cookieFor(url: String): String?
+
+    /** Keeps a redirect's Set-Cookie value for the address that sent it, done before it returns. */
+    fun keep(url: String, setCookie: String)
 }
 
 object BrowserDownloadPlans {
@@ -180,7 +191,8 @@ class BrowserDownloads(
  * before it removes the browser's cookies. Nor one that leaves the download
  * running (Settings' website data): a cookie is kept only while the session
  * the download began in goes on, and then no more. A plan without the
- * browser's cookies ([DownloadPlan.Save.withCookies]) sends and keeps none.
+ * browser's cookies ([DownloadPlan.Save.withCookies]) sends and keeps none;
+ * one with a profile's own ([DownloadPlan.Save.cookies]) sends and keeps those.
  * Redirects are followed here, one at a time, so a cookie never goes to a
  * host it is not for and a redirect off the allowlist stops the download.
  * The file is written to MediaStore's Downloads, pending until complete and
@@ -201,6 +213,8 @@ class MediaStoreDownloadTransfer(
 
     override suspend fun download(plan: DownloadPlan.Save, progress: (Long, Long?) -> Unit): Uri = withContext(Dispatchers.IO) {
         val session = BrowserSession.generation.value
+        val cookieOf = plan.cookies?.let { it::cookieFor } ?: cookieFor
+        val keep = plan.cookies?.let { it::keep } ?: keepCookie
         var url = plan.url
         repeat(MAX_REDIRECTS + 1) {
             // A download stopped at a sign-out asks for nothing more, under anyone's cookies.
@@ -208,9 +222,9 @@ class MediaStoreDownloadTransfer(
             val hopAllowlist = plan.restriction ?: allowlist().let { if (plan.anyPage) it.lettingAnyPageIn() else it }
             if (!hopAllowlist.allows(url)) throw IOException("download left the allowlist")
             // It carries the browser's cookies, SSO's session among them, which a logout would end.
-            if (BrowserRouting.isLogout(url)) throw IOException("download reached a logout")
+            if (BrowserRouting.isRefusedLogout(url, hopAllowlist)) throw IOException("download reached a logout")
             val request = Request.Builder().url(url).apply {
-                if (plan.withCookies) cookieFor(url)?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }
+                if (plan.withCookies) cookieOf(url)?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }
                 userAgent()?.let { header("User-Agent", it) }
             }.build()
             when (val hop = hop(client.newCall(request), plan, progress)) {
@@ -219,7 +233,7 @@ class MediaStoreDownloadTransfer(
                         // Stopped by a clearing meanwhile: nothing more goes into the browser's cookies.
                         currentCoroutineContext().ensureActive()
                         // Nor after one that let it run: the cookies it cleared stay gone.
-                        BrowserSession.ifStill(session) { keepCookie(url, cookie) }
+                        BrowserSession.ifStill(session) { keep(url, cookie) }
                     }
                     url = hop.url
                 }

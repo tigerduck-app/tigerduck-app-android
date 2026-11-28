@@ -140,7 +140,10 @@ class InAppBrowserActivity : AppCompatActivity() {
         get() = InAppBrowser.allowlistFor(intent)
     @Inject lateinit var settings: BrowserSettings
     @Inject lateinit var downloads: BrowserDownloads
-    @Inject lateinit var signIns: BrowserSignIns
+    @Inject lateinit var appSignIns: BrowserSignIns
+    /** The profile it loads in and what of the app's it may use: for a link the app was handed, nothing; see [BrowserOpening]. */
+    private val opening by lazy { BrowserOpening.of(intent) }
+    private val signIns: BrowserSignIns get() = opening.signIns(appSignIns)
     @Inject lateinit var siteSignIn: BrowserSiteSignIn
     @Inject lateinit var pinManager: PinManager
 
@@ -437,10 +440,10 @@ class InAppBrowserActivity : AppCompatActivity() {
         webView.settings.textZoom = zoom
     }
 
-    /** Opened at risk, [web] goes in its own profile first, or is destroyed: never the app's. Those left before go first. */
+    /** Opened at risk or for a link, [web] goes in its own profile first, or is destroyed: never the app's. Those left at risk go first. */
     private fun inOwnProfile(web: WebView): Boolean {
         InAppBrowser.riskProfiles.sweep(BrowserCleanup.of(this))
-        val profile = riskProfile ?: return true
+        val profile = opening.profile ?: return true
         if (runCatching { WebViewCompat.setProfile(web, profile) }.isSuccess) return true
         web.destroy()
         return false
@@ -468,7 +471,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         mobileUserAgent = settings.userAgentString
         keepAutofillOutAtRisk(this, atRisk = riskProfile != null)
         val web = this
-        (if (riskProfile != null) WebViewCompat.getProfile(web).cookieManager else CookieManager.getInstance()).apply {
+        opening.cookieManager(web).apply {
             setAcceptCookie(true)
             setAcceptThirdPartyCookies(web, false)
         }
@@ -486,14 +489,14 @@ class InAppBrowserActivity : AppCompatActivity() {
         // Before the page's own scripts, in each of its frames. Every WebView the browser opens in has
         // this: deleting all browsing data (InAppBrowser.canClearEverything) came long after it.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            BrowserPageScripts.DOCUMENT_START.forEach { (script, origins) ->
+            BrowserPageScripts.documentStart(hidesLogouts = allowlist.refusesLogouts).forEach { (script, origins) ->
                 runCatching { WebViewCompat.addDocumentStartJavaScript(this, script, origins) }
             }
         }
     }
 
-    /** Opens [target]: signed in first where its site signs the browser in and no session is kept; at risk, as it is. */
-    private fun open(target: String) = if (risk != null) load(target) else SchoolSiteCookies.prepare(target, sessionCleared = {
+    /** Opens [target]: signed in first where its site signs the browser in and no session is kept; in another profile, as it is. */
+    private fun open(target: String) = if (!opening.signsIn) load(target) else SchoolSiteCookies.prepare(target, sessionCleared = {
         signIns.forUrl(target)?.sessionCleared(target)
     }) {
         if (isFinishing || isDestroyed || !BrowserSession.usable ||
@@ -590,8 +593,8 @@ class InAppBrowserActivity : AppCompatActivity() {
         state.title = webView.title
         state.certificate = webView.certificate?.let(CertificateInfo::of)
         state.signedIn = risk == null && signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
-        // At risk, nothing is filled: the student signs in by hand.
-        if (risk == null) siteSignIn.pageFinished(webView, url, loadedSession, lifecycleScope)
+        // At risk or for a link, nothing is filled: the student signs in by hand.
+        if (opening.signsIn) siteSignIn.pageFinished(webView, url, loadedSession, lifecycleScope)
         updateHistory()
         probeTone()
     }
@@ -660,7 +663,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         )
         when (plan) {
             // The page's own session: a page from before a clearing, not yet gone, starts nothing.
-            is DownloadPlan.Save -> if (downloads.start(plan.copy(withCookies = risk == null), session = loadedSession ?: return) == null) return
+            is DownloadPlan.Save -> if (downloads.start(plan.copy(withCookies = risk == null, cookies = opening.downloadCookies(webView)), session = loadedSession ?: return) == null) return
             DownloadPlan.Refused -> Toast.makeText(this, R.string.browser_download_refused, Toast.LENGTH_SHORT).show()
         }
     }
@@ -863,7 +866,8 @@ class InAppBrowserActivity : AppCompatActivity() {
         }
         override fun leaveFor(url: String) {
             state.outsideUrl = null
-            openLink(this@InAppBrowserActivity, url, BrowserPreference.SYSTEM)
+            // As the student's setting opens a link: in app, that is the links browser, signed in to nothing.
+            openLink(this@InAppBrowserActivity, url, appState.browserPreference)
         }
         override fun stayHere() { state.outsideUrl = null }
         override fun closeLinkMenu() { state.linkMenuUrl = null }
@@ -890,7 +894,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = if (request.isForMainFrame) {
             handleNavigation(request.url.toString(), tapped = request.hasGesture())
         } else {
-            BrowserRouting.isLogout(request.url.toString())
+            BrowserRouting.isRefusedLogout(request.url.toString(), allowlist)
         }
 
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {

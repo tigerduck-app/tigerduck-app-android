@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.browser.AllowlistEntry
 import org.ntust.app.tigerduck.browser.BrowserAllowlist
 import org.ntust.app.tigerduck.browser.BrowserLaunchPolicy
+import org.ntust.app.tigerduck.browser.BrowserLinksProfile
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserRiskAcceptance
 import org.ntust.app.tigerduck.browser.BrowserRiskProfiles
@@ -22,7 +23,8 @@ import org.ntust.app.tigerduck.browser.BrowserSignIns
  * WebView, whatever "Open links with" says. Moodle's pages open in it where
  * the Moodle app does not take them (MoodleWebPages.of), the profile pencil
  * among them; another feature opens a page in it with one call to [open].
- * Sign-in is per site, through [BrowserSignIns].
+ * Sign-in is per site, through [BrowserSignIns]. A link the app was handed
+ * opens through [openLink], in a profile of its own signed in to nothing.
  */
 object InAppBrowser {
     private const val EXTRA_ENTRIES = "org.ntust.app.tigerduck.browser.ENTRIES"
@@ -30,6 +32,9 @@ object InAppBrowser {
     private const val EXTRA_UNRESTRICTED = "org.ntust.app.tigerduck.browser.UNRESTRICTED"
     private const val EXTRA_ANY_HTTPS_PAGE = "org.ntust.app.tigerduck.browser.ANY_HTTPS_PAGE"
     const val EXTRA_URL = "org.ntust.app.tigerduck.browser.URL"
+
+    /** Set by [openLink]: the browser loads in the links profile. */
+    private const val EXTRA_LINKS = "org.ntust.app.tigerduck.browser.LINKS"
 
     /** Set by [openAnyPage]: the browser lets every page in, in a debug build only. */
     const val EXTRA_ANY_PAGE = "org.ntust.app.tigerduck.browser.ANY_PAGE"
@@ -56,8 +61,8 @@ object InAppBrowser {
      * not one, when this phone's WebView cannot be cleared ([canClearEverything]),
      * while a deletion is unconfirmed or a clearing owed ([BrowserCleanup]),
      * or when nothing could open, for the caller to open it another way.
-     * With no [allowlist], every HTTPS page loads; HTTP pages ask before opening outside.
-     * A supplied restriction gains the opening host
+     * With no [allowlist], the school's pages and [url] itself load; any other page asks, then
+     * opens as "Open links with" says. A supplied restriction gains the opening host
      * and the SSO hosts used by automatic sign-in.
      */
     fun open(context: Context, url: String, allowlist: BrowserAllowlist? = null): Boolean {
@@ -107,6 +112,25 @@ object InAppBrowser {
         return start(context, intent)
     }
 
+    /**
+     * Opens [url], an https link the app was handed (a mail's, a bulletin's, the website; "Open links
+     * with" set to the TigerDuck browser), in the links profile ([BrowserLinksProfile]): signed in to
+     * nothing of the app's, with every HTTPS page let in. False where the WebView has no profiles,
+     * or as [open] is, for the caller to open the link in the phone's browser: never in the app's
+     * own profile.
+     */
+    fun openLink(context: Context, url: String): Boolean {
+        if (url.toHttpUrlOrNull()?.isHttps != true || !linksProfile.supported()) return false
+        return start(context, Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url).putExtra(EXTRA_LINKS, true))
+    }
+
+    /** Whether [openLink] opened this browser, or the one it opened at risk from. */
+    internal fun opensLinks(intent: Intent): Boolean = intent.getBooleanExtra(EXTRA_LINKS, false)
+
+    /** The profile the links the app was handed load in; a test's own. */
+    @Volatile
+    internal var linksProfile: BrowserLinksProfile = BrowserLinksProfile.shared
+
     /** The profiles a browser opened at risk loads in; a test's own. */
     @Volatile
     internal var riskProfiles: BrowserRiskProfiles = BrowserRiskProfiles.shared
@@ -124,7 +148,11 @@ object InAppBrowser {
         return runCatching { context.startActivity(intent) }.isSuccess
     }
 
-    /** Each launch carries its caller's restriction, with its opening host and SSO redirects added. */
+    /**
+     * Each launch carries its caller's restriction, with its opening host and SSO redirects added. One
+     * with none lets in the school's pages and its first page in the app's own profile, and every
+     * HTTPS page in a profile signed in to nothing: the links browser's, or one opened at risk.
+     */
     internal fun allowlistFor(intent: Intent, debug: Boolean = BuildConfig.DEBUG): BrowserAllowlist {
         val entries = intent.getStringArrayListExtra(EXTRA_ENTRIES)
         val requested = entries?.let {
@@ -135,7 +163,13 @@ object InAppBrowser {
                 anyHttpsPage = intent.getBooleanExtra(EXTRA_ANY_HTTPS_PAGE, false),
             )
         }
-        val policy = BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
+        val policy = when {
+            requested != null -> BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty(), requested)
+            // At risk first: a page the links browser opens at risk refuses logouts, as every one does.
+            riskAcceptance(intent) != null -> BrowserLaunchPolicy.ANY_HTTPS_PAGE
+            opensLinks(intent) -> BrowserLaunchPolicy.LINKS
+            else -> BrowserLaunchPolicy.allowlist(intent.getStringExtra(EXTRA_URL).orEmpty())
+        }
         return if (debug && intent.getBooleanExtra(EXTRA_ANY_PAGE, false)) policy.lettingAnyPageIn() else policy
     }
 

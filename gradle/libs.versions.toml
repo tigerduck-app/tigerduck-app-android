@@ -18,7 +18,6 @@ bouncycastle = "1.87"
 securityCrypto = "1.1.0"
 coroutines = "1.11.0"
 zxing = "3.5.4"
-browser = "1.10.0"
 webkit = "1.18.0"
 media3 = "1.11.1"
 commonsCompress = "1.28.0"
@@ -79,7 +78,6 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
-androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }

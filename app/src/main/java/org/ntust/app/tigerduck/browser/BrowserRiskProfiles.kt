@@ -140,7 +140,7 @@ class BrowserRiskProfiles(private val profiles: WebViewProfiles) {
 }
 
 /** The WebView's own profiles, through androidx.webkit. */
-private object AndroidWebViewProfiles : WebViewProfiles {
+internal object AndroidWebViewProfiles : WebViewProfiles {
     override fun supported(): Boolean =
         WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE) &&
             WebViewFeature.isFeatureSupported(WebViewFeature.DELETE_BROWSING_DATA)
@@ -152,7 +152,8 @@ private object AndroidWebViewProfiles : WebViewProfiles {
     }
 
     override fun clear(name: String, done: () -> Unit) {
-        // Asked only for one made here, which is loaded already: never one a later process must delete.
+        // Asked only for one made here, which is loaded already, never one a later process must delete,
+        // or for the links profile, which is never deleted and loads here if an earlier process made it.
         val profile = ProfileStore.getInstance().getProfile(name) ?: return done()
         WebStorageCompat.deleteBrowsingData(profile.webStorage) { done() }
     }

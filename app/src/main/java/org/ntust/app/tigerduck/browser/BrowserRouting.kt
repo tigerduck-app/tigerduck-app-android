@@ -27,11 +27,12 @@ object BrowserRouting {
      * page outside, hand a mail link the student [tapped] to the mail app, and refuse the rest:
      * a script's never opens Mail, as on the iPhone. A page's own `about:blank` stays; an empty
      * window it opens loads nothing ([BrowserPageScripts.EMPTY_WINDOW]). Moodle's logout is refused
-     * ([isMoodleLogout]), as are the school sites' ([isSchoolLogout]).
+     * ([isMoodleLogout]), as are the school sites' ([isSchoolLogout]), but where the allowlist lets
+     * them go ([BrowserAllowlist.refusesLogouts]).
      */
     fun navigation(url: String, allowlist: BrowserAllowlist, tapped: Boolean = false): NavigationDecision = when (scheme(url)) {
         "https", "http" -> when {
-            isLogout(url) -> NavigationDecision.Refuse
+            isRefusedLogout(url, allowlist) -> NavigationDecision.Refuse
             allowlist.allows(url) -> NavigationDecision.Load
             else -> NavigationDecision.OpenOutside(url)
         }
@@ -53,7 +54,10 @@ object BrowserRouting {
      * browser then signs in again as for any session Moodle ends.
      */
     fun blocksRequest(url: String, isForMainFrame: Boolean, allowlist: BrowserAllowlist): Boolean =
-        isLogout(url) || isForMainFrame && navigation(url, allowlist) != NavigationDecision.Load
+        isRefusedLogout(url, allowlist) || isForMainFrame && navigation(url, allowlist) != NavigationDecision.Load
+
+    /** Whether [url] is a logout the browser [allowlist] restricts refuses: one that would end a session of the app's. */
+    fun isRefusedLogout(url: String, allowlist: BrowserAllowlist): Boolean = allowlist.refusesLogouts && isLogout(url)
 
     /** Whether [url] signs the student out of a school site, by its site's own rules or the school-wide ones. */
     fun isLogout(url: String): Boolean = BrowserSchoolSites.isLogout(url) || isSchoolLogout(url)

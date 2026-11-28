@@ -95,15 +95,17 @@ class MoodleWebPagesTest {
     }
 
     @Test
-    fun `in the app's browser it is a Custom Tab of the default browser`() = runTest {
+    fun `with the in-app setting the signed-in page still goes to the default browser itself, never the links browser`() = runTest {
         installBrowser()
 
         pages().open(context, page, "inApp")
 
         val intent = started.single()
+        assertEquals(Intent.ACTION_VIEW, intent.action)
         assertEquals(signed, intent.dataString)
         assertEquals("com.example.browser", intent.`package`)
-        assertTrue(intent.hasExtra("android.support.customtabs.extra.SESSION"))
+        assertNull(intent.component)
+        assertFalse("not a Custom Tab", intent.hasExtra("android.support.customtabs.extra.SESSION"))
     }
 
     @Test

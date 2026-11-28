@@ -302,6 +302,30 @@ class BrowserDownloadsTest {
     }
 
     @Test
+    fun `one asked for in the links browser carries and keeps that profile's cookies alone, never the app's`() = runTest(StandardTestDispatcher()) {
+        val sent = mutableListOf<Pair<String, String?>>()
+        val app = FakeCookieStore(sent)
+        val links = object : DownloadCookies {
+            val kept = mutableListOf<String>()
+            override fun cookieFor(url: String): String = if (kept.isEmpty()) "Links=1" else "Links=2"
+            override fun keep(url: String, setCookie: String) {
+                kept += "$url $setCookie"
+            }
+        }
+        val hops = mapOf(
+            "https://moodle2.ntust.edu.tw/a.pdf" to Hop(302, "https://moodle2.ntust.edu.tw/b.pdf", setCookies = listOf("MoodleSession=new; Path=/")),
+            "https://moodle2.ntust.edu.tw/b.pdf" to Hop(200, body = "PDF"),
+        )
+
+        transfer(hops, sent, mutableListOf(), app).download(save.copy(cookies = links)) { _, _ -> }
+
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf" to "Links=1", "https://moodle2.ntust.edu.tw/b.pdf" to "Links=2"), sent)
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf MoodleSession=new; Path=/"), links.kept)
+        assertTrue(app.kept.isEmpty())
+        assertEquals("MoodleSession=abc", app.cookieFor("https://moodle2.ntust.edu.tw/"))
+    }
+
+    @Test
     fun `a redirect that answers after the sites' data was cleared keeps none of its cookies`() = runTest(StandardTestDispatcher()) {
         val sent = mutableListOf<Pair<String, String?>>()
         val store = FakeCookieStore(sent)

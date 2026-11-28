@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
 import android.webkit.MimeTypeMap
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import dagger.hilt.EntryPoint
@@ -151,8 +150,8 @@ fun interface MoodleWebPages {
 
 /**
  * A page on the Moodle site in the TigerDuck browser ([openInApp]), whatever the Browser setting
- * says: its session there lasts until TigerDuck signs out, where a Custom Tab or another browser
- * keeps one the app can neither see nor clear. Where the browser declines (a WebView too old to
+ * says: its session there lasts until TigerDuck signs out, where another browser keeps one the app
+ * can neither see nor clear. Where the browser declines (a WebView too old to
  * clear, a clearing owed), and for any other site, [fallback] opens it as the setting asks.
  */
 internal class InAppFirstMoodleWebPages(
@@ -171,8 +170,8 @@ internal class InAppFirstMoodleWebPages(
 /**
  * Opens a page on the Moodle site signed in through [signIn] where a key comes in time, else as
  * a plain link. A signed-in link carries a one-time key, so it goes only to the default browser,
- * named in the intent, or a Custom Tab of it, never to whatever app claims the link; with no
- * browser to name, no key is asked for at all. The key is asked for in [scope], the app's, so
+ * named in the intent, never to whatever app claims the link, nor to the TigerDuck browser's links
+ * profile, which takes nothing of the app's; with no browser to name, no key is asked for at all. The key is asked for in [scope], the app's, so
  * leaving the screen meanwhile does not stop the page opening. While [signIn] says it waits on a
  * sign-in, [processing] shows the app-wide spinner.
  */
@@ -202,22 +201,16 @@ internal class SignedInMoodleWebPages(
             if (signedIn == null) {
                 openLink(context, url, preference)
             } else {
-                runCatching { context.startActivity(signedInPageIntent(context, signedIn, browser, inApp = preference == "inApp")) }
+                runCatching { context.startActivity(signedInPageIntent(signedIn, browser)) }
                     .onFailure { openLink(context, url, preference) }
             }
         }
     }
 }
 
-/** [url], signed in, for [browser] alone: a Custom Tab of it in the app, else the browser itself. */
-internal fun signedInPageIntent(context: Context, url: String, browser: String, inApp: Boolean): Intent {
-    val intent = if (inApp) CustomTabsIntent.Builder().build().intent else Intent(Intent.ACTION_VIEW)
-    intent.data = url.toUri()
-    intent.setPackage(browser)
-    intent.addCategory(Intent.CATEGORY_BROWSABLE)
-    if (!inApp || context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    return intent
-}
+/** [url], signed in, for [browser] alone, whatever "Open links with" says. */
+internal fun signedInPageIntent(url: String, browser: String): Intent =
+    Intent(Intent.ACTION_VIEW, url.toUri()).setPackage(browser).addCategory(Intent.CATEGORY_BROWSABLE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 /**
  * The browser that opens a web page by default, or the only browser there is; null with several
